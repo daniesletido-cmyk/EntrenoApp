@@ -1,0 +1,320 @@
+@import "tailwindcss";
+
+/* ============================================================
+   ENTRENOAPP — SISTEMA DE DISEÑO
+   Tokens centralizados. Cambiar aquí afecta a toda la app.
+   ============================================================ */
+:root {
+  /* Superficies */
+  --color-bg: #0b0d12;
+  --color-surface: #12151c;
+  --color-surface-raised: #171b24;
+  --color-surface-hover: #1c2129;
+  --color-border: #262c37;
+  --color-border-strong: #333b49;
+
+  /* Texto */
+  --color-text: #e9ecf1;
+  --color-text-muted: #9aa3b2;
+  --color-text-faint: #8c93a0; /* AA (>5:1) sobre superficies normales y elevadas */
+
+  /* Marca */
+  --color-brand: #2f6feb;
+  --color-brand-hover: #4f86f0;
+  --color-brand-contrast: #ffffff;
+  --color-accent: #f97316;
+  --gradient-brand: linear-gradient(135deg, #2f6feb 0%, #6d5bf0 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #3f7bf5 0%, #7d6bf5 100%);
+
+  /* Estados semánticos */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.12);
+  --color-warning: #f0a020;
+  --color-warning-bg: rgba(240, 160, 32, 0.12);
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+
+  /* Tipografía — escala ampliada para que todo se lea más grande y con más
+     jerarquía entre tamaños (pedido explícito: "que se vea todo más grande") */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  /* Espaciado (escala de 4px, ampliada para dar más aire entre grupos) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.875rem;
+  --space-4: 1.125rem;
+  --space-5: 1.5rem;
+  --space-6: 1.75rem;
+  --space-8: 2.25rem;
+
+  /* Radios */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* Sombras (sutiles, uso reducido; combinan una sombra de contacto fina
+     con una difusa, más real que una sola sombra plana) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.24), 0 12px 28px rgba(0, 0, 0, 0.32);
+  --shadow-glow-brand: 0 8px 24px rgba(47, 111, 235, 0.28);
+
+  /* Foco accesible */
+  --focus-ring: 0 0 0 3px rgba(47, 111, 235, 0.45);
+
+  /* Transiciones */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Números alineados (cifras de igual anchura) para estadísticas y tablas */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: rgba(47, 111, 235, 0.35);
+}
+
+/* Scrollbars discretos */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: var(--radius-full); }
+
+/* Foco visible consistente en toda la app, sin depender del navegador */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ---------- Primitivas reutilizables ---------- */
+
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--duration-base) var(--ease), transform var(--duration-base) var(--ease),
+    box-shadow var(--duration-base) var(--ease);
+}
+
+/* Para tarjetas que son en sí mismas un control (botón/enlace clicable) —
+   pequeño realce al pasar el ratón, nunca en tarjetas puramente informativas. */
+.surface-interactive {
+  cursor: pointer;
+}
+.surface-interactive:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.surface-raised {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Mantener compatibilidad con .panel usado en el resto del código */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.field {
+  width: 100%;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+  min-height: 42px;
+}
+
+.field::placeholder {
+  color: var(--color-text-faint);
+}
+
+.field:hover {
+  border-color: var(--color-border-strong);
+}
+
+.field:focus-visible {
+  border-color: var(--color-brand);
+}
+
+.field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+textarea.field {
+  min-height: 72px;
+  resize: vertical;
+}
+
+/* ---------- Botones ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  min-height: 42px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease);
+  white-space: nowrap;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: var(--gradient-brand);
+  color: var(--color-brand-contrast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.btn-primary:hover:not(:disabled) { background: var(--gradient-brand-hover); box-shadow: var(--shadow-glow-brand); }
+
+.btn-secondary {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--color-surface-hover); border-color: var(--color-border-strong); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--color-surface-hover); color: var(--color-text); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--color-danger);
+}
+.btn-danger:hover:not(:disabled) { background: var(--color-danger-bg); }
+
+.btn-icon {
+  padding: 0.5rem;
+  min-width: 38px;
+}
+
+/* ---------- Badges / chips ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.badge-neutral { background: var(--color-surface-raised); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.badge-success { background: var(--color-success-bg); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-bg); color: var(--color-warning); }
+.badge-danger { background: var(--color-danger-bg); color: var(--color-danger); }
+.badge-info { background: var(--color-info-bg); color: var(--color-info); }
+.badge-brand { background: rgba(47, 111, 235, 0.15); color: var(--color-brand-hover); }
+
+/* ---------- Utilidades de texto ---------- */
+.text-muted { color: var(--color-text-muted); }
+.text-faint { color: var(--color-text-faint); }
+
+/* ---------- Agrupación visual ---------- */
+/* Envuelve varias tarjetas relacionadas bajo un mismo título de sección,
+   para que la interfaz se lea agrupada en vez de una lista plana de tarjetas
+   sueltas del mismo peso. */
+.section-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+.section-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.section-group-description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: -4px;
+}
+
+/* ---------- Animaciones sutiles ---------- */
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.animate-in { animation: fade-in var(--duration-base) var(--ease); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 1rem; height: 1rem; border-radius: 50%;
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-brand);
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in, .spinner { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* Área táctil mínima en móvil para acciones importantes */
+@media (max-width: 640px) {
+  .btn { min-height: 44px; }
+  .field { min-height: 44px; }
+}

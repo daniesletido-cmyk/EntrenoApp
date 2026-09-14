@@ -1,0 +1,84 @@
+{
+  "name": "entrenoapp",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "next dev -p 3210",
+    "build": "next build",
+    "start": "next start -p 3210",
+    "lint": "next lint",
+    "build:desktop": "next build && node scripts/copy-standalone-assets.mjs && electron-builder --win",
+    "dist": "npm run build:desktop",
+    "build:mobile": "node scripts/build-mobile.mjs && npx cap sync",
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "build:apk": "npm run build:mobile && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@fontsource/inter": "^5.3.0",
+    "exceljs": "^4.4.0",
+    "fit-file-parser": "^5.0.2",
+    "lucide-react": "^0.460.0",
+    "next": "16.3.4",
+    "pdf-parse": "^1.1.4",
+    "react": "^19",
+    "react-dom": "^19",
+    "recharts": "^2.15.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "electron": "^35.7.5",
+    "electron-builder": "^26.15.3",
+    "postcss": "^8",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.javatec.entrenoapp",
+    "productName": "EntrenoApp",
+    "publish": null,
+    "asar": true,
+    "asarUnpack": [
+      ".next/standalone/**/*"
+    ],
+    "files": [
+      "electron/**/*",
+      "package.json",
+      "!node_modules/**/*",
+      ".next/standalone/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "${productName}-Instalador-${version}.${ext}"
+    }
+  }
+}

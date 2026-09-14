@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EntrenoApp</string>
+    <string name="title_activity_main">EntrenoApp</string>
+    <string name="package_name">com.javatec.entrenoapp</string>
+    <string name="custom_url_scheme">com.javatec.entrenoapp</string>
+</resources>
