@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.javatec.entrenoapp',
+  appId: 'com.danielespinosa.entrenoapp',
   appName: 'EntrenoApp',
   webDir: 'out',
   server: {

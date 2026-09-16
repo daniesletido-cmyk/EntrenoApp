@@ -78,6 +78,7 @@ function createSchema(d: AppDb) {
       discipline TEXT NOT NULL,
       planned_code TEXT,
       is_long_run INTEGER NOT NULL DEFAULT 0,
+      is_extra INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'pendiente',
       rpe REAL,
       duration_min REAL,
@@ -188,6 +189,9 @@ function migrateSchema(d: AppDb) {
   // sobre esa sesión, o después de deshacerlo.
   if (!columnExists(d, "sessions", "fit_backup")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN fit_backup TEXT;`);
+  }
+  if (!columnExists(d, "sessions", "is_extra")) {
+    d.exec(`ALTER TABLE sessions ADD COLUMN is_extra INTEGER NOT NULL DEFAULT 0;`);
   }
 
   // Puntuación de sueño (0-100) y desglose por fases en minutos, que llegan al

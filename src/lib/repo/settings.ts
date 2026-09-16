@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 
-// Perfil de JavaTec, recogido en la entrevista inicial (ver memoria del
+// Perfil de Daniel Espinosa, recogido en la entrevista inicial (ver memoria del
 // usuario / plan de entrenamiento). Sirven de valores por defecto la
 // primera vez que arranca la app; editables desde Configuración.
 const DEFAULT_SETTINGS: Record<string, string> = {

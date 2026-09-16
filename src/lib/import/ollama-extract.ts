@@ -63,6 +63,7 @@ Instrucciones para "notes" — esto es lo más importante de la extracción:
 - Usa saltos de línea (\\n) entre ejercicios o bloques para que quede legible, pero no acortes ni parafrasees el contenido — es preferible una nota larga y literal que una corta y resumida.
 - Si la distancia de una tirada larga remite a otro documento (p. ej. "ver hoja de seguimiento", "según tabla semanal"), copia esa referencia tal cual en las notas — NUNCA inventes ni calcules un número de kilómetros que no esté escrito explícitamente en este documento.
 - Si no hay ningún detalle más allá del código de la sesión, deja notes en null.
+- IMPORTANTE sobre comillas: NUNCA uses comillas dobles (") dentro de las notas o textos (por ejemplo, para segundos de ritmo como 15-20"/km, escribe '15-20s/km' o '15-20 seg/km' o usa comillas simples '). Las comillas dobles no escapadas rompen el formato JSON.
 
 Reglas estrictas: NUNCA inventes una sesión que no aparezca en el documento. Si un campo no está claro o no aparece, pon null (o false para is_long_run) en vez de adivinar. Si el documento no parece un plan de entrenamiento, devuelve un array vacío []. Responde EXCLUSIVAMENTE con el array JSON, sin ningún comentario ni explicación adicional.`;
 
@@ -101,7 +102,23 @@ function extractJsonArray(text: string): unknown[] {
       "El modelo local no devolvió un array JSON reconocible. Prueba con un modelo más grande en Configuración."
     );
   }
-  return JSON.parse(trimmed.slice(start, end + 1));
+  const jsonSlice = trimmed.slice(start, end + 1);
+  try {
+    return JSON.parse(jsonSlice);
+  } catch {
+    // Reparar errores sintácticos habituales de LLMs (comillas de segundos 15-20"/km, comillas internas, comas finales)
+    try {
+      const repaired = jsonSlice
+        .replace(/(\d+)"(\/km)/gi, '$1 seg$2')
+        .replace(/(\d+)"(\s)/g, '$1 seg$2')
+        .replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(repaired);
+    } catch {
+      throw new Error(
+        "El modelo local devolvió una respuesta con formato JSON inválido. Inténtalo de nuevo o importa el plan en formato Excel (.xlsx)."
+      );
+    }
+  }
 }
 
 async function callOllama(kind: "plan" | "menu" | "gym", userText: string, images?: string[]): Promise<unknown[]> {

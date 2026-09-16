@@ -267,6 +267,18 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
+        <div className="surface" style={{ padding: "var(--space-4)" }}>
+          <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-1)" }}>
+            Acerca de EntrenoApp
+          </div>
+          <p className="text-sm text-muted">
+            Aplicación de seguimiento y planificación de entrenamiento, descanso y nutrición.
+          </p>
+          <div className="text-xs font-semibold" style={{ marginTop: "var(--space-2)", color: "var(--color-brand)" }}>
+            Diseñada por Daniel Espinosa
+          </div>
+        </div>
+
         <div className="flex items-start gap-2 text-xs text-faint">
           <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: 1 }} />
           En la versión de escritorio (Electron), el botón de copia de seguridad abrirá el diálogo nativo de Windows

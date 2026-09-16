@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
   if (!file.name.toLowerCase().endsWith(".csv")) {
     return NextResponse.json(
-      { error: "Solo se admite el CSV exportado desde ZeppBridge (pestaña «Hand to AI» → Export format CSV)." },
+      { error: "Solo se admite formato .csv (exportado desde ZeppBridge o archivo CSV de sueño con columnas fecha, horas, calidad)." },
       { status: 400 }
     );
   }

@@ -15,7 +15,7 @@ import { addDays, weekDates } from "@/lib/dates";
  * - Sueño y fatiga: sueño insuficiente o de mala calidad de forma sostenida reduce la capacidad
  *   de recuperación y sube el riesgo de lesión/enfermedad — señal para bajar intensidad, no para
  *   forzar series de calidad.
- * - Nunca se entrena por pulso en el caso de JavaTec (taquicardia, FC de reposo alta, apto sin
+ * - Nunca se entrena por pulso en este caso (taquicardia, FC de reposo alta, apto sin
  *   restricciones): todas las recomendaciones son en términos de RPE/ritmo, nunca de frecuencia
  *   cardíaca absoluta.
  * - Señales de alarma (dolor articular persistente, síntomas cardiovasculares nuevos) cortocircuitan

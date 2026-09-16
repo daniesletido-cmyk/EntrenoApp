@@ -54,6 +54,14 @@ const NAV_GROUPS = [
   },
 ];
 
+const BOTTOM_NAV = [
+  { href: "/", label: "Resumen", icon: LayoutDashboard },
+  { href: "/hoy", label: "Hoy", icon: Sun },
+  { href: "/registro", label: "Registro", icon: ClipboardList },
+  { href: "/plan-semanal", label: "Plan", icon: CalendarRange },
+  { href: "/progreso", label: "Progreso", icon: TrendingUp },
+];
+
 const LINKS = NAV_GROUPS.flatMap((g) => g.links);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -125,8 +133,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="text-xs text-faint" style={{ padding: "var(--space-4)" }}>
-          Maratón · {raceDate}
+        <div className="text-xs text-faint" style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 3 }}>
+          <div>Maratón · {raceDate}</div>
+          <div style={{ color: "var(--color-text-muted)" }}>Diseñada por Daniel Espinosa</div>
         </div>
       </aside>
 
@@ -137,8 +146,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             display: "flex",
             alignItems: "center",
             gap: "var(--space-3)",
-            padding: "var(--space-3) var(--space-4)",
-            background: "var(--color-surface)",
+            padding: "calc(var(--space-2) + env(safe-area-inset-top, 0px)) var(--space-4) var(--space-2)",
+            background: "rgba(18, 21, 28, 0.95)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
             borderBottom: "1px solid var(--color-border)",
           }}
         >
@@ -150,8 +161,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <Image src="/brand/logo-mark.png" alt="" width={28} height={28} className="rounded-lg" />
-          <span className="font-semibold">{current?.label ?? "EntrenoApp"}</span>
+          <Image src="/brand/logo-mark.png" alt="" width={26} height={26} className="rounded-lg" />
+          <span className="font-semibold text-sm">{current?.label ?? "EntrenoApp"}</span>
         </div>
         {mobileOpen && (
           <>
@@ -175,7 +186,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 display: "flex",
                 flexDirection: "column",
                 gap: 2,
-                maxHeight: "calc(100vh - 60px)",
+                maxHeight: "calc(100vh - 120px)",
                 overflowY: "auto",
                 boxShadow: "var(--shadow-md)",
               }}
@@ -190,14 +201,84 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileOpen(false)}
                 />
               ))}
+              <div
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  borderTop: "1px solid var(--color-border)",
+                  marginTop: "var(--space-2)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+                  Diseñada por Daniel Espinosa
+                </div>
+                <div className="text-xs text-faint">Maratón · {raceDate}</div>
+              </div>
             </nav>
           </>
         )}
       </div>
 
+      {/* Barra de navegación inferior rápida en móvil (PWA / iPhone) */}
+      <nav
+        className="md:hidden"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "rgba(18, 21, 28, 0.95)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderTop: "1px solid var(--color-border)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          zIndex: 45,
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          boxShadow: "0 -2px 10px rgba(0,0,0,0.3)",
+        }}
+      >
+        {BOTTOM_NAV.map((item) => {
+          const active = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+                padding: "6px 2px 7px",
+                minHeight: 48,
+                color: active ? "var(--color-brand)" : "var(--color-text-muted)",
+                transition: "color var(--duration-fast) var(--ease)",
+                textDecoration: "none",
+              }}
+            >
+              <Icon size={19} strokeWidth={active ? 2.5 : 1.8} />
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  fontWeight: active ? 700 : 500,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <main style={{ flex: 1, minWidth: 0 }}>
-        <div className="mx-auto" style={{ maxWidth: 1240, padding: "var(--space-8) var(--space-6)" }}>
-          <div className="md:hidden" style={{ height: 44 }} />
+        <div className="mx-auto main-content-container" style={{ maxWidth: 1240 }}>
+          <div className="md:hidden" style={{ height: "calc(44px + env(safe-area-inset-top, 0px))" }} />
           {children}
         </div>
       </main>
@@ -236,7 +317,7 @@ function Brand() {
       />
       <div style={{ position: "relative" }}>
         <div style={{ fontWeight: 800, fontSize: "var(--text-base)", lineHeight: 1.1, letterSpacing: "-0.01em" }}>EntrenoApp</div>
-        <div className="text-xs text-faint">JavaTec</div>
+        <div className="text-xs text-faint">Por Daniel Espinosa</div>
       </div>
     </div>
   );

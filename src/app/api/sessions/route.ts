@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     discipline: body.discipline as Discipline,
     planned_code: body.planned_code ?? null,
     is_long_run: !!body.is_long_run,
+    is_extra: !!body.is_extra,
     notes: body.notes ?? null,
   });
   return NextResponse.json({ session }, { status: 201 });

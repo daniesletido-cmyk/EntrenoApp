@@ -15,7 +15,7 @@ export interface MenuItemRow {
 
 // Objetivos de macros por fase, tal y como están calculados en el documento
 // completo del plan (Mifflin-St Jeor, ~1.672 kcal BMR). El detalle exacto de
-// alimentos/gramos por día vive en Menu_Semanal_JavaTec.docx — pendiente de
+// alimentos/gramos por día vive en Menu_Semanal.docx — pendiente de
 // importar ese contenido real (nunca se inventa un menú día a día).
 export const PHASE_MACROS: Record<number, { kcal: number; protein_g: number; carbs_g: number; fat_g: number; label: string }> = {
   1: { kcal: 2900, protein_g: 139, carbs_g: 312, fat_g: 122, label: "Fase 1 — Base + Hipertrofia" },

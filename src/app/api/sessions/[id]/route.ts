@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { applyFitImport, deleteSession, logSessionResult, undoFitImport, updatePlannedSession } from "@/lib/repo/sessions";
+import { deleteSession, undoFitImport, updateSession } from "@/lib/repo/sessions";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -17,34 +17,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ session });
   }
 
-  if (body.status) {
-    // fitImport: true indica que estos valores vienen de aplicar un archivo
-    // .fit (ver Registro) — se guarda el estado anterior para poder deshacer.
-    const session = body.fitImport
-      ? applyFitImport(sessionId, {
-          status: body.status,
-          rpe: body.rpe ?? null,
-          duration_min: body.duration_min ?? null,
-          distance_km: body.distance_km ?? null,
-          notes: body.notes ?? null,
-        })
-      : logSessionResult(sessionId, {
-          status: body.status,
-          rpe: body.rpe ?? null,
-          duration_min: body.duration_min ?? null,
-          distance_km: body.distance_km ?? null,
-          notes: body.notes ?? null,
-        });
-    return NextResponse.json({ session });
-  }
-
-  const session = updatePlannedSession(sessionId, {
+  const session = updateSession(sessionId, {
     discipline: body.discipline,
     planned_code: body.planned_code,
     is_long_run: body.is_long_run,
+    is_extra: body.is_extra !== undefined ? (body.is_extra ? 1 : 0) : undefined,
     date: body.date,
+    status: body.status,
+    rpe: body.rpe !== undefined ? (body.rpe === "" || body.rpe === null ? null : Number(body.rpe)) : undefined,
+    duration_min: body.duration_min !== undefined ? (body.duration_min === "" || body.duration_min === null ? null : Number(body.duration_min)) : undefined,
+    distance_km: body.distance_km !== undefined ? (body.distance_km === "" || body.distance_km === null ? null : Number(body.distance_km)) : undefined,
     notes: body.notes,
+    fitImport: !!body.fitImport,
   });
+
+  if (!session) {
+    return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
+  }
+
   return NextResponse.json({ session });
 }
 

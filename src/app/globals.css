@@ -318,3 +318,19 @@ textarea.field {
   .btn { min-height: 44px; }
   .field { min-height: 44px; }
 }
+
+/* Contenedor principal con paddings adaptados a móvil y escritorio */
+.main-content-container {
+  padding: var(--space-8) var(--space-6);
+}
+
+@media (max-width: 768px) {
+  .main-content-container {
+    padding: var(--space-3) var(--space-3) calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  
+  /* Asegurar que las tarjetas y modales no desborden en pantallas estrechas */
+  .surface {
+    border-radius: var(--radius-md) !important;
+  }
+}

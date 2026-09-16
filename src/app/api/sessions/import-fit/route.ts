@@ -44,17 +44,41 @@ export async function POST(req: NextRequest) {
     const weekStart = weekStartOf(summary.date);
     const sessionsThatWeek = listSessionsForWeek(weekStart);
     const candidates = sessionsThatWeek.filter((s) => s.date === summary.date);
-    const exactMatch = candidates.find((s) => s.discipline === summary.sport && s.status === "pendiente");
-    const sameDayMatch = candidates.find((s) => s.status === "pendiente");
+
+    // Puntuación para elegir la sesión adecuada cuando hay varias en el mismo día:
+    // 1. Coincidencia exacta de disciplina (ej. carrera vs gimnasio): +100
+    // 2. Sesión pendiente (frente a ya realizada/cancelada): +50
+    // 3. Coincidencia de código o nombre con la actividad del .fit: +30
+    // 4. Tirada larga con distancia acorde: +15
+    const scoredCandidates = candidates.map((s) => {
+      let score = 0;
+      if (s.discipline === summary.sport) score += 100;
+      else if (summary.sport === "otro" && s.discipline === "otro") score += 50;
+
+      if (s.status === "pendiente") score += 50;
+      else if (s.status === "parcial") score += 20;
+
+      if (s.planned_code) {
+        const code = s.planned_code.toLowerCase();
+        const act = summary.activityName.toLowerCase();
+        if (act.includes(code) || code.includes(act)) score += 30;
+      }
+
+      if (summary.sport === "carrera" && s.is_long_run && (summary.distanceKm ?? 0) >= 12) {
+        score += 15;
+      }
+
+      return { session: s, score };
+    });
+
+    scoredCandidates.sort((a, b) => b.score - a.score);
+    const bestMatch = scoredCandidates[0]?.score && scoredCandidates[0].score >= 50 ? scoredCandidates[0].session : null;
 
     const swapSuggestions: SwapSuggestion[] = [];
-    if (!exactMatch) {
+    if (!bestMatch || bestMatch.discipline !== summary.sport) {
       const elsewhere = sessionsThatWeek.filter(
         (s) => s.date !== summary.date && s.discipline === summary.sport && s.status === "pendiente"
       );
-      // Si hay varias sesiones pendientes hoy, solo se ofrece intercambiar con
-      // la primera que no sea ya de esta disciplina — con más de una pendiente
-      // el mismo día el caso es raro y mejor no adivinar cuál.
       const todayPending = candidates.find((s) => s.status === "pendiente" && s.discipline !== summary.sport);
       for (const match of elsewhere) {
         swapSuggestions.push({
@@ -74,8 +98,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       summary,
       feedback,
-      matchedSessionId: exactMatch?.id ?? sameDayMatch?.id ?? null,
-      otherSessionsThatDay: candidates.map((s) => ({ id: s.id, discipline: s.discipline, planned_code: s.planned_code, status: s.status })),
+      matchedSessionId: bestMatch?.id ?? null,
+      suggestedActivityName: bestMatch?.planned_code || summary.activityName,
+      otherSessionsThatDay: candidates.map((s) => ({
+        id: s.id,
+        discipline: s.discipline,
+        planned_code: s.planned_code,
+        status: s.status,
+        is_long_run: s.is_long_run,
+        isDisciplineMatch: s.discipline === summary.sport,
+      })),
       swapSuggestions,
     });
   } catch (err) {

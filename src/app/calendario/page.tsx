@@ -22,6 +22,7 @@ interface SessionRow {
   discipline: string;
   planned_code: string | null;
   is_long_run: number;
+  is_extra?: number;
   status: string;
   rpe: number | null;
   duration_min: number | null;

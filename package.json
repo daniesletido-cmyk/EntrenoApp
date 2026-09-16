@@ -2,6 +2,8 @@
   "name": "entrenoapp",
   "version": "0.1.0",
   "private": true,
+  "author": "Daniel Espinosa",
+  "description": "EntrenoApp · Diseñada por Daniel Espinosa",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev -p 3210",
@@ -14,7 +16,8 @@
     "cap:sync": "npx cap sync",
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
-    "build:apk": "npm run build:mobile && cd android && gradlew.bat assembleDebug"
+    "build:apk": "npm run build:mobile && cd android && gradlew.bat assembleDebug",
+    "download:mobile": "node scripts/download-artifacts.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -22,6 +25,7 @@
     "@capacitor/core": "^8.5.2",
     "@capacitor/ios": "^8.5.2",
     "@fontsource/inter": "^5.3.0",
+    "@libsql/client": "^0.18.0",
     "exceljs": "^4.4.0",
     "fit-file-parser": "^5.0.2",
     "lucide-react": "^0.460.0",
@@ -46,7 +50,7 @@
     "typescript": "^5"
   },
   "build": {
-    "appId": "com.javatec.entrenoapp",
+    "appId": "com.danielespinosa.entrenoapp",
     "productName": "EntrenoApp",
     "publish": null,
     "asar": true,

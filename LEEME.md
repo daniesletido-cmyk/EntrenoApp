@@ -1,6 +1,6 @@
 # EntrenoApp
 
-Registro de entrenamiento y nutrición de JavaTec — sustituye a `Seguimiento_Entrenamiento_JavaTec.xlsx`.
+Registro y seguimiento de entrenamiento, descanso y nutrición — Diseñada por Daniel Espinosa.
 
 ## Sobre "se cierra sola la pestaña" al generar el instalador
 
@@ -136,7 +136,7 @@ Si aun así no arranca, antes de nada prueba esto:
 - **Progreso** (nuevo): gráficos de cumplimiento semanal, RPE/ACWR, sueño y peso corporal a lo largo del tiempo.
 - **Objetivos** (nuevo): fija metas (tiempo de carrera, peso, fuerza...) con fecha objetivo y valor actual, con cuenta atrás de días.
 - **Calendario** (nuevo): vista mensual con tus objetivos, el día del maratón y tus tiradas largas marcadas.
-- **Menú**: objetivos de macros por fase; el detalle día a día se rellenará al importar `Menu_Semanal_JavaTec.docx`.
+- **Menú**: objetivos de macros por fase; el detalle día a día se rellenará al importar `Menu_Semanal.docx`.
 - **Configuración**: perfil editable y copia de seguridad (exportar/restaurar, tú eliges dónde guardarla).
 - **Logo e icono propios**: un pictograma de corredor (provisional — dímelo si quieres que lo cambie por otra idea o por un logo tuyo), ya aplicado como favicon, en la cabecera de la app y como icono para el futuro instalador.
 - **Animación de arranque** mejorada, ya con el logo nuevo.
@@ -159,7 +159,7 @@ fallo se puede depurar de verdad.
 
 ## Pendiente
 
-- Importar el menú semanal real (`Menu_Semanal_JavaTec.docx` / `Guia_Semanal_JavaTec.docx`).
+- Importar el menú semanal real (`Menu_Semanal.docx` / `Guia_Semanal.docx`).
 - Generar y probar el instalador de escritorio en un Windows real.
 - Confirmar si el logo actual (pictograma de corredor) te convence o prefieres otra idea.
 - Revisar el motor de recomendaciones con datos reales de varias semanas.

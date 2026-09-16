@@ -11,6 +11,7 @@ export interface SessionRow {
   discipline: Discipline;
   planned_code: string | null;
   is_long_run: number;
+  is_extra: number;
   status: SessionStatus;
   rpe: number | null;
   duration_min: number | null;
@@ -29,6 +30,7 @@ export interface NewPlannedSession {
   discipline: Discipline;
   planned_code?: string | null;
   is_long_run?: boolean;
+  is_extra?: boolean | number;
   notes?: string | null;
 }
 
@@ -38,8 +40,8 @@ export function createPlannedSession(input: NewPlannedSession): SessionRow {
   const week_start = weekStartOf(input.date);
   const res = db
     .prepare(
-      `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, notes, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
+      `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
     )
     .run(
       input.date,
@@ -47,6 +49,7 @@ export function createPlannedSession(input: NewPlannedSession): SessionRow {
       input.discipline,
       input.planned_code ?? null,
       input.is_long_run ? 1 : 0,
+      input.is_extra ? 1 : 0,
       input.notes ?? null,
       now,
       now
@@ -219,14 +222,59 @@ export function updatePlannedSession(
   id: number,
   input: Partial<Pick<SessionRow, "discipline" | "planned_code" | "is_long_run" | "date" | "notes">>
 ): SessionRow | undefined {
+  return updateSession(id, input);
+}
+
+export interface UpdateSessionInput {
+  date?: string;
+  discipline?: Discipline;
+  planned_code?: string | null;
+  is_long_run?: boolean | number;
+  is_extra?: boolean | number;
+  status?: SessionStatus;
+  rpe?: number | null;
+  duration_min?: number | null;
+  distance_km?: number | null;
+  notes?: string | null;
+  fitImport?: boolean;
+}
+
+export function updateSession(id: number, input: UpdateSessionInput): SessionRow | undefined {
   const current = getSessionById(id);
   if (!current) return undefined;
+
   const date = input.date ?? current.date;
   const week_start = weekStartOf(date);
   const now = new Date().toISOString();
+
+  let fitBackup = current.fit_backup;
+  if (input.fitImport) {
+    const backup: FitBackup = {
+      status: current.status,
+      rpe: current.rpe,
+      duration_min: current.duration_min,
+      distance_km: current.distance_km,
+      notes: current.notes,
+    };
+    fitBackup = JSON.stringify(backup);
+  }
+
   getDb()
     .prepare(
-      `UPDATE sessions SET date = ?, week_start = ?, discipline = ?, planned_code = ?, is_long_run = ?, notes = ?, updated_at = ?
+      `UPDATE sessions SET
+        date = ?,
+        week_start = ?,
+        discipline = ?,
+        planned_code = ?,
+        is_long_run = ?,
+        is_extra = ?,
+        status = ?,
+        rpe = ?,
+        duration_min = ?,
+        distance_km = ?,
+        notes = ?,
+        fit_backup = ?,
+        updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -235,10 +283,17 @@ export function updatePlannedSession(
       input.discipline ?? current.discipline,
       input.planned_code !== undefined ? input.planned_code : current.planned_code,
       input.is_long_run !== undefined ? (input.is_long_run ? 1 : 0) : current.is_long_run,
+      input.is_extra !== undefined ? (input.is_extra ? 1 : 0) : current.is_extra,
+      input.status ?? current.status,
+      input.rpe !== undefined ? input.rpe : current.rpe,
+      input.duration_min !== undefined ? input.duration_min : current.duration_min,
+      input.distance_km !== undefined ? input.distance_km : current.distance_km,
       input.notes !== undefined ? input.notes : current.notes,
+      fitBackup,
       now,
       id
     );
+
   return getSessionById(id);
 }
 
@@ -283,8 +338,8 @@ export function bulkCreateSessions(inputs: NewPlannedSession[]): SessionRow[] {
   const db = getDb();
   const now = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, notes, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
+    `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
   );
 
   const insertedIds: number[] = [];
@@ -297,6 +352,7 @@ export function bulkCreateSessions(inputs: NewPlannedSession[]): SessionRow[] {
         input.discipline,
         input.planned_code ?? null,
         input.is_long_run ? 1 : 0,
+        input.is_extra ? 1 : 0,
         input.notes ?? null,
         now,
         now

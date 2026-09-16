@@ -50,11 +50,13 @@ interface SleepLog {
 interface SleepPreviewRow {
   date: string;
   hours: number | null;
+  quality: number | null;
   score: number | null;
   deep_min: number | null;
   light_min: number | null;
   rem_min: number | null;
   awake_min: number | null;
+  notes?: string | null;
 }
 
 const CHART_COLORS = {
@@ -250,22 +252,43 @@ export default function ProgresoPage() {
                       <div className="text-sm font-medium">{row.hours != null ? `${row.hours}h` : "—"}</div>
                     </div>
                     <div style={{ minWidth: 90 }}>
+                      <div className="text-xs text-faint">Calidad (1-5)</div>
+                      <select
+                        className="field-input text-xs"
+                        style={{ padding: "2px 6px", height: "auto" }}
+                        value={row.quality ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? null : Number(e.target.value);
+                          setSleepPreview((prev) =>
+                            prev ? prev.map((item, idx) => (idx === i ? { ...item, quality: val } : item)) : prev
+                          );
+                        }}
+                      >
+                        <option value="">—</option>
+                        {[1, 2, 3, 4, 5].map((q) => (
+                          <option key={q} value={q}>
+                            {q}/5
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ minWidth: 80 }}>
                       <div className="text-xs text-faint">Puntuación</div>
                       <div className="text-sm font-medium">{row.score != null ? `${row.score}/100` : "—"}</div>
                     </div>
-                    <div style={{ minWidth: 90 }}>
+                    <div style={{ minWidth: 80 }}>
                       <div className="text-xs text-faint">Profundo</div>
                       <div className="text-sm">{formatMin(row.deep_min)}</div>
                     </div>
-                    <div style={{ minWidth: 90 }}>
+                    <div style={{ minWidth: 80 }}>
                       <div className="text-xs text-faint">Ligero</div>
                       <div className="text-sm">{formatMin(row.light_min)}</div>
                     </div>
-                    <div style={{ minWidth: 90 }}>
+                    <div style={{ minWidth: 80 }}>
                       <div className="text-xs text-faint">REM</div>
                       <div className="text-sm">{formatMin(row.rem_min)}</div>
                     </div>
-                    <div style={{ minWidth: 90 }}>
+                    <div style={{ minWidth: 80 }}>
                       <div className="text-xs text-faint">Despierto</div>
                       <div className="text-sm">{formatMin(row.awake_min)}</div>
                     </div>

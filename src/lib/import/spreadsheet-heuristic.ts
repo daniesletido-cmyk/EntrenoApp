@@ -108,9 +108,9 @@ function detectHeader(rows: string[][], fieldPatterns: Record<string, RegExp>): 
 
 const PLAN_HEADER_PATTERNS: Record<string, RegExp> = {
   day: /^(d[ií]a|fecha)/i,
-  discipline: /disciplina|tipo|deporte|sesi[oó]n/i,
+  discipline: /disciplina|tipo|deporte|sesi[oó]n|actividad/i,
   code: /c[oó]digo|receta|detalle/i,
-  notes: /^notas$|observaciones/i,
+  notes: /^notas$|observaciones|qu[eé]\s*hacer|descripci[oó]n|contenido|entrenamiento/i,
 };
 
 // A diferencia del plan (día de la semana fijo), un "día" de gimnasio es un

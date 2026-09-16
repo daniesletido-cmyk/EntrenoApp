@@ -18,6 +18,8 @@ import {
   Minus,
   ArrowLeftRight,
   RotateCcw,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
@@ -40,6 +42,9 @@ interface FitLap {
 interface FitSummary {
   date: string;
   sport: string;
+  sportRaw: string | null;
+  subSportRaw: string | null;
+  activityName: string;
   durationMin: number | null;
   distanceKm: number | null;
   avgPaceMinKm: number | null;
@@ -54,9 +59,6 @@ interface FitFeedbackItem {
   text: string;
 }
 
-// Sugerencia de intercambio de entreno: el deporte leído del .fit no
-// coincidía con nada pendiente hoy, pero sí con algo pendiente otro día de
-// la semana — probablemente se han hecho los entrenos en otro orden.
 interface SwapSuggestion {
   matchId: number;
   matchDate: string;
@@ -71,7 +73,15 @@ interface FitImportResult {
   summary: FitSummary;
   feedback: FitFeedbackItem[];
   matchedSessionId: number | null;
-  otherSessionsThatDay: { id: number; discipline: string; planned_code: string | null; status: string }[];
+  suggestedActivityName?: string;
+  otherSessionsThatDay: {
+    id: number;
+    discipline: string;
+    planned_code: string | null;
+    status: string;
+    is_long_run?: number;
+    isDisciplineMatch?: boolean;
+  }[];
   swapSuggestions: SwapSuggestion[];
 }
 
@@ -115,6 +125,7 @@ interface SessionRow {
   discipline: string;
   planned_code: string | null;
   is_long_run: number;
+  is_extra?: number;
   status: string;
   rpe: number | null;
   duration_min: number | null;
@@ -157,11 +168,20 @@ export default function RegistroPage() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [fitResult, setFitResult] = useState<FitImportResult | null>(null);
   const [fitTargetId, setFitTargetId] = useState<number | "new">("new");
+  const [fitActivityName, setFitActivityName] = useState("");
+  const [fitDiscipline, setFitDiscipline] = useState("carrera");
   const [fitRpe, setFitRpe] = useState("");
   const [fitLoading, setFitLoading] = useState(false);
   const [fitApplying, setFitApplying] = useState(false);
   const [applyingSwapId, setApplyingSwapId] = useState<number | null>(null);
   const [undoingFitId, setUndoingFitId] = useState<number | null>(null);
+  const [editingSession, setEditingSession] = useState<SessionRow | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id: number | null; name: string }>({
+    open: false,
+    id: null,
+    name: "",
+  });
   const [confirmUndo, setConfirmUndo] = useState<{
     open: boolean;
     id: number | null;
@@ -214,6 +234,50 @@ export default function RegistroPage() {
     }
   }
 
+  async function saveEditedSession(s: SessionRow) {
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/sessions/${s.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          discipline: s.discipline,
+          planned_code: s.planned_code?.trim() || null,
+          is_long_run: s.is_long_run,
+          is_extra: s.is_extra,
+          status: s.status,
+          rpe: s.rpe,
+          duration_min: s.duration_min,
+          distance_km: s.distance_km,
+          notes: s.notes,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.push("success", "Sesión modificada correctamente");
+      setEditingSession(null);
+      load();
+    } catch {
+      toast.push("error", "No se pudo modificar la sesión");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function executeDeleteSession() {
+    const { id } = confirmDelete;
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.push("success", "Sesión eliminada");
+      setEditingSession(null);
+      setConfirmDelete({ open: false, id: null, name: "" });
+      load();
+    } catch {
+      toast.push("error", "No se pudo eliminar la sesión");
+    }
+  }
+
   async function saveSleep(date: string, sleep: Partial<SleepRow>) {
     await fetch("/api/sleep", {
       method: "POST",
@@ -241,11 +305,28 @@ export default function RegistroPage() {
         return;
       }
       setFitResult(data);
-      setFitTargetId(data.matchedSessionId ?? "new");
+      const targetId = data.matchedSessionId ?? "new";
+      setFitTargetId(targetId);
+      setFitDiscipline(data.summary.sport ?? "carrera");
+      setFitActivityName(data.suggestedActivityName ?? data.summary.activityName ?? "");
       setFitRpe("");
     } finally {
       setFitLoading(false);
       e.target.value = "";
+    }
+  }
+
+  function handleFitTargetChange(target: number | "new") {
+    setFitTargetId(target);
+    if (target === "new") {
+      setFitActivityName(fitResult?.summary.activityName ?? "");
+      setFitDiscipline(fitResult?.summary.sport ?? "carrera");
+    } else {
+      const s = sessions.find((item) => item.id === target);
+      if (s) {
+        setFitActivityName(s.planned_code || fitResult?.summary.activityName || "");
+        setFitDiscipline(s.discipline || fitResult?.summary.sport || "carrera");
+      }
     }
   }
 
@@ -339,7 +420,12 @@ export default function RegistroPage() {
         const created = await fetch("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: summary.date, discipline: summary.sport }),
+          body: JSON.stringify({
+            date: summary.date,
+            discipline: fitDiscipline,
+            planned_code: fitActivityName.trim() || null,
+            is_extra: true,
+          }),
         }).then((r) => r.json());
         targetId = created.session.id;
       } else {
@@ -353,6 +439,8 @@ export default function RegistroPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "realizada",
+          discipline: fitDiscipline,
+          planned_code: fitActivityName.trim() || undefined,
           rpe: fitRpe === "" ? null : Number(fitRpe),
           duration_min: summary.durationMin,
           distance_km: summary.distanceKm,
@@ -364,7 +452,7 @@ export default function RegistroPage() {
       const sessionWeek = weekStartOf(summary.date);
       if (sessionWeek !== weekStart) setWeekStart(sessionWeek);
       else load();
-      toast.push("success", "Entreno importado del .fit");
+      toast.push("success", `Entreno importado del .fit: ${fitActivityName.trim() || DISCIPLINE_LABEL[fitDiscipline] || "Sesión"}`);
 
       // Tras aplicar, comprobamos si esta sesión ha hecho que convenga
       // ajustar la semana — igual que si se hubiera registrado a mano.
@@ -414,6 +502,7 @@ export default function RegistroPage() {
 
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", marginBottom: "var(--space-4)" }}>
             <MiniStat label="Fecha" value={fitResult.summary.date} />
+            <MiniStat label="Actividad" value={fitResult.summary.activityName} />
             <MiniStat label="Deporte" value={DISCIPLINE_LABEL[fitResult.summary.sport] ?? "Otro"} />
             <MiniStat label="Duración" value={fitResult.summary.durationMin !== null ? `${fitResult.summary.durationMin} min` : "—"} />
             <MiniStat label="Distancia" value={fitResult.summary.distanceKm !== null ? `${fitResult.summary.distanceKm} km` : "—"} />
@@ -498,11 +587,15 @@ export default function RegistroPage() {
             <Select
               label="Aplicar a"
               value={String(fitTargetId)}
-              onChange={(e) => setFitTargetId(e.target.value === "new" ? "new" : Number(e.target.value))}
+              onChange={(e) => handleFitTargetChange(e.target.value === "new" ? "new" : Number(e.target.value))}
             >
-              {fitResult.matchedSessionId && (
-                <option value={fitResult.matchedSessionId}>La sesión planificada ese día (recomendado)</option>
-              )}
+              {fitResult.matchedSessionId && (() => {
+                const matched = fitResult.otherSessionsThatDay.find((s) => s.id === fitResult.matchedSessionId);
+                const label = matched
+                  ? `${DISCIPLINE_LABEL[matched.discipline] ?? matched.discipline}${matched.planned_code ? ` — ${matched.planned_code}` : ""} (${matched.status})`
+                  : "Sesión planificada ese día";
+                return <option value={fitResult.matchedSessionId}>★ [Recomendado] {label}</option>;
+              })()}
               {fitResult.otherSessionsThatDay
                 .filter((s) => s.id !== fitResult.matchedSessionId)
                 .map((s) => (
@@ -511,8 +604,28 @@ export default function RegistroPage() {
                     {s.planned_code ? ` — ${s.planned_code}` : ""} ({s.status})
                   </option>
                 ))}
-              <option value="new">Crear una sesión nueva ese día</option>
+              <option value="new">+ Crear una nueva sesión ese día</option>
             </Select>
+
+            <Input
+              label="Nombre de la actividad"
+              hint="Nombre que tendrá este entreno (ej. R1, Día A, Carrera)"
+              value={fitActivityName}
+              onChange={(e) => setFitActivityName(e.target.value)}
+            />
+
+            <Select
+              label="Disciplina"
+              value={fitDiscipline}
+              onChange={(e) => setFitDiscipline(e.target.value)}
+            >
+              <option value="carrera">Carrera</option>
+              <option value="gimnasio">Gimnasio</option>
+              <option value="natacion">Natación</option>
+              <option value="crossfit">CrossFit</option>
+              <option value="otro">Otro</option>
+            </Select>
+
             <Input
               label="RPE (0-10)"
               hint="El reloj no mide esfuerzo percibido — dilo tú"
@@ -561,11 +674,31 @@ export default function RegistroPage() {
                     className="surface-raised"
                     style={{ padding: "var(--space-3)", marginBottom: "var(--space-3)" }}
                   >
-                    <div className="flex items-center gap-2 text-sm font-medium" style={{ marginBottom: "var(--space-3)" }}>
-                      <Icon size={16} className="text-muted" />
-                      {s.discipline}
-                      {s.planned_code ? ` — ${s.planned_code}` : ""}
-                      {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
+                    <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Icon size={16} className="text-muted" />
+                        <span className="font-semibold">{s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}</span>
+                        {s.planned_code && <span className="text-xs text-muted">({DISCIPLINE_LABEL[s.discipline] ?? s.discipline})</span>}
+                        {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
+                        {!!s.is_extra && (
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: 10,
+                              background: "rgba(234, 179, 8, 0.15)",
+                              color: "var(--color-warning)",
+                              border: "1px solid rgba(234, 179, 8, 0.3)",
+                            }}
+                          >
+                            Extra
+                          </span>
+                        )}
+                        {hasFitImport(s) && <span className="badge badge-success" style={{ fontSize: 10 }}>.FIT</span>}
+                      </div>
+                      <Button variant="ghost" onClick={() => setEditingSession({ ...s })}>
+                        <Pencil size={13} />
+                        Editar
+                      </Button>
                     </div>
 
                     <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
@@ -691,6 +824,203 @@ export default function RegistroPage() {
         tone="danger"
         onConfirm={executeUndoFit}
         onCancel={() => setConfirmUndo((p) => ({ ...p, open: false }))}
+      />
+
+      {editingSession && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(2px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 250,
+            padding: "var(--space-4)",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !savingEdit) setEditingSession(null);
+          }}
+        >
+          <div
+            className="surface animate-in"
+            style={{
+              width: "min(500px, 100%)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "var(--shadow-md)",
+            }}
+          >
+            <div
+              className="flex items-center justify-between"
+              style={{ padding: "var(--space-4)", borderBottom: "1px solid var(--color-border)" }}
+            >
+              <div className="font-semibold text-base flex items-center gap-2">
+                <Pencil size={16} />
+                Editar sesión ({editingSession.date})
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                disabled={savingEdit}
+                onClick={() => setEditingSession(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid gap-3" style={{ padding: "var(--space-4)" }}>
+              <Input
+                label="Nombre de la actividad"
+                hint="Ej. R1, Día A, Carrera 40', Caminata..."
+                value={editingSession.planned_code ?? ""}
+                onChange={(e) => setEditingSession({ ...editingSession, planned_code: e.target.value })}
+              />
+
+              <Select
+                label="Disciplina"
+                value={editingSession.discipline}
+                onChange={(e) => setEditingSession({ ...editingSession, discipline: e.target.value })}
+              >
+                <option value="carrera">Carrera</option>
+                <option value="gimnasio">Gimnasio</option>
+                <option value="natacion">Natación</option>
+                <option value="crossfit">CrossFit</option>
+                <option value="otro">Otro</option>
+                <option value="descanso">Descanso</option>
+              </Select>
+
+              {editingSession.discipline === "carrera" && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ marginTop: 2 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!editingSession.is_long_run}
+                    onChange={(e) => setEditingSession({ ...editingSession, is_long_run: e.target.checked ? 1 : 0 })}
+                  />
+                  <span>Tirada larga</span>
+                </label>
+              )}
+
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ marginTop: 2 }}>
+                <input
+                  type="checkbox"
+                  checked={!!editingSession.is_extra}
+                  onChange={(e) => setEditingSession({ ...editingSession, is_extra: e.target.checked ? 1 : 0 })}
+                />
+                <span>Sesión extra (fuera de la planificación)</span>
+              </label>
+
+              <Select
+                label="Estado"
+                value={editingSession.status}
+                onChange={(e) => setEditingSession({ ...editingSession, status: e.target.value })}
+              >
+                {STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+
+              <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <Input
+                  label="Duración (min)"
+                  type="number"
+                  value={editingSession.duration_min ?? ""}
+                  onChange={(e) =>
+                    setEditingSession({
+                      ...editingSession,
+                      duration_min: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  label="RPE (0-10)"
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={editingSession.rpe ?? ""}
+                  onChange={(e) =>
+                    setEditingSession({
+                      ...editingSession,
+                      rpe: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+
+              {editingSession.discipline === "carrera" && (
+                <Input
+                  label="Distancia (km)"
+                  type="number"
+                  step="0.1"
+                  value={editingSession.distance_km ?? ""}
+                  onChange={(e) =>
+                    setEditingSession({
+                      ...editingSession,
+                      distance_km: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+              )}
+
+              <Textarea
+                label="Notas / molestias"
+                rows={3}
+                value={editingSession.notes ?? ""}
+                onChange={(e) => setEditingSession({ ...editingSession, notes: e.target.value })}
+              />
+            </div>
+
+            <div
+              className="flex items-center justify-between gap-2"
+              style={{
+                padding: "var(--space-3) var(--space-4)",
+                borderTop: "1px solid var(--color-border)",
+                background: "var(--color-surface-raised)",
+              }}
+            >
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  setConfirmDelete({
+                    open: true,
+                    id: editingSession.id,
+                    name: editingSession.planned_code || editingSession.discipline,
+                  })
+                }
+                style={{ color: "var(--color-danger)" }}
+              >
+                <Trash2 size={14} />
+                Eliminar sesión
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" disabled={savingEdit} onClick={() => setEditingSession(null)}>
+                  Cancelar
+                </Button>
+                <Button variant="primary" loading={savingEdit} onClick={() => saveEditedSession(editingSession)}>
+                  <Save size={14} />
+                  Guardar cambios
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete.open}
+        title="Eliminar sesión"
+        description={`¿Seguro que quieres eliminar la sesión "${confirmDelete.name}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        tone="danger"
+        onConfirm={executeDeleteSession}
+        onCancel={() => setConfirmDelete({ open: false, id: null, name: "" })}
       />
     </div>
   );

@@ -14,6 +14,7 @@ import {
   Route,
   Timer,
   Flag,
+  Footprints,
 } from "lucide-react";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -31,11 +32,21 @@ interface Summary {
   noRealizadas: number;
   pendientes: number;
   compliancePct: number | null;
+  extrasTotal?: number;
+  extrasRealizadas?: number;
   rpeAvg: number | null;
   sleepHoursAvg: number | null;
   sleepQualityAvg: number | null;
   distanceKm: number;
   durationMin: number;
+  runDistanceKm?: number;
+  runDurationMin?: number;
+  runAvgPaceMinKm?: number | null;
+  runCount?: number;
+  walkDistanceKm?: number;
+  walkDurationMin?: number;
+  walkAvgPaceMinKm?: number | null;
+  walkCount?: number;
   avgPaceMinKm: number | null;
 }
 
@@ -168,7 +179,12 @@ export default function ResumenPage() {
                 value={summary.compliancePct !== null ? `${summary.compliancePct.toFixed(0)}%` : "—"}
                 icon={<CalendarCheck2 size={16} />}
                 tone={complianceTone}
-                sublabel={`${summary.realizadas + summary.parciales} de ${summary.planificadas} sesiones`}
+                sublabel={
+                  `${summary.realizadas + summary.parciales} de ${summary.planificadas} programadas` +
+                  (summary.extrasRealizadas && summary.extrasRealizadas > 0
+                    ? ` (+${summary.extrasRealizadas} extra${summary.extrasRealizadas > 1 ? "s" : ""})`
+                    : "")
+                }
               />
               <StatCard label="RPE medio" value={fmt(summary.rpeAvg)} icon={<Gauge size={16} />} sublabel="Escala 0–10" />
               <StatCard
@@ -189,9 +205,46 @@ export default function ResumenPage() {
           <div className="section-group" style={{ marginBottom: 0 }}>
             <div className="section-group-title">Volumen realizado</div>
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-              <StatCard label="Distancia" value={`${summary.distanceKm.toFixed(1)} km`} icon={<Route size={16} />} sublabel="Suma de sesiones realizadas" />
-              <StatCard label="Tiempo entrenado" value={fmtDuration(summary.durationMin)} icon={<Timer size={16} />} />
-              <StatCard label="Ritmo medio carrera" value={fmtPace(summary.avgPaceMinKm)} icon={<Gauge size={16} />} />
+              <StatCard
+                label="Distancia total"
+                value={`${summary.distanceKm.toFixed(1)} km`}
+                icon={<Route size={16} />}
+                sublabel={
+                  (summary.runDistanceKm ?? 0) > 0 && (summary.walkDistanceKm ?? 0) > 0
+                    ? `${summary.runDistanceKm?.toFixed(1)} km carrera · ${summary.walkDistanceKm?.toFixed(1)} km caminata`
+                    : "Suma de sesiones realizadas"
+                }
+              />
+              <StatCard
+                label="Tiempo entrenado"
+                value={fmtDuration(summary.durationMin)}
+                icon={<Timer size={16} />}
+                sublabel={
+                  summary.extrasRealizadas && summary.extrasRealizadas > 0
+                    ? `Incluye ${summary.extrasRealizadas} sesión extra`
+                    : undefined
+                }
+              />
+              <StatCard
+                label="Ritmo carrera"
+                value={fmtPace(summary.runAvgPaceMinKm ?? null)}
+                icon={<Gauge size={16} />}
+                sublabel={
+                  (summary.runDistanceKm ?? 0) > 0
+                    ? `${summary.runDistanceKm?.toFixed(1)} km (${summary.runCount} carrera${(summary.runCount ?? 0) > 1 ? "s" : ""})`
+                    : "Sin carrera esta semana"
+                }
+              />
+              <StatCard
+                label="Ritmo caminata"
+                value={fmtPace(summary.walkAvgPaceMinKm ?? null)}
+                icon={<Footprints size={16} />}
+                sublabel={
+                  (summary.walkDistanceKm ?? 0) > 0
+                    ? `${summary.walkDistanceKm?.toFixed(1)} km (${summary.walkCount} caminata${(summary.walkCount ?? 0) > 1 ? "s" : ""})`
+                    : "Sin caminata esta semana"
+                }
+              />
               {nextGoal && (
                 <StatCard
                   label="Próximo objetivo"
