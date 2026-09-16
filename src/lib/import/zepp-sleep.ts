@@ -38,6 +38,151 @@ export function scoreToQuality(score: number): number {
   return 1;
 }
 
+interface ZeppRawSession {
+  sleep_id?: string;
+  start_time?: string;
+  end_time?: string;
+  duration_minutes?: number;
+  score?: number;
+  deep_minutes?: number;
+  light_minutes?: number;
+  rem_minutes?: number;
+  awake_minutes?: number;
+  wake_count?: number;
+  [key: string]: unknown;
+}
+
+interface ZeppDailyMetric {
+  date?: string;
+  metric?: string;
+  value?: number;
+  unit?: string;
+  [key: string]: unknown;
+}
+
+export function extractZeppSleepJson(json: unknown): ZeppSleepRow[] {
+  let sessions: ZeppRawSession[] = [];
+  let dailyMetrics: ZeppDailyMetric[] = [];
+
+  if (Array.isArray(json)) {
+    sessions = json as ZeppRawSession[];
+  } else if (json && typeof json === "object") {
+    const record = json as Record<string, unknown>;
+    const dataObj = record.data && typeof record.data === "object" ? (record.data as Record<string, unknown>) : null;
+
+    if (Array.isArray(dataObj?.sleep_sessions)) {
+      sessions = dataObj.sleep_sessions as ZeppRawSession[];
+    } else if (Array.isArray(record.sleep_sessions)) {
+      sessions = record.sleep_sessions as ZeppRawSession[];
+    }
+
+    if (Array.isArray(dataObj?.daily_metrics)) {
+      dailyMetrics = dataObj.daily_metrics as ZeppDailyMetric[];
+    } else if (Array.isArray(record.daily_metrics)) {
+      dailyMetrics = record.daily_metrics as ZeppDailyMetric[];
+    }
+  }
+
+  if (sessions.length === 0) {
+    throw new Error(
+      "No se encontraron sesiones de sueño ('sleep_sessions') en el archivo JSON. Asegúrate de exportar la opción «Sleep» desde ZeppBridge."
+    );
+  }
+
+  // Indexar métricas diarias por fecha para complementar (RHR sueño, HRV sueño, Readiness)
+  const metricsByDate = new Map<string, Record<string, number>>();
+  for (const m of dailyMetrics) {
+    if (m.date && m.metric && typeof m.value === "number") {
+      let map = metricsByDate.get(m.date);
+      if (!map) {
+        map = {};
+        metricsByDate.set(m.date, map);
+      }
+      map[m.metric] = m.value;
+    }
+  }
+
+  const byDate = new Map<string, ZeppSleepRow>();
+
+  for (const s of sessions) {
+    const rawTime = s.end_time || s.start_time;
+    if (!rawTime || rawTime.length < 10) continue;
+    const date = rawTime.slice(0, 10);
+
+    const dur = s.duration_minutes != null && Number.isFinite(s.duration_minutes)
+      ? s.duration_minutes
+      : s.deep_minutes != null && s.light_minutes != null
+      ? s.deep_minutes + s.light_minutes + (s.rem_minutes ?? 0)
+      : null;
+
+    const hours = dur != null ? Math.round((dur / 60) * 100) / 100 : null;
+
+    let score: number | null = null;
+    if (s.score != null && Number.isFinite(s.score)) {
+      score = Math.round(s.score);
+    }
+
+    let quality: number | null = null;
+    if (typeof s.quality === "number" && Number.isFinite(s.quality)) {
+      quality = s.quality > 5 ? scoreToQuality(s.quality) : Math.max(1, Math.min(5, Math.round(s.quality)));
+    } else if (score !== null) {
+      quality = scoreToQuality(score);
+    }
+
+    const dm = metricsByDate.get(date);
+    const notesParts: string[] = [];
+    if (dm) {
+      if (dm.sleep_rhr != null) notesParts.push(`RHR sueño: ${Math.round(dm.sleep_rhr)} lpm`);
+      if (dm.sleep_hrv != null) notesParts.push(`HRV sueño: ${Math.round(dm.sleep_hrv)} ms`);
+      if (dm.readiness != null && dm.readiness !== 255) notesParts.push(`Readiness: ${Math.round(dm.readiness)}`);
+    }
+    const notes = notesParts.length > 0 ? notesParts.join(" | ") : (typeof s.notes === "string" ? s.notes : null);
+
+    const row: ZeppSleepRow = {
+      date,
+      hours,
+      quality,
+      score,
+      deep_min: s.deep_minutes != null && Number.isFinite(s.deep_minutes) ? Math.round(s.deep_minutes) : null,
+      light_min: s.light_minutes != null && Number.isFinite(s.light_minutes) ? Math.round(s.light_minutes) : null,
+      rem_min: s.rem_minutes != null && Number.isFinite(s.rem_minutes) ? Math.round(s.rem_minutes) : null,
+      awake_min: s.awake_minutes != null && Number.isFinite(s.awake_minutes) ? Math.round(s.awake_minutes) : null,
+      start_time: s.start_time || date,
+      end_time: s.end_time || date,
+      notes,
+    };
+
+    const existing = byDate.get(date);
+    if (!existing) {
+      byDate.set(date, row);
+    } else {
+      // Si hay siestas u otra sesión el mismo día, conservar la sesión con mayor duración o con score
+      const currentHours = row.hours ?? 0;
+      const prevHours = existing.hours ?? 0;
+      if ((row.score != null && existing.score == null) || currentHours > prevHours) {
+        byDate.set(date, row);
+      }
+    }
+  }
+
+  const out = Array.from(byDate.values());
+  out.sort((a, b) => a.date.localeCompare(b.date));
+  return out;
+}
+
+export async function extractZeppSleep(buffer: Buffer): Promise<ZeppSleepRow[]> {
+  const text = buffer.toString("utf-8").trim();
+  if (text.startsWith("{") || text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      return extractZeppSleepJson(parsed);
+    } catch {
+      // Si fallase el parseo JSON, intentamos como CSV
+    }
+  }
+  return extractZeppSleepCsv(buffer);
+}
+
 async function readCsvRows(buffer: Buffer): Promise<string[][]> {
   const workbook = new ExcelJS.Workbook();
   await workbook.csv.read(Readable.from(buffer));

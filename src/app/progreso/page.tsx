@@ -211,7 +211,7 @@ export default function ProgresoPage() {
         description="Tendencias a lo largo del tiempo: carga, sueño y peso corporal."
         actions={
           <>
-            <input ref={sleepFileRef} type="file" accept=".csv" onChange={handleImportSleepFile} style={{ display: "none" }} />
+            <input ref={sleepFileRef} type="file" accept=".csv,.json,application/json,text/csv" onChange={handleImportSleepFile} style={{ display: "none" }} />
             <Button variant="secondary" loading={sleepImportLoading} onClick={() => sleepFileRef.current?.click()}>
               <FileUp size={15} />
               Importar sueño (ZeppBridge)
@@ -224,7 +224,7 @@ export default function ProgresoPage() {
         <div className="surface animate-in" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)", borderColor: "var(--color-brand)" }}>
           <div className="flex items-start justify-between" style={{ marginBottom: "var(--space-3)" }}>
             <div>
-              <div className="font-semibold text-sm">Noches detectadas en el CSV de ZeppBridge</div>
+              <div className="font-semibold text-sm">Noches detectadas en el archivo de ZeppBridge</div>
               {sleepPreviewInfo && (
                 <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                   Revisa antes de importar — se guardan por fecha, así que reimportar una noche ya guardada la actualiza sin duplicarla.

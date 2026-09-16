@@ -30,6 +30,7 @@ import { Select, Input, Textarea } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { ZeppSleepRow } from "@/lib/import/zepp-sleep";
 
 interface FitLap {
   index: number;
@@ -142,6 +143,12 @@ interface SleepRow {
   hours: number | null;
   quality: number | null;
   notes: string | null;
+  score?: number | null;
+  deep_min?: number | null;
+  light_min?: number | null;
+  rem_min?: number | null;
+  awake_min?: number | null;
+  source?: string | null;
 }
 
 const STATUS_OPTIONS = [
@@ -173,6 +180,9 @@ export default function RegistroPage() {
   const [fitRpe, setFitRpe] = useState("");
   const [fitLoading, setFitLoading] = useState(false);
   const [fitApplying, setFitApplying] = useState(false);
+  const [sleepPreview, setSleepPreview] = useState<ZeppSleepRow[] | null>(null);
+  const [sleepImportLoading, setSleepImportLoading] = useState(false);
+  const [sleepCommitting, setSleepCommitting] = useState(false);
   const [applyingSwapId, setApplyingSwapId] = useState<number | null>(null);
   const [undoingFitId, setUndoingFitId] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<SessionRow | null>(null);
@@ -189,6 +199,7 @@ export default function RegistroPage() {
     message: string;
   }>({ open: false, id: null, exact: false, message: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sleepFileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
   const days = weekDates(weekStart);
@@ -285,6 +296,49 @@ export default function RegistroPage() {
       body: JSON.stringify({ date, ...sleep }),
     });
     load();
+  }
+
+  async function handleSleepFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSleepImportLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/sleep/import", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.push("error", data.error ?? "No se pudo leer el archivo de sueño");
+        return;
+      }
+      setSleepPreview(data.rows);
+    } catch {
+      toast.push("error", "Error al procesar el archivo de sueño");
+    } finally {
+      setSleepImportLoading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function commitSleepImport() {
+    if (!sleepPreview || sleepPreview.length === 0) return;
+    setSleepCommitting(true);
+    try {
+      for (const row of sleepPreview) {
+        await fetch("/api/sleep", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...row, source: "zepp" }),
+        });
+      }
+      toast.push("success", `${sleepPreview.length} noche(s) de sueño añadidas al registro`);
+      setSleepPreview(null);
+      load();
+    } catch {
+      toast.push("error", "Error al guardar el sueño en el registro");
+    } finally {
+      setSleepCommitting(false);
+    }
   }
 
   function updateLocalSession(id: number, patch: Partial<SessionRow>) {
@@ -483,10 +537,99 @@ export default function RegistroPage() {
               <Watch size={15} />
               Importar .fit
             </Button>
+            <input
+              ref={sleepFileInputRef}
+              type="file"
+              accept=".csv,.json,application/json,text/csv"
+              onChange={handleSleepFile}
+              style={{ display: "none" }}
+            />
+            <Button variant="secondary" loading={sleepImportLoading} onClick={() => sleepFileInputRef.current?.click()}>
+              <Moon size={15} />
+              Importar sueño
+            </Button>
           </>
         }
       />
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
+
+      {sleepPreview && (
+        <div className="surface animate-in" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)", borderColor: "var(--color-brand)" }}>
+          <div className="flex items-start justify-between" style={{ marginBottom: "var(--space-3)" }}>
+            <div>
+              <div className="flex items-center gap-2 font-semibold text-sm">
+                <Moon size={16} style={{ color: "var(--color-brand)" }} />
+                Noches de sueño detectadas ({sleepPreview.length})
+              </div>
+              <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                Revisa antes de confirmar — se añadirán automáticamente al día correspondiente con sus horas y calidad estimada (escala 1 a 5).
+              </div>
+            </div>
+            <button className="btn btn-ghost btn-icon" aria-label="Descartar importación" onClick={() => setSleepPreview(null)}>
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="grid gap-2" style={{ marginBottom: "var(--space-4)", maxHeight: 280, overflowY: "auto" }}>
+            {sleepPreview.map((row, idx) => (
+              <div key={row.date} className="surface-raised flex flex-wrap items-center justify-between gap-2" style={{ padding: "var(--space-2) var(--space-3)" }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold">{row.date}</span>
+                  <span className="text-xs text-muted">{row.hours != null ? `${row.hours}h` : "—"}</span>
+                  {row.score != null && (
+                    <span className="text-xs text-muted">Score: {row.score}/100</span>
+                  )}
+                  {row.deep_min != null && (
+                    <span className="text-xs text-faint">Prof: {row.deep_min}m</span>
+                  )}
+                  {row.rem_min != null && (
+                    <span className="text-xs text-faint">REM: {row.rem_min}m</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">Calidad:</span>
+                  <select
+                    className="field-input text-xs"
+                    style={{ padding: "2px 8px", height: "auto" }}
+                    value={row.quality ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value === "" ? null : Number(e.target.value);
+                      setSleepPreview((prev) =>
+                        prev ? prev.map((item, i) => (i === idx ? { ...item, quality: val } : item)) : prev
+                      );
+                    }}
+                  >
+                    <option value="">—</option>
+                    {[1, 2, 3, 4, 5].map((q) => (
+                      <option key={q} value={q}>
+                        {q}/5
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label="Quitar noche"
+                    onClick={() => setSleepPreview((prev) => prev ? prev.filter((_, i) => i !== idx) : prev)}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" onClick={() => setSleepPreview(null)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" loading={sleepCommitting} onClick={commitSleepImport}>
+              <Save size={15} />
+              Guardar en el registro
+            </Button>
+          </div>
+        </div>
+      )}
 
       {fitResult && (
         <div className="surface animate-in" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)", borderColor: "var(--color-brand)" }}>
@@ -779,9 +922,18 @@ export default function RegistroPage() {
               })}
 
               <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-3)" }}>
-                <div className="flex items-center gap-2 text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
-                  <Moon size={14} />
-                  Sueño de esa noche
+                <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)" }}>
+                  <div className="flex items-center gap-2 text-xs text-muted">
+                    <Moon size={14} />
+                    Sueño de esa noche
+                  </div>
+                  {sleep.score != null && (
+                    <span className="text-xs text-muted">
+                      Zepp: <strong>{sleep.score}/100</strong>
+                      {sleep.deep_min != null ? ` · Prof: ${sleep.deep_min}m` : ""}
+                      {sleep.rem_min != null ? ` · REM: ${sleep.rem_min}m` : ""}
+                    </span>
+                  )}
                 </div>
                 <div
                   className="grid gap-3"
@@ -810,6 +962,11 @@ export default function RegistroPage() {
                     ))}
                   </Select>
                 </div>
+                {sleep.notes && (
+                  <div className="text-xs text-muted" style={{ marginTop: "var(--space-2)" }}>
+                    {sleep.notes}
+                  </div>
+                )}
               </div>
             </div>
           );
