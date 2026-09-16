@@ -1,17 +1,33 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ResponsiveContainer,
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
+  ReferenceArea,
 } from "recharts";
-import { Scale, Save, Moon, FileUp, X, Trash2 } from "lucide-react";
+import {
+  Scale,
+  Save,
+  Moon,
+  TrendingUp,
+  Activity,
+  Dumbbell,
+  CheckCircle2,
+  BedDouble,
+  Flame,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -23,6 +39,11 @@ interface WeekHistory {
   weekStart: string;
   compliancePct: number | null;
   rpeAvg: number | null;
+  durationTotalMin?: number;
+  distanceTotalKm?: number;
+  loadTotal?: number;
+  completedCount?: number;
+  plannedCount?: number;
   sleepHoursAvg: number | null;
   sleepQualityAvg: number | null;
   sleepScoreAvg: number | null;
@@ -47,39 +68,55 @@ interface SleepLog {
   source: string | null;
 }
 
-interface SleepPreviewRow {
-  date: string;
-  hours: number | null;
-  quality: number | null;
-  score: number | null;
-  deep_min: number | null;
-  light_min: number | null;
-  rem_min: number | null;
-  awake_min: number | null;
-  notes?: string | null;
-}
-
 const CHART_COLORS = {
-  primary: "#2f6feb",
+  primary: "#3b82f6",
   secondary: "#f97316",
-  tertiary: "#22c55e",
-  quaternary: "#a855f7",
-  grid: "#262c37",
-  text: "#9aa3b2",
+  success: "#22c55e",
+  purple: "#a855f7",
+  cyan: "#06b6d4",
+  deepSleep: "#2563eb",
+  remSleep: "#9333ea",
+  lightSleep: "#38bdf8",
+  awakeSleep: "#64748b",
+  grid: "#1e293b",
+  text: "#94a3b8",
 };
 
-const TOOLTIP_STYLE = { background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 13 };
+const TOOLTIP_STYLE = {
+  backgroundColor: "#0f172a",
+  border: "1px solid #334155",
+  borderRadius: 8,
+  fontSize: 12,
+  color: "#f8fafc",
+  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)",
+};
 
-function ChartCard({ title, hasData, children }: { title: string; hasData: boolean; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  subtitle,
+  badge,
+  hasData,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  hasData: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="surface" style={{ padding: "var(--space-4)" }}>
-      <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>
-        {title}
+    <div className="surface" style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column" }}>
+      <div className="flex items-start justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+        <div>
+          <div className="font-semibold text-sm flex items-center gap-2">{title}</div>
+          {subtitle && <div className="text-xs text-muted" style={{ marginTop: 2 }}>{subtitle}</div>}
+        </div>
+        {badge}
       </div>
       {hasData ? (
-        <div style={{ width: "100%", height: 220 }}>{children}</div>
+        <div style={{ width: "100%", height: 240 }}>{children}</div>
       ) : (
-        <div className="flex items-center justify-center text-sm text-faint" style={{ height: 220 }}>
+        <div className="flex items-center justify-center text-sm text-faint" style={{ height: 240 }}>
           Todavía no hay datos suficientes
         </div>
       )}
@@ -98,15 +135,10 @@ export default function ProgresoPage() {
   const [weeks, setWeeks] = useState<WeekHistory[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
+  const [activeTab, setActiveTab] = useState<"todos" | "entrenos" | "sueno" | "peso">("todos");
   const [weightForm, setWeightForm] = useState({ date: "", weight_kg: "" });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-
-  const [sleepPreview, setSleepPreview] = useState<SleepPreviewRow[] | null>(null);
-  const [sleepPreviewInfo, setSleepPreviewInfo] = useState<{ skipped: number } | null>(null);
-  const [sleepImportLoading, setSleepImportLoading] = useState(false);
-  const [sleepCommitting, setSleepCommitting] = useState(false);
-  const sleepFileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
     fetch("/api/history?weeks=12")
@@ -118,7 +150,7 @@ export default function ProgresoPage() {
     const today = todayISO();
     fetch(`/api/sleep?from=${addDays(today, -30)}&to=${today}`)
       .then((r) => r.json())
-      .then((d) => setSleepLogs((d.logs ?? []).slice().reverse()));
+      .then((d) => setSleepLogs(d.logs ?? []));
   }, []);
 
   useEffect(() => {
@@ -142,315 +174,562 @@ export default function ProgresoPage() {
     }
   }
 
-  async function handleImportSleepFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSleepImportLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/sleep/import", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.push("error", data.error ?? "No se pudo leer el archivo");
-        return;
-      }
-      setSleepPreview(data.rows);
-      setSleepPreviewInfo({ skipped: 0 });
-    } finally {
-      setSleepImportLoading(false);
-      e.target.value = "";
-    }
-  }
+  // Datos semanales para los gráficos de entrenamiento
+  const weeklyTrainingData = weeks.map((w) => {
+    const hours = w.durationTotalMin ? Math.round((w.durationTotalMin / 60) * 10) / 10 : 0;
+    return {
+      week: w.weekStart.slice(5),
+      Cumplimiento: w.compliancePct !== null ? Math.round(w.compliancePct) : null,
+      RPE: w.rpeAvg !== null ? Number(w.rpeAvg.toFixed(1)) : null,
+      ACWR: w.acwr !== null ? Number(w.acwr.toFixed(2)) : null,
+      HorasEntreno: hours,
+      Kilometros: w.distanceTotalKm ?? 0,
+      CargaTotal: w.loadTotal ?? 0,
+      Sesiones: w.completedCount ?? 0,
+      SueñoHoras: w.sleepHoursAvg !== null ? Number(w.sleepHoursAvg.toFixed(1)) : null,
+      SueñoCalidad: w.sleepQualityAvg !== null ? Number(w.sleepQualityAvg.toFixed(1)) : null,
+      SueñoScore: w.sleepScoreAvg !== null ? Math.round(w.sleepScoreAvg) : null,
+    };
+  });
 
-  function removeSleepPreviewRow(i: number) {
-    setSleepPreview((prev) => (prev ? prev.filter((_, idx) => idx !== i) : prev));
-  }
-
-  async function commitSleepImport() {
-    if (!sleepPreview || sleepPreview.length === 0) return;
-    setSleepCommitting(true);
-    try {
-      for (const row of sleepPreview) {
-        await fetch("/api/sleep", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...row, source: "zepp" }),
-        });
-      }
-      toast.push("success", `${sleepPreview.length} noche(s) importadas desde ZeppBridge`);
-      setSleepPreview(null);
-      setSleepPreviewInfo(null);
-      load();
-    } finally {
-      setSleepCommitting(false);
-    }
-  }
-
-  const chartData = weeks.map((w) => ({
-    week: w.weekStart.slice(5),
-    Cumplimiento: w.compliancePct !== null ? Math.round(w.compliancePct) : null,
-    RPE: w.rpeAvg !== null ? Number(w.rpeAvg.toFixed(1)) : null,
-    ACWR: w.acwr !== null ? Number(w.acwr.toFixed(2)) : null,
-    Horas: w.sleepHoursAvg !== null ? Number(w.sleepHoursAvg.toFixed(1)) : null,
-    Calidad: w.sleepQualityAvg !== null ? Number(w.sleepQualityAvg.toFixed(1)) : null,
-    Puntuacion: w.sleepScoreAvg !== null ? Math.round(w.sleepScoreAvg) : null,
+  // Datos diarios de sueño (últimos 30 días) ordenados cronológicamente
+  const dailySleepData = sleepLogs.map((s) => ({
+    date: s.date.slice(5),
+    fullDate: s.date,
+    Horas: s.hours !== null ? Number(s.hours.toFixed(1)) : null,
+    Calidad: s.quality,
+    Score: s.score,
+    ProfundoMin: s.deep_min ?? 0,
+    RemMin: s.rem_min ?? 0,
+    LigeroMin: s.light_min ?? 0,
+    DespiertoMin: s.awake_min ?? 0,
+    ProfundoHoras: s.deep_min ? Math.round((s.deep_min / 60) * 10) / 10 : 0,
+    RemHoras: s.rem_min ? Math.round((s.rem_min / 60) * 10) / 10 : 0,
+    LigeroHoras: s.light_min ? Math.round((s.light_min / 60) * 10) / 10 : 0,
   }));
+
   const weightData = measurements.map((m) => ({ date: m.date.slice(5), kg: m.weight_kg }));
 
-  const hasCompliance = chartData.some((d) => d.Cumplimiento !== null);
-  const hasRpe = chartData.some((d) => d.RPE !== null || d.ACWR !== null);
-  const hasSleep = chartData.some((d) => d.Horas !== null || d.Calidad !== null);
-  const hasSleepScore = chartData.some((d) => d.Puntuacion !== null);
+  // Banderas de existencia de datos
+  const hasCompliance = weeklyTrainingData.some((d) => d.Cumplimiento !== null);
+  const hasVolume = weeklyTrainingData.some((d) => d.HorasEntreno > 0 || d.Kilometros > 0);
+  const hasLoad = weeklyTrainingData.some((d) => d.CargaTotal > 0 || d.RPE !== null);
+  const hasAcwr = weeklyTrainingData.some((d) => d.ACWR !== null);
+  const hasDailySleep = dailySleepData.some((d) => d.Horas !== null);
+  const hasSleepPhases = dailySleepData.some((d) => d.ProfundoMin > 0 || d.RemMin > 0);
+  const hasSleepScore = dailySleepData.some((d) => d.Score !== null);
   const hasWeight = weightData.length > 0;
+
+  // Cálculos para tarjetas KPI superiores
+  const recentWeeks = weeks.slice(-4);
+  const validCompliance = recentWeeks.map((w) => w.compliancePct).filter((v): v is number => v !== null);
+  const avgCompliance = validCompliance.length > 0 ? Math.round(validCompliance.reduce((a, b) => a + b, 0) / validCompliance.length) : null;
+
+  const validSleep = sleepLogs.slice(-14).filter((s) => s.hours !== null);
+  const avgSleepHours = validSleep.length > 0
+    ? (validSleep.reduce((acc, s) => acc + (s.hours ?? 0), 0) / validSleep.length).toFixed(1)
+    : null;
+
+  const validScores = sleepLogs.slice(-14).filter((s) => s.score !== null);
+  const avgSleepScore = validScores.length > 0
+    ? Math.round(validScores.reduce((acc, s) => acc + (s.score ?? 0), 0) / validScores.length)
+    : null;
+
+  const currentWeek = weeks[weeks.length - 1];
+  const currentAcwr = currentWeek?.acwr ? Number(currentWeek.acwr.toFixed(2)) : null;
 
   return (
     <div>
       <PageHeader
         title="Progreso"
-        description="Tendencias a lo largo del tiempo: carga, sueño y peso corporal."
-        actions={
-          <>
-            <input ref={sleepFileRef} type="file" accept=".csv,.json,application/json,text/csv" onChange={handleImportSleepFile} style={{ display: "none" }} />
-            <Button variant="secondary" loading={sleepImportLoading} onClick={() => sleepFileRef.current?.click()}>
-              <FileUp size={15} />
-              Importar sueño (ZeppBridge)
-            </Button>
-          </>
-        }
+        description="Tendencias analíticas a lo largo del tiempo: carga de entreno, calidad de sueño y peso corporal."
       />
 
-      {sleepPreview && (
-        <div className="surface animate-in" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)", borderColor: "var(--color-brand)" }}>
-          <div className="flex items-start justify-between" style={{ marginBottom: "var(--space-3)" }}>
-            <div>
-              <div className="font-semibold text-sm">Noches detectadas en el archivo de ZeppBridge</div>
-              {sleepPreviewInfo && (
-                <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                  Revisa antes de importar — se guardan por fecha, así que reimportar una noche ya guardada la actualiza sin duplicarla.
-                </div>
-              )}
-            </div>
-            <button className="btn btn-ghost btn-icon" aria-label="Descartar importación" onClick={() => setSleepPreview(null)}>
-              <X size={15} />
-            </button>
+      {/* KPI Cards de resumen rápido */}
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        <div className="surface" style={{ padding: "var(--space-3)" }}>
+          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+            <span>Sueño Reciente</span>
+            <BedDouble size={14} style={{ color: CHART_COLORS.primary }} />
           </div>
-
-          {sleepPreview.length === 0 ? (
-            <p className="text-sm text-muted">No se ha reconocido ninguna noche. Prueba con otro archivo.</p>
-          ) : (
-            <>
-              <div className="grid gap-2" style={{ marginBottom: "var(--space-3)", maxHeight: 360, overflowY: "auto" }}>
-                {sleepPreview.map((row, i) => (
-                  <div key={row.date} className="surface-raised flex flex-wrap items-center gap-3" style={{ padding: "var(--space-3)" }}>
-                    <div style={{ minWidth: 100 }}>
-                      <div className="text-xs text-faint">Fecha</div>
-                      <div className="text-sm font-medium">{row.date}</div>
-                    </div>
-                    <div style={{ minWidth: 70 }}>
-                      <div className="text-xs text-faint">Horas</div>
-                      <div className="text-sm font-medium">{row.hours != null ? `${row.hours}h` : "—"}</div>
-                    </div>
-                    <div style={{ minWidth: 90 }}>
-                      <div className="text-xs text-faint">Calidad (1-5)</div>
-                      <select
-                        className="field-input text-xs"
-                        style={{ padding: "2px 6px", height: "auto" }}
-                        value={row.quality ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value === "" ? null : Number(e.target.value);
-                          setSleepPreview((prev) =>
-                            prev ? prev.map((item, idx) => (idx === i ? { ...item, quality: val } : item)) : prev
-                          );
-                        }}
-                      >
-                        <option value="">—</option>
-                        {[1, 2, 3, 4, 5].map((q) => (
-                          <option key={q} value={q}>
-                            {q}/5
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ minWidth: 80 }}>
-                      <div className="text-xs text-faint">Puntuación</div>
-                      <div className="text-sm font-medium">{row.score != null ? `${row.score}/100` : "—"}</div>
-                    </div>
-                    <div style={{ minWidth: 80 }}>
-                      <div className="text-xs text-faint">Profundo</div>
-                      <div className="text-sm">{formatMin(row.deep_min)}</div>
-                    </div>
-                    <div style={{ minWidth: 80 }}>
-                      <div className="text-xs text-faint">Ligero</div>
-                      <div className="text-sm">{formatMin(row.light_min)}</div>
-                    </div>
-                    <div style={{ minWidth: 80 }}>
-                      <div className="text-xs text-faint">REM</div>
-                      <div className="text-sm">{formatMin(row.rem_min)}</div>
-                    </div>
-                    <div style={{ minWidth: 80 }}>
-                      <div className="text-xs text-faint">Despierto</div>
-                      <div className="text-sm">{formatMin(row.awake_min)}</div>
-                    </div>
-                    <button
-                      className="btn btn-ghost btn-icon"
-                      aria-label="Quitar esta noche"
-                      style={{ marginLeft: "auto" }}
-                      onClick={() => removeSleepPreviewRow(i)}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <Button variant="primary" loading={sleepCommitting} onClick={commitSleepImport}>
-                <Moon size={15} />
-                Importar {sleepPreview.length} noche(s)
-              </Button>
-            </>
-          )}
+          <div className="text-xl font-bold">
+            {avgSleepHours ? `${avgSleepHours}h` : "—"}
+          </div>
+          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+            {avgSleepScore ? `Score medio: ${avgSleepScore}/100` : "Media últimos 14 días"}
+          </div>
         </div>
-      )}
 
-      <div className="grid gap-4 md:grid-cols-2" style={{ marginBottom: "var(--space-4)" }}>
-        <ChartCard title="Cumplimiento semanal (%)" hasData={hasCompliance}>
-          <ResponsiveContainer>
-            <LineChart data={chartData}>
-              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-              <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
-              <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={[0, 100]} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Line type="monotone" dataKey="Cumplimiento" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <div className="surface" style={{ padding: "var(--space-3)" }}>
+          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+            <span>Ratio ACWR</span>
+            <Activity size={14} style={{ color: CHART_COLORS.secondary }} />
+          </div>
+          <div className="text-xl font-bold flex items-center gap-2">
+            {currentAcwr !== null ? currentAcwr : "—"}
+            {currentAcwr !== null && (
+              <span
+                className="badge text-xs"
+                style={{
+                  backgroundColor:
+                    currentAcwr >= 0.8 && currentAcwr <= 1.3
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : currentAcwr > 1.5
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "rgba(249, 115, 22, 0.15)",
+                  color:
+                    currentAcwr >= 0.8 && currentAcwr <= 1.3
+                      ? "var(--color-success)"
+                      : currentAcwr > 1.5
+                      ? "var(--color-danger)"
+                      : "var(--color-warning)",
+                }}
+              >
+                {currentAcwr >= 0.8 && currentAcwr <= 1.3 ? "Óptimo" : currentAcwr > 1.5 ? "Sobrecarga" : "Precaución"}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+            Zona óptima: 0.8 a 1.3
+          </div>
+        </div>
 
-        <ChartCard title="RPE medio y carga aguda:crónica (ACWR)" hasData={hasRpe}>
-          <ResponsiveContainer>
-            <LineChart data={chartData}>
-              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-              <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
-              <YAxis stroke={CHART_COLORS.text} fontSize={11} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="RPE" stroke={CHART_COLORS.secondary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-              <Line type="monotone" dataKey="ACWR" stroke={CHART_COLORS.tertiary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <div className="surface" style={{ padding: "var(--space-3)" }}>
+          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+            <span>Cumplimiento 4 sem.</span>
+            <CheckCircle2 size={14} style={{ color: CHART_COLORS.success }} />
+          </div>
+          <div className="text-xl font-bold">
+            {avgCompliance !== null ? `${avgCompliance}%` : "—"}
+          </div>
+          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+            Meta recomendada: 80%+
+          </div>
+        </div>
 
-        <ChartCard title="Sueño: horas y calidad (manual)" hasData={hasSleep}>
-          <ResponsiveContainer>
-            <LineChart data={chartData}>
-              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-              <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
-              <YAxis stroke={CHART_COLORS.text} fontSize={11} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="Horas" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-              <Line type="monotone" dataKey="Calidad" stroke={CHART_COLORS.secondary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Puntuación de sueño (ZeppBridge, 0-100)" hasData={hasSleepScore}>
-          <ResponsiveContainer>
-            <LineChart data={chartData}>
-              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-              <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
-              <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={[0, 100]} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Line type="monotone" dataKey="Puntuacion" stroke={CHART_COLORS.quaternary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Peso corporal (kg)" hasData={hasWeight}>
-          <ResponsiveContainer>
-            <LineChart data={weightData}>
-              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke={CHART_COLORS.text} fontSize={11} />
-              <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={["auto", "auto"]} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Line type="monotone" dataKey="kg" stroke={CHART_COLORS.tertiary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <div className="surface" style={{ padding: "var(--space-3)" }}>
+          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+            <span>Volumen Última Sem.</span>
+            <Flame size={14} style={{ color: CHART_COLORS.purple }} />
+          </div>
+          <div className="text-xl font-bold">
+            {currentWeek?.durationTotalMin ? formatMin(currentWeek.durationTotalMin) : "—"}
+          </div>
+          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+            {currentWeek?.distanceTotalKm ? `${currentWeek.distanceTotalKm} km recorridos` : "Tiempo en movimiento"}
+          </div>
+        </div>
       </div>
 
-      {!hasCompliance && !hasWeight && (
+      {/* Selector de pestañas */}
+      <div className="flex items-center gap-2" style={{ marginBottom: "var(--space-4)", overflowX: "auto" }}>
+        <button
+          type="button"
+          className={`btn ${activeTab === "todos" ? "btn-primary" : "btn-secondary"} text-xs`}
+          onClick={() => setActiveTab("todos")}
+        >
+          Visión Global
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === "entrenos" ? "btn-primary" : "btn-secondary"} text-xs`}
+          onClick={() => setActiveTab("entrenos")}
+        >
+          <Dumbbell size={13} />
+          Entrenamientos y Carga
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === "sueno" ? "btn-primary" : "btn-secondary"} text-xs`}
+          onClick={() => setActiveTab("sueno")}
+        >
+          <Moon size={13} />
+          Sueño y Recuperación
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === "peso" ? "btn-primary" : "btn-secondary"} text-xs`}
+          onClick={() => setActiveTab("peso")}
+        >
+          <Scale size={13} />
+          Peso Corporal
+        </button>
+      </div>
+
+      {/* SECCIÓN 1: ENTRENAMIENTOS Y CARGA */}
+      {(activeTab === "todos" || activeTab === "entrenos") && (
+        <>
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider" style={{ marginBottom: "var(--space-3)" }}>
+            <Dumbbell size={14} />
+            Métricas de Entrenamiento y Fatiga
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2" style={{ marginBottom: "var(--space-4)" }}>
+            {/* Gráfico 1: Volumen Semanal (Horas y Km) */}
+            <ChartCard
+              title="Volumen semanal de entrenamiento"
+              subtitle="Horas dedicadas y kilómetros completados por semana"
+              hasData={hasVolume}
+            >
+              <ResponsiveContainer>
+                <BarChart data={weeklyTrainingData}>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis yAxisId="left" stroke={CHART_COLORS.primary} fontSize={11} unit="h" />
+                  <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.secondary} fontSize={11} unit="km" />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+                  <Bar yAxisId="left" dataKey="HorasEntreno" name="Horas de entreno" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="Kilometros" name="Distancia (km)" stroke={CHART_COLORS.secondary} strokeWidth={2.5} dot={{ r: 3 }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Gráfico 2: Carga Aguda:Crónica (ACWR) con Zonas */}
+            <ChartCard
+              title="Ratio Carga Aguda : Crónica (ACWR)"
+              subtitle="Control del riesgo de sobreentrenamiento y progresión de carga"
+              badge={
+                <span className="badge text-xs" style={{ backgroundColor: "rgba(34, 197, 94, 0.15)", color: "var(--color-success)" }}>
+                  Zona Segura: 0.8 - 1.3
+                </span>
+              }
+              hasData={hasAcwr}
+            >
+              <ResponsiveContainer>
+                <LineChart data={weeklyTrainingData}>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={[0, 2]} ticks={[0.5, 0.8, 1.0, 1.3, 1.5, 2.0]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <ReferenceArea y1={0.8} y2={1.3} fill="rgba(34, 197, 94, 0.08)" stroke="none" />
+                  <ReferenceLine y={1.5} stroke="rgba(239, 68, 68, 0.6)" strokeDasharray="3 3" label={{ value: "Riesgo alto (>1.5)", fill: "#ef4444", fontSize: 10, position: "insideTopRight" }} />
+                  <ReferenceLine y={0.8} stroke="rgba(34, 197, 94, 0.4)" strokeDasharray="2 2" />
+                  <ReferenceLine y={1.3} stroke="rgba(34, 197, 94, 0.4)" strokeDasharray="2 2" />
+                  <Line
+                    type="monotone"
+                    dataKey="ACWR"
+                    name="ACWR"
+                    stroke={CHART_COLORS.cyan}
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: CHART_COLORS.cyan }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Gráfico 3: Carga Interna Semanal (sRPE) y Esfuerzo (RPE) */}
+            <ChartCard
+              title="Carga interna y esfuerzo percibido (RPE)"
+              subtitle="Carga semanal calculada (Duración × RPE) y media de esfuerzo"
+              hasData={hasLoad}
+            >
+              <ResponsiveContainer>
+                <AreaChart data={weeklyTrainingData}>
+                  <defs>
+                    <linearGradient id="colorCarga" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={CHART_COLORS.purple} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={CHART_COLORS.purple} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis yAxisId="left" stroke={CHART_COLORS.purple} fontSize={11} />
+                  <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.secondary} fontSize={11} domain={[0, 10]} ticks={[2, 4, 6, 8, 10]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+                  <Area yAxisId="left" type="monotone" dataKey="CargaTotal" name="Carga semanal (sRPE)" stroke={CHART_COLORS.purple} fill="url(#colorCarga)" strokeWidth={2} />
+                  <Line yAxisId="right" type="monotone" dataKey="RPE" name="RPE medio (1-10)" stroke={CHART_COLORS.secondary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Gráfico 4: Cumplimiento del Plan (%) */}
+            <ChartCard
+              title="Cumplimiento del plan semanal (%)"
+              subtitle="Porcentaje de sesiones completadas frente a las programadas"
+              hasData={hasCompliance}
+            >
+              <ResponsiveContainer>
+                <BarChart data={weeklyTrainingData}>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={[0, 100]} unit="%" />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <ReferenceLine y={80} stroke={CHART_COLORS.success} strokeDasharray="3 3" label={{ value: "Meta (80%)", fill: CHART_COLORS.success, fontSize: 10, position: "insideTopLeft" }} />
+                  <Bar dataKey="Cumplimiento" name="% Cumplimiento" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+        </>
+      )}
+
+      {/* SECCIÓN 2: SUEÑO Y RECUPERACIÓN */}
+      {(activeTab === "todos" || activeTab === "sueno") && (
+        <>
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider" style={{ marginBottom: "var(--space-3)", marginTop: "var(--space-2)" }}>
+            <Moon size={14} />
+            Métricas de Sueño y Recuperación (Zepp / Amazfit)
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2" style={{ marginBottom: "var(--space-4)" }}>
+            {/* Gráfico 5: Horas de sueño diarias (últimas noches) */}
+            <ChartCard
+              title="Horas de sueño por noche (Últimos 30 días)"
+              subtitle="Duración real del descanso nocturno"
+              badge={
+                <span className="badge text-xs" style={{ backgroundColor: "rgba(59, 130, 246, 0.15)", color: CHART_COLORS.primary }}>
+                  Rango recomendado: 7h – 9h
+                </span>
+              }
+              hasData={hasDailySleep}
+            >
+              <ResponsiveContainer>
+                <AreaChart data={dailySleepData}>
+                  <defs>
+                    <linearGradient id="colorHoras" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis stroke={CHART_COLORS.text} fontSize={11} unit="h" domain={[4, 12]} ticks={[4, 6, 8, 10, 12]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <ReferenceLine y={7.0} stroke="rgba(34, 197, 94, 0.5)" strokeDasharray="3 3" />
+                  <ReferenceLine y={8.0} stroke="rgba(34, 197, 94, 0.8)" strokeDasharray="3 3" label={{ value: "8h objetivo", fill: "#22c55e", fontSize: 10, position: "insideTopLeft" }} />
+                  <Area type="monotone" dataKey="Horas" name="Horas de sueño" stroke={CHART_COLORS.primary} fill="url(#colorHoras)" strokeWidth={2.5} dot={{ r: 3, fill: CHART_COLORS.primary }} connectNulls />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Gráfico 6: Fases de sueño apiladas (ZeppBridge) */}
+            <ChartCard
+              title="Arquitectura del sueño por fases (Horas)"
+              subtitle="Desglose de sueño Profundo, REM y Ligero registrado por el reloj"
+              hasData={hasSleepPhases}
+            >
+              <ResponsiveContainer>
+                <BarChart data={dailySleepData}>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis stroke={CHART_COLORS.text} fontSize={11} unit="h" />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(val, name) => [`${val} h`, name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+                  <Bar dataKey="ProfundoHoras" name="Profundo" stackId="a" fill={CHART_COLORS.deepSleep} />
+                  <Bar dataKey="RemHoras" name="REM" stackId="a" fill={CHART_COLORS.remSleep} />
+                  <Bar dataKey="LigeroHoras" name="Ligero" stackId="a" fill={CHART_COLORS.lightSleep} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Gráfico 7: Puntuación de sueño Zepp (0-100) y Calidad */}
+            <ChartCard
+              title="Puntuación y calidad del sueño"
+              subtitle="Score global de Zepp (0-100) y Calidad estimada (1-5)"
+              hasData={hasSleepScore}
+            >
+              <ResponsiveContainer>
+                <LineChart data={dailySleepData}>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis yAxisId="score" stroke={CHART_COLORS.purple} fontSize={11} domain={[40, 100]} />
+                  <YAxis yAxisId="quality" orientation="right" stroke={CHART_COLORS.secondary} fontSize={11} domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+                  <ReferenceLine yAxisId="score" y={80} stroke="rgba(168, 85, 247, 0.4)" strokeDasharray="3 3" label={{ value: "Óptimo (80+)", fill: CHART_COLORS.purple, fontSize: 10, position: "insideTopLeft" }} />
+                  <Line yAxisId="score" type="monotone" dataKey="Score" name="Puntuación Zepp (0-100)" stroke={CHART_COLORS.purple} strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                  <Line yAxisId="quality" type="monotone" dataKey="Calidad" name="Calidad (1-5)" stroke={CHART_COLORS.secondary} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Gráfico 8: Evolución semanal comparativa (Horas vs Score) */}
+            <ChartCard
+              title="Promedio semanal de descanso"
+              subtitle="Horas medias y puntuación semanal a lo largo de las semanas"
+              hasData={weeklyTrainingData.some((d) => d.SueñoHoras !== null)}
+            >
+              <ResponsiveContainer>
+                <LineChart data={weeklyTrainingData}>
+                  <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" stroke={CHART_COLORS.text} fontSize={11} />
+                  <YAxis yAxisId="left" stroke={CHART_COLORS.primary} fontSize={11} unit="h" domain={[5, 11]} />
+                  <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.purple} fontSize={11} domain={[50, 100]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="SueñoHoras" name="Media horas/semana" stroke={CHART_COLORS.primary} strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                  <Line yAxisId="right" type="monotone" dataKey="SueñoScore" name="Score medio Zepp" stroke={CHART_COLORS.purple} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+
+          {/* Tabla de últimas noches */}
+          {sleepLogs.length > 0 && (
+            <div className="surface" style={{ padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-3)" }}>
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <Moon size={16} />
+                  Historial de noches registradas
+                </div>
+                <div className="text-xs text-muted">Mostrando las últimas 14 noches</div>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table className="text-sm" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr className="text-xs text-faint" style={{ textAlign: "left", borderBottom: "1px solid var(--color-border)" }}>
+                      <th style={{ padding: "8px" }}>Fecha</th>
+                      <th style={{ padding: "8px" }}>Horas</th>
+                      <th style={{ padding: "8px" }}>Calidad</th>
+                      <th style={{ padding: "8px" }}>Puntuación Zepp</th>
+                      <th style={{ padding: "8px" }}>Profundo</th>
+                      <th style={{ padding: "8px" }}>REM</th>
+                      <th style={{ padding: "8px" }}>Ligero</th>
+                      <th style={{ padding: "8px" }}>Despierto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sleepLogs.slice().reverse().slice(0, 14).map((s) => (
+                      <tr key={s.date} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                        <td style={{ padding: "8px", fontWeight: 500 }}>{s.date}</td>
+                        <td style={{ padding: "8px" }}>
+                          {s.hours != null ? (
+                            <span className="font-semibold">{s.hours}h</span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td style={{ padding: "8px" }}>
+                          {s.quality != null ? (
+                            <span
+                              className="badge text-xs"
+                              style={{
+                                backgroundColor:
+                                  s.quality >= 4
+                                    ? "rgba(34, 197, 94, 0.15)"
+                                    : s.quality === 3
+                                    ? "rgba(59, 130, 246, 0.15)"
+                                    : "rgba(249, 115, 22, 0.15)",
+                                color:
+                                  s.quality >= 4
+                                    ? "var(--color-success)"
+                                    : s.quality === 3
+                                    ? "var(--color-brand)"
+                                    : "var(--color-warning)",
+                              }}
+                            >
+                              {s.quality}/5
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td style={{ padding: "8px" }}>
+                          {s.score != null ? (
+                            <span className="font-medium">{s.score}/100</span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td style={{ padding: "8px", color: CHART_COLORS.deepSleep }}>{formatMin(s.deep_min)}</td>
+                        <td style={{ padding: "8px", color: CHART_COLORS.remSleep }}>{formatMin(s.rem_min)}</td>
+                        <td style={{ padding: "8px", color: CHART_COLORS.lightSleep }}>{formatMin(s.light_min)}</td>
+                        <td style={{ padding: "8px", color: CHART_COLORS.text }}>{formatMin(s.awake_min)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* SECCIÓN 3: PESO CORPORAL */}
+      {(activeTab === "todos" || activeTab === "peso") && (
+        <>
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider" style={{ marginBottom: "var(--space-3)", marginTop: "var(--space-2)" }}>
+            <Scale size={14} />
+            Evolución del Peso Corporal
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3" style={{ marginBottom: "var(--space-4)" }}>
+            <div className="md:col-span-2">
+              <ChartCard title="Evolución de peso (kg)" subtitle="Histórico de pesajes registrados" hasData={hasWeight}>
+                <ResponsiveContainer>
+                  <AreaChart data={weightData}>
+                    <defs>
+                      <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.35} />
+                        <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" stroke={CHART_COLORS.text} fontSize={11} />
+                    <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={["dataMin - 1", "dataMax + 1"]} unit="kg" />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Area type="monotone" dataKey="kg" name="Peso (kg)" stroke={CHART_COLORS.success} fill="url(#colorPeso)" strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS.success }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+
+            <div className="surface" style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div>
+                <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-1)" }}>
+                  Registrar nuevo peso
+                </div>
+                <p className="text-xs text-muted" style={{ marginBottom: "var(--space-3)" }}>
+                  Anota tu peso en ayunas para hacer seguimiento de tu evolución física.
+                </p>
+                <div className="grid gap-3">
+                  <Input
+                    label="Fecha"
+                    type="date"
+                    value={weightForm.date}
+                    onChange={(e) => setWeightForm((f) => ({ ...f, date: e.target.value }))}
+                  />
+                  <Input
+                    label="Peso (kg)"
+                    type="number"
+                    step="0.1"
+                    placeholder="ej. 73.5"
+                    value={weightForm.weight_kg}
+                    onChange={(e) => setWeightForm((f) => ({ ...f, weight_kg: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <Button variant="primary" loading={saving} onClick={addWeight} style={{ marginTop: "var(--space-3)" }}>
+                <Save size={15} />
+                Guardar peso
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Estado vacío si no hay ningún dato todavía */}
+      {!hasCompliance && !hasDailySleep && !hasWeight && (
         <div style={{ marginBottom: "var(--space-4)" }}>
           <EmptyState
-            icon={<Scale size={22} />}
-            title="Todavía no hay histórico"
-            description="En cuanto registres alguna sesión y algún peso, aquí aparecerán las tendencias de varias semanas."
+            icon={<Scale size={24} />}
+            title="Todavía no hay suficiente histórico"
+            description="A medida que registres sesiones de entreno o importes tus noches de sueño desde el Registro, verás aquí tus gráficos y análisis avanzados."
           />
         </div>
       )}
-
-      {sleepLogs.length > 0 && (
-        <div className="surface" style={{ padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
-          <div className="flex items-center gap-2 font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>
-            <Moon size={16} />
-            Últimas noches
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table className="text-sm" style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr className="text-xs text-faint" style={{ textAlign: "left" }}>
-                  <th style={{ padding: "4px 8px" }}>Fecha</th>
-                  <th style={{ padding: "4px 8px" }}>Horas</th>
-                  <th style={{ padding: "4px 8px" }}>Calidad</th>
-                  <th style={{ padding: "4px 8px" }}>Puntuación</th>
-                  <th style={{ padding: "4px 8px" }}>Profundo</th>
-                  <th style={{ padding: "4px 8px" }}>Ligero</th>
-                  <th style={{ padding: "4px 8px" }}>REM</th>
-                  <th style={{ padding: "4px 8px" }}>Despierto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sleepLogs.slice(0, 14).map((s) => (
-                  <tr key={s.date} style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <td style={{ padding: "4px 8px" }}>{s.date}</td>
-                    <td style={{ padding: "4px 8px" }}>{s.hours != null ? `${s.hours}h` : "—"}</td>
-                    <td style={{ padding: "4px 8px" }}>{s.quality != null ? `${s.quality}/5` : "—"}</td>
-                    <td style={{ padding: "4px 8px" }}>{s.score != null ? `${s.score}/100` : "—"}</td>
-                    <td style={{ padding: "4px 8px" }}>{formatMin(s.deep_min)}</td>
-                    <td style={{ padding: "4px 8px" }}>{formatMin(s.light_min)}</td>
-                    <td style={{ padding: "4px 8px" }}>{formatMin(s.rem_min)}</td>
-                    <td style={{ padding: "4px 8px" }}>{formatMin(s.awake_min)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="surface" style={{ padding: "var(--space-4)" }}>
-        <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>
-          Registrar peso
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <Input
-            label="Fecha"
-            type="date"
-            value={weightForm.date}
-            onChange={(e) => setWeightForm((f) => ({ ...f, date: e.target.value }))}
-          />
-          <Input
-            label="Peso (kg)"
-            type="number"
-            step="0.1"
-            value={weightForm.weight_kg}
-            onChange={(e) => setWeightForm((f) => ({ ...f, weight_kg: e.target.value }))}
-          />
-          <Button variant="primary" loading={saving} onClick={addWeight}>
-            <Save size={15} />
-            Guardar
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

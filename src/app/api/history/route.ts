@@ -20,13 +20,17 @@ export async function GET(req: NextRequest) {
     const weekEnd = addDays(weekStart, 6);
     const sessions = listSessionsForWeek(weekStart);
     const relevant = sessions.filter((s) => s.discipline !== "descanso");
+    const completed = relevant.filter((s) => s.status === "realizada" || s.status === "parcial");
     const compliancePct =
       relevant.length > 0
-        ? (relevant.filter((s) => s.status === "realizada" || s.status === "parcial").length / relevant.length) * 100
+        ? (completed.length / relevant.length) * 100
         : null;
     const rpeAvg = avg(
-      relevant.filter((s) => s.status === "realizada" || s.status === "parcial").map((s) => s.rpe ?? NaN)
+      completed.map((s) => s.rpe ?? NaN)
     );
+    const durationTotalMin = completed.reduce((sum, s) => sum + (s.duration_min ?? 0), 0);
+    const distanceTotalKm = Math.round(completed.reduce((sum, s) => sum + (s.distance_km ?? 0), 0) * 10) / 10;
+    const loadTotal = Math.round(completed.reduce((sum, s) => sum + (s.duration_min ?? 0) * (s.rpe ?? 5), 0));
     const sleepLogs = listSleepBetween(weekStart, weekEnd);
     const sleepHoursAvg = avg(sleepLogs.map((s) => s.hours ?? NaN));
     const sleepQualityAvg = avg(sleepLogs.map((s) => s.quality ?? NaN));
@@ -39,6 +43,11 @@ export async function GET(req: NextRequest) {
       weekStart,
       compliancePct,
       rpeAvg,
+      durationTotalMin,
+      distanceTotalKm,
+      loadTotal,
+      completedCount: completed.length,
+      plannedCount: relevant.length,
       sleepHoursAvg,
       sleepQualityAvg,
       sleepScoreAvg,
