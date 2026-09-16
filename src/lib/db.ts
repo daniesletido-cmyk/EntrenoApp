@@ -216,6 +216,10 @@ function migrateSchema(d: AppDb) {
   if (!columnExists(d, "sleep_logs", "source")) {
     d.exec(`ALTER TABLE sleep_logs ADD COLUMN source TEXT;`);
   }
+
+  if (!columnExists(d, "gym_logs", "completed")) {
+    d.exec(`ALTER TABLE gym_logs ADD COLUMN completed INTEGER DEFAULT 0;`);
+  }
 }
 
 // Igual que FinanzasApp: si hay una restauración de copia de seguridad

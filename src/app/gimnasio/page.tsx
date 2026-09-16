@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X } from "lucide-react";
+import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -30,10 +30,14 @@ interface GymLog {
   weight_kg: number | null;
   sets: number | null;
   reps: number | null;
+  completed?: number | null;
 }
 interface SessionLite {
+  id: number;
+  date: string;
   discipline: string;
   planned_code: string | null;
+  status: string;
 }
 
 interface GymPreviewRow {
@@ -65,6 +69,8 @@ export default function GimnasioPage() {
   const [days, setDays] = useState<GymDay[]>([]);
   const [exercises, setExercises] = useState<GymExercise[]>([]);
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null);
+  const [scheduledGymDay, setScheduledGymDay] = useState<GymDay | null>(null);
+  const [scheduledSession, setScheduledSession] = useState<SessionLite | null>(null);
   const [logsToday, setLogsToday] = useState<GymLog[]>([]);
   const [drafts, setDrafts] = useState<Record<number, { weight: string; sets: string; reps: string }>>({});
   const [loading, setLoading] = useState(true);
@@ -99,15 +105,27 @@ export default function GimnasioPage() {
       const gymSession: SessionLite | undefined = (sessionsRes.sessions ?? []).find(
         (s: SessionLite) => s.discipline === "gimnasio"
       );
-      let pick: number | null = null;
+      setScheduledSession(gymSession ?? null);
+
+      let matchedDay: GymDay | null = null;
       if (gymSession?.planned_code) {
-        const match = loadedDays.find(
-          (d) => d.name.trim().toLowerCase() === String(gymSession.planned_code).trim().toLowerCase()
-        );
-        if (match) pick = match.id;
+        const code = String(gymSession.planned_code).trim().toLowerCase();
+        matchedDay =
+          loadedDays.find((d) => d.name.trim().toLowerCase() === code) ||
+          loadedDays.find((d) => d.name.trim().toLowerCase().startsWith(code)) ||
+          loadedDays.find((d) => d.name.trim().toLowerCase().includes(code)) ||
+          loadedDays.find((d) => code.includes(d.name.trim().toLowerCase())) ||
+          null;
       }
-      if (pick === null && loadedDays.length > 0) {
-        pick = selectedDayId && loadedDays.some((d) => d.id === selectedDayId) ? selectedDayId : loadedDays[0].id;
+      setScheduledGymDay(matchedDay);
+
+      let pick: number | null = null;
+      if (matchedDay) {
+        pick = matchedDay.id;
+      } else if (selectedDayId && loadedDays.some((d) => d.id === selectedDayId)) {
+        pick = selectedDayId;
+      } else if (loadedDays.length > 0) {
+        pick = loadedDays[0].id;
       }
       setSelectedDayId(pick);
     } finally {
@@ -137,6 +155,15 @@ export default function GimnasioPage() {
     () => exercises.filter((e) => e.gym_day_id === selectedDayId).sort((a, b) => a.sort_order - b.sort_order),
     [exercises, selectedDayId]
   );
+
+  const completedCount = useMemo(() => {
+    return dayExercises.filter((ex) => {
+      const log = logsToday.find((l) => l.exercise_id === ex.id);
+      return log?.completed === 1;
+    }).length;
+  }, [dayExercises, logsToday]);
+
+  const completionPct = dayExercises.length > 0 ? Math.round((completedCount / dayExercises.length) * 100) : 0;
 
   const { push } = useToast();
 
@@ -168,9 +195,12 @@ export default function GimnasioPage() {
     };
   }, [dayExercises]);
 
-  async function saveLog(exerciseId: number) {
+  async function saveLog(exerciseId: number, completedOverride?: boolean) {
     const d = drafts[exerciseId];
     if (!d) return;
+    const currentLog = logsToday.find((l) => l.exercise_id === exerciseId);
+    const isCompleted =
+      completedOverride !== undefined ? completedOverride : currentLog?.completed === 1;
     setSavingId(exerciseId);
     try {
       const res = await fetch("/api/gym/logs", {
@@ -182,26 +212,60 @@ export default function GimnasioPage() {
           weight_kg: d.weight ? Number(d.weight) : null,
           sets: d.sets ? Number(d.sets) : null,
           reps: d.reps ? Number(d.reps) : null,
+          completed: isCompleted ? 1 : 0,
         }),
       });
       if (!res.ok) throw new Error();
       const { log } = await res.json();
-      setLogsToday((prev) => [...prev.filter((l) => l.exercise_id !== exerciseId), log]);
-      // Refleja el peso recién guardado en el gráfico de este ejercicio sin
-      // esperar a la siguiente recarga del día.
+      const updatedLogs = [...logsToday.filter((l) => l.exercise_id !== exerciseId), log];
+      setLogsToday(updatedLogs);
+      // Refleja el peso recién guardado en el gráfico de este ejercicio
       setDayHistory((prev) =>
         prev.map((h) =>
           h.exerciseId === exerciseId
-            ? { ...h, logs: [...h.logs.filter((l) => l.date !== date), log].sort((a, b) => a.date.localeCompare(b.date)) }
+            ? {
+                ...h,
+                logs: [...h.logs.filter((l) => l.date !== date), log].sort((a, b) =>
+                  a.date.localeCompare(b.date)
+                ),
+              }
             : h
         )
       );
-      push("success", "Guardado");
+
+      // Si todos los ejercicios de este día están completados, felicitar y marcar la sesión en realizada
+      const allDone =
+        dayExercises.length > 0 &&
+        dayExercises.every((ex) => {
+          const item = ex.id === exerciseId ? log : updatedLogs.find((l) => l.exercise_id === ex.id);
+          return item?.completed === 1;
+        });
+
+      if (allDone && scheduledSession && scheduledSession.status !== "realizada") {
+        await fetch(`/api/sessions/${scheduledSession.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "realizada" }),
+        });
+        setScheduledSession((prev) => (prev ? { ...prev, status: "realizada" } : null));
+        push("success", "¡Enhorabuena! Has completado todos los ejercicios de la sesión.");
+      } else if (completedOverride !== undefined) {
+        push(
+          "success",
+          completedOverride ? "Ejercicio completado" : "Ejercicio marcado como pendiente"
+        );
+      }
     } catch {
       push("error", "No se pudo guardar");
     } finally {
       setSavingId(null);
     }
+  }
+
+  async function toggleComplete(exerciseId: number) {
+    const currentLog = logsToday.find((l) => l.exercise_id === exerciseId);
+    const currentlyCompleted = currentLog?.completed === 1;
+    await saveLog(exerciseId, !currentlyCompleted);
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -384,22 +448,111 @@ export default function GimnasioPage() {
 
       {!loading && days.length > 0 && (
         <div className="animate-in grid gap-5">
+          {/* Banner de Rutina Activa para hoy */}
+          {scheduledGymDay && (
+            <div
+              className="surface"
+              style={{
+                padding: "var(--space-4)",
+                borderColor: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
+                background: completionPct === 100 ? "rgba(34, 197, 94, 0.05)" : "rgba(47, 111, 235, 0.05)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--space-3)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-3" style={{ flexWrap: "wrap" }}>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="badge"
+                    style={{
+                      backgroundColor: completionPct === 100 ? "rgba(34, 197, 94, 0.2)" : "rgba(47, 111, 235, 0.2)",
+                      color: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {completionPct === 100 ? "✓ Sesión Completada" : "⚡ Rutina Activa Hoy"}
+                  </span>
+                  <span className="font-semibold text-base">{scheduledGymDay.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted font-medium">
+                    {completedCount} de {dayExercises.length} ejercicios completados ({completionPct}%)
+                  </span>
+                  {selectedDayId !== scheduledGymDay.id && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setSelectedDayId(scheduledGymDay.id)}
+                      style={{ padding: "0.25rem 0.65rem", fontSize: "var(--text-xs)" }}
+                    >
+                      Ver rutina activa
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  width: "100%",
+                  height: 6,
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${completionPct}%`,
+                    height: "100%",
+                    backgroundColor: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="section-group" style={{ marginBottom: 0 }}>
             <div className="flex items-center gap-3" style={{ flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
               <span className="label" style={{ marginBottom: 0 }}>
                 Día
               </span>
               <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
-                {days.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setSelectedDayId(d.id)}
-                    className={d.id === selectedDayId ? "badge badge-brand" : "badge badge-neutral"}
-                    style={{ cursor: "pointer", border: "none", fontSize: "var(--text-sm)", padding: "0.4rem 0.9rem" }}
-                  >
-                    {d.name}
-                  </button>
-                ))}
+                {days.map((d) => {
+                  const isScheduled = d.id === scheduledGymDay?.id;
+                  const isSelected = d.id === selectedDayId;
+                  return (
+                    <button
+                      key={d.id}
+                      onClick={() => setSelectedDayId(d.id)}
+                      className={isSelected ? "badge badge-brand" : "badge badge-neutral"}
+                      style={{
+                        cursor: "pointer",
+                        border: isScheduled && !isSelected ? "1px solid var(--color-brand)" : "none",
+                        fontSize: "var(--text-sm)",
+                        padding: "0.4rem 0.9rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      {d.name}
+                      {isScheduled && (
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            backgroundColor: isSelected ? "#ffffff" : "var(--color-brand)",
+                            color: isSelected ? "var(--color-brand)" : "#ffffff",
+                            padding: "1px 5px",
+                            borderRadius: 999,
+                            fontWeight: 700,
+                          }}
+                        >
+                          ACTIVO
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -415,27 +568,34 @@ export default function GimnasioPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                        <th style={{ ...thStyle, width: 44, textAlign: "center" }} />
                         <th style={thStyle}>Ejercicio</th>
                         <th style={thStyle}>Peso (kg)</th>
                         <th style={thStyle}>Series</th>
                         <th style={thStyle}>Reps</th>
                         <th style={thStyle}>Última vez</th>
-                        <th style={thStyle} />
+                        <th style={{ ...thStyle, textAlign: "right" }}>Estado</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dayExercises.map((ex) => (
-                        <ExerciseRow
-                          key={ex.id}
-                          exercise={ex}
-                          draft={drafts[ex.id] ?? { weight: "", sets: "", reps: "" }}
-                          onChange={(patch) =>
-                            setDrafts((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], ...patch } }))
-                          }
-                          onSave={() => saveLog(ex.id)}
-                          saving={savingId === ex.id}
-                        />
-                      ))}
+                      {dayExercises.map((ex) => {
+                        const log = logsToday.find((l) => l.exercise_id === ex.id);
+                        const isCompleted = log?.completed === 1;
+                        return (
+                          <ExerciseRow
+                            key={ex.id}
+                            exercise={ex}
+                            draft={drafts[ex.id] ?? { weight: "", sets: "", reps: "" }}
+                            isCompleted={isCompleted}
+                            onChange={(patch) =>
+                              setDrafts((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], ...patch } }))
+                            }
+                            onSave={() => saveLog(ex.id)}
+                            onToggleComplete={() => toggleComplete(ex.id)}
+                            saving={savingId === ex.id}
+                          />
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -470,23 +630,87 @@ export default function GimnasioPage() {
   );
 }
 
+function parseExerciseName(fullName: string) {
+  const match = fullName.match(/^([^(]+)(?:\((.*)\))?$/);
+  if (match && match[2]) {
+    return { title: match[1].trim(), detail: match[2].trim() };
+  }
+  return { title: fullName, detail: null };
+}
+
 function ExerciseRow({
   exercise,
   draft,
+  isCompleted,
   onChange,
   onSave,
+  onToggleComplete,
   saving,
 }: {
   exercise: GymExercise;
   draft: { weight: string; sets: string; reps: string };
+  isCompleted: boolean;
   onChange: (patch: Partial<{ weight: string; sets: string; reps: string }>) => void;
   onSave: () => void;
+  onToggleComplete: () => void;
   saving: boolean;
 }) {
+  const parsed = parseExerciseName(exercise.name);
+
   return (
-    <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+    <tr
+      style={{
+        borderBottom: "1px solid var(--color-border)",
+        backgroundColor: isCompleted ? "rgba(100, 116, 139, 0.08)" : "transparent",
+        opacity: isCompleted ? 0.65 : 1,
+        transition: "all 0.2s ease",
+      }}
+    >
+      <td style={{ ...tdStyle, width: 44, textAlign: "center", paddingRight: 0 }}>
+        <button
+          type="button"
+          onClick={onToggleComplete}
+          style={{
+            background: isCompleted ? "rgba(34, 197, 94, 0.18)" : "rgba(255, 255, 255, 0.04)",
+            border: isCompleted ? "1px solid rgba(34, 197, 94, 0.4)" : "1px solid var(--color-border)",
+            borderRadius: "50%",
+            width: 30,
+            height: 30,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: isCompleted ? "var(--color-success)" : "var(--color-text-muted)",
+            transition: "all 0.15s ease",
+          }}
+          title={isCompleted ? "Marcar como pendiente" : "Marcar como completado"}
+        >
+          {isCompleted ? <CheckCircle2 size={16} /> : <Check size={14} />}
+        </button>
+      </td>
       <td style={tdStyle}>
-        <span className="font-medium text-sm">{exercise.name}</span>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <span
+            className="font-medium text-sm"
+            style={{
+              textDecoration: isCompleted ? "line-through" : "none",
+              color: isCompleted ? "var(--color-text-muted)" : "var(--color-text)",
+            }}
+          >
+            {parsed.title}
+          </span>
+          {parsed.detail && (
+            <span
+              className="text-xs"
+              style={{
+                color: "var(--color-text-faint)",
+                marginTop: 2,
+              }}
+            >
+              {parsed.detail}
+            </span>
+          )}
+        </div>
       </td>
       <td style={tdStyle}>
         <input
@@ -497,6 +721,8 @@ function ExerciseRow({
           style={{ width: 90 }}
           value={draft.weight}
           onChange={(e) => onChange({ weight: e.target.value })}
+          onBlur={onSave}
+          onKeyDown={(e) => e.key === "Enter" && onSave()}
           placeholder="kg"
         />
       </td>
@@ -508,6 +734,8 @@ function ExerciseRow({
           style={{ width: 70 }}
           value={draft.sets}
           onChange={(e) => onChange({ sets: e.target.value })}
+          onBlur={onSave}
+          onKeyDown={(e) => e.key === "Enter" && onSave()}
           placeholder="—"
         />
       </td>
@@ -519,6 +747,8 @@ function ExerciseRow({
           style={{ width: 70 }}
           value={draft.reps}
           onChange={(e) => onChange({ reps: e.target.value })}
+          onBlur={onSave}
+          onKeyDown={(e) => e.key === "Enter" && onSave()}
           placeholder="—"
         />
       </td>
@@ -526,9 +756,23 @@ function ExerciseRow({
         <LastValue exerciseId={exercise.id} />
       </td>
       <td style={{ ...tdStyle, textAlign: "right", whiteSpace: "nowrap" }}>
-        <Button variant="primary" onClick={onSave} loading={saving}>
-          <Save size={14} />
-          Guardar
+        <Button
+          variant={isCompleted ? "secondary" : "primary"}
+          onClick={onToggleComplete}
+          loading={saving}
+          style={{ minWidth: 105, padding: "0.35rem 0.75rem", fontSize: "var(--text-xs)" }}
+        >
+          {isCompleted ? (
+            <>
+              <CheckCircle2 size={14} style={{ color: "var(--color-success)" }} />
+              Completado
+            </>
+          ) : (
+            <>
+              <Check size={14} />
+              Completar
+            </>
+          )}
         </Button>
       </td>
     </tr>

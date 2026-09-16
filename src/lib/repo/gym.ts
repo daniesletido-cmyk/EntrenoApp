@@ -25,6 +25,7 @@ export interface GymLogRow {
   sets: number | null;
   reps: number | null;
   notes: string | null;
+  completed: number;
   created_at: string;
   updated_at: string;
 }
@@ -147,28 +148,45 @@ export interface UpsertGymLogInput {
   sets?: number | null;
   reps?: number | null;
   notes?: string | null;
+  completed?: number | boolean | null;
 }
 
 // Un registro por ejercicio y fecha: si ya existe, lo actualiza en vez de duplicar.
 export function upsertGymLog(input: UpsertGymLogInput): GymLogRow {
   const db = getDb();
   const now = new Date().toISOString();
+  const existing = db
+    .prepare<GymLogRow>("SELECT * FROM gym_logs WHERE exercise_id = ? AND date = ?")
+    .get(input.exercise_id, input.date);
+
+  const completed =
+    input.completed !== undefined
+      ? input.completed ? 1 : 0
+      : existing?.completed ?? 0;
+
+  const weight_kg = input.weight_kg !== undefined ? input.weight_kg : existing?.weight_kg ?? null;
+  const sets = input.sets !== undefined ? input.sets : existing?.sets ?? null;
+  const reps = input.reps !== undefined ? input.reps : existing?.reps ?? null;
+  const notes = input.notes !== undefined ? input.notes : existing?.notes ?? null;
+
   db.prepare(
-    `INSERT INTO gym_logs (exercise_id, date, weight_kg, sets, reps, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO gym_logs (exercise_id, date, weight_kg, sets, reps, notes, completed, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(exercise_id, date) DO UPDATE SET
        weight_kg = excluded.weight_kg,
        sets = excluded.sets,
        reps = excluded.reps,
        notes = excluded.notes,
+       completed = excluded.completed,
        updated_at = excluded.updated_at`
   ).run(
     input.exercise_id,
     input.date,
-    input.weight_kg ?? null,
-    input.sets ?? null,
-    input.reps ?? null,
-    input.notes ?? null,
+    weight_kg,
+    sets,
+    reps,
+    notes,
+    completed,
     now,
     now
   );
@@ -179,4 +197,33 @@ export function upsertGymLog(input: UpsertGymLogInput): GymLogRow {
 
 export function deleteGymLog(id: number): void {
   getDb().prepare("DELETE FROM gym_logs WHERE id = ?").run(id);
+}
+
+export interface GymPR {
+  exercise_id: number;
+  exercise_name: string;
+  gym_day_name: string;
+  max_weight: number;
+  date: string;
+  reps: number | null;
+  sets: number | null;
+}
+
+export function listGymPRs(): GymPR[] {
+  return getDb()
+    .prepare<GymPR>(
+      `WITH Ranked AS (
+         SELECT l.exercise_id, e.name as exercise_name, d.name as gym_day_name, l.weight_kg as max_weight, l.date, l.reps, l.sets,
+                ROW_NUMBER() OVER (PARTITION BY l.exercise_id ORDER BY l.weight_kg DESC, l.date DESC) as rn
+         FROM gym_logs l
+         JOIN gym_exercises e ON l.exercise_id = e.id
+         JOIN gym_days d ON e.gym_day_id = d.id
+         WHERE l.weight_kg IS NOT NULL AND l.weight_kg > 0
+       )
+       SELECT exercise_id, exercise_name, gym_day_name, max_weight, date, reps, sets
+       FROM Ranked
+       WHERE rn = 1
+       ORDER BY max_weight DESC`
+    )
+    .all();
 }

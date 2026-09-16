@@ -68,6 +68,16 @@ interface SleepLog {
   source: string | null;
 }
 
+interface GymPR {
+  exercise_id: number;
+  exercise_name: string;
+  gym_day_name: string;
+  max_weight: number;
+  date: string;
+  reps: number | null;
+  sets: number | null;
+}
+
 const CHART_COLORS = {
   primary: "#3b82f6",
   secondary: "#f97316",
@@ -135,7 +145,8 @@ export default function ProgresoPage() {
   const [weeks, setWeeks] = useState<WeekHistory[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
-  const [activeTab, setActiveTab] = useState<"todos" | "entrenos" | "sueno" | "peso">("todos");
+  const [gymPRs, setGymPRs] = useState<GymPR[]>([]);
+  const [activeTab, setActiveTab] = useState<"todos" | "entrenos" | "fuerza" | "sueno" | "peso">("todos");
   const [weightForm, setWeightForm] = useState({ date: "", weight_kg: "" });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
@@ -151,6 +162,9 @@ export default function ProgresoPage() {
     fetch(`/api/sleep?from=${addDays(today, -30)}&to=${today}`)
       .then((r) => r.json())
       .then((d) => setSleepLogs(d.logs ?? []));
+    fetch("/api/gym/logs?prs=true")
+      .then((r) => r.json())
+      .then((d) => setGymPRs(d.prs ?? []));
   }, []);
 
   useEffect(() => {
@@ -219,6 +233,7 @@ export default function ProgresoPage() {
   const hasSleepPhases = dailySleepData.some((d) => d.ProfundoMin > 0 || d.RemMin > 0);
   const hasSleepScore = dailySleepData.some((d) => d.Score !== null);
   const hasWeight = weightData.length > 0;
+  const hasGymPRs = gymPRs.length > 0;
 
   // Cálculos para tarjetas KPI superiores
   const recentWeeks = weeks.slice(-4);
@@ -343,6 +358,14 @@ export default function ProgresoPage() {
         >
           <Dumbbell size={13} />
           Entrenamientos y Carga
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === "fuerza" ? "btn-primary" : "btn-secondary"} text-xs`}
+          onClick={() => setActiveTab("fuerza")}
+        >
+          <Dumbbell size={13} />
+          Fuerza y Gimnasio
         </button>
         <button
           type="button"
@@ -472,7 +495,86 @@ export default function ProgresoPage() {
         </>
       )}
 
-      {/* SECCIÓN 2: SUEÑO Y RECUPERACIÓN */}
+      {/* SECCIÓN 2: FUERZA Y GIMNASIO */}
+      {(activeTab === "todos" || activeTab === "fuerza") && (
+        <>
+          <div
+            className="flex items-center justify-between"
+            style={{ marginBottom: "var(--space-3)", marginTop: activeTab === "todos" ? "var(--space-3)" : 0 }}
+          >
+            <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider">
+              <Dumbbell size={14} />
+              Progresión de Fuerza y Récords Personales (PR)
+            </div>
+            {gymPRs.length > 0 && (
+              <span className="badge badge-brand text-xs">
+                {gymPRs.length} {gymPRs.length === 1 ? "ejercicio registrado" : "ejercicios registrados"}
+              </span>
+            )}
+          </div>
+
+          {gymPRs.length === 0 ? (
+            <div className="surface" style={{ padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
+              <EmptyState
+                icon={<Dumbbell size={22} />}
+                title="Sin registros de fuerza todavía"
+                description="Cuando anotes pesos y repeticiones en la pestaña 'Gimnasio', aquí aparecerán automáticamente tus mejores marcas (PR) y evolución de cargas."
+              />
+            </div>
+          ) : (
+            <div className="surface" style={{ overflow: "hidden", marginBottom: "var(--space-4)" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                      <th style={{ textAlign: "left", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
+                        Ejercicio
+                      </th>
+                      <th style={{ textAlign: "left", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
+                        Rutina / Día
+                      </th>
+                      <th style={{ textAlign: "right", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
+                        Récord Máximo
+                      </th>
+                      <th style={{ textAlign: "center", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
+                        Series × Reps
+                      </th>
+                      <th style={{ textAlign: "right", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
+                        Fecha Récord
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gymPRs.map((pr) => (
+                      <tr key={pr.exercise_id} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                        <td style={{ padding: "var(--space-3) var(--space-4)", verticalAlign: "middle" }}>
+                          <span className="font-semibold text-sm">{pr.exercise_name}</span>
+                        </td>
+                        <td style={{ padding: "var(--space-3) var(--space-4)", verticalAlign: "middle" }}>
+                          <span className="badge badge-neutral text-xs">{pr.gym_day_name}</span>
+                        </td>
+                        <td style={{ padding: "var(--space-3) var(--space-4)", verticalAlign: "middle", textAlign: "right" }}>
+                          <span className="font-bold text-sm" style={{ color: "var(--color-brand)" }}>
+                            {pr.max_weight} kg
+                          </span>
+                        </td>
+                        <td style={{ padding: "var(--space-3) var(--space-4)", verticalAlign: "middle", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>
+                          {pr.sets && pr.reps ? `${pr.sets} × ${pr.reps}` : pr.reps ? `${pr.reps} reps` : "—"}
+                        </td>
+                        <td style={{ padding: "var(--space-3) var(--space-4)", verticalAlign: "middle", textAlign: "right", color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>
+                          {pr.date}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* SECCIÓN 3: SUEÑO Y RECUPERACIÓN */}
       {(activeTab === "todos" || activeTab === "sueno") && (
         <>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider" style={{ marginBottom: "var(--space-3)", marginTop: "var(--space-2)" }}>
@@ -721,12 +823,12 @@ export default function ProgresoPage() {
       )}
 
       {/* Estado vacío si no hay ningún dato todavía */}
-      {!hasCompliance && !hasDailySleep && !hasWeight && (
+      {!hasCompliance && !hasDailySleep && !hasWeight && !hasGymPRs && (
         <div style={{ marginBottom: "var(--space-4)" }}>
           <EmptyState
             icon={<Scale size={24} />}
             title="Todavía no hay suficiente histórico"
-            description="A medida que registres sesiones de entreno o importes tus noches de sueño desde el Registro, verás aquí tus gráficos y análisis avanzados."
+            description="A medida que registres sesiones de entreno, pesos en el gimnasio o importes tus noches de sueño, verás aquí tus gráficos y análisis avanzados."
           />
         </div>
       )}
