@@ -26,6 +26,7 @@ export interface GymLogRow {
   reps: number | null;
   notes: string | null;
   completed: number;
+  series_data: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +150,7 @@ export interface UpsertGymLogInput {
   reps?: number | null;
   notes?: string | null;
   completed?: number | boolean | null;
+  series_data?: string | null;
 }
 
 // Un registro por ejercicio y fecha: si ya existe, lo actualiza en vez de duplicar.
@@ -168,16 +170,18 @@ export function upsertGymLog(input: UpsertGymLogInput): GymLogRow {
   const sets = input.sets !== undefined ? input.sets : existing?.sets ?? null;
   const reps = input.reps !== undefined ? input.reps : existing?.reps ?? null;
   const notes = input.notes !== undefined ? input.notes : existing?.notes ?? null;
+  const series_data = input.series_data !== undefined ? input.series_data : existing?.series_data ?? null;
 
   db.prepare(
-    `INSERT INTO gym_logs (exercise_id, date, weight_kg, sets, reps, notes, completed, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO gym_logs (exercise_id, date, weight_kg, sets, reps, notes, completed, series_data, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(exercise_id, date) DO UPDATE SET
        weight_kg = excluded.weight_kg,
        sets = excluded.sets,
        reps = excluded.reps,
        notes = excluded.notes,
        completed = excluded.completed,
+       series_data = excluded.series_data,
        updated_at = excluded.updated_at`
   ).run(
     input.exercise_id,
@@ -187,6 +191,7 @@ export function upsertGymLog(input: UpsertGymLogInput): GymLogRow {
     reps,
     notes,
     completed,
+    series_data,
     now,
     now
   );

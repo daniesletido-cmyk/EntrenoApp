@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
     reps: body.reps !== undefined ? (body.reps !== "" && body.reps !== null ? Number(body.reps) : null) : undefined,
     notes: body.notes !== undefined ? body.notes : undefined,
     completed: body.completed !== undefined ? (body.completed ? 1 : 0) : undefined,
+    series_data: body.series_data !== undefined
+      ? typeof body.series_data === "string"
+        ? body.series_data
+        : JSON.stringify(body.series_data)
+      : undefined,
   });
   return NextResponse.json({ log }, { status: 201 });
 }

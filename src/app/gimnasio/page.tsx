@@ -40,7 +40,62 @@ interface GymLog {
   sets: number | null;
   reps: number | null;
   completed?: number | null;
+  series_data?: string | null;
 }
+
+export interface DraftSet {
+  id: string;
+  weight: string;
+  reps: string;
+  completed: boolean;
+}
+
+function parseTargetSetsAndReps(exerciseName: string) {
+  const match = exerciseName.match(/\b(\d+)\s*[xX]\s*(\d+(?:-\d+)?)\b/);
+  if (match) {
+    const sets = Math.min(8, Math.max(1, parseInt(match[1], 10)));
+    const reps = match[2];
+    return { sets, reps };
+  }
+  return { sets: 3, reps: "" };
+}
+
+function initDraftSets(exercise: GymExercise, log?: GymLog): DraftSet[] {
+  if (log?.series_data) {
+    try {
+      const parsed = JSON.parse(log.series_data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item, idx) => ({
+          id: `set-${exercise.id}-${idx}`,
+          weight: item.weight_kg !== null && item.weight_kg !== undefined ? String(item.weight_kg) : "",
+          reps: item.reps !== null && item.reps !== undefined ? String(item.reps) : "",
+          completed: Boolean(item.completed),
+        }));
+      }
+    } catch {}
+  }
+
+  if (log && (log.weight_kg !== null || log.sets !== null || log.reps !== null)) {
+    const count = Math.max(1, log.sets ?? 1);
+    return Array.from({ length: count }, (_, i) => ({
+      id: `set-${exercise.id}-${i}`,
+      weight: log.weight_kg !== null && log.weight_kg !== undefined ? String(log.weight_kg) : "",
+      reps: log.reps !== null && log.reps !== undefined ? String(log.reps) : "",
+      completed: log.completed === 1,
+    }));
+  }
+
+  // Por defecto, según objetivo en el nombre (ej. 4x8-10 -> 4 series) o 3 series
+  const target = parseTargetSetsAndReps(exercise.name);
+  const defaultReps = target.reps.includes("-") ? target.reps.split("-")[0] : target.reps;
+  return Array.from({ length: target.sets }, (_, i) => ({
+    id: `set-${exercise.id}-${i}`,
+    weight: "",
+    reps: defaultReps,
+    completed: false,
+  }));
+}
+
 interface SessionLite {
   id: number;
   date: string;
@@ -58,21 +113,6 @@ interface GymPreviewRow {
 const CHART_COLORS = { primary: "#2f6feb", grid: "#262c37", text: "#9aa3b2" };
 const TOOLTIP_STYLE = { background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 13 };
 
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "var(--space-3) var(--space-4)",
-  fontSize: "var(--text-xs)",
-  fontWeight: 700,
-  color: "var(--color-text-muted)",
-  textTransform: "uppercase",
-  letterSpacing: "0.03em",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "var(--space-2) var(--space-4)",
-  verticalAlign: "middle",
-};
-
 export default function GimnasioPage() {
   const [date, setDate] = useState(todayISO());
   const [days, setDays] = useState<GymDay[]>([]);
@@ -82,7 +122,7 @@ export default function GimnasioPage() {
   const [scheduledSession, setScheduledSession] = useState<SessionLite | null>(null);
   const [logsToday, setLogsToday] = useState<GymLog[]>([]);
   const [prsMap, setPrsMap] = useState<Record<number, GymPR>>({});
-  const [drafts, setDrafts] = useState<Record<number, { weight: string; sets: string; reps: string }>>({});
+  const [drafts, setDrafts] = useState<Record<number, DraftSet[]>>({});
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [savingId, setSavingId] = useState<number | null>(null);
@@ -156,14 +196,10 @@ export default function GimnasioPage() {
   }, [date]);
 
   useEffect(() => {
-    const next: Record<number, { weight: string; sets: string; reps: string }> = {};
+    const next: Record<number, DraftSet[]> = {};
     for (const ex of exercises) {
       const log = logsToday.find((l) => l.exercise_id === ex.id);
-      next[ex.id] = {
-        weight: log?.weight_kg !== null && log?.weight_kg !== undefined ? String(log.weight_kg) : "",
-        sets: log?.sets !== null && log?.sets !== undefined ? String(log.sets) : "",
-        reps: log?.reps !== null && log?.reps !== undefined ? String(log.reps) : "",
-      };
+      next[ex.id] = initDraftSets(ex, log);
     }
     setDrafts(next);
   }, [exercises, logsToday]);
@@ -212,12 +248,35 @@ export default function GimnasioPage() {
     };
   }, [dayExercises]);
 
-  async function saveLog(exerciseId: number, completedOverride?: boolean) {
-    const d = drafts[exerciseId];
-    if (!d) return;
+  async function saveSets(exerciseId: number, setsToSave?: DraftSet[], completedOverride?: boolean) {
+    const currentSets = setsToSave ?? drafts[exerciseId] ?? [];
+    if (currentSets.length === 0) return;
+
     const currentLog = logsToday.find((l) => l.exercise_id === exerciseId);
     const isCompleted =
-      completedOverride !== undefined ? completedOverride : currentLog?.completed === 1;
+      completedOverride !== undefined
+        ? completedOverride
+        : (currentSets.length > 0 && currentSets.every((s) => s.completed) ? true : currentLog?.completed === 1);
+
+    const numericWeights = currentSets
+      .map((s) => (s.weight.trim() ? Number(s.weight) : null))
+      .filter((w): w is number => w !== null && !isNaN(w) && w > 0);
+
+    const maxWeight = numericWeights.length > 0 ? Math.max(...numericWeights) : null;
+    const heaviestSet = maxWeight !== null
+      ? currentSets.find((s) => Number(s.weight) === maxWeight)
+      : currentSets[0];
+    const topReps = heaviestSet && heaviestSet.reps.trim() ? Number(heaviestSet.reps) : null;
+
+    const series_data = JSON.stringify(
+      currentSets.map((s, idx) => ({
+        set_number: idx + 1,
+        weight_kg: s.weight.trim() ? Number(s.weight) : null,
+        reps: s.reps.trim() ? Number(s.reps) : null,
+        completed: s.completed,
+      }))
+    );
+
     setSavingId(exerciseId);
     try {
       const res = await fetch("/api/gym/logs", {
@@ -226,17 +285,19 @@ export default function GimnasioPage() {
         body: JSON.stringify({
           exercise_id: exerciseId,
           date,
-          weight_kg: d.weight ? Number(d.weight) : null,
-          sets: d.sets ? Number(d.sets) : null,
-          reps: d.reps ? Number(d.reps) : null,
+          weight_kg: maxWeight,
+          sets: currentSets.length,
+          reps: topReps,
           completed: isCompleted ? 1 : 0,
+          series_data,
         }),
       });
       if (!res.ok) throw new Error();
       const { log } = await res.json();
       const updatedLogs = [...logsToday.filter((l) => l.exercise_id !== exerciseId), log];
       setLogsToday(updatedLogs);
-      // Refleja el peso recién guardado en el gráfico de este ejercicio
+
+      // Refleja el peso en el histórico del gráfico
       setDayHistory((prev) =>
         prev.map((h) =>
           h.exerciseId === exerciseId
@@ -250,22 +311,21 @@ export default function GimnasioPage() {
         )
       );
 
-      // Si el peso introducido supera o iguala el mayor peso histórico, actualiza el récord
-      if (d.weight && Number(d.weight) > 0) {
-        const enteredWeight = Number(d.weight);
+      // Si el mayor peso introducido supera o iguala el récord, actualiza prsMap
+      if (maxWeight !== null && maxWeight > 0) {
         setPrsMap((prev) => {
           const currentPr = prev[exerciseId];
-          if (!currentPr || enteredWeight >= currentPr.max_weight) {
+          if (!currentPr || maxWeight >= currentPr.max_weight) {
             return {
               ...prev,
               [exerciseId]: {
                 exercise_id: exerciseId,
                 exercise_name: exercises.find((e) => e.id === exerciseId)?.name ?? "",
                 gym_day_name: "",
-                max_weight: enteredWeight,
+                max_weight: maxWeight,
                 date,
-                reps: d.reps ? Number(d.reps) : null,
-                sets: d.sets ? Number(d.sets) : null,
+                reps: topReps,
+                sets: currentSets.length,
               },
             };
           }
@@ -273,7 +333,7 @@ export default function GimnasioPage() {
         });
       }
 
-      // Si todos los ejercicios de este día están completados, felicitar y marcar la sesión en realizada
+      // Si todos los ejercicios están completados, felicitar y marcar la sesión en realizada
       const allDone =
         dayExercises.length > 0 &&
         dayExercises.every((ex) => {
@@ -302,10 +362,54 @@ export default function GimnasioPage() {
     }
   }
 
-  async function toggleComplete(exerciseId: number) {
+  function updateSet(exerciseId: number, setIdx: number, patch: Partial<DraftSet>) {
+    setDrafts((prev) => {
+      const currentSets = prev[exerciseId] ?? [];
+      const updated = currentSets.map((s, i) => (i === setIdx ? { ...s, ...patch } : s));
+      return { ...prev, [exerciseId]: updated };
+    });
+  }
+
+  function toggleSetCompleted(exerciseId: number, setIdx: number) {
+    const currentSets = drafts[exerciseId] ?? [];
+    const updated = currentSets.map((s, i) =>
+      i === setIdx ? { ...s, completed: !s.completed } : s
+    );
+    setDrafts((prev) => ({ ...prev, [exerciseId]: updated }));
+    const allDone = updated.length > 0 && updated.every((s) => s.completed);
+    saveSets(exerciseId, updated, allDone ? true : undefined);
+  }
+
+  function addSet(exerciseId: number) {
+    const currentSets = drafts[exerciseId] ?? [];
+    const lastSet = currentSets[currentSets.length - 1];
+    const newSet: DraftSet = {
+      id: `set-${exerciseId}-${Date.now()}`,
+      weight: lastSet?.weight ?? "",
+      reps: lastSet?.reps ?? "",
+      completed: false,
+    };
+    const updated = [...currentSets, newSet];
+    setDrafts((prev) => ({ ...prev, [exerciseId]: updated }));
+    saveSets(exerciseId, updated);
+  }
+
+  function removeSet(exerciseId: number, setIdx: number) {
+    const currentSets = drafts[exerciseId] ?? [];
+    if (currentSets.length <= 1) return;
+    const updated = currentSets.filter((_, i) => i !== setIdx);
+    setDrafts((prev) => ({ ...prev, [exerciseId]: updated }));
+    saveSets(exerciseId, updated);
+  }
+
+  function toggleExerciseComplete(exerciseId: number) {
     const currentLog = logsToday.find((l) => l.exercise_id === exerciseId);
-    const currentlyCompleted = currentLog?.completed === 1;
-    await saveLog(exerciseId, !currentlyCompleted);
+    const isCurrentlyCompleted = currentLog?.completed === 1;
+    const nextCompleted = !isCurrentlyCompleted;
+    const currentSets = drafts[exerciseId] ?? [];
+    const updatedSets = currentSets.map((s) => ({ ...s, completed: nextCompleted }));
+    setDrafts((prev) => ({ ...prev, [exerciseId]: updatedSets }));
+    saveSets(exerciseId, updatedSets, nextCompleted);
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -603,59 +707,38 @@ export default function GimnasioPage() {
                 description="Añádelos desde el botón 'Ejercicios' de arriba."
               />
             ) : (
-              <div className="surface" style={{ overflow: "hidden" }}>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        <th style={{ ...thStyle, width: 44, textAlign: "center" }} />
-                        <th style={thStyle}>Ejercicio</th>
-                        <th style={thStyle}>Peso (kg)</th>
-                        <th style={thStyle}>Series</th>
-                        <th style={thStyle}>Reps</th>
-                        <th style={thStyle}>
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#facc15" }}>
-                            <Trophy size={13} />
-                            <span>Mayor peso</span>
-                          </div>
-                        </th>
-                        <th style={thStyle}>Última vez</th>
-                        <th style={{ ...thStyle, textAlign: "right" }}>Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dayExercises.map((ex) => {
-                        const log = logsToday.find((l) => l.exercise_id === ex.id);
-                        const isCompleted = log?.completed === 1;
-                        const historyForEx = dayHistory.find((h) => h.exerciseId === ex.id)?.logs ?? [];
-                        const prevWithWeight = historyForEx.filter((l) => l.weight_kg !== null && l.date < date);
-                        const fallbackWithWeight = historyForEx.filter((l) => l.weight_kg !== null && l.date !== date);
-                        const lastLog = prevWithWeight.length > 0
-                          ? prevWithWeight[prevWithWeight.length - 1]
-                          : fallbackWithWeight.length > 0
-                          ? fallbackWithWeight[fallbackWithWeight.length - 1]
-                          : null;
+              <div className="grid gap-4">
+                {dayExercises.map((ex, index) => {
+                  const log = logsToday.find((l) => l.exercise_id === ex.id);
+                  const isCompleted = log?.completed === 1;
+                  const historyForEx = dayHistory.find((h) => h.exerciseId === ex.id)?.logs ?? [];
+                  const prevWithWeight = historyForEx.filter((l) => l.weight_kg !== null && l.date < date);
+                  const fallbackWithWeight = historyForEx.filter((l) => l.weight_kg !== null && l.date !== date);
+                  const lastLog = prevWithWeight.length > 0
+                    ? prevWithWeight[prevWithWeight.length - 1]
+                    : fallbackWithWeight.length > 0
+                    ? fallbackWithWeight[fallbackWithWeight.length - 1]
+                    : null;
 
-                        return (
-                          <ExerciseRow
-                            key={ex.id}
-                            exercise={ex}
-                            draft={drafts[ex.id] ?? { weight: "", sets: "", reps: "" }}
-                            isCompleted={isCompleted}
-                            pr={prsMap[ex.id]}
-                            lastLog={lastLog}
-                            onChange={(patch) =>
-                              setDrafts((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], ...patch } }))
-                            }
-                            onSave={() => saveLog(ex.id)}
-                            onToggleComplete={() => toggleComplete(ex.id)}
-                            saving={savingId === ex.id}
-                          />
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                  return (
+                    <ExerciseCard
+                      key={ex.id}
+                      exercise={ex}
+                      index={index}
+                      sets={drafts[ex.id] ?? []}
+                      isCompleted={isCompleted}
+                      pr={prsMap[ex.id]}
+                      previousLog={lastLog}
+                      onUpdateSet={updateSet}
+                      onToggleSetCompleted={toggleSetCompleted}
+                      onAddSet={addSet}
+                      onRemoveSet={removeSet}
+                      onSaveSets={saveSets}
+                      onToggleComplete={toggleExerciseComplete}
+                      saving={savingId === ex.id}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -695,243 +778,422 @@ function parseExerciseName(fullName: string) {
   return { title: fullName, detail: null };
 }
 
-function ExerciseRow({
+function ExerciseCard({
   exercise,
-  draft,
+  index,
+  sets,
   isCompleted,
   pr,
-  lastLog,
-  onChange,
-  onSave,
+  previousLog,
+  onUpdateSet,
+  onToggleSetCompleted,
+  onAddSet,
+  onRemoveSet,
+  onSaveSets,
   onToggleComplete,
   saving,
 }: {
   exercise: GymExercise;
-  draft: { weight: string; sets: string; reps: string };
+  index: number;
+  sets: DraftSet[];
   isCompleted: boolean;
   pr?: GymPR;
-  lastLog?: GymLog | null;
-  onChange: (patch: Partial<{ weight: string; sets: string; reps: string }>) => void;
-  onSave: () => void;
-  onToggleComplete: () => void;
+  previousLog?: GymLog | null;
+  onUpdateSet: (exerciseId: number, setIdx: number, patch: Partial<DraftSet>) => void;
+  onToggleSetCompleted: (exerciseId: number, setIdx: number) => void;
+  onAddSet: (exerciseId: number) => void;
+  onRemoveSet: (exerciseId: number, setIdx: number) => void;
+  onSaveSets: (exerciseId: number) => void;
+  onToggleComplete: (exerciseId: number) => void;
   saving: boolean;
 }) {
   const parsed = parseExerciseName(exercise.name);
-  const currentWeightNum = draft.weight ? Number(draft.weight) : 0;
-  const isBreakingRecord = pr ? currentWeightNum > pr.max_weight : currentWeightNum > 0;
+
+  // Parsear series de la sesión previa si existen
+  let prevSeriesItems: { set_number: number; weight_kg: number | null; reps: number | null }[] = [];
+  if (previousLog?.series_data) {
+    try {
+      const p = JSON.parse(previousLog.series_data);
+      if (Array.isArray(p)) prevSeriesItems = p;
+    } catch {}
+  }
+
+  const numericWeights = sets
+    .map((s) => (s.weight.trim() ? Number(s.weight) : null))
+    .filter((w): w is number => w !== null && !isNaN(w) && w > 0);
+  const currentMaxWeight = numericWeights.length > 0 ? Math.max(...numericWeights) : 0;
+  const isBreakingRecord = pr ? currentMaxWeight > pr.max_weight : currentMaxWeight > 0;
+  const completedSetsCount = sets.filter((s) => s.completed).length;
 
   return (
-    <tr
+    <div
+      className="surface"
       style={{
-        borderBottom: "1px solid var(--color-border)",
-        backgroundColor: isCompleted ? "rgba(100, 116, 139, 0.08)" : "transparent",
-        opacity: isCompleted ? 0.65 : 1,
+        padding: "var(--space-4)",
+        borderRadius: "var(--radius-lg, 12px)",
+        border: isCompleted
+          ? "1px solid rgba(34, 197, 94, 0.45)"
+          : "1px solid var(--color-border)",
+        background: isCompleted ? "rgba(34, 197, 94, 0.03)" : undefined,
         transition: "all 0.2s ease",
       }}
     >
-      <td style={{ ...tdStyle, width: 44, textAlign: "center", paddingRight: 0 }}>
-        <button
-          type="button"
-          onClick={onToggleComplete}
-          style={{
-            background: isCompleted ? "rgba(34, 197, 94, 0.18)" : "rgba(255, 255, 255, 0.04)",
-            border: isCompleted ? "1px solid rgba(34, 197, 94, 0.4)" : "1px solid var(--color-border)",
-            borderRadius: "50%",
-            width: 30,
-            height: 30,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: isCompleted ? "var(--color-success)" : "var(--color-text-muted)",
-            transition: "all 0.15s ease",
-          }}
-          title={isCompleted ? "Marcar como pendiente" : "Marcar como completado"}
-        >
-          {isCompleted ? <CheckCircle2 size={16} /> : <Check size={14} />}
-        </button>
-      </td>
-      <td style={tdStyle}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span
-            className="font-medium text-sm"
-            style={{
-              textDecoration: isCompleted ? "line-through" : "none",
-              color: isCompleted ? "var(--color-text-muted)" : "var(--color-text)",
-            }}
-          >
-            {parsed.title}
-          </span>
-          {parsed.detail && (
+      {/* Cabecera del Ejercicio */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "var(--space-3)",
+          flexWrap: "wrap",
+          marginBottom: "var(--space-3)",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div className="flex items-center gap-2">
             <span
-              className="text-xs"
-              style={{
-                color: "var(--color-text-faint)",
-              }}
-            >
-              {parsed.detail}
-            </span>
-          )}
-
-          {/* Badge rápido y visual del mayor peso */}
-          {pr ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  background: "rgba(234, 179, 8, 0.12)",
-                  color: "#eab308",
-                  border: "1px solid rgba(234, 179, 8, 0.3)",
-                }}
-                title={`Mayor peso histórico: ${pr.max_weight} kg el ${pr.date}${pr.reps ? ` (${pr.reps} reps)` : ""}`}
-              >
-                <Trophy size={12} style={{ color: "#facc15" }} />
-                Mayor peso: <strong style={{ color: "#fef08a" }}>{pr.max_weight} kg</strong>
-                {pr.reps ? <span style={{ opacity: 0.85, fontWeight: 500 }}>({pr.reps} reps)</span> : null}
-              </span>
-
-              {isBreakingRecord && currentWeightNum > 0 && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    padding: "2px 7px",
-                    borderRadius: 999,
-                    background: "rgba(239, 68, 68, 0.15)",
-                    color: "#f87171",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                  }}
-                >
-                  <Flame size={11} /> ¡Nuevo récord! (+{(currentWeightNum - pr.max_weight).toFixed(1)} kg)
-                </span>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginTop: 2 }}>
-              <span
-                style={{
-                  fontSize: "0.72rem",
-                  color: "var(--color-text-faint)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <Trophy size={11} style={{ opacity: 0.35 }} /> Sin récord previo
-              </span>
-            </div>
-          )}
-        </div>
-      </td>
-      <td style={tdStyle}>
-        <input
-          type="number"
-          inputMode="decimal"
-          step="0.5"
-          className="field"
-          style={{
-            width: 90,
-            borderColor: isBreakingRecord && currentWeightNum > 0 ? "rgba(239, 68, 68, 0.6)" : undefined,
-          }}
-          value={draft.weight}
-          onChange={(e) => onChange({ weight: e.target.value })}
-          onBlur={onSave}
-          onKeyDown={(e) => e.key === "Enter" && onSave()}
-          placeholder="kg"
-        />
-      </td>
-      <td style={tdStyle}>
-        <input
-          type="number"
-          inputMode="numeric"
-          className="field"
-          style={{ width: 70 }}
-          value={draft.sets}
-          onChange={(e) => onChange({ sets: e.target.value })}
-          onBlur={onSave}
-          onKeyDown={(e) => e.key === "Enter" && onSave()}
-          placeholder="—"
-        />
-      </td>
-      <td style={tdStyle}>
-        <input
-          type="number"
-          inputMode="numeric"
-          className="field"
-          style={{ width: 70 }}
-          value={draft.reps}
-          onChange={(e) => onChange({ reps: e.target.value })}
-          onBlur={onSave}
-          onKeyDown={(e) => e.key === "Enter" && onSave()}
-          placeholder="—"
-        />
-      </td>
-      <td style={tdStyle}>
-        {pr ? (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
+                justifyContent: "center",
+                width: 26,
+                height: 26,
+                borderRadius: "50%",
+                backgroundColor: isCompleted ? "var(--color-success)" : "rgba(255, 255, 255, 0.08)",
+                color: isCompleted ? "#ffffff" : "var(--color-text-muted)",
+                fontSize: "0.8rem",
                 fontWeight: 700,
-                fontSize: "0.85rem",
-                color: "#facc15",
+                flexShrink: 0,
               }}
             >
-              <Trophy size={13} style={{ color: "#eab308", flexShrink: 0 }} />
-              <span>{pr.max_weight} kg</span>
+              {index + 1}
+            </span>
+            <span
+              className="font-semibold text-base"
+              style={{
+                textDecoration: isCompleted ? "line-through" : "none",
+                color: isCompleted ? "var(--color-text-muted)" : "var(--color-text)",
+              }}
+            >
+              {parsed.title}
+            </span>
+          </div>
+          {parsed.detail && (
+            <div
+              className="text-xs text-muted"
+              style={{ marginTop: 2, paddingLeft: 34, color: "var(--color-text-faint)" }}
+            >
+              {parsed.detail}
             </div>
-            <span style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", marginTop: 1 }}>
-              {pr.date.slice(5)}{pr.reps ? ` · ${pr.reps} reps` : ""}
-            </span>
-          </div>
-        ) : (
-          <span className="text-sm text-faint">—</span>
-        )}
-      </td>
-      <td style={tdStyle}>
-        {lastLog ? (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span className="text-sm font-semibold">{lastLog.weight_kg} kg</span>
-            <span style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", marginTop: 1 }}>
-              {lastLog.date.slice(5)}{lastLog.reps ? ` · ${lastLog.reps} reps` : ""}
-            </span>
-          </div>
-        ) : (
-          <span className="text-sm text-faint">—</span>
-        )}
-      </td>
-      <td style={{ ...tdStyle, textAlign: "right", whiteSpace: "nowrap" }}>
+          )}
+        </div>
+
+        {/* Botón de Completar Ejercicio */}
         <Button
           variant={isCompleted ? "secondary" : "primary"}
-          onClick={onToggleComplete}
+          onClick={() => onToggleComplete(exercise.id)}
           loading={saving}
-          style={{ minWidth: 105, padding: "0.35rem 0.75rem", fontSize: "var(--text-xs)" }}
+          style={{
+            padding: "0.35rem 0.85rem",
+            fontSize: "var(--text-xs)",
+            borderColor: isCompleted ? "rgba(34, 197, 94, 0.4)" : undefined,
+            color: isCompleted ? "var(--color-success)" : undefined,
+            backgroundColor: isCompleted ? "rgba(34, 197, 94, 0.12)" : undefined,
+            whiteSpace: "nowrap",
+          }}
         >
           {isCompleted ? (
             <>
-              <CheckCircle2 size={14} style={{ color: "var(--color-success)" }} />
-              Completado
+              <CheckCircle2 size={15} />
+              <span>Completado</span>
             </>
           ) : (
             <>
               <Check size={14} />
-              Completar
+              <span>Completar</span>
             </>
           )}
         </Button>
-      </td>
-    </tr>
+      </div>
+
+      {/* Insignias de referencia: Mayor Peso (PR), Última vez y Récord */}
+      <div
+        className="flex items-center gap-2"
+        style={{ flexWrap: "wrap", marginBottom: "var(--space-3)", paddingLeft: 2 }}
+      >
+        {pr ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "rgba(234, 179, 8, 0.12)",
+              color: "#facc15",
+              border: "1px solid rgba(234, 179, 8, 0.28)",
+            }}
+            title={`Mayor peso histórico: ${pr.max_weight} kg el ${pr.date}${pr.reps ? ` (${pr.reps} reps)` : ""}`}
+          >
+            <Trophy size={12} style={{ color: "#facc15" }} />
+            Mayor peso: <strong style={{ color: "#fef08a" }}>{pr.max_weight} kg</strong>
+            {pr.reps ? <span style={{ opacity: 0.8, fontWeight: 500 }}>({pr.reps} reps)</span> : null}
+          </span>
+        ) : (
+          <span style={{ fontSize: "0.72rem", color: "var(--color-text-faint)", display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <Trophy size={11} style={{ opacity: 0.35 }} /> Sin récord previo
+          </span>
+        )}
+
+        {previousLog && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: "0.75rem",
+              fontWeight: 500,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "rgba(255, 255, 255, 0.05)",
+              color: "var(--color-text-muted)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <span>⏱️ Última vez: <strong>{previousLog.weight_kg} kg</strong></span>
+            {previousLog.reps ? <span style={{ opacity: 0.8 }}>({previousLog.reps} reps)</span> : null}
+          </span>
+        )}
+
+        {isBreakingRecord && currentMaxWeight > 0 && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              padding: "2px 7px",
+              borderRadius: 999,
+              background: "rgba(239, 68, 68, 0.15)",
+              color: "#f87171",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
+          >
+            <Flame size={11} /> ¡Nuevo récord! ({currentMaxWeight} kg)
+          </span>
+        )}
+      </div>
+
+      {/* Contenedor de Series (Diseño compacto y adaptable a móvil sin barra de scroll) */}
+      <div
+        style={{
+          background: "rgba(0, 0, 0, 0.18)",
+          borderRadius: 8,
+          padding: "var(--space-2) var(--space-3)",
+          border: "1px solid rgba(255, 255, 255, 0.04)",
+        }}
+      >
+        {/* Cabecera de columnas de series */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "36px 1fr 1fr 38px 26px",
+            alignItems: "center",
+            gap: 8,
+            paddingBottom: 6,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            color: "var(--color-text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.03em",
+          }}
+        >
+          <div style={{ textAlign: "center" }}>Serie</div>
+          <div style={{ textAlign: "center" }}>Peso (kg)</div>
+          <div style={{ textAlign: "center" }}>Reps</div>
+          <div style={{ textAlign: "center" }}>Hecho</div>
+          <div />
+        </div>
+
+        {/* Lista de series */}
+        <div className="grid gap-2" style={{ marginTop: 6 }}>
+          {sets.map((s, idx) => {
+            const prevSerieInfo = prevSeriesItems[idx] ?? (previousLog?.weight_kg ? { weight_kg: previousLog.weight_kg, reps: previousLog.reps } : null);
+            const isSetBreakingPr = pr && Number(s.weight) > pr.max_weight;
+
+            return (
+              <div
+                key={s.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "36px 1fr 1fr 38px 26px",
+                  alignItems: "center",
+                  gap: 8,
+                  opacity: s.completed ? 0.75 : 1,
+                  transition: "opacity 0.15s ease",
+                }}
+              >
+                {/* Número de serie */}
+                <div
+                  style={{
+                    textAlign: "center",
+                    fontWeight: 700,
+                    fontSize: "0.8rem",
+                    color: s.completed ? "var(--color-success)" : "var(--color-text-muted)",
+                  }}
+                >
+                  #{idx + 1}
+                </div>
+
+                {/* Input Peso con etiqueta anterior debajo */}
+                <div>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.5"
+                    className="field"
+                    style={{
+                      width: "100%",
+                      padding: "0.4rem 0.35rem",
+                      fontSize: "0.85rem",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      borderColor: isSetBreakingPr ? "rgba(239, 68, 68, 0.6)" : undefined,
+                      backgroundColor: isSetBreakingPr ? "rgba(239, 68, 68, 0.05)" : undefined,
+                    }}
+                    value={s.weight}
+                    onChange={(e) => onUpdateSet(exercise.id, idx, { weight: e.target.value })}
+                    onBlur={() => onSaveSets(exercise.id)}
+                    onKeyDown={(e) => e.key === "Enter" && onSaveSets(exercise.id)}
+                    placeholder={prevSerieInfo?.weight_kg ? String(prevSerieInfo.weight_kg) : "kg"}
+                  />
+                  {prevSerieInfo?.weight_kg && (
+                    <div style={{ fontSize: "0.65rem", color: "var(--color-text-faint)", marginTop: 2, textAlign: "center" }}>
+                      Ant: {prevSerieInfo.weight_kg} kg
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Reps con etiqueta anterior debajo */}
+                <div>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    className="field"
+                    style={{
+                      width: "100%",
+                      padding: "0.4rem 0.35rem",
+                      fontSize: "0.85rem",
+                      textAlign: "center",
+                      fontWeight: 600,
+                    }}
+                    value={s.reps}
+                    onChange={(e) => onUpdateSet(exercise.id, idx, { reps: e.target.value })}
+                    onBlur={() => onSaveSets(exercise.id)}
+                    onKeyDown={(e) => e.key === "Enter" && onSaveSets(exercise.id)}
+                    placeholder={prevSerieInfo?.reps ? String(prevSerieInfo.reps) : "reps"}
+                  />
+                  {prevSerieInfo?.reps && (
+                    <div style={{ fontSize: "0.65rem", color: "var(--color-text-faint)", marginTop: 2, textAlign: "center" }}>
+                      Ant: {prevSerieInfo.reps} reps
+                    </div>
+                  )}
+                </div>
+
+                {/* Botón de completar serie individual */}
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSetCompleted(exercise.id, idx)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      border: s.completed ? "1px solid rgba(34, 197, 94, 0.5)" : "1px solid var(--color-border)",
+                      background: s.completed ? "rgba(34, 197, 94, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                      color: s.completed ? "var(--color-success)" : "var(--color-text-muted)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      padding: 0,
+                    }}
+                    title={s.completed ? "Serie completada (clic para desmarcar)" : "Marcar serie completada"}
+                  >
+                    <Check size={14} style={{ strokeWidth: s.completed ? 3 : 2 }} />
+                  </button>
+                </div>
+
+                {/* Botón borrar serie (si hay más de 1 serie) */}
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  {sets.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveSet(exercise.id, idx)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "var(--color-text-faint)",
+                        cursor: "pointer",
+                        padding: 3,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      title="Eliminar esta serie"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pie de la tarjeta de series */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            marginTop: 10,
+            paddingTop: 8,
+            borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => onAddSet(exercise.id)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              color: "var(--color-brand)",
+              background: "rgba(47, 111, 235, 0.08)",
+              border: "1px solid rgba(47, 111, 235, 0.25)",
+              borderRadius: 6,
+              padding: "4px 10px",
+              cursor: "pointer",
+            }}
+          >
+            <Plus size={13} />
+            <span>Añadir serie #{sets.length + 1}</span>
+          </button>
+
+          <span className="text-xs text-muted font-medium">
+            {completedSetsCount} de {sets.length} series completadas
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 

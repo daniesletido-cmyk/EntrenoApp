@@ -166,6 +166,8 @@ function createSchema(d: AppDb) {
       sets INTEGER,
       reps INTEGER,
       notes TEXT,
+      completed INTEGER DEFAULT 0,
+      series_data TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(exercise_id, date)
@@ -219,6 +221,9 @@ function migrateSchema(d: AppDb) {
 
   if (!columnExists(d, "gym_logs", "completed")) {
     d.exec(`ALTER TABLE gym_logs ADD COLUMN completed INTEGER DEFAULT 0;`);
+  }
+  if (!columnExists(d, "gym_logs", "series_data")) {
+    d.exec(`ALTER TABLE gym_logs ADD COLUMN series_data TEXT;`);
   }
 }
 
