@@ -274,8 +274,23 @@ function parseTabularSleepCsv(rows: string[][]): ZeppSleepRow[] {
     });
   }
 
-  out.sort((a, b) => a.date.localeCompare(b.date));
-  return out;
+  const byDate = new Map<string, ZeppSleepRow>();
+  for (const row of out) {
+    const existing = byDate.get(row.date);
+    if (!existing) {
+      byDate.set(row.date, row);
+    } else {
+      const currentHours = row.hours ?? 0;
+      const prevHours = existing.hours ?? 0;
+      if ((row.score != null && existing.score == null) || currentHours > prevHours) {
+        byDate.set(row.date, row);
+      }
+    }
+  }
+
+  const result = Array.from(byDate.values());
+  result.sort((a, b) => a.date.localeCompare(b.date));
+  return result;
 }
 
 export async function extractZeppSleepCsv(buffer: Buffer): Promise<ZeppSleepRow[]> {
@@ -355,6 +370,21 @@ export async function extractZeppSleepCsv(buffer: Buffer): Promise<ZeppSleepRow[
     });
   }
 
-  out.sort((a, b) => a.date.localeCompare(b.date));
-  return out;
+  const byDate = new Map<string, ZeppSleepRow>();
+  for (const row of out) {
+    const existing = byDate.get(row.date);
+    if (!existing) {
+      byDate.set(row.date, row);
+    } else {
+      const currentHours = row.hours ?? 0;
+      const prevHours = existing.hours ?? 0;
+      if ((row.score != null && existing.score == null) || currentHours > prevHours) {
+        byDate.set(row.date, row);
+      }
+    }
+  }
+
+  const result = Array.from(byDate.values());
+  result.sort((a, b) => a.date.localeCompare(b.date));
+  return result;
 }

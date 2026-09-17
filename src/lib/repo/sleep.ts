@@ -81,3 +81,28 @@ export function listSleepBetween(fromDate: string, toDate: string): SleepRow[] {
     .prepare<SleepRow>("SELECT * FROM sleep_logs WHERE date >= ? AND date <= ? ORDER BY date ASC")
     .all(fromDate, toDate);
 }
+
+export function getSleepLogsByDates(dates: string[]): Map<string, SleepRow> {
+  const map = new Map<string, SleepRow>();
+  if (dates.length === 0) return map;
+  const db = getDb();
+  const chunkSize = 100;
+  for (let i = 0; i < dates.length; i += chunkSize) {
+    const chunk = dates.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(",");
+    const rows = db.prepare<SleepRow>(`SELECT * FROM sleep_logs WHERE date IN (${placeholders})`).all(...chunk);
+    for (const r of rows) map.set(r.date, r);
+  }
+  return map;
+}
+
+export function batchUpsertSleepLogs(inputs: SleepLogInput[]): SleepRow[] {
+  const db = getDb();
+  const results: SleepRow[] = [];
+  db.transaction(() => {
+    for (const input of inputs) {
+      results.push(upsertSleepLog(input));
+    }
+  })();
+  return results;
+}

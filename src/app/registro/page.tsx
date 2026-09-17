@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Pencil,
   Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
@@ -151,6 +152,27 @@ interface SleepRow {
   source?: string | null;
 }
 
+interface SleepImportPreviewItem extends ZeppSleepRow {
+  status: "new" | "update" | "duplicate";
+  isDuplicate: boolean;
+  isNecessary: boolean;
+  existingData?: {
+    hours: number | null;
+    quality: number | null;
+    score: number | null;
+    deep_min: number | null;
+    rem_min: number | null;
+  } | null;
+}
+
+interface SleepImportSummary {
+  total: number;
+  newCount: number;
+  updateCount: number;
+  duplicateCount: number;
+  necessaryCount: number;
+}
+
 const STATUS_OPTIONS = [
   { value: "pendiente", label: "Pendiente" },
   { value: "realizada", label: "Realizada" },
@@ -180,7 +202,10 @@ export default function RegistroPage() {
   const [fitRpe, setFitRpe] = useState("");
   const [fitLoading, setFitLoading] = useState(false);
   const [fitApplying, setFitApplying] = useState(false);
-  const [sleepPreview, setSleepPreview] = useState<ZeppSleepRow[] | null>(null);
+  const [sleepPreview, setSleepPreview] = useState<SleepImportPreviewItem[] | null>(null);
+  const [sleepSummary, setSleepSummary] = useState<SleepImportSummary | null>(null);
+  const [selectedSleepDates, setSelectedSleepDates] = useState<Set<string>>(new Set());
+  const [showDuplicates, setShowDuplicates] = useState(false);
   const [sleepImportLoading, setSleepImportLoading] = useState(false);
   const [sleepCommitting, setSleepCommitting] = useState(false);
   const [applyingSwapId, setApplyingSwapId] = useState<number | null>(null);
@@ -311,7 +336,37 @@ export default function RegistroPage() {
         toast.push("error", data.error ?? "No se pudo leer el archivo de sueño");
         return;
       }
-      setSleepPreview(data.rows);
+      const rows: SleepImportPreviewItem[] = data.rows ?? [];
+      const summary: SleepImportSummary = data.summary ?? {
+        total: rows.length,
+        newCount: rows.filter((r) => r.status === "new").length,
+        updateCount: rows.filter((r) => r.status === "update").length,
+        duplicateCount: rows.filter((r) => r.status === "duplicate").length,
+        necessaryCount: rows.filter((r) => r.isNecessary).length,
+      };
+
+      setSleepPreview(rows);
+      setSleepSummary(summary);
+      setShowDuplicates(false);
+
+      // Preseleccionar automáticamente SOLO las noches necesarias
+      const necessaryDates = new Set<string>();
+      for (const r of rows) {
+        if (r.isNecessary) necessaryDates.add(r.date);
+      }
+      setSelectedSleepDates(necessaryDates);
+
+      if (summary.necessaryCount === 0) {
+        toast.push(
+          "info",
+          `Todas las ${summary.total} noches ya están registradas. No hay noches nuevas que importar.`
+        );
+      } else if (summary.duplicateCount > 0) {
+        toast.push(
+          "info",
+          `${summary.necessaryCount} noche(s) listas para importar. Se han omitido ${summary.duplicateCount} noche(s) repetidas.`
+        );
+      }
     } catch {
       toast.push("error", "Error al procesar el archivo de sueño");
     } finally {
@@ -322,17 +377,32 @@ export default function RegistroPage() {
 
   async function commitSleepImport() {
     if (!sleepPreview || sleepPreview.length === 0) return;
+    const toImport = sleepPreview.filter((r) => selectedSleepDates.has(r.date));
+    if (toImport.length === 0) {
+      toast.push("info", "No hay ninguna noche seleccionada para importar");
+      return;
+    }
+
     setSleepCommitting(true);
     try {
-      for (const row of sleepPreview) {
-        await fetch("/api/sleep", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...row, source: "zepp" }),
-        });
-      }
-      toast.push("success", `${sleepPreview.length} noche(s) de sueño añadidas al registro`);
+      const res = await fetch("/api/sleep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          logs: toImport.map((row) => ({ ...row, source: "zepp" })),
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      const skippedCount = sleepSummary ? sleepSummary.total - toImport.length : 0;
+      toast.push(
+        "success",
+        `${toImport.length} noche(s) añadidas al registro${skippedCount > 0 ? ` (${skippedCount} repetidas omitidas)` : ""}`
+      );
       setSleepPreview(null);
+      setSleepSummary(null);
+      setSelectedSleepDates(new Set());
       load();
     } catch {
       toast.push("error", "Error al guardar el sueño en el registro");
@@ -553,81 +623,282 @@ export default function RegistroPage() {
       />
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
-      {sleepPreview && (
-        <div className="surface animate-in" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)", borderColor: "var(--color-brand)" }}>
+      {sleepPreview && sleepSummary && (
+        <div
+          className="surface animate-in"
+          style={{
+            padding: "var(--space-4)",
+            marginBottom: "var(--space-5)",
+            borderColor: sleepSummary.necessaryCount > 0 ? "var(--color-brand)" : "var(--color-border)",
+          }}
+        >
           <div className="flex items-start justify-between" style={{ marginBottom: "var(--space-3)" }}>
             <div>
               <div className="flex items-center gap-2 font-semibold text-sm">
                 <Moon size={16} style={{ color: "var(--color-brand)" }} />
-                Noches de sueño detectadas ({sleepPreview.length})
+                {sleepSummary.necessaryCount > 0
+                  ? `Noches de sueño para importar (${selectedSleepDates.size} de ${sleepSummary.necessaryCount} necesarias seleccionadas)`
+                  : "Noches de sueño analizadas"}
               </div>
               <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                Revisa antes de confirmar — se añadirán automáticamente al día correspondiente con sus horas y calidad estimada (escala 1 a 5).
+                {sleepSummary.total} noches leídas en el archivo:{" "}
+                <span style={{ color: "var(--color-success)", fontWeight: 600 }}>{sleepSummary.newCount} nueva(s)</span>
+                {sleepSummary.updateCount > 0 && (
+                  <span style={{ color: "var(--color-brand)", fontWeight: 600 }}>
+                    , {sleepSummary.updateCount} con datos actualizados
+                  </span>
+                )}
+                {sleepSummary.duplicateCount > 0 && (
+                  <span>
+                    {" "}y <strong style={{ color: "var(--color-text-muted)" }}>{sleepSummary.duplicateCount} repetida(s)</strong> que ya tienes registradas (omitidas automáticamente)
+                  </span>
+                )}.
               </div>
             </div>
-            <button className="btn btn-ghost btn-icon" aria-label="Descartar importación" onClick={() => setSleepPreview(null)}>
+            <button
+              className="btn btn-ghost btn-icon"
+              aria-label="Descartar importación"
+              onClick={() => {
+                setSleepPreview(null);
+                setSleepSummary(null);
+              }}
+            >
               <X size={15} />
             </button>
           </div>
 
-          <div className="grid gap-2" style={{ marginBottom: "var(--space-4)", maxHeight: 280, overflowY: "auto" }}>
-            {sleepPreview.map((row, idx) => (
-              <div key={row.date} className="surface-raised flex flex-wrap items-center justify-between gap-2" style={{ padding: "var(--space-2) var(--space-3)" }}>
+          {sleepSummary.necessaryCount === 0 ? (
+            <div style={{ padding: "var(--space-3) 0" }}>
+              <div
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  backgroundColor: "rgba(34, 197, 94, 0.08)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid rgba(34, 197, 94, 0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "var(--space-3)",
+                }}
+              >
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold">{row.date}</span>
-                  <span className="text-xs text-muted">{row.hours != null ? `${row.hours}h` : "—"}</span>
-                  {row.score != null && (
-                    <span className="text-xs text-muted">Score: {row.score}/100</span>
-                  )}
-                  {row.deep_min != null && (
-                    <span className="text-xs text-faint">Prof: {row.deep_min}m</span>
-                  )}
-                  {row.rem_min != null && (
-                    <span className="text-xs text-faint">REM: {row.rem_min}m</span>
-                  )}
+                  <CheckCircle2 size={20} style={{ color: "var(--color-success)", flexShrink: 0 }} />
+                  <div>
+                    <div className="font-semibold text-sm" style={{ color: "var(--color-success)" }}>
+                      Todas las noches ya están registradas
+                    </div>
+                    <div className="text-xs text-muted">
+                      El archivo contiene {sleepSummary.total} noches de sueño y todas ya están guardadas en tu app con los mismos datos. No hay nada nuevo que importar.
+                    </div>
+                  </div>
                 </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSleepPreview(null);
+                    setSleepSummary(null);
+                  }}
+                >
+                  Entendido
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Controles de selección y filtro de duplicadas */}
+              <div
+                className="flex items-center justify-between gap-2"
+                style={{ marginBottom: "var(--space-2)", fontSize: "var(--text-xs)" }}
+              >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted">Calidad:</span>
-                  <select
-                    className="field-input text-xs"
-                    style={{ padding: "2px 8px", height: "auto" }}
-                    value={row.quality ?? ""}
-                    onChange={(e) => {
-                      const val = e.target.value === "" ? null : Number(e.target.value);
-                      setSleepPreview((prev) =>
-                        prev ? prev.map((item, i) => (i === idx ? { ...item, quality: val } : item)) : prev
-                      );
-                    }}
-                  >
-                    <option value="">—</option>
-                    {[1, 2, 3, 4, 5].map((q) => (
-                      <option key={q} value={q}>
-                        {q}/5
-                      </option>
-                    ))}
-                  </select>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-icon"
-                    aria-label="Quitar noche"
-                    onClick={() => setSleepPreview((prev) => prev ? prev.filter((_, i) => i !== idx) : prev)}
+                    className="btn btn-ghost text-xs"
+                    style={{ padding: "0.2rem 0.5rem" }}
+                    onClick={() => {
+                      const allNecessary = new Set<string>();
+                      for (const r of sleepPreview) {
+                        if (r.isNecessary) allNecessary.add(r.date);
+                      }
+                      setSelectedSleepDates(allNecessary);
+                    }}
                   >
-                    <Trash2 size={13} />
+                    Seleccionar solo necesarias ({sleepSummary.necessaryCount})
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs text-muted"
+                    style={{ padding: "0.2rem 0.5rem" }}
+                    onClick={() => setSelectedSleepDates(new Set())}
+                  >
+                    Deseleccionar todas
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" onClick={() => setSleepPreview(null)}>
-              Cancelar
-            </Button>
-            <Button variant="primary" loading={sleepCommitting} onClick={commitSleepImport}>
-              <Save size={15} />
-              Guardar en el registro
-            </Button>
-          </div>
+                {sleepSummary.duplicateCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs text-muted"
+                    style={{ padding: "0.2rem 0.5rem" }}
+                    onClick={() => setShowDuplicates((prev) => !prev)}
+                  >
+                    {showDuplicates
+                      ? `Ocultar ${sleepSummary.duplicateCount} repetidas`
+                      : `Ver ${sleepSummary.duplicateCount} repetidas omitidas`}
+                  </button>
+                )}
+              </div>
+
+              {/* Lista de noches */}
+              <div className="grid gap-2" style={{ marginBottom: "var(--space-4)", maxHeight: 320, overflowY: "auto" }}>
+                {sleepPreview
+                  .filter((row) => showDuplicates || row.isNecessary)
+                  .map((row) => {
+                    const isSelected = selectedSleepDates.has(row.date);
+                    return (
+                      <div
+                        key={row.date}
+                        className="surface-raised flex flex-wrap items-center justify-between gap-2"
+                        style={{
+                          padding: "var(--space-2) var(--space-3)",
+                          opacity: row.isDuplicate && !isSelected ? 0.6 : 1,
+                          borderLeft: isSelected
+                            ? row.status === "new"
+                              ? "3px solid var(--color-success)"
+                              : "3px solid var(--color-brand)"
+                            : "3px solid transparent",
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              setSelectedSleepDates((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(row.date);
+                                else next.delete(row.date);
+                                return next;
+                              });
+                            }}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <span className="text-sm font-semibold">{row.date}</span>
+
+                          {row.status === "new" && (
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: "rgba(34, 197, 94, 0.15)",
+                                color: "var(--color-success)",
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Nueva
+                            </span>
+                          )}
+                          {row.status === "update" && (
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: "rgba(59, 130, 246, 0.15)",
+                                color: "var(--color-brand)",
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Actualiza datos
+                            </span>
+                          )}
+                          {row.status === "duplicate" && (
+                            <span className="badge badge-neutral" style={{ fontSize: "0.68rem" }}>
+                              Repetida (Ya en registro)
+                            </span>
+                          )}
+
+                          <span className="text-xs text-muted font-medium">
+                            {row.hours != null ? `${row.hours}h` : "—"}
+                          </span>
+                          {row.score != null && (
+                            <span className="text-xs text-muted">Score: {row.score}/100</span>
+                          )}
+                          {row.deep_min != null && (
+                            <span className="text-xs text-faint">Prof: {row.deep_min}m</span>
+                          )}
+                          {row.rem_min != null && (
+                            <span className="text-xs text-faint">REM: {row.rem_min}m</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted">Calidad:</span>
+                          <select
+                            className="field-input text-xs"
+                            style={{ padding: "2px 8px", height: "auto" }}
+                            value={row.quality ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? null : Number(e.target.value);
+                              setSleepPreview((prev) =>
+                                prev ? prev.map((item) => (item.date === row.date ? { ...item, quality: val } : item)) : prev
+                              );
+                            }}
+                          >
+                            <option value="">—</option>
+                            {[1, 2, 3, 4, 5].map((q) => (
+                              <option key={q} value={q}>
+                                {q}/5
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon"
+                            aria-label="Quitar noche"
+                            onClick={() => {
+                              setSleepPreview((prev) => (prev ? prev.filter((item) => item.date !== row.date) : prev));
+                              setSelectedSleepDates((prev) => {
+                                const next = new Set(prev);
+                                next.delete(row.date);
+                                return next;
+                              });
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              <div className="flex items-center justify-between gap-2" style={{ flexWrap: "wrap" }}>
+                <div className="text-xs text-muted">
+                  Solo se importarán las <strong style={{ color: "var(--color-text)" }}>{selectedSleepDates.size} noches seleccionadas</strong>. Las repetidas se omiten.
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setSleepPreview(null);
+                      setSleepSummary(null);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    loading={sleepCommitting}
+                    disabled={selectedSleepDates.size === 0}
+                    onClick={commitSleepImport}
+                  >
+                    <Save size={15} />
+                    Importar {selectedSleepDates.size} noche{selectedSleepDates.size !== 1 ? "s" : ""} necesaria{selectedSleepDates.size !== 1 ? "s" : ""}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
