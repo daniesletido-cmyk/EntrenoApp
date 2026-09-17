@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2 } from "lucide-react";
+import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -22,6 +22,15 @@ interface GymExercise {
   gym_day_id: number;
   name: string;
   sort_order: number;
+}
+interface GymPR {
+  exercise_id: number;
+  exercise_name: string;
+  gym_day_name: string;
+  max_weight: number;
+  date: string;
+  reps: number | null;
+  sets: number | null;
 }
 interface GymLog {
   id: number;
@@ -72,6 +81,7 @@ export default function GimnasioPage() {
   const [scheduledGymDay, setScheduledGymDay] = useState<GymDay | null>(null);
   const [scheduledSession, setScheduledSession] = useState<SessionLite | null>(null);
   const [logsToday, setLogsToday] = useState<GymLog[]>([]);
+  const [prsMap, setPrsMap] = useState<Record<number, GymPR>>({});
   const [drafts, setDrafts] = useState<Record<number, { weight: string; sets: string; reps: string }>>({});
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
@@ -91,16 +101,23 @@ export default function GimnasioPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [daysRes, exRes, sessionsRes, logsRes] = await Promise.all([
+      const [daysRes, exRes, sessionsRes, logsRes, prsRes] = await Promise.all([
         fetch("/api/gym/days").then((r) => r.json()),
         fetch("/api/gym/exercises").then((r) => r.json()),
         fetch(`/api/sessions?from=${date}&to=${date}`).then((r) => r.json()),
         fetch(`/api/gym/logs?date=${date}`).then((r) => r.json()),
+        fetch("/api/gym/logs?prs=true").then((r) => r.json()),
       ]);
       const loadedDays: GymDay[] = daysRes.days ?? [];
       setDays(loadedDays);
       setExercises(exRes.exercises ?? []);
       setLogsToday(logsRes.logs ?? []);
+
+      const prMap: Record<number, GymPR> = {};
+      for (const p of (prsRes.prs ?? []) as GymPR[]) {
+        prMap[p.exercise_id] = p;
+      }
+      setPrsMap(prMap);
 
       const gymSession: SessionLite | undefined = (sessionsRes.sessions ?? []).find(
         (s: SessionLite) => s.discipline === "gimnasio"
@@ -232,6 +249,29 @@ export default function GimnasioPage() {
             : h
         )
       );
+
+      // Si el peso introducido supera o iguala el mayor peso histórico, actualiza el récord
+      if (d.weight && Number(d.weight) > 0) {
+        const enteredWeight = Number(d.weight);
+        setPrsMap((prev) => {
+          const currentPr = prev[exerciseId];
+          if (!currentPr || enteredWeight >= currentPr.max_weight) {
+            return {
+              ...prev,
+              [exerciseId]: {
+                exercise_id: exerciseId,
+                exercise_name: exercises.find((e) => e.id === exerciseId)?.name ?? "",
+                gym_day_name: "",
+                max_weight: enteredWeight,
+                date,
+                reps: d.reps ? Number(d.reps) : null,
+                sets: d.sets ? Number(d.sets) : null,
+              },
+            };
+          }
+          return prev;
+        });
+      }
 
       // Si todos los ejercicios de este día están completados, felicitar y marcar la sesión en realizada
       const allDone =
@@ -573,6 +613,12 @@ export default function GimnasioPage() {
                         <th style={thStyle}>Peso (kg)</th>
                         <th style={thStyle}>Series</th>
                         <th style={thStyle}>Reps</th>
+                        <th style={thStyle}>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#facc15" }}>
+                            <Trophy size={13} />
+                            <span>Mayor peso</span>
+                          </div>
+                        </th>
                         <th style={thStyle}>Última vez</th>
                         <th style={{ ...thStyle, textAlign: "right" }}>Estado</th>
                       </tr>
@@ -581,12 +627,23 @@ export default function GimnasioPage() {
                       {dayExercises.map((ex) => {
                         const log = logsToday.find((l) => l.exercise_id === ex.id);
                         const isCompleted = log?.completed === 1;
+                        const historyForEx = dayHistory.find((h) => h.exerciseId === ex.id)?.logs ?? [];
+                        const prevWithWeight = historyForEx.filter((l) => l.weight_kg !== null && l.date < date);
+                        const fallbackWithWeight = historyForEx.filter((l) => l.weight_kg !== null && l.date !== date);
+                        const lastLog = prevWithWeight.length > 0
+                          ? prevWithWeight[prevWithWeight.length - 1]
+                          : fallbackWithWeight.length > 0
+                          ? fallbackWithWeight[fallbackWithWeight.length - 1]
+                          : null;
+
                         return (
                           <ExerciseRow
                             key={ex.id}
                             exercise={ex}
                             draft={drafts[ex.id] ?? { weight: "", sets: "", reps: "" }}
                             isCompleted={isCompleted}
+                            pr={prsMap[ex.id]}
+                            lastLog={lastLog}
                             onChange={(patch) =>
                               setDrafts((prev) => ({ ...prev, [ex.id]: { ...prev[ex.id], ...patch } }))
                             }
@@ -614,7 +671,7 @@ export default function GimnasioPage() {
               ) : (
                 <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
                   {dayHistory.map((h) => (
-                    <ExerciseProgressCard key={h.exerciseId} name={h.name} logs={h.logs} />
+                    <ExerciseProgressCard key={h.exerciseId} name={h.name} logs={h.logs} pr={prsMap[h.exerciseId]} />
                   ))}
                 </div>
               )}
@@ -642,6 +699,8 @@ function ExerciseRow({
   exercise,
   draft,
   isCompleted,
+  pr,
+  lastLog,
   onChange,
   onSave,
   onToggleComplete,
@@ -650,12 +709,16 @@ function ExerciseRow({
   exercise: GymExercise;
   draft: { weight: string; sets: string; reps: string };
   isCompleted: boolean;
+  pr?: GymPR;
+  lastLog?: GymLog | null;
   onChange: (patch: Partial<{ weight: string; sets: string; reps: string }>) => void;
   onSave: () => void;
   onToggleComplete: () => void;
   saving: boolean;
 }) {
   const parsed = parseExerciseName(exercise.name);
+  const currentWeightNum = draft.weight ? Number(draft.weight) : 0;
+  const isBreakingRecord = pr ? currentWeightNum > pr.max_weight : currentWeightNum > 0;
 
   return (
     <tr
@@ -689,7 +752,7 @@ function ExerciseRow({
         </button>
       </td>
       <td style={tdStyle}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span
             className="font-medium text-sm"
             style={{
@@ -704,11 +767,68 @@ function ExerciseRow({
               className="text-xs"
               style={{
                 color: "var(--color-text-faint)",
-                marginTop: 2,
               }}
             >
               {parsed.detail}
             </span>
+          )}
+
+          {/* Badge rápido y visual del mayor peso */}
+          {pr ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(234, 179, 8, 0.12)",
+                  color: "#eab308",
+                  border: "1px solid rgba(234, 179, 8, 0.3)",
+                }}
+                title={`Mayor peso histórico: ${pr.max_weight} kg el ${pr.date}${pr.reps ? ` (${pr.reps} reps)` : ""}`}
+              >
+                <Trophy size={12} style={{ color: "#facc15" }} />
+                Mayor peso: <strong style={{ color: "#fef08a" }}>{pr.max_weight} kg</strong>
+                {pr.reps ? <span style={{ opacity: 0.85, fontWeight: 500 }}>({pr.reps} reps)</span> : null}
+              </span>
+
+              {isBreakingRecord && currentWeightNum > 0 && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: 999,
+                    background: "rgba(239, 68, 68, 0.15)",
+                    color: "#f87171",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                  }}
+                >
+                  <Flame size={11} /> ¡Nuevo récord! (+{(currentWeightNum - pr.max_weight).toFixed(1)} kg)
+                </span>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginTop: 2 }}>
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  color: "var(--color-text-faint)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Trophy size={11} style={{ opacity: 0.35 }} /> Sin récord previo
+              </span>
+            </div>
           )}
         </div>
       </td>
@@ -718,7 +838,10 @@ function ExerciseRow({
           inputMode="decimal"
           step="0.5"
           className="field"
-          style={{ width: 90 }}
+          style={{
+            width: 90,
+            borderColor: isBreakingRecord && currentWeightNum > 0 ? "rgba(239, 68, 68, 0.6)" : undefined,
+          }}
           value={draft.weight}
           onChange={(e) => onChange({ weight: e.target.value })}
           onBlur={onSave}
@@ -753,7 +876,40 @@ function ExerciseRow({
         />
       </td>
       <td style={tdStyle}>
-        <LastValue exerciseId={exercise.id} />
+        {pr ? (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                color: "#facc15",
+              }}
+            >
+              <Trophy size={13} style={{ color: "#eab308", flexShrink: 0 }} />
+              <span>{pr.max_weight} kg</span>
+            </div>
+            <span style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", marginTop: 1 }}>
+              {pr.date.slice(5)}{pr.reps ? ` · ${pr.reps} reps` : ""}
+            </span>
+          </div>
+        ) : (
+          <span className="text-sm text-faint">—</span>
+        )}
+      </td>
+      <td style={tdStyle}>
+        {lastLog ? (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span className="text-sm font-semibold">{lastLog.weight_kg} kg</span>
+            <span style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", marginTop: 1 }}>
+              {lastLog.date.slice(5)}{lastLog.reps ? ` · ${lastLog.reps} reps` : ""}
+            </span>
+          </div>
+        ) : (
+          <span className="text-sm text-faint">—</span>
+        )}
       </td>
       <td style={{ ...tdStyle, textAlign: "right", whiteSpace: "nowrap" }}>
         <Button
@@ -779,33 +935,18 @@ function ExerciseRow({
   );
 }
 
-function LastValue({ exerciseId }: { exerciseId: number }) {
-  const [text, setText] = useState<string>("…");
-  const [hasValue, setHasValue] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/gym/logs?exerciseId=${exerciseId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!alive) return;
-        const logs: GymLog[] = data.logs ?? [];
-        const withWeight = logs.filter((l) => l.weight_kg !== null);
-        const last = withWeight[withWeight.length - 1];
-        setHasValue(!!last);
-        setText(last ? `${last.weight_kg} kg (${last.date.slice(5)})` : "—");
-      })
-      .catch(() => setText("—"));
-    return () => {
-      alive = false;
-    };
-  }, [exerciseId]);
-  return <span className={hasValue ? "text-sm font-semibold" : "text-sm text-faint"}>{text}</span>;
-}
-
 // Mini gráfico de la evolución de peso de un ejercicio — se muestra siempre
 // para todos los ejercicios del día seleccionado (ver useEffect de
 // dayHistory más arriba), sin tener que pedir el histórico uno a uno.
-function ExerciseProgressCard({ name, logs }: { name: string; logs: GymLog[] }) {
+function ExerciseProgressCard({
+  name,
+  logs,
+  pr,
+}: {
+  name: string;
+  logs: GymLog[];
+  pr?: GymPR;
+}) {
   const withWeight = logs.filter((l) => l.weight_kg !== null);
   const last = withWeight[withWeight.length - 1];
   const chartData = withWeight.map((l) => ({ date: l.date.slice(5), peso: l.weight_kg }));
@@ -813,7 +954,26 @@ function ExerciseProgressCard({ name, logs }: { name: string; logs: GymLog[] }) 
   return (
     <div className="surface" style={{ padding: "var(--space-3)" }}>
       <div className="flex items-start justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
-        <span className="font-medium text-sm">{name}</span>
+        <div>
+          <span className="font-medium text-sm">{name}</span>
+          {pr && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                color: "#eab308",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                marginTop: 2,
+              }}
+            >
+              <Trophy size={12} style={{ color: "#facc15" }} />
+              Mayor peso: <strong style={{ color: "#fef08a" }}>{pr.max_weight} kg</strong>
+              <span style={{ opacity: 0.75, fontWeight: 400 }}>({pr.date.slice(5)}{pr.reps ? ` · ${pr.reps} reps` : ""})</span>
+            </div>
+          )}
+        </div>
         <span className="text-xs text-muted" style={{ whiteSpace: "nowrap" }}>
           {last ? `Última: ${last.weight_kg} kg (${last.date.slice(5)})` : "Sin registros"}
         </span>
