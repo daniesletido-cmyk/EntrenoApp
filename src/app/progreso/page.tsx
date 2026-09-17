@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { addDays, todayISO } from "@/lib/dates";
 
 interface WeekHistory {
@@ -105,12 +106,16 @@ function ChartCard({
   title,
   subtitle,
   badge,
+  info,
+  infoTitle,
   hasData,
   children,
 }: {
   title: string;
   subtitle?: string;
   badge?: React.ReactNode;
+  info?: string;
+  infoTitle?: string;
   hasData: boolean;
   children: React.ReactNode;
 }) {
@@ -118,7 +123,10 @@ function ChartCard({
     <div className="surface" style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column" }}>
       <div className="flex items-start justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
         <div>
-          <div className="font-semibold text-sm flex items-center gap-2">{title}</div>
+          <div className="font-semibold text-sm flex items-center gap-1.5">
+            <span>{title}</span>
+            {info && <InfoTooltip title={infoTitle || title} content={info} />}
+          </div>
           {subtitle && <div className="text-xs text-muted" style={{ marginTop: 2 }}>{subtitle}</div>}
         </div>
         {badge}
@@ -270,7 +278,13 @@ export default function ProgresoPage() {
       >
         <div className="surface" style={{ padding: "var(--space-3)" }}>
           <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
-            <span>Sueño Reciente</span>
+            <div className="flex items-center gap-1.5">
+              <span>Sueño Reciente</span>
+              <InfoTooltip
+                title="Sueño Reciente"
+                content="Media de horas de descanso y puntuación Zepp (0-100) en las últimas 2 semanas. Dormir entre 7 y 9 horas optimiza la recuperación muscular y hormonal."
+              />
+            </div>
             <BedDouble size={14} style={{ color: CHART_COLORS.primary }} />
           </div>
           <div className="text-xl font-bold">
@@ -283,7 +297,13 @@ export default function ProgresoPage() {
 
         <div className="surface" style={{ padding: "var(--space-3)" }}>
           <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
-            <span>Ratio ACWR</span>
+            <div className="flex items-center gap-1.5">
+              <span>Ratio ACWR</span>
+              <InfoTooltip
+                title="Ratio ACWR (Carga Aguda : Crónica)"
+                content="Compara la carga de los últimos 7 días con la media de los últimos 28 días. Rango óptimo y seguro: 0.8 a 1.3. Por encima de 1.5 existe riesgo de sobrecarga y lesión."
+              />
+            </div>
             <Activity size={14} style={{ color: CHART_COLORS.secondary }} />
           </div>
           <div className="text-xl font-bold flex items-center gap-2">
@@ -317,7 +337,13 @@ export default function ProgresoPage() {
 
         <div className="surface" style={{ padding: "var(--space-3)" }}>
           <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
-            <span>Cumplimiento 4 sem.</span>
+            <div className="flex items-center gap-1.5">
+              <span>Cumplimiento 4 sem.</span>
+              <InfoTooltip
+                title="Cumplimiento de entrenamientos"
+                content="Porcentaje de entrenamientos completados respecto a los programados en las últimas 4 semanas. Mantenerlo por encima del 80% asegura una adaptación continua."
+              />
+            </div>
             <CheckCircle2 size={14} style={{ color: CHART_COLORS.success }} />
           </div>
           <div className="text-xl font-bold">
@@ -330,7 +356,13 @@ export default function ProgresoPage() {
 
         <div className="surface" style={{ padding: "var(--space-3)" }}>
           <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
-            <span>Volumen Última Sem.</span>
+            <div className="flex items-center gap-1.5">
+              <span>Volumen Última Sem.</span>
+              <InfoTooltip
+                title="Volumen Semanal"
+                content="Tiempo total invertido en entrenamientos y kilómetros sumados durante la última semana. Ayuda a planificar el aumento gradual de volumen sin sobrecargas."
+              />
+            </div>
             <Flame size={14} style={{ color: CHART_COLORS.purple }} />
           </div>
           <div className="text-xl font-bold">
@@ -398,6 +430,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Volumen semanal de entrenamiento"
               subtitle="Horas dedicadas y kilómetros completados por semana"
+              info="Representa las horas de ejercicio (barras azules) y los kilómetros recorridos (línea naranja) en cada semana. Permite comprobar que el volumen progresa de forma gradual sin saltos bruscos."
               hasData={hasVolume}
             >
               <ResponsiveContainer>
@@ -418,6 +451,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Ratio Carga Aguda : Crónica (ACWR)"
               subtitle="Control del riesgo de sobreentrenamiento y progresión de carga"
+              info="Compara el esfuerzo reciente (últimos 7 días) con la tolerancia adaptada (media de 28 días). Zona verde (0.8 - 1.3) = progreso seguro. Por encima de 1.5 indica riesgo alto de sobrecarga o lesión."
               badge={
                 <span className="badge text-xs" style={{ backgroundColor: "rgba(34, 197, 94, 0.15)", color: "var(--color-success)" }}>
                   Zona Segura: 0.8 - 1.3
@@ -452,6 +486,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Carga interna y esfuerzo percibido (RPE)"
               subtitle="Carga semanal calculada (Duración × RPE) y media de esfuerzo"
+              info="La carga interna (área morada) mide el estrés biológico del entreno: minutos de sesión × esfuerzo RPE (1-10). La línea naranja muestra la intensidad media percibida de la semana."
               hasData={hasLoad}
             >
               <ResponsiveContainer>
@@ -478,6 +513,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Cumplimiento del plan semanal (%)"
               subtitle="Porcentaje de sesiones completadas frente a las programadas"
+              info="Mide qué porcentaje de los entrenamientos planificados para esa semana se completaron con éxito. La línea verde discontinua en el 80% indica el estándar óptimo de adherencia."
               hasData={hasCompliance}
             >
               <ResponsiveContainer>
@@ -504,7 +540,11 @@ export default function ProgresoPage() {
           >
             <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider">
               <Dumbbell size={14} />
-              Progresión de Fuerza y Récords Personales (PR)
+              <span>Progresión de Fuerza y Récords Personales (PR)</span>
+              <InfoTooltip
+                title="Récords Personales (PR)"
+                content="Muestra el mayor peso levantado (récord personal) en cada ejercicio del gimnasio, junto con las repeticiones y series logradas y la fecha del hito."
+              />
             </div>
             {gymPRs.length > 0 && (
               <span className="badge badge-brand text-xs">
@@ -534,10 +574,25 @@ export default function ProgresoPage() {
                         Rutina / Día
                       </th>
                       <th style={{ textAlign: "right", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
-                        Récord Máximo
+                        <div className="flex items-center justify-end gap-1">
+                          <span>Récord Máximo</span>
+                          <InfoTooltip
+                            title="Récord Máximo (PR)"
+                            content="Mayor peso en kilogramos registrado hasta la fecha en una serie completada de este ejercicio."
+                            size={12}
+                            align="right"
+                          />
+                        </div>
                       </th>
                       <th style={{ textAlign: "center", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
-                        Series × Reps
+                        <div className="flex items-center justify-center gap-1">
+                          <span>Series × Reps</span>
+                          <InfoTooltip
+                            title="Series × Repeticiones"
+                            content="Número de series y repeticiones realizadas en la sesión en la que se alcanzó el récord de peso."
+                            size={12}
+                          />
+                        </div>
                       </th>
                       <th style={{ textAlign: "right", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
                         Fecha Récord
@@ -587,6 +642,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Horas de sueño por noche (Últimos 30 días)"
               subtitle="Duración real del descanso nocturno"
+              info="Duración real del sueño registrada noche a noche. La línea punteada verde de 8 horas representa el descanso ideal para optimizar la recuperación cardiovascular y neuromuscular."
               badge={
                 <span className="badge text-xs" style={{ backgroundColor: "rgba(59, 130, 246, 0.15)", color: CHART_COLORS.primary }}>
                   Rango recomendado: 7h – 9h
@@ -617,6 +673,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Arquitectura del sueño por fases (Horas)"
               subtitle="Desglose de sueño Profundo, REM y Ligero registrado por el reloj"
+              info="Desglose en horas de las fases del sueño: Profundo (reparación física, síntesis de proteínas y hormona del crecimiento), REM (aprendizaje, memoria y equilibrio mental) y Ligero (sueño inicial y transición)."
               hasData={hasSleepPhases}
             >
               <ResponsiveContainer>
@@ -640,6 +697,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Puntuación y calidad del sueño"
               subtitle="Score global de Zepp (0-100) y Calidad estimada (1-5)"
+              info="La línea morada refleja el Score calculado por el algoritmo de Zepp (0 a 100, óptimo >80). La línea naranja muestra tu propia valoración subjetiva (de 1 a 5) al levantarte."
               hasData={hasSleepScore}
             >
               <ResponsiveContainer>
@@ -661,6 +719,7 @@ export default function ProgresoPage() {
             <ChartCard
               title="Promedio semanal de descanso"
               subtitle="Horas medias y puntuación semanal a lo largo de las semanas"
+              info="Evolución semanal que compara la media de horas dormidas por noche (línea azul) con la puntuación media de calidad de Zepp (línea morada) a lo largo de las semanas."
               hasData={weeklyTrainingData.some((d) => d.SueñoHoras !== null)}
             >
               <ResponsiveContainer>
@@ -684,7 +743,11 @@ export default function ProgresoPage() {
               <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-3)" }}>
                 <div className="flex items-center gap-2 font-semibold text-sm">
                   <Moon size={16} />
-                  Historial de noches registradas
+                  <span>Historial de noches registradas</span>
+                  <InfoTooltip
+                    title="Historial de sueño"
+                    content="Detalle de las últimas 14 noches con su duración, valoración de calidad, puntuación de Zepp y minutos en cada fase (Profundo, REM, Ligero y Despierto)."
+                  />
                 </div>
                 <div className="text-xs text-muted">Mostrando las últimas 14 noches</div>
               </div>
@@ -740,7 +803,9 @@ export default function ProgresoPage() {
                         </td>
                         <td style={{ padding: "8px" }}>
                           {s.score != null ? (
-                            <span className="font-medium">{s.score}/100</span>
+                            <span className="font-semibold" style={{ color: CHART_COLORS.purple }}>
+                              {s.score}/100
+                            </span>
                           ) : (
                             "—"
                           )}
@@ -764,12 +829,21 @@ export default function ProgresoPage() {
         <>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider" style={{ marginBottom: "var(--space-3)", marginTop: "var(--space-2)" }}>
             <Scale size={14} />
-            Evolución del Peso Corporal
+            <span>Evolución del Peso Corporal</span>
+            <InfoTooltip
+              title="Peso Corporal"
+              content="Seguimiento de tu masa corporal a lo largo del tiempo. Pesarse en ayunas y a la misma hora minimiza las variaciones de líquidos."
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-3" style={{ marginBottom: "var(--space-4)" }}>
             <div className="md:col-span-2">
-              <ChartCard title="Evolución de peso (kg)" subtitle="Histórico de pesajes registrados" hasData={hasWeight}>
+              <ChartCard
+                title="Evolución de peso (kg)"
+                subtitle="Histórico de pesajes registrados"
+                info="Muestra la tendencia de tu peso corporal medido en ayunas a lo largo del tiempo para evaluar adaptaciones metabólicas y recomposición corporal."
+                hasData={hasWeight}
+              >
                 <ResponsiveContainer>
                   <AreaChart data={weightData}>
                     <defs>
