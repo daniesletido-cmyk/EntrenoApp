@@ -15,6 +15,8 @@ import {
   NotebookPen,
   Save,
   ArrowLeftRight,
+  Copy,
+  Check,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -24,6 +26,7 @@ import { Select, Input, Textarea } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { copyWorkoutToClipboard } from "@/lib/format-workout";
 
 interface PlanPreviewRow {
   date: string;
@@ -78,8 +81,27 @@ export default function PlanSemanalPage() {
   const [swapTarget, setSwapTarget] = useState<string>("");
   const [swapping, setSwapping] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+
+  async function copySession(s: SessionRow) {
+    const ok = await copyWorkoutToClipboard({
+      date: s.date,
+      discipline: s.discipline,
+      planned_code: s.planned_code,
+      is_long_run: s.is_long_run,
+      status: s.status,
+      notes: s.notes,
+    });
+    if (ok) {
+      setCopiedId(s.id);
+      toast.push("success", "Entreno copiado — pégalo en Notas");
+      setTimeout(() => setCopiedId(null), 2500);
+    } else {
+      toast.push("error", "No se pudo copiar automáticamente");
+    }
+  }
 
   const load = useCallback(() => {
     fetch(`/api/sessions?week=${weekStart}`)
@@ -404,9 +426,22 @@ export default function PlanSemanalPage() {
                             <button
                               className="btn btn-ghost btn-icon"
                               aria-label="Escribir o editar el detalle del entreno"
+                              title="Editar notas del entreno"
                               onClick={() => (isEditing ? setEditingId(null) : startEditingNotes(s))}
                             >
                               <NotebookPen size={15} />
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-icon"
+                              aria-label="Copiar entreno para Notas"
+                              title="Copiar entreno para Notas"
+                              onClick={() => copySession(s)}
+                            >
+                              {copiedId === s.id ? (
+                                <Check size={15} style={{ color: "var(--color-success)" }} />
+                              ) : (
+                                <Copy size={15} />
+                              )}
                             </button>
                             <button
                               className="btn btn-ghost btn-icon"

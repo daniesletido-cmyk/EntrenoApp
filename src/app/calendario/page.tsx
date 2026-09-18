@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { copyWorkoutToClipboard } from "@/lib/format-workout";
 
 interface Goal {
   id: number;
@@ -122,6 +123,7 @@ export default function CalendarioPage() {
   const [menuByPhase, setMenuByPhase] = useState<Record<number, MenuItem[]>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedSessionId, setCopiedSessionId] = useState<number | null>(null);
   const toast = useToast();
 
   const load = useCallback(() => {
@@ -138,6 +140,7 @@ export default function CalendarioPage() {
 
   useEffect(() => {
     setCopied(false);
+    setCopiedSessionId(null);
   }, [selectedDate]);
 
   async function ensureMenuLoaded(phase: number) {
@@ -219,6 +222,27 @@ export default function CalendarioPage() {
       toast.push("success", "Copiado — pégalo en Notas");
     } catch {
       toast.push("error", "No se pudo copiar automáticamente. Selecciona el texto a mano.");
+    }
+  }
+
+  async function copySingleSession(s: SessionRow) {
+    const ok = await copyWorkoutToClipboard({
+      date: s.date,
+      discipline: s.discipline,
+      planned_code: s.planned_code,
+      is_long_run: s.is_long_run,
+      status: s.status,
+      rpe: s.rpe,
+      duration_min: s.duration_min,
+      distance_km: s.distance_km,
+      notes: s.notes,
+    });
+    if (ok) {
+      setCopiedSessionId(s.id);
+      toast.push("success", "Entreno copiado — pégalo en Notas");
+      setTimeout(() => setCopiedSessionId(null), 2500);
+    } else {
+      toast.push("error", "No se pudo copiar automáticamente");
     }
   }
 
@@ -347,11 +371,25 @@ export default function CalendarioPage() {
                 <div className="grid gap-2">
                   {selectedSessions.map((s) => (
                     <div key={s.id} className="surface-raised text-sm" style={{ padding: "var(--space-2) var(--space-3)" }}>
-                      <div className="flex items-center gap-2 font-medium">
-                        {DISCIPLINE_LABEL[s.discipline] ?? s.discipline}
-                        {s.planned_code ? ` — ${s.planned_code}` : ""}
-                        {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
-                        <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 font-medium">
+                          {DISCIPLINE_LABEL[s.discipline] ?? s.discipline}
+                          {s.planned_code ? ` — ${s.planned_code}` : ""}
+                          {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
+                          <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
+                        </div>
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          aria-label="Copiar este entreno para Notas"
+                          title="Copiar entreno para Notas"
+                          onClick={() => copySingleSession(s)}
+                        >
+                          {copiedSessionId === s.id ? (
+                            <Check size={14} style={{ color: "var(--color-success)" }} />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                        </button>
                       </div>
                       <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                         {[

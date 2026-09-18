@@ -16,6 +16,8 @@ import {
   ShieldAlert,
   ArrowRight,
   Moon,
+  Copy,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { todayISO, isoDayOfWeek, weekStartOf } from "@/lib/dates";
@@ -23,6 +25,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Loading } from "@/components/ui/loading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { copyWorkoutToClipboard } from "@/lib/format-workout";
 
 interface SessionRow {
   id: number;
@@ -138,8 +142,31 @@ export default function HoyPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [sleep, setSleep] = useState<SleepRow | null>(null);
   const [rec, setRec] = useState<Recommendation | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const toast = useToast();
 
   const today = todayISO();
+
+  async function copySession(s: SessionRow) {
+    const ok = await copyWorkoutToClipboard({
+      date: s.date,
+      discipline: s.discipline,
+      planned_code: s.planned_code,
+      is_long_run: s.is_long_run,
+      status: s.status,
+      rpe: s.rpe,
+      duration_min: s.duration_min,
+      distance_km: s.distance_km,
+      notes: s.notes,
+    });
+    if (ok) {
+      setCopiedId(s.id);
+      toast.push("success", "Entreno copiado — pégalo en Notas");
+      setTimeout(() => setCopiedId(null), 2500);
+    } else {
+      toast.push("error", "No se pudo copiar automáticamente");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -284,10 +311,24 @@ export default function HoyPage() {
                         {s.notes}
                       </p>
                     )}
-                    <Link href="/registro" className="btn btn-secondary inline-flex" style={{ marginTop: "var(--space-3)" }}>
-                      Registrar resultado
-                      <ArrowRight size={14} />
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-3)" }}>
+                      <Link href="/registro" className="btn btn-secondary inline-flex">
+                        Registrar resultado
+                        <ArrowRight size={14} />
+                      </Link>
+                      <button
+                        className="btn btn-ghost inline-flex"
+                        onClick={() => copySession(s)}
+                        title="Copiar entreno para Notas"
+                      >
+                        {copiedId === s.id ? (
+                          <Check size={14} style={{ color: "var(--color-success)" }} />
+                        ) : (
+                          <Copy size={14} />
+                        )}
+                        {copiedId === s.id ? "Copiado a Notas" : "Copiar entreno"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

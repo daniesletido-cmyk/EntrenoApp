@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame } from "lucide-react";
+import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Loading } from "@/components/ui/loading";
 import { useToast } from "@/components/ui/toast";
 import { todayISO } from "@/lib/dates";
+import { copyTextToClipboard } from "@/lib/format-workout";
 
 interface GymDay {
   id: number;
@@ -219,6 +220,40 @@ export default function GimnasioPage() {
   const completionPct = dayExercises.length > 0 ? Math.round((completedCount / dayExercises.length) * 100) : 0;
 
   const { push } = useToast();
+  const [copiedRoutine, setCopiedRoutine] = useState(false);
+
+  async function copyActiveGymRoutine() {
+    const currentDay = scheduledGymDay ?? days.find((d) => d.id === selectedDayId);
+    if (!currentDay) return;
+    const exs = exercises.filter((e) => e.gym_day_id === currentDay.id).sort((a, b) => a.sort_order - b.sort_order);
+    const lines: string[] = [
+      `🏋️ Gimnasio · ${currentDay.name}`,
+      `Fecha: ${todayISO()}`,
+      "",
+      "Ejercicios:",
+    ];
+    for (const ex of exs) {
+      const log = logsToday.find((l) => l.exercise_id === ex.id);
+      const checked = log?.completed === 1 ? "[x]" : "[ ]";
+      const sets = drafts[ex.id];
+      let setsStr = "";
+      if (sets && sets.length > 0) {
+        const doneSets = sets.filter((s) => s.weight.trim() && s.reps.trim());
+        if (doneSets.length > 0) {
+          setsStr = ` (${doneSets.map((s) => `${s.weight}kg x ${s.reps}`).join(", ")})`;
+        }
+      }
+      lines.push(`- ${checked} ${ex.name}${setsStr}`);
+    }
+    const ok = await copyTextToClipboard(lines.join("\n"));
+    if (ok) {
+      setCopiedRoutine(true);
+      push("success", "Rutina de gimnasio copiada — pégala en Notas");
+      setTimeout(() => setCopiedRoutine(false), 2500);
+    } else {
+      push("error", "No se pudo copiar automáticamente");
+    }
+  }
 
   // Carga el histórico de peso de todos los ejercicios del día seleccionado
   // en paralelo, para pintar un gráfico de cada uno sin tener que hacer clic
@@ -623,6 +658,19 @@ export default function GimnasioPage() {
                   <span className="text-xs text-muted font-medium">
                     {completedCount} de {dayExercises.length} ejercicios completados ({completionPct}%)
                   </span>
+                  <Button
+                    variant="ghost"
+                    onClick={copyActiveGymRoutine}
+                    style={{ padding: "0.25rem 0.65rem", fontSize: "var(--text-xs)" }}
+                    title="Copiar rutina para Notas"
+                  >
+                    {copiedRoutine ? (
+                      <Check size={13} style={{ color: "var(--color-success)" }} />
+                    ) : (
+                      <Copy size={13} />
+                    )}
+                    {copiedRoutine ? "Copiada a Notas" : "Copiar rutina"}
+                  </Button>
                   {selectedDayId !== scheduledGymDay.id && (
                     <Button
                       variant="secondary"
