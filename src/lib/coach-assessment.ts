@@ -139,12 +139,12 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
 
   if (acwr === null) {
     acwrStatus = "infracarga";
-    acwrBadge = "Sin datos suficientes";
+    acwrBadge = "Sin datos";
     acwrWhyExplanation =
       "No hay todavía suficientes semanas de historial registradas para calcular un ratio ACWR estadísticamente fiable.";
   } else if (acwr < 0.8) {
     acwrStatus = "infracarga";
-    acwrBadge = isCurrentWeek && currentDow < 7 ? `Infracarga (${acwr.toFixed(2)}) · Semana en curso` : `Infracarga (${acwr.toFixed(2)})`;
+    acwrBadge = isCurrentWeek && currentDow < 7 ? "En curso" : "Infracarga";
     if (isCurrentWeek && currentDow < 7) {
       acwrWhyExplanation = `¿Por qué sale Precaución con ${acwr.toFixed(2)}? Actualmente estamos a mitad de semana (${DAY_NAMES_ES[currentDow - 1]}) y el ratio compara tu carga acumulada hasta hoy con una semana completa típica de 7 días (carga crónica). Al faltar los entrenamientos de los próximos días, es fisiológicamente normal que esté por debajo de 0.80. No tienes fatiga acumulada excesiva, pero para no perder adaptaciones de volumen es importante completar los entrenamientos que te quedan.`;
     } else {
@@ -152,15 +152,15 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
     }
   } else if (acwr <= 1.3) {
     acwrStatus = "optimo";
-    acwrBadge = `Óptimo (${acwr.toFixed(2)})`;
+    acwrBadge = "Óptimo";
     acwrWhyExplanation = `¿Por qué es Óptimo con ${acwr.toFixed(2)}? Tu ratio está dentro del "sweet spot" científico (0.80 a 1.30). Tu carga aguda progresa en perfecta armonía con tu carga crónica, maximizando las adaptaciones de fuerza y resistencia cardiovascular con el menor riesgo de lesión.`;
   } else if (acwr <= 1.5) {
     acwrStatus = "sobrecarga_moderada";
-    acwrBadge = `Atención (${acwr.toFixed(2)})`;
+    acwrBadge = "Atención";
     acwrWhyExplanation = `¿Por qué sale Atención con ${acwr.toFixed(2)}? Tu carga aguda está entre 1.30 y 1.50 veces por encima de tu media. Estás en una fase de sobrecarga funcional intencionada; asegura al menos 8h de sueño y buena nutrición para asimilarla.`;
   } else {
     acwrStatus = "sobrecarga_alta";
-    acwrBadge = `Sobrecarga (${acwr.toFixed(2)})`;
+    acwrBadge = "Sobrecarga";
     acwrWhyExplanation = `¿Por qué sale Alerta de Sobrecarga con ${acwr.toFixed(2)}? Has aumentado la carga más de un 50% respecto a tu media crónica. Entras en la zona de peligro de lesión y sobreentrenamiento. Como tu entrenador, te recomiendo bajar intensidad en la siguiente sesión y no sumar kilómetros extra.`;
   }
 
@@ -237,7 +237,7 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
 
   // 4. VEREDICTO NARRATIVO DEL ENTRENADOR PERSONAL
   const lastNightHours = readiness.stats.sleepHours;
-  const sleepText = lastNightHours ? `${lastNightHours.toFixed(1)}h dormidas anoche` : "sueño no registrado anoche";
+  const sleepText = lastNightHours ? `${lastNightHours.toFixed(1)}h de sueño` : "sueño no registrado";
 
   let verdictTitle = "Semana con excelente ritmo y constancia";
   let verdictTone: WeeklyCoachAssessment["coachVerdict"]["tone"] = "success";
