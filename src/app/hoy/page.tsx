@@ -239,49 +239,33 @@ export default function HoyPage() {
 
       {readiness && (
         <div
-          className="animate-in surface"
+          className="surface animate-in"
           style={{
-            borderRadius: "var(--radius-lg)",
             padding: "var(--space-4)",
             marginBottom: "var(--space-5)",
-            border: `1px solid ${
+            borderLeft: `3px solid ${
               readiness.tone === "success"
-                ? "rgba(34, 197, 94, 0.35)"
+                ? "var(--color-success)"
                 : readiness.tone === "warning"
-                ? "rgba(234, 179, 8, 0.35)"
+                ? "var(--color-warning)"
                 : readiness.tone === "danger"
-                ? "rgba(239, 68, 68, 0.35)"
-                : "rgba(47, 111, 235, 0.35)"
+                ? "var(--color-danger)"
+                : "var(--color-brand)"
             }`,
-            background:
-              readiness.tone === "success"
-                ? "linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.02) 100%)"
-                : readiness.tone === "warning"
-                ? "linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, rgba(234, 179, 8, 0.02) 100%)"
-                : readiness.tone === "danger"
-                ? "linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%)"
-                : "linear-gradient(135deg, rgba(47, 111, 235, 0.08) 0%, rgba(47, 111, 235, 0.02) 100%)",
           }}
         >
           {/* Header Row */}
           <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap" }}>
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   borderRadius: "var(--radius-md)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  background:
-                    readiness.tone === "success"
-                      ? "rgba(34, 197, 94, 0.15)"
-                      : readiness.tone === "warning"
-                      ? "rgba(234, 179, 8, 0.15)"
-                      : readiness.tone === "danger"
-                      ? "rgba(239, 68, 68, 0.15)"
-                      : "rgba(47, 111, 235, 0.15)",
+                  background: "var(--color-surface-raised)",
                   color:
                     readiness.tone === "success"
                       ? "var(--color-success)"
@@ -293,11 +277,11 @@ export default function HoyPage() {
                   flexShrink: 0,
                 }}
               >
-                <Zap size={22} />
+                <Zap size={20} />
               </div>
               <div>
                 <div className="flex items-center gap-2" style={{ flexWrap: "wrap" }}>
-                  <span className="font-bold text-base">¿Cómo estás hoy para entrenar?</span>
+                  <span className="font-semibold text-base">Estado para entrenar hoy</span>
                   <span
                     className={`badge ${
                       readiness.tone === "success"
@@ -313,48 +297,46 @@ export default function HoyPage() {
                   </span>
                 </div>
                 <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                  Estado de forma y recuperación calculado con sueño, fatiga de 48h y carga semanal
+                  Calculado con sueño, fatiga de 48h y ratio de carga semanal (ACWR)
                 </div>
               </div>
             </div>
 
             {/* Score Pill */}
-            <div className="flex items-center gap-2">
-              <div
+            <div
+              style={{
+                padding: "0.25rem 0.75rem",
+                borderRadius: "var(--radius-full)",
+                display: "flex",
+                alignItems: "baseline",
+                gap: 3,
+                background: "var(--color-surface-raised)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <span
                 style={{
-                  padding: "0.35rem 0.85rem",
-                  borderRadius: 999,
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 3,
-                  background: "var(--color-surface-raised)",
-                  border: "1px solid var(--color-border)",
+                  fontSize: "var(--text-lg)",
+                  fontWeight: 700,
+                  color:
+                    readiness.tone === "success"
+                      ? "var(--color-success)"
+                      : readiness.tone === "warning"
+                      ? "var(--color-warning)"
+                      : readiness.tone === "danger"
+                      ? "var(--color-danger)"
+                      : "var(--color-brand)",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: "var(--text-xl)",
-                    fontWeight: 800,
-                    color:
-                      readiness.tone === "success"
-                        ? "var(--color-success)"
-                        : readiness.tone === "warning"
-                        ? "var(--color-warning)"
-                        : readiness.tone === "danger"
-                        ? "var(--color-danger)"
-                        : "var(--color-brand)",
-                  }}
-                >
-                  {readiness.score}
-                </span>
-                <span className="text-xs text-faint font-semibold">/100</span>
-              </div>
+                {readiness.score}
+              </span>
+              <span className="text-xs text-faint font-medium">/ 100</span>
             </div>
           </div>
 
           {/* Headline & Summary */}
           <div style={{ marginTop: "var(--space-3)" }}>
-            <div className="font-semibold text-sm" style={{ color: "var(--color-foreground)" }}>
+            <div className="font-semibold text-sm">
               {readiness.headline}
             </div>
             <p className="text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
@@ -362,7 +344,7 @@ export default function HoyPage() {
             </p>
           </div>
 
-          {/* Coach Advice Box */}
+          {/* Coach Advice Callout */}
           <div
             className="flex items-start gap-2.5"
             style={{
@@ -382,9 +364,9 @@ export default function HoyPage() {
               }}
             />
             <div style={{ flex: 1 }}>
-              <span className="font-semibold text-xs uppercase" style={{ color: "var(--color-brand)", letterSpacing: "0.03em" }}>
-                Consejo de tu entrenador para hoy
-              </span>
+              <div className="font-semibold text-xs uppercase" style={{ color: "var(--color-brand)", letterSpacing: "0.03em" }}>
+                Consejo del entrenador
+              </div>
               <p className="text-sm" style={{ marginTop: 2, lineHeight: 1.45 }}>
                 {readiness.coachAdvice}
               </p>
@@ -410,7 +392,7 @@ export default function HoyPage() {
               style={{
                 marginTop: "var(--space-3)",
                 paddingTop: "var(--space-3)",
-                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                borderTop: "1px solid var(--color-border)",
               }}
             >
               {readiness.factors.map((f) => (
@@ -478,26 +460,27 @@ export default function HoyPage() {
 
       {rec && rec.action !== "mantener" && (
         <div
-          className="flex items-start gap-3 animate-in"
+          className="surface flex items-start gap-3.5 animate-in"
           style={{
-            borderRadius: "var(--radius-lg)",
             padding: "var(--space-4)",
-            background: TONE_STYLE[ACTION_META[rec.action].tone].bg,
+            borderLeft: `3px solid ${TONE_STYLE[ACTION_META[rec.action].tone].color}`,
             marginBottom: "var(--space-5)",
           }}
         >
-          <span style={{ color: TONE_STYLE[ACTION_META[rec.action].tone].color, flexShrink: 0 }}>{ACTION_META[rec.action].icon}</span>
+          <span style={{ color: TONE_STYLE[ACTION_META[rec.action].tone].color, flexShrink: 0, marginTop: 2 }}>
+            {ACTION_META[rec.action].icon}
+          </span>
           <div style={{ flex: 1 }}>
-            <div className="font-semibold" style={{ color: TONE_STYLE[ACTION_META[rec.action].tone].color }}>
+            <div className="font-semibold text-sm" style={{ color: TONE_STYLE[ACTION_META[rec.action].tone].color }}>
               {ACTION_META[rec.action].label}
             </div>
-            <p className="text-sm text-muted" style={{ marginTop: 2 }}>
+            <p className="text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
               {rec.summary}
             </p>
           </div>
-          <Link href="/recomendaciones" className="btn btn-ghost" style={{ flexShrink: 0 }}>
+          <Link href="/recomendaciones" className="btn btn-secondary text-xs" style={{ flexShrink: 0, height: 36 }}>
             Ver detalle
-            <ArrowRight size={14} />
+            <ArrowRight size={13} />
           </Link>
         </div>
       )}
@@ -561,13 +544,13 @@ export default function HoyPage() {
                         {s.notes}
                       </p>
                     )}
-                    <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-3)" }}>
-                      <Link href="/registro" className="btn btn-secondary inline-flex">
+                    <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-4)" }}>
+                      <Link href="/registro" className="btn btn-primary inline-flex">
                         Registrar resultado
                         <ArrowRight size={14} />
                       </Link>
                       <button
-                        className="btn btn-ghost inline-flex"
+                        className="btn btn-secondary inline-flex"
                         onClick={() => copySession(s)}
                         title="Copiar entreno para Notas"
                       >

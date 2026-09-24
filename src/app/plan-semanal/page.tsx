@@ -383,42 +383,93 @@ export default function PlanSemanalPage() {
           const daySessions = sessions.filter((s) => s.date === date);
           const f = form[date] ?? { discipline: "", planned_code: "", is_long_run: false, notes: "" };
           const isToday = date === today();
+          const isAdding = savingDate === date || !!f.discipline;
+
           return (
             <div
               key={date}
               className="surface"
               style={{
                 padding: "var(--space-4)",
-                borderColor: isToday ? "var(--color-brand)" : "var(--color-border)",
+                borderLeft: isToday ? "3px solid var(--color-brand)" : undefined,
               }}
             >
-              <div className="flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                <span className="font-semibold text-sm">{DAY_NAMES_ES[i]}</span>
-                <span className="text-xs text-faint">{date}</span>
-                {isToday && <span className="badge badge-brand">Hoy</span>}
+              {/* Day Header */}
+              <div className="flex items-center justify-between" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-3)" : 0 }}>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{DAY_NAMES_ES[i]}</span>
+                  <span className="text-xs text-muted">{date}</span>
+                  {isToday && <span className="badge badge-brand">Hoy</span>}
+                </div>
+
+                {!isAdding && daySessions.length === 0 && (
+                  <button
+                    className="btn btn-ghost text-xs"
+                    onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
+                  >
+                    <Plus size={14} />
+                    Añadir sesión
+                  </button>
+                )}
+
+                {!isAdding && daySessions.length > 0 && (
+                  <button
+                    className="btn btn-ghost text-xs"
+                    onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
+                  >
+                    <Plus size={14} />
+                    Añadir otra
+                  </button>
+                )}
               </div>
 
+              {/* Day Sessions List */}
               {daySessions.length > 0 && (
-                <ul className="grid gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                <ul className="grid gap-2" style={{ marginBottom: isAdding ? "var(--space-3)" : 0 }}>
                   {daySessions.map((s) => {
                     const meta = DISCIPLINE_MAP[s.discipline] ?? DISCIPLINES[4];
                     const Icon = meta.Icon;
                     const isEditing = editingId === s.id;
                     const isSwapping = swappingId === s.id;
                     return (
-                      <li key={s.id} className="surface-raised" style={{ padding: "var(--space-2) var(--space-3)" }}>
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 text-sm">
-                            <Icon size={16} className="text-muted" />
-                            {meta.label}
-                            {s.planned_code ? ` — ${s.planned_code}` : ""}
+                      <li
+                        key={s.id}
+                        className="surface-raised"
+                        style={{
+                          padding: "var(--space-3)",
+                          borderRadius: "var(--radius-md)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-sm min-w-0">
+                            <div
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: "var(--radius-sm)",
+                                background: "var(--color-surface)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                                color: "var(--color-brand)",
+                              }}
+                            >
+                              <Icon size={15} />
+                            </div>
+                            <span className="font-medium truncate">
+                              {meta.label}
+                              {s.planned_code ? ` · ${s.planned_code}` : ""}
+                            </span>
                             {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
                             <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
+                          </div>
+
+                          <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
                             <button
                               className="btn btn-ghost btn-icon"
                               aria-label="Intercambiar con otra sesión de la semana"
+                              title="Intercambiar día"
                               onClick={() => (isSwapping ? cancelSwap() : startSwap(s.id))}
                             >
                               <ArrowLeftRight size={15} />
@@ -446,27 +497,28 @@ export default function PlanSemanalPage() {
                             <button
                               className="btn btn-ghost btn-icon"
                               aria-label="Quitar sesión"
+                              title="Eliminar sesión"
                               onClick={() => requestRemoveSession(s.id)}
                             >
                               <Trash2 size={15} />
                             </button>
-                          </span>
+                          </div>
                         </div>
 
                         {!isEditing && s.notes && (
-                          <p className="text-sm text-muted" style={{ marginTop: "var(--space-2)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                          <p className="text-sm text-muted" style={{ marginTop: "var(--space-2)", whiteSpace: "pre-wrap", lineHeight: 1.5, paddingLeft: 36 }}>
                             {s.notes}
                           </p>
                         )}
 
                         {isEditing && (
-                          <div style={{ marginTop: "var(--space-2)" }}>
+                          <div style={{ marginTop: "var(--space-3)", paddingLeft: 36 }}>
                             <Textarea
                               label="Detalle del entrenamiento (ejercicios, series, RPE, ritmos...)"
-                              rows={5}
+                              rows={4}
                               value={notesDraft}
                               onChange={(e) => setNotesDraft(e.target.value)}
-                              hint="Escríbelo tú mismo tal cual lo tengas — no hace falta ninguna clave de API para esto."
+                              hint="Escríbelo directamente según tu plan."
                             />
                             <div className="flex gap-2" style={{ marginTop: "var(--space-2)" }}>
                               <Button variant="primary" loading={savingNotes} onClick={() => saveNotes(s.id)}>
@@ -481,7 +533,7 @@ export default function PlanSemanalPage() {
                         )}
 
                         {isSwapping && (
-                          <div style={{ marginTop: "var(--space-2)" }}>
+                          <div style={{ marginTop: "var(--space-3)", paddingLeft: 36 }}>
                             <Select
                               label="Intercambiar con"
                               value={swapTarget}
@@ -517,51 +569,69 @@ export default function PlanSemanalPage() {
                 </ul>
               )}
 
-              <div className="flex flex-wrap items-end gap-2">
-                <div style={{ minWidth: 150 }}>
-                  <Select
-                    aria-label="Añadir disciplina"
-                    value={f.discipline}
-                    onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, discipline: e.target.value } }))}
-                  >
-                    <option value="">+ añadir sesión…</option>
-                    {DISCIPLINES.map((d) => (
-                      <option key={d.value} value={d.value}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div style={{ width: 150 }}>
-                  <Input
-                    aria-label="Código de la receta"
-                    placeholder="Código (R2, Día A…)"
-                    value={f.planned_code}
-                    onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, planned_code: e.target.value } }))}
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-xs text-muted" style={{ minHeight: 38 }}>
-                  <input
-                    type="checkbox"
-                    checked={f.is_long_run}
-                    onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, is_long_run: e.target.checked } }))}
-                  />
-                  Tirada larga
-                </label>
-                <Button variant="primary" disabled={!f.discipline} loading={savingDate === date} onClick={() => addSession(date)}>
-                  <Plus size={15} />
-                  Añadir
-                </Button>
-              </div>
-              {f.discipline && (
-                <div style={{ marginTop: "var(--space-2)" }}>
-                  <Textarea
-                    aria-label="Detalle del entrenamiento (opcional)"
-                    placeholder="Detalle opcional: ejercicios, series, RPE, pesos, ritmos... (escríbelo tú, sin necesidad de ninguna clave de API)"
-                    rows={2}
-                    value={f.notes}
-                    onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, notes: e.target.value } }))}
-                  />
+              {/* Inline Add Session Form */}
+              {isAdding && (
+                <div
+                  className="surface-raised"
+                  style={{
+                    padding: "var(--space-3)",
+                    borderRadius: "var(--radius-md)",
+                    marginTop: daySessions.length > 0 ? "var(--space-2)" : 0,
+                  }}
+                >
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div style={{ minWidth: 140, flex: 1 }}>
+                      <Select
+                        aria-label="Añadir disciplina"
+                        value={f.discipline}
+                        onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, discipline: e.target.value } }))}
+                      >
+                        <option value="">Disciplina…</option>
+                        {DISCIPLINES.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div style={{ minWidth: 140, flex: 1 }}>
+                      <Input
+                        aria-label="Código de la receta"
+                        placeholder="Código (R2, Día A…)"
+                        value={f.planned_code}
+                        onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, planned_code: e.target.value } }))}
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-muted" style={{ minHeight: 38 }}>
+                      <input
+                        type="checkbox"
+                        checked={f.is_long_run}
+                        onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, is_long_run: e.target.checked } }))}
+                      />
+                      Tirada larga
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="primary" disabled={!f.discipline} loading={savingDate === date} onClick={() => addSession(date)}>
+                        <Plus size={15} />
+                        Guardar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "", planned_code: "", is_long_run: false, notes: "" } }))}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "var(--space-2)" }}>
+                    <Textarea
+                      aria-label="Detalle del entrenamiento (opcional)"
+                      placeholder="Detalle opcional: ejercicios, series, RPE, pesos, ritmos..."
+                      rows={2}
+                      value={f.notes}
+                      onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, notes: e.target.value } }))}
+                    />
+                  </div>
                 </div>
               )}
             </div>

@@ -140,7 +140,11 @@ export default function ResumenPage() {
     <div>
       <PageHeader
         title="Resumen"
-        description={raceDate ? `Faltan ${daysUntilRace(raceDate)} días para el maratón (${raceDate})` : undefined}
+        description={
+          raceDate
+            ? `Semana del ${summary?.weekStart ?? weekStart} · Faltan ${daysUntilRace(raceDate)} días para el maratón`
+            : `Semana del ${summary?.weekStart ?? weekStart}`
+        }
       />
 
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
@@ -151,35 +155,61 @@ export default function ResumenPage() {
         <div className="animate-in grid gap-5">
           {coachAssessment && <CoachSummaryCard assessment={coachAssessment} />}
 
-          {rec && (
+          {rec && rec.action !== "mantener" && (
             <div
-              className="flex items-start gap-3"
+              className="surface flex items-start gap-3.5"
               style={{
-                borderRadius: "var(--radius-lg)",
                 padding: "var(--space-4)",
-                background: BANNER_STYLE[ACTION_BANNER[rec.action].tone].bg,
+                borderLeft: `3px solid ${BANNER_STYLE[ACTION_BANNER[rec.action].tone].color}`,
               }}
             >
-              <span style={{ color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color, flexShrink: 0 }}>
+              <span
+                style={{
+                  color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color,
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
                 {ACTION_BANNER[rec.action].icon}
               </span>
               <div style={{ flex: 1 }}>
-                <div className="font-semibold" style={{ color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color }}>
+                <div
+                  className="font-semibold text-sm"
+                  style={{ color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color }}
+                >
                   {ACTION_BANNER[rec.action].label}
                 </div>
-                <p className="text-sm text-muted" style={{ marginTop: 2 }}>
+                <p className="text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
                   {rec.summary}
                 </p>
               </div>
-              <Link href="/recomendaciones" className="btn btn-ghost text-sm" style={{ flexShrink: 0 }}>
+              <Link
+                href="/recomendaciones"
+                className="btn btn-secondary text-xs"
+                style={{ flexShrink: 0, height: 36 }}
+              >
                 Ver detalle
-                <ArrowRight size={14} />
+                <ArrowRight size={13} />
               </Link>
             </div>
           )}
 
-          <div className="section-group" style={{ marginBottom: 0 }}>
-            <div className="section-group-title">Esta semana</div>
+          {/* Core Week Metrics Grid */}
+          <div>
+            <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)" }}>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Métricas de la semana
+              </span>
+              {summary.compliancePct !== null && (
+                <span className="text-xs text-muted">
+                  {summary.realizadas + summary.parciales} de {summary.planificadas} sesiones
+                  {summary.extrasRealizadas && summary.extrasRealizadas > 0
+                    ? ` (+${summary.extrasRealizadas} extra)`
+                    : ""}
+                </span>
+              )}
+            </div>
+
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
               <StatCard
                 label="Cumplimiento"
@@ -187,80 +217,77 @@ export default function ResumenPage() {
                 icon={<CalendarCheck2 size={16} />}
                 tone={complianceTone}
                 sublabel={
-                  `${summary.realizadas + summary.parciales} de ${summary.planificadas} programadas` +
-                  (summary.extrasRealizadas && summary.extrasRealizadas > 0
-                    ? ` (+${summary.extrasRealizadas} extra${summary.extrasRealizadas > 1 ? "s" : ""})`
-                    : "")
+                  summary.noRealizadas > 0
+                    ? `${summary.noRealizadas} no realizada${summary.noRealizadas > 1 ? "s" : ""}`
+                    : "Todo al día"
                 }
               />
-              <StatCard label="RPE medio" value={fmt(summary.rpeAvg)} icon={<Gauge size={16} />} sublabel="Escala 0–10" />
-              <StatCard
-                label="Sueño"
-                value={fmt(summary.sleepHoursAvg, "h")}
-                icon={<Moon size={16} />}
-                sublabel={`Calidad ${fmt(summary.sleepQualityAvg)}/5`}
-              />
-              <StatCard
-                label="No realizadas"
-                value={String(summary.noRealizadas)}
-                icon={<XCircle size={16} />}
-                tone={summary.noRealizadas > 0 ? "warning" : "neutral"}
-              />
-            </div>
-          </div>
-
-          <div className="section-group" style={{ marginBottom: 0 }}>
-            <div className="section-group-title">Volumen realizado</div>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
               <StatCard
                 label="Distancia total"
                 value={`${summary.distanceKm.toFixed(1)} km`}
                 icon={<Route size={16} />}
                 sublabel={
                   (summary.runDistanceKm ?? 0) > 0 && (summary.walkDistanceKm ?? 0) > 0
-                    ? `${summary.runDistanceKm?.toFixed(1)} km carrera · ${summary.walkDistanceKm?.toFixed(1)} km caminata`
-                    : "Suma de sesiones realizadas"
+                    ? `${summary.runDistanceKm?.toFixed(1)} km run · ${summary.walkDistanceKm?.toFixed(1)} km walk`
+                    : "Suma semanal"
                 }
               />
               <StatCard
-                label="Tiempo entrenado"
+                label="Tiempo total"
                 value={fmtDuration(summary.durationMin)}
                 icon={<Timer size={16} />}
                 sublabel={
                   summary.extrasRealizadas && summary.extrasRealizadas > 0
-                    ? `Incluye ${summary.extrasRealizadas} sesión extra`
-                    : undefined
+                    ? `+${summary.extrasRealizadas} extra`
+                    : "Tiempo entrenado"
                 }
               />
               <StatCard
-                label="Ritmo carrera"
-                value={fmtPace(summary.runAvgPaceMinKm ?? null)}
-                icon={<Gauge size={16} />}
-                sublabel={
-                  (summary.runDistanceKm ?? 0) > 0
-                    ? `${summary.runDistanceKm?.toFixed(1)} km (${summary.runCount} carrera${(summary.runCount ?? 0) > 1 ? "s" : ""})`
-                    : "Sin carrera esta semana"
-                }
+                label="Sueño medio"
+                value={fmt(summary.sleepHoursAvg, "h")}
+                icon={<Moon size={16} />}
+                sublabel={summary.sleepQualityAvg ? `Calidad ${fmt(summary.sleepQualityAvg)}/5` : "Descanso"}
               />
-              <StatCard
-                label="Ritmo caminata"
-                value={fmtPace(summary.walkAvgPaceMinKm ?? null)}
-                icon={<Footprints size={16} />}
-                sublabel={
-                  (summary.walkDistanceKm ?? 0) > 0
-                    ? `${summary.walkDistanceKm?.toFixed(1)} km (${summary.walkCount} caminata${(summary.walkCount ?? 0) > 1 ? "s" : ""})`
-                    : "Sin caminata esta semana"
-                }
-              />
-              {nextGoal && (
-                <StatCard
-                  label="Próximo objetivo"
-                  value={nextGoal.target_date ? `${daysUntilGoal(nextGoal.target_date)} días` : "—"}
-                  icon={<Flag size={16} />}
-                  sublabel={nextGoal.title}
-                />
-              )}
             </div>
+          </div>
+
+          {/* Secondary stats: Pace & Goals */}
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+            <StatCard
+              label="Ritmo medio carrera"
+              value={fmtPace(summary.runAvgPaceMinKm ?? null)}
+              icon={<Gauge size={16} />}
+              sublabel={
+                (summary.runDistanceKm ?? 0) > 0
+                  ? `${summary.runDistanceKm?.toFixed(1)} km en ${summary.runCount} sesión${(summary.runCount ?? 0) > 1 ? "es" : ""}`
+                  : "Sin carrera registrada"
+              }
+            />
+            <StatCard
+              label="Ritmo caminata"
+              value={fmtPace(summary.walkAvgPaceMinKm ?? null)}
+              icon={<Footprints size={16} />}
+              sublabel={
+                (summary.walkDistanceKm ?? 0) > 0
+                  ? `${summary.walkDistanceKm?.toFixed(1)} km en ${summary.walkCount} sesión${(summary.walkCount ?? 0) > 1 ? "es" : ""}`
+                  : "Sin caminatas registradas"
+              }
+            />
+            <StatCard
+              label="Esfuerzo medio (RPE)"
+              value={fmt(summary.rpeAvg)}
+              icon={<Gauge size={16} />}
+              sublabel="Escala subjetiva 0–10"
+            />
+            {nextGoal && (
+              <StatCard
+                label="Próximo objetivo"
+                value={nextGoal.target_date ? `${daysUntilGoal(nextGoal.target_date)} días` : "—"}
+                icon={<Flag size={16} />}
+                tone="brand"
+                sublabel={nextGoal.title}
+              />
+            )}
           </div>
 
           {summary.planificadas === 0 && (
@@ -276,14 +303,17 @@ export default function ResumenPage() {
             />
           )}
 
-          <div className="section-group" style={{ marginBottom: 0 }}>
-            <div className="section-group-title">Accesos rápidos</div>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-              <QuickLink href="/hoy" title="Hoy" description="Entreno y menú del día" />
-              <QuickLink href="/registro" title="Registrar hoy" description="Marca RPE, sueño y molestias" />
-              <QuickLink href="/progreso" title="Ver progreso" description="Tendencias de varias semanas" />
-              <QuickLink href="/calendario" title="Calendario" description="Objetivos y tiradas largas" />
-              <QuickLink href="/objetivos" title="Objetivos" description="Metas activas y cuenta atrás" />
+          {/* Quick Actions */}
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted" style={{ marginBottom: "var(--space-2)" }}>
+              Accesos rápidos
+            </div>
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              <QuickLink href="/hoy" title="Hoy" description="Entreno planificado y menú del día" />
+              <QuickLink href="/registro" title="Registrar entreno" description="RPE, sueño, sensaciones y molestias" />
+              <QuickLink href="/coach" title="Entrenador IA" description="Ajustes de carga, ritmos y preguntas" />
+              <QuickLink href="/progreso" title="Progreso y carga" description="Tendencias ACWR, volumen y evolución" />
+              <QuickLink href="/plan-semanal" title="Plan semanal" description="Revisa o modifica los entrenamientos" />
             </div>
           </div>
         </div>
@@ -294,12 +324,19 @@ export default function ResumenPage() {
 
 function QuickLink({ href, title, description }: { href: string; title: string; description: string }) {
   return (
-    <Link href={href} className="surface surface-interactive flex items-center justify-between" style={{ padding: "var(--space-4)" }}>
+    <Link
+      href={href}
+      className="surface surface-interactive flex items-center justify-between"
+      style={{
+        padding: "var(--space-3) var(--space-4)",
+        borderRadius: "var(--radius-md)",
+      }}
+    >
       <div>
         <div className="font-medium text-sm">{title}</div>
-        <div className="text-xs text-muted">{description}</div>
+        <div className="text-xs text-muted" style={{ marginTop: 1 }}>{description}</div>
       </div>
-      <ArrowRight size={16} className="text-faint" />
+      <ArrowRight size={15} className="text-faint" style={{ flexShrink: 0, marginLeft: 8 }} />
     </Link>
   );
 }
