@@ -49,18 +49,100 @@ function checkIsExplicitChangeOrder(text: string): boolean {
   );
 }
 
+interface GeminiModelItem {
+  name: string;
+  supportedGenerationMethods?: string[];
+}
+
+let cachedGeminiEndpoint: { url: string; apiVer: string; expiresAt: number } | null = null;
+
+async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; apiVer: string }[]> {
+  const cleanKey = apiKey.trim();
+  const now = Date.now();
+  if (cachedGeminiEndpoint && cachedGeminiEndpoint.expiresAt > now) {
+    return [
+      cachedGeminiEndpoint,
+      {
+        url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+        apiVer: "v1",
+      },
+      {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
+        apiVer: "v1beta",
+      },
+    ];
+  }
+
+  const endpoints: { url: string; apiVer: string }[] = [];
+
+  // 1. Descubrimiento dinámico consultando a Google la lista de modelos habilitados para esta clave
+  for (const ver of ["v1beta", "v1"]) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${cleanKey}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const models: GeminiModelItem[] = data.models || [];
+        const contentModels = models.filter((m) =>
+          m.supportedGenerationMethods ? m.supportedGenerationMethods.includes("generateContent") : true
+        );
+
+        // Prioridad: flash más reciente > flash > pro > cualquier modelo generativo
+        const picked =
+          contentModels.find((m) => /gemini-2.*flash/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-1\.5.*flash/i.test(m.name)) ||
+          contentModels.find((m) => /flash/i.test(m.name)) ||
+          contentModels.find((m) => /gemini.*pro/i.test(m.name)) ||
+          contentModels[0];
+
+        if (picked) {
+          const modelPath = picked.name.startsWith("models/") ? picked.name : `models/${picked.name}`;
+          const dynamicUrl = `https://generativelanguage.googleapis.com/${ver}/${modelPath}:generateContent?key=${cleanKey}`;
+          endpoints.push({ url: dynamicUrl, apiVer: ver });
+          cachedGeminiEndpoint = { url: dynamicUrl, apiVer: ver, expiresAt: now + 3600 * 1000 };
+          break; // Con el primer descubrimiento válido es suficiente
+        }
+      }
+    } catch {
+      // Continuar al siguiente intento
+    }
+  }
+
+  // 2. Añadir candidatos canónicos de respaldo por si el listado falla
+  endpoints.push(
+    {
+      url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+      apiVer: "v1",
+    },
+    {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
+      apiVer: "v1beta",
+    },
+    {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${cleanKey}`,
+      apiVer: "v1beta",
+    },
+    {
+      url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${cleanKey}`,
+      apiVer: "v1",
+    }
+  );
+
+  return endpoints;
+}
+
 async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMessage[]): Promise<string> {
   const cleanKey = apiKey.trim();
 
-  // 1. Filtrar mensajes de bienvenida o roles previos hasta encontrar el primer mensaje del usuario.
-  // Gemini exige que contents empiece SIEMPRE con role: "user".
+  // 1. Filtrar mensajes de bienvenida para que contents empiece SIEMPRE en role: "user"
   const firstUserIndex = messages.findIndex((m) => m.role === "user");
   if (firstUserIndex === -1) {
     return "";
   }
   const relevantMessages = messages.slice(firstUserIndex);
 
-  // 2. Construir contents garantizando alternancia estricta user -> model -> user...
+  // 2. Garantizar alternancia estricta user -> model -> user...
   const contents: { role: "user" | "model"; parts: { text: string }[] }[] = [];
   for (const m of relevantMessages) {
     const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
@@ -75,35 +157,70 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
     }
   }
 
-  const payload = {
-    system_instruction: {
-      parts: [{ text: systemPrompt }],
-    },
-    contents,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 1024,
-    },
-  };
-
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const endpoints = await resolveGeminiEndpoints(cleanKey);
   let lastError: Error | null = null;
 
-  for (const model of models) {
+  for (const { url, apiVer } of endpoints) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      // Si la API es v1beta, admite system_instruction de primer nivel
+      const bodyWithSystem =
+        apiVer === "v1beta"
+          ? {
+              system_instruction: { parts: [{ text: systemPrompt }] },
+              contents,
+              generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+            }
+          : {
+              contents: contents.map((c, i) =>
+                i === 0
+                  ? {
+                      role: c.role,
+                      parts: [{ text: `[INSTRUCCIONES DE ENTRENADOR]:\n${systemPrompt}\n\n[CONSULTA DEL ATLETA]:\n${c.parts[0].text}` }],
+                    }
+                  : c
+              ),
+              generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+            };
+
+      let res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyWithSystem),
+      });
+
+      // Si falla por system_instruction en v1beta, reintentar inyectando en el mensaje de usuario
+      if (res.status === 400 && apiVer === "v1beta") {
+        const errText = await res.text();
+        if (errText.includes("system_instruction") || errText.includes("unknown field")) {
+          const fallbackContents = contents.map((c, i) =>
+            i === 0
+              ? {
+                  role: c.role,
+                  parts: [{ text: `[INSTRUCCIONES DE ENTRENADOR]:\n${systemPrompt}\n\n[CONSULTA DEL ATLETA]:\n${c.parts[0].text}` }],
+                }
+              : c
+          );
+          res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: fallbackContents,
+              generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+            }),
+          });
+        } else {
+          lastError = new Error(`Gemini error ${res.status}: ${errText}`);
+          continue;
         }
-      );
+      }
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error(`Gemini API error en modelo ${model} (status ${res.status}):`, errText);
+        console.warn(`Intento Gemini en ${url} falló (${res.status}):`, errText);
         lastError = new Error(`Gemini error ${res.status}: ${errText}`);
+        if (res.status === 404) {
+          cachedGeminiEndpoint = null; // Invalidar caché
+        }
         continue;
       }
 
@@ -113,7 +230,7 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
         return text;
       }
     } catch (e: unknown) {
-      console.error(`Error llamando a Gemini (${model}):`, e);
+      console.warn(`Error llamando a endpoint ${url}:`, e);
       lastError = e instanceof Error ? e : new Error(String(e));
     }
   }
