@@ -27,7 +27,7 @@ const NAV_GROUPS = [
     links: [
       { href: "/", label: "Resumen", icon: LayoutDashboard },
       { href: "/hoy", label: "Hoy", icon: Sun },
-      { href: "/entrenador", label: "Entrenador IA", icon: Bot },
+      { href: "/entrenador", label: "Entrenador", icon: Bot },
     ],
   },
   {

@@ -35,7 +35,7 @@ const SUGGESTED_QUESTIONS = [
 const INITIAL_MESSAGE: Message = {
   id: "welcome-1",
   role: "assistant",
-  content: `¡Hola Daniel! Soy tu **Entrenador Personal IA** en EntrenoApp.
+  content: `¡Hola Daniel! Soy tu **Entrenador Personal** en EntrenoApp.
 
 Tengo acceso directo a tus datos biométricos de esta semana: tus entrenamientos completados, tu ratio ACWR, las horas de sueño registradas en Zepp y tu Readiness diario.
 
@@ -151,8 +151,8 @@ export default function EntrenadorPage() {
       {/* Cabecera */}
       <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
         <PageHeader
-          title="Entrenador Personal IA"
-          description="Especialista en fisiología del ejercicio y preparación de resistencia con acceso a tus datos en vivo."
+          title="Entrenador"
+          description="Tu preparador personal y fisiólogo deportivo con acceso a tus datos en vivo."
         />
         <Button variant="ghost" onClick={resetChat} title="Reiniciar conversación" style={{ fontSize: "var(--text-xs)" }}>
           <RotateCcw size={14} />
@@ -190,7 +190,7 @@ export default function EntrenadorPage() {
           className="text-xs text-brand hover:underline flex items-center gap-1 flex-shrink-0"
           style={{ fontSize: "0.75rem" }}
         >
-          <span>Configurar IA</span>
+          <span>Configuración</span>
           <ArrowRight size={12} />
         </Link>
       </div>

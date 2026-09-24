@@ -385,7 +385,7 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
           style={{ fontSize: "var(--text-xs)", padding: "0.35rem 0.75rem" }}
         >
           <Sparkles size={13} />
-          <span>Preguntar al Entrenador IA</span>
+          <span>Preguntar al Entrenador</span>
           <ArrowRight size={13} />
         </Link>
       </div>

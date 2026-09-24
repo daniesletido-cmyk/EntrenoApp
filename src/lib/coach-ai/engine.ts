@@ -57,7 +57,35 @@ ${context.contextMarkdown}
     }
   }
 
-  // FALLBACK INTELIGENTE (cuando aún no se ha configurado la API key de Anthropic)
+  // 2. Probar Ollama local si está activo en el equipo
+  try {
+    const ollamaRes = await fetch("http://127.0.0.1:11434/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "qwen-entreno",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ],
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (ollamaRes.ok) {
+      const data = await ollamaRes.json();
+      if (data.message?.content) {
+        return {
+          reply: data.message.content,
+          contextSummary: `Carga: ${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts · ACWR: ${context.weeklyAssessment.loadAnalysis.acwr?.toFixed(2) ?? "—"} · Sueño: ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "—"}`,
+        };
+      }
+    }
+  } catch {
+    // Si Ollama no está corriendo o da timeout, pasar al motor de fisiología local
+  }
+
+  // 3. MOTOR INTELIGENTE DE FISIOLOGÍA LOCAL (basado en tus datos biométricos reales)
   const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
   let fallbackReply = "";
 
@@ -79,7 +107,7 @@ Porque estamos a mitad de semana y solo llevas computadas las sesiones de lunes 
     fallbackReply = `Tu estado de preparación (**Readiness**) para hoy es de **${context.dailyReadiness.score}/100 (${context.dailyReadiness.levelLabel})**.
 
 Anoche registraste **${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)} horas de descanso` : "buen descanso"}** (Score Zepp: ${context.dailyReadiness.stats.sleepScore ?? "82"}/100).
-Estás en un buen tono físico para asimilar la sesión de hoy. Recuerda que Daniel, tu pulso no debe ser el baremo; guíate estrictamente por tus sensaciones y RPE.`;
+Estás en un buen tono físico para asimilar la sesión de hoy. Recuerda Daniel: tu pulso no debe ser el baremo; guíate estrictamente por tus sensaciones y RPE.`;
   } else if (lastUserMsg.includes("fin de semana") || lastUserMsg.includes("sabado") || lastUserMsg.includes("domingo") || lastUserMsg.includes("tirada")) {
     fallbackReply = `**Estrategia para el fin de semana**:
 - **Sábado**: Rodaje progresivo (R2) buscando ganar consistencia a ritmo alegre de maratón pero sin vaciar el tanque.
@@ -91,10 +119,6 @@ El objetivo es sumar volumen aeróbico puro protegiendo las articulaciones y cer
 Actualmente llevas **${context.weeklyAssessment.sessionsProgress.completedCount} entrenamientos completados** esta semana con **${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts Foster**. Tu nivel de Readiness para hoy está en **${context.dailyReadiness.score}/100** gracias a las ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "7.8h"} de sueño de anoche.
 
 ¿Sobre qué aspecto específico de tu plan, ritmos, cargas o recuperación quieres que tomemos decisiones hoy?`;
-  }
-
-  if (!client) {
-    fallbackReply += `\n\n> 💡 *Nota: Esta respuesta se generó con tu motor de análisis biométrico local. Para mantener un diálogo libre, interactivo y avanzado con Claude AI, puedes añadir tu clave de API de Anthropic en **Configuración**.*`;
   }
 
   return {
