@@ -11,10 +11,15 @@ import { useToast } from "@/components/ui/toast";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [anthropicKeyInput, setAnthropicKeyInput] = useState("");
+  const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
+  const [savingAnthropicKey, setSavingAnthropicKey] = useState(false);
+
+  const [geminiKeyInput, setGeminiKeyInput] = useState("");
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [savingGeminiKey, setSavingGeminiKey] = useState(false);
+
   const [saving, setSaving] = useState(false);
-  const [savingKey, setSavingKey] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
@@ -36,33 +41,34 @@ export default function ConfiguracionPage() {
       .then((r) => r.json())
       .then((d) => {
         setSettings(d.settings ?? {});
-        setHasApiKey(!!d.settings?.has_anthropic_api_key);
+        setHasAnthropicKey(!!d.settings?.has_anthropic_api_key);
+        setHasGeminiKey(!!d.settings?.has_gemini_api_key);
         if (d.app_info) setAppInfo(d.app_info);
       });
   }, []);
 
-  async function saveApiKey() {
-    if (!apiKeyInput) return;
-    setSavingKey(true);
+  async function saveAnthropicKey() {
+    if (!anthropicKeyInput) return;
+    setSavingAnthropicKey(true);
     try {
       await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anthropic_api_key: apiKeyInput }),
+        body: JSON.stringify({ anthropic_api_key: anthropicKeyInput }),
       });
-      setHasApiKey(true);
-      setApiKeyInput("");
-      toast.push("success", "Clave de API guardada");
+      setHasAnthropicKey(true);
+      setAnthropicKeyInput("");
+      toast.push("success", "Clave de Anthropic guardada");
     } finally {
-      setSavingKey(false);
+      setSavingAnthropicKey(false);
     }
   }
 
-  function removeApiKey() {
+  function removeAnthropicKey() {
     setConfirmState({
       open: true,
-      title: "¿Quitar la clave de API?",
-      description: "Dejarás de poder importar PDFs o imágenes usando Claude. Si tienes Ollama activo, se intentará usar el modelo local.",
+      title: "¿Quitar la clave de Anthropic?",
+      description: "Dejarás de poder importar PDFs o imágenes usando Claude.",
       confirmLabel: "Quitar clave",
       tone: "danger",
       onConfirm: async () => {
@@ -72,8 +78,45 @@ export default function ConfiguracionPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ anthropic_api_key: "" }),
         });
-        setHasApiKey(false);
-        toast.push("info", "Clave de API eliminada");
+        setHasAnthropicKey(false);
+        toast.push("info", "Clave de Anthropic eliminada");
+      },
+    });
+  }
+
+  async function saveGeminiKey() {
+    if (!geminiKeyInput) return;
+    setSavingGeminiKey(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gemini_api_key: geminiKeyInput }),
+      });
+      setHasGeminiKey(true);
+      setGeminiKeyInput("");
+      toast.push("success", "Clave de Google Gemini guardada con éxito");
+    } finally {
+      setSavingGeminiKey(false);
+    }
+  }
+
+  function removeGeminiKey() {
+    setConfirmState({
+      open: true,
+      title: "¿Quitar la clave de Google Gemini?",
+      description: "El Entrenador volverá a usar el motor fisiológico local para responder a tus dudas y modificar entrenamientos.",
+      confirmLabel: "Quitar clave",
+      tone: "danger",
+      onConfirm: async () => {
+        setConfirmState((prev) => ({ ...prev, open: false }));
+        await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gemini_api_key: "" }),
+        });
+        setHasGeminiKey(false);
+        toast.push("info", "Clave de Gemini eliminada");
       },
     });
   }
@@ -169,40 +212,128 @@ export default function ConfiguracionPage() {
           </Button>
         </div>
 
+        {/* SECCIÓN IA & ENTRENADOR */}
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="flex items-center gap-2 font-semibold text-sm" style={{ marginBottom: "var(--space-2)" }}>
             <Sparkles size={16} />
-            Importar planes desde PDF o imagen (opcional)
+            Inteligencia Artificial y Entrenador Personal
           </div>
-          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
-            Esto es totalmente opcional — la app funciona sin ninguna clave. Puedes escribir tu plan directamente en
-            Plan semanal (cada sesión tiene un cuadro de detalle para tus ejercicios/series/RPE, sin coste ni clave
-            de ningún tipo) o importarlo desde un Excel/CSV, que tampoco necesita nada más. Solo si quieres que la
-            app lea automáticamente un PDF o una foto/captura hace falta una clave de API de Anthropic (la misma
-            tecnología detrás de Claude, de pago por uso muy bajo) — se guarda solo en este ordenador y solo se usa
-            para esa lectura, nunca se envía a ningún otro sitio.
+          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-4)" }}>
+            EntrenoApp integra a tu **Entrenador Personal** capaz de razonar sobre tus datos en vivo y modificar sesiones
+            directamente en tu calendario. Para el diálogo libre ilimitado puedes conectar **Google Gemini** (100% gratuito)
+            o **Anthropic Claude**.
           </p>
-          {hasApiKey ? (
-            <div className="flex items-center gap-2">
-              <span className="badge badge-success">Clave configurada</span>
-              <Button variant="ghost" onClick={removeApiKey}>
-                Quitar
-              </Button>
+
+          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+            {/* GOOGLE GEMINI */}
+            <div
+              style={{
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                padding: "var(--space-3)",
+                background: "var(--color-bg-subtle)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2" style={{ marginBottom: 6 }}>
+                <span className="font-semibold text-sm">Google Gemini 2.0</span>
+                <span className="badge badge-brand">Recomendado · Gratis</span>
+              </div>
+              <p className="text-xs text-muted" style={{ marginBottom: "var(--space-3)" }}>
+                Totalmente gratuito y sin tarjeta de crédito. Consigue tu clave en 30 segundos en{" "}
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--color-brand)", textDecoration: "underline" }}
+                >
+                  Google AI Studio ↗
+                </a>
+              </p>
+              {hasGeminiKey ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="badge badge-success">Activo (Gemini 2.0 Flash)</span>
+                  <Button variant="ghost" onClick={removeGeminiKey}>
+                    Quitar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    type="password"
+                    placeholder="AIzaSy…"
+                    value={geminiKeyInput}
+                    onChange={(e) => setGeminiKeyInput(e.target.value)}
+                  />
+                  <Button
+                    variant="primary"
+                    loading={savingGeminiKey}
+                    disabled={!geminiKeyInput}
+                    onClick={saveGeminiKey}
+                  >
+                    Guardar clave Gemini
+                  </Button>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="flex flex-wrap items-end gap-2">
-              <Input
-                label="Clave de API de Anthropic"
-                type="password"
-                placeholder="sk-ant-…"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-              />
-              <Button variant="primary" loading={savingKey} disabled={!apiKeyInput} onClick={saveApiKey}>
-                Guardar clave
-              </Button>
+
+            {/* ANTHROPIC CLAUDE */}
+            <div
+              style={{
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                padding: "var(--space-3)",
+                background: "var(--color-bg-subtle)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2" style={{ marginBottom: 6 }}>
+                <span className="font-semibold text-sm">Anthropic Claude</span>
+                <span className="badge badge-neutral">Alternativa</span>
+              </div>
+              <p className="text-xs text-muted" style={{ marginBottom: "var(--space-3)" }}>
+                Usado para razonamiento con Claude y lectura automática de fotos/PDFs de planes semanales.
+              </p>
+              {hasAnthropicKey ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="badge badge-success">Activo (Claude 3.5 Sonnet)</span>
+                  <Button variant="ghost" onClick={removeAnthropicKey}>
+                    Quitar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    type="password"
+                    placeholder="sk-ant-…"
+                    value={anthropicKeyInput}
+                    onChange={(e) => setAnthropicKeyInput(e.target.value)}
+                  />
+                  <Button
+                    variant="primary"
+                    loading={savingAnthropicKey}
+                    disabled={!anthropicKeyInput}
+                    onClick={saveAnthropicKey}
+                  >
+                    Guardar clave Anthropic
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          <div
+            className="text-xs text-muted"
+            style={{
+              marginTop: "var(--space-3)",
+              padding: "var(--space-2) var(--space-3)",
+              background: "var(--color-bg)",
+              borderRadius: "var(--radius-sm)",
+              borderLeft: "3px solid var(--color-brand)",
+            }}
+          >
+            🛡️ <strong>Privacidad</strong>: Las claves se almacenan exclusivamente en la base de datos de tu servidor y nunca
+            se comparten con terceros. Sin ninguna clave, el <strong>Motor Fisiológico Experto</strong> sigue activo respondiendo
+            con tus métricas de RPE, sueño y carga.
+          </div>
         </div>
 
         <div className="surface" style={{ padding: "var(--space-4)" }}>

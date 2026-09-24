@@ -5,8 +5,13 @@ import { getAllSettings, setSettings } from "@/lib/repo/settings";
 // hashes de contraseña en FinanzasApp) — solo se usa en el servidor.
 function publicSettings() {
   const all = getAllSettings();
-  const { anthropic_api_key, ...rest } = all;
-  return { ...rest, has_anthropic_api_key: !!anthropic_api_key };
+  const { anthropic_api_key, gemini_api_key, ...rest } = all;
+  return {
+    ...rest,
+    has_anthropic_api_key: !!(anthropic_api_key || process.env.ANTHROPIC_API_KEY),
+    has_gemini_api_key: !!(gemini_api_key || process.env.GEMINI_API_KEY),
+    has_any_ai_key: !!(anthropic_api_key || gemini_api_key || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY),
+  };
 }
 
 export async function GET() {
