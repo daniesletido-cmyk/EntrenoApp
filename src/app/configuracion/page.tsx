@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw } from "lucide-react";
+import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -173,6 +174,20 @@ export default function ConfiguracionPage() {
       <PageHeader title="Configuración" description="Perfil usado por el motor de recomendaciones y copia de seguridad de tus datos." />
 
       <div className="grid gap-5">
+        {/* SECCIÓN APARIENCIA & TEMA */}
+        <div className="surface" style={{ padding: "var(--space-4)" }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Sun size={16} />
+              Apariencia y Tema Visual
+            </div>
+            <ThemeToggle showLabel />
+          </div>
+          <p className="text-sm text-muted">
+            Alterna entre <strong>Modo Claro</strong> (fondos limpios y grises tenues de alto contraste) y <strong>Modo Oscuro</strong> (grafito pizarra suave para evitar fatiga visual). La app también detecta la preferencia de tu sistema operativo automáticamente.
+          </p>
+        </div>
+
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>
             Perfil

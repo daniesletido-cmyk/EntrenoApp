@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-type Tone = "neutral" | "success" | "warning" | "danger" | "info";
+type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "brand";
 
 const TONE_COLOR: Record<Tone, string> = {
   neutral: "var(--color-text)",
@@ -8,6 +8,7 @@ const TONE_COLOR: Record<Tone, string> = {
   warning: "var(--color-warning)",
   danger: "var(--color-danger)",
   info: "var(--color-info)",
+  brand: "var(--color-brand)",
 };
 
 export function StatCard({
@@ -37,7 +38,13 @@ export function StatCard({
       </div>
       <div
         className="tabular-nums"
-        style={{ fontSize: "var(--text-2xl)", fontWeight: 800, letterSpacing: "-0.02em", color: TONE_COLOR[tone], lineHeight: 1.1 }}
+        style={{
+          fontSize: "var(--text-2xl)",
+          fontWeight: 700,
+          letterSpacing: "-0.03em",
+          color: TONE_COLOR[tone],
+          lineHeight: 1.15,
+        }}
       >
         {value}
       </div>

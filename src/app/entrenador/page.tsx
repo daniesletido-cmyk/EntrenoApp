@@ -213,8 +213,8 @@ export default function EntrenadorPage() {
         style={{
           padding: "var(--space-2) var(--space-3)",
           borderRadius: "var(--radius-md)",
-          border: "1px solid rgba(47, 111, 235, 0.3)",
-          background: "linear-gradient(135deg, rgba(47, 111, 235, 0.08) 0%, rgba(47, 111, 235, 0.02) 100%)",
+          border: "1px solid var(--color-border)",
+          background: "var(--color-brand-subtle)",
           marginBottom: "var(--space-4)",
         }}
       >
@@ -261,7 +261,7 @@ export default function EntrenadorPage() {
                 borderRadius: 999,
                 background: "var(--color-surface-raised)",
                 border: "1px solid var(--color-border)",
-                color: "var(--color-foreground)",
+                color: "var(--color-text)",
                 whiteSpace: "nowrap",
                 fontSize: "0.75rem",
                 transition: "background 0.15s ease, border-color 0.15s ease",
@@ -342,7 +342,7 @@ export default function EntrenadorPage() {
                     padding: "var(--space-3) var(--space-4)",
                     borderRadius: "var(--radius-md)",
                     background: isUser ? "var(--color-brand)" : "var(--color-surface-raised)",
-                    color: isUser ? "#ffffff" : "var(--color-foreground)",
+                    color: isUser ? "#ffffff" : "var(--color-text)",
                     border: isUser ? "none" : "1px solid var(--color-border)",
                     boxShadow: "var(--shadow-sm)",
                     lineHeight: 1.6,
@@ -403,15 +403,15 @@ export default function EntrenadorPage() {
                         marginTop: "var(--space-3)",
                         padding: "var(--space-3)",
                         borderRadius: "var(--radius-sm)",
-                        background: "rgba(47, 111, 235, 0.08)",
-                        border: "1px solid rgba(47, 111, 235, 0.3)",
+                        background: "var(--color-brand-subtle)",
+                        border: "1px solid var(--color-border-strong)",
                       }}
                     >
                       <div className="text-xs font-semibold text-brand flex items-center gap-1.5" style={{ marginBottom: 4 }}>
                         <Sparkles size={14} />
                         <span>Ajuste recomendado en tu plan:</span>
                       </div>
-                      <div className="text-xs" style={{ marginBottom: 8, color: "var(--color-foreground)" }}>
+                      <div className="text-xs" style={{ marginBottom: 8, color: "var(--color-text)" }}>
                         {m.proposedAction.summary}
                       </div>
                       <Button
@@ -449,7 +449,7 @@ export default function EntrenadorPage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "var(--color-muted)",
+                      color: "var(--color-text-muted)",
                       flexShrink: 0,
                     }}
                   >
@@ -490,7 +490,7 @@ export default function EntrenadorPage() {
                   borderRadius: "var(--radius-md)",
                   border: "1px solid var(--color-border)",
                   fontSize: "var(--text-xs)",
-                  color: "var(--color-muted)",
+                  color: "var(--color-text-muted)",
                 }}
               >
                 Analizando tus métricas de entrenamiento y descanso...
