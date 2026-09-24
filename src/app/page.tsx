@@ -141,11 +141,58 @@ export default function ResumenPage() {
       <PageHeader
         title="Resumen"
         description={
-          raceDate
-            ? `Semana del ${summary?.weekStart ?? weekStart} · Faltan ${daysUntilRace(raceDate)} días para el maratón`
-            : `Semana del ${summary?.weekStart ?? weekStart}`
+          summary?.weekStart
+            ? `Semana del ${summary.weekStart} · Carga y rendimiento`
+            : "Seguimiento y rendimiento semanal"
         }
       />
+
+      {raceDate && (
+        <div
+          className="surface flex items-center justify-between gap-3 animate-in"
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            marginBottom: "var(--space-4)",
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%)",
+            border: "1px solid rgba(59, 130, 246, 0.22)",
+            borderRadius: "var(--radius-lg)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "var(--radius-md)",
+                background: "var(--color-brand)",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
+                flexShrink: 0,
+              }}
+            >
+              <Flag size={18} />
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-muted">
+                Objetivo Principal · Maratón
+              </div>
+              <div className="font-extrabold text-sm sm:text-base">
+                Faltan <span style={{ color: "var(--color-brand)" }}>{daysUntilRace(raceDate)} días</span> ({raceDate})
+              </div>
+            </div>
+          </div>
+          <Link
+            href="/objetivos"
+            className="btn btn-secondary text-xs"
+            style={{ minHeight: 34, height: 34, padding: "0 12px", borderRadius: "var(--radius-full)", flexShrink: 0 }}
+          >
+            Ver objetivo
+          </Link>
+        </div>
+      )}
 
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
@@ -306,14 +353,15 @@ export default function ResumenPage() {
           {/* Quick Actions */}
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-muted" style={{ marginBottom: "var(--space-2)" }}>
-              Accesos rápidos
+              Accesos directos
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               <QuickLink href="/hoy" title="Hoy" description="Entreno planificado y menú del día" />
               <QuickLink href="/registro" title="Registrar entreno" description="RPE, sueño, sensaciones y molestias" />
-              <QuickLink href="/coach" title="Entrenador IA" description="Ajustes de carga, ritmos y preguntas" />
+              <QuickLink href="/entrenador" title="Entrenador" description="Ajustes de carga, ritmos y preguntas" />
               <QuickLink href="/progreso" title="Progreso y carga" description="Tendencias ACWR, volumen y evolución" />
               <QuickLink href="/plan-semanal" title="Plan semanal" description="Revisa o modifica los entrenamientos" />
+              <QuickLink href="/menu" title="Nutrición" description="Plan de comidas y pautas por fase" />
             </div>
           </div>
         </div>
@@ -333,10 +381,10 @@ function QuickLink({ href, title, description }: { href: string; title: string; 
       }}
     >
       <div>
-        <div className="font-medium text-sm">{title}</div>
-        <div className="text-xs text-muted" style={{ marginTop: 1 }}>{description}</div>
+        <div className="font-semibold text-sm">{title}</div>
+        <div className="text-xs text-muted" style={{ marginTop: 2 }}>{description}</div>
       </div>
-      <ArrowRight size={15} className="text-faint" style={{ flexShrink: 0, marginLeft: 8 }} />
+      <ArrowRight size={15} className="text-muted" style={{ flexShrink: 0, marginLeft: 8 }} />
     </Link>
   );
 }

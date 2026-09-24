@@ -263,79 +263,84 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Barra de navegación inferior móvil (Touch target 44px+) */}
-      <nav
+      {/* Barra de navegación inferior móvil flotante estilo Glass Island */}
+      <div
         className="md:hidden"
         style={{
           position: "fixed",
           bottom: 0,
           left: 0,
           right: 0,
-          background: "var(--color-surface-translucent)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          borderTop: "1px solid var(--color-border)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-          zIndex: 45,
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          boxShadow: "var(--shadow-sm)",
+          zIndex: 50,
+          pointerEvents: "none",
+          padding: "0 12px calc(10px + env(safe-area-inset-bottom, 0px))",
         }}
       >
-        {BOTTOM_NAV.map((item) => {
-          const active = pathname === item.href;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 3,
-                minHeight: 52,
-                color: active ? "var(--color-brand)" : "var(--color-text-muted)",
-                transition: "color var(--duration-fast) var(--ease)",
-                textDecoration: "none",
-                position: "relative",
-              }}
-            >
-              <div
+        <nav
+          style={{
+            pointerEvents: "auto",
+            margin: "0 auto",
+            maxWidth: 420,
+            background: "var(--color-surface-translucent)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            border: "1px solid var(--color-border-strong)",
+            borderRadius: "var(--radius-full)",
+            boxShadow: "0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            padding: "5px 6px",
+          }}
+        >
+          {BOTTOM_NAV.map((item) => {
+            const active = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
                 style={{
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 32,
-                  height: 26,
+                  gap: 2,
+                  minHeight: 48,
                   borderRadius: "var(--radius-full)",
-                  background: active ? "var(--color-brand-subtle)" : "transparent",
-                  transition: "background var(--duration-fast) var(--ease)",
+                  background: active ? "var(--color-brand)" : "transparent",
+                  color: active ? "#ffffff" : "var(--color-text-muted)",
+                  boxShadow: active ? "0 2px 10px rgba(59, 130, 246, 0.35)" : "none",
+                  transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
+                  textDecoration: "none",
+                  position: "relative",
                 }}
               >
-                <Icon size={18} strokeWidth={active ? 2.4 : 1.8} />
-              </div>
-              <span
-                style={{
-                  fontSize: "0.68rem",
-                  fontWeight: active ? 600 : 500,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+                <Icon size={17} strokeWidth={active ? 2.4 : 1.9} />
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: active ? 700 : 500,
+                    letterSpacing: "-0.01em",
+                    lineHeight: 1,
+                  }}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
       {/* Área de contenido principal */}
       <main style={{ flex: 1, minWidth: 0 }}>
         <div className="main-content-container">
-          <div className="md:hidden" style={{ height: "calc(52px + env(safe-area-inset-top, 0px))" }} />
+          <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-top, 0px))" }} />
           {children}
+          {/* Espaciador de seguridad para garantizar que nada se corte por abajo */}
+          <div className="md:hidden" style={{ height: "calc(100px + env(safe-area-inset-bottom, 24px))" }} />
+          <div className="hidden md:block" style={{ height: "48px" }} />
         </div>
       </main>
     </div>

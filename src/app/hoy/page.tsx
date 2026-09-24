@@ -70,13 +70,13 @@ interface Recommendation {
   summary: string;
 }
 
-const DISCIPLINE_META: Record<string, { label: string; Icon: React.ComponentType<{ size?: number }> }> = {
-  carrera: { label: "Carrera", Icon: Footprints },
-  gimnasio: { label: "Gimnasio", Icon: Dumbbell },
-  natacion: { label: "Natación", Icon: Waves },
-  crossfit: { label: "CrossFit", Icon: Flame },
-  otro: { label: "Otro", Icon: MoreHorizontal },
-  descanso: { label: "Descanso", Icon: BedDouble },
+const DISCIPLINE_META: Record<string, { label: string; Icon: React.ComponentType<{ size?: number }>; color: string; bg: string }> = {
+  carrera: { label: "Carrera", Icon: Footprints, color: "var(--color-success)", bg: "var(--color-success-bg)" },
+  gimnasio: { label: "Gimnasio", Icon: Dumbbell, color: "#a855f7", bg: "rgba(168, 85, 247, 0.14)" },
+  natacion: { label: "Natación", Icon: Waves, color: "var(--color-info)", bg: "var(--color-info-bg)" },
+  crossfit: { label: "CrossFit", Icon: Flame, color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
+  otro: { label: "Otro", Icon: MoreHorizontal, color: "var(--color-brand)", bg: "var(--color-brand-subtle)" },
+  descanso: { label: "Descanso", Icon: BedDouble, color: "var(--color-text-muted)", bg: "var(--color-surface-raised)" },
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -305,19 +305,21 @@ export default function HoyPage() {
             {/* Score Pill */}
             <div
               style={{
-                padding: "0.25rem 0.75rem",
+                padding: "0.35rem 0.85rem",
                 borderRadius: "var(--radius-full)",
                 display: "flex",
                 alignItems: "baseline",
                 gap: 3,
                 background: "var(--color-surface-raised)",
                 border: "1px solid var(--color-border)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
               }}
             >
               <span
+                className="tabular-nums font-extrabold"
                 style={{
-                  fontSize: "var(--text-lg)",
-                  fontWeight: 700,
+                  fontSize: "1.45rem",
+                  lineHeight: 1,
                   color:
                     readiness.tone === "success"
                       ? "var(--color-success)"
@@ -330,7 +332,7 @@ export default function HoyPage() {
               >
                 {readiness.score}
               </span>
-              <span className="text-xs text-faint font-medium">/ 100</span>
+              <span className="text-xs text-muted font-bold">/100</span>
             </div>
           </div>
 
@@ -509,18 +511,18 @@ export default function HoyPage() {
                       <div className="flex items-start gap-3">
                         <div
                           style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: "var(--radius-sm)",
-                            background: "var(--color-surface-raised)",
+                            width: 44,
+                            height: 44,
+                            borderRadius: "var(--radius-md)",
+                            background: meta.bg,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "var(--color-brand)",
+                            color: meta.color,
                             flexShrink: 0,
                           }}
                         >
-                          <Icon size={19} />
+                          <Icon size={21} />
                         </div>
                         <div>
                           <div className="font-semibold" style={{ fontSize: "var(--text-base)" }}>

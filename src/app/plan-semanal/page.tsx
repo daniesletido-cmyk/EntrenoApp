@@ -56,6 +56,15 @@ const DISCIPLINES = [
   { value: "descanso", label: "Descanso", Icon: BedDouble },
 ];
 
+const DISCIPLINE_COLORS: Record<string, { color: string; bg: string }> = {
+  carrera: { color: "var(--color-success)", bg: "var(--color-success-bg)" },
+  gimnasio: { color: "#a855f7", bg: "rgba(168, 85, 247, 0.14)" },
+  natacion: { color: "var(--color-info)", bg: "var(--color-info-bg)" },
+  crossfit: { color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
+  descanso: { color: "var(--color-text-muted)", bg: "var(--color-surface-raised)" },
+  otro: { color: "var(--color-brand)", bg: "var(--color-brand-subtle)" },
+};
+
 const DISCIPLINE_MAP = Object.fromEntries(DISCIPLINES.map((d) => [d.value, d]));
 
 const STATUS_LABEL: Record<string, string> = {
@@ -395,20 +404,57 @@ export default function PlanSemanalPage() {
               }}
             >
               {/* Day Header */}
-              <div className="flex items-center justify-between" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-3)" : 0 }}>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{DAY_NAMES_ES[i]}</span>
-                  <span className="text-xs text-muted">{date}</span>
-                  {isToday && <span className="badge badge-brand">Hoy</span>}
+              <div className="flex items-center justify-between gap-3" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-3)" : 0 }}>
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{
+                      width: 44,
+                      height: 48,
+                      borderRadius: "var(--radius-md)",
+                      background: isToday ? "var(--color-brand)" : "var(--color-surface-raised)",
+                      color: isToday ? "#ffffff" : "var(--color-text)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: isToday ? "none" : "1px solid var(--color-border)",
+                      boxShadow: isToday ? "0 4px 14px rgba(59, 130, 246, 0.4)" : "none",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.05em", opacity: isToday ? 0.95 : 0.65 }}>
+                      {DAY_NAMES_ES[i].substring(0, 3).toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: "1.15rem", fontWeight: 800, lineHeight: 1 }}>
+                      {parseInt(date.split("-")[2] || "1", 10)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm sm:text-base">{DAY_NAMES_ES[i]}</span>
+                      {isToday && (
+                        <span className="badge badge-brand" style={{ fontSize: "0.68rem", padding: "0.1rem 0.45rem" }}>
+                          Hoy
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted" style={{ marginTop: 1 }}>
+                      {daySessions.length === 0
+                        ? "Descanso / Sin programar"
+                        : `${daySessions.length} entreno${daySessions.length > 1 ? "s" : ""}`}
+                    </div>
+                  </div>
                 </div>
 
                 {!isAdding && daySessions.length === 0 && (
                   <button
-                    className="btn btn-ghost text-xs"
+                    className="btn btn-secondary text-xs"
                     onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
+                    style={{ height: 34, minHeight: 34, padding: "0 12px", borderRadius: "var(--radius-full)" }}
                   >
                     <Plus size={14} />
-                    Añadir sesión
+                    Planificar
                   </button>
                 )}
 
@@ -416,9 +462,10 @@ export default function PlanSemanalPage() {
                   <button
                     className="btn btn-ghost text-xs"
                     onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
+                    style={{ height: 32, minHeight: 32, padding: "0 10px", borderRadius: "var(--radius-full)" }}
                   >
-                    <Plus size={14} />
-                    Añadir otra
+                    <Plus size={13} />
+                    Añadir otro
                   </button>
                 )}
               </div>
@@ -428,6 +475,7 @@ export default function PlanSemanalPage() {
                 <ul className="grid gap-2" style={{ marginBottom: isAdding ? "var(--space-3)" : 0 }}>
                   {daySessions.map((s) => {
                     const meta = DISCIPLINE_MAP[s.discipline] ?? DISCIPLINES[4];
+                    const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
                     const Icon = meta.Icon;
                     const isEditing = editingId === s.id;
                     const isSwapping = swappingId === s.id;
@@ -441,28 +489,40 @@ export default function PlanSemanalPage() {
                         }}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-sm min-w-0">
+                          <div className="flex items-center gap-2.5 text-sm min-w-0">
                             <div
                               style={{
-                                width: 28,
-                                height: 28,
+                                width: 34,
+                                height: 34,
                                 borderRadius: "var(--radius-sm)",
-                                background: "var(--color-surface)",
+                                background: discTheme.bg,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 flexShrink: 0,
-                                color: "var(--color-brand)",
+                                color: discTheme.color,
                               }}
                             >
-                              <Icon size={15} />
+                              <Icon size={17} />
                             </div>
-                            <span className="font-medium truncate">
-                              {meta.label}
-                              {s.planned_code ? ` · ${s.planned_code}` : ""}
-                            </span>
-                            {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
-                            <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
+                            <div className="min-w-0">
+                              <div className="font-bold text-sm truncate" style={{ color: "var(--color-text)" }}>
+                                {meta.label} {s.planned_code ? `· ${s.planned_code}` : ""}
+                              </div>
+                              <div className="flex items-center gap-1.5" style={{ marginTop: 2 }}>
+                                {!!s.is_long_run && (
+                                  <span className="badge badge-info" style={{ fontSize: "0.68rem" }}>
+                                    Tirada larga
+                                  </span>
+                                )}
+                                <span
+                                  className={`badge ${s.status === "realizada" ? "badge-success" : "badge-neutral"}`}
+                                  style={{ fontSize: "0.68rem" }}
+                                >
+                                  {STATUS_LABEL[s.status] ?? s.status}
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
@@ -506,9 +566,21 @@ export default function PlanSemanalPage() {
                         </div>
 
                         {!isEditing && s.notes && (
-                          <p className="text-sm text-muted" style={{ marginTop: "var(--space-2)", whiteSpace: "pre-wrap", lineHeight: 1.5, paddingLeft: 36 }}>
+                          <div
+                            className="text-xs sm:text-sm text-muted"
+                            style={{
+                              marginTop: "var(--space-2)",
+                              marginLeft: 42,
+                              padding: "var(--space-2) var(--space-3)",
+                              background: "var(--color-surface)",
+                              borderRadius: "var(--radius-sm)",
+                              borderLeft: `2px solid ${discTheme.color}`,
+                              whiteSpace: "pre-wrap",
+                              lineHeight: 1.5,
+                            }}
+                          >
                             {s.notes}
-                          </p>
+                          </div>
                         )}
 
                         {isEditing && (
