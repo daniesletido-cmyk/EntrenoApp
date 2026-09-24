@@ -365,9 +365,10 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
         )}
       </div>
 
-      {/* 5. Desglose Día a Día (Acordeón desplegable) */}
-      <div className="flex items-center justify-between">
+      {/* 5. Desglose Día a Día y Preguntar al Entrenador IA */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <button
+          type="button"
           onClick={() => setShowDailyBreakdown((prev) => !prev)}
           className="btn btn-ghost inline-flex items-center gap-1.5"
           style={{ fontSize: "var(--text-xs)", padding: "0.3rem 0.6rem" }}
@@ -377,6 +378,16 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
             ? "Ocultar seguimiento día a día"
             : `Ver cómo han ido los entrenos de la semana (${sessionsProgress.overviewText})`}
         </button>
+
+        <Link
+          href="/entrenador"
+          className="btn btn-primary inline-flex items-center gap-1.5"
+          style={{ fontSize: "var(--text-xs)", padding: "0.35rem 0.75rem" }}
+        >
+          <Sparkles size={13} />
+          <span>Preguntar al Entrenador IA</span>
+          <ArrowRight size={13} />
+        </Link>
       </div>
 
       {showDailyBreakdown && (

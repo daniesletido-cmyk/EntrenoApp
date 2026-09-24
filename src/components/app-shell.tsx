@@ -18,6 +18,7 @@ import {
   X,
   Sun,
   Dumbbell,
+  Bot,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -26,6 +27,7 @@ const NAV_GROUPS = [
     links: [
       { href: "/", label: "Resumen", icon: LayoutDashboard },
       { href: "/hoy", label: "Hoy", icon: Sun },
+      { href: "/entrenador", label: "Entrenador IA", icon: Bot },
     ],
   },
   {
