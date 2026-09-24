@@ -26,37 +26,99 @@ export function getGeminiApiKey(): string | null {
   return getSetting("gemini_api_key") || process.env.GEMINI_API_KEY || null;
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMessage[]): Promise<string> {
-  const contents = messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error: ${res.status} ${errText}`);
+function checkIsExplicitChangeOrder(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  // Si contiene interrogación o expresiones de consulta/opinión, NO es una orden de cambio
+  if (
+    lower.includes("?") ||
+    /^(qu[eé]\s+opinas|c[oó]mo\s+ves|crees\s+que|te\s+parece|deber[ií]a|es\s+mejor|o\s+esperamos|recomiendas|tendr[ií]a|ser[ií]a\s+bueno|qu[eé]\s+te\s+parece)/i.test(
+      lower
+    ) ||
+    /qu[eé]\s+opinas|c[oó]mo\s+ves|o\s+mejor|o\s+esperamos|lo\s+dejamos\s+as[ií]/i.test(lower)
+  ) {
+    return false;
   }
 
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  // Órdenes afirmativas directas
+  return (
+    /\b(c[aá]mbiame|sustit[uú]yeme|p[oó]nme)\b/i.test(lower) ||
+    (/\b(cambia|sustituye|pon|modifica|pasa|mueve)\b/i.test(lower) &&
+      /\b(el\s+entreno|la\s+sesi[oó]n|hoy|ma[ñn]ana|viernes|s[aá]bado|domingo|a\s+descanso|a\s+nataci[oó]n|a\s+gym|a\s+gimnasio)\b/i.test(
+        lower
+      ))
+  );
+}
+
+async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMessage[]): Promise<string> {
+  const cleanKey = apiKey.trim();
+
+  // 1. Filtrar mensajes de bienvenida o roles previos hasta encontrar el primer mensaje del usuario.
+  // Gemini exige que contents empiece SIEMPRE con role: "user".
+  const firstUserIndex = messages.findIndex((m) => m.role === "user");
+  if (firstUserIndex === -1) {
+    return "";
+  }
+  const relevantMessages = messages.slice(firstUserIndex);
+
+  // 2. Construir contents garantizando alternancia estricta user -> model -> user...
+  const contents: { role: "user" | "model"; parts: { text: string }[] }[] = [];
+  for (const m of relevantMessages) {
+    const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) {
+      last.parts[0].text += `\n\n${m.content}`;
+    } else {
+      contents.push({
+        role,
+        parts: [{ text: m.content }],
+      });
+    }
+  }
+
+  const payload = {
+    system_instruction: {
+      parts: [{ text: systemPrompt }],
+    },
+    contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 1024,
+    },
+  };
+
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`Gemini API error en modelo ${model} (status ${res.status}):`, errText);
+        lastError = new Error(`Gemini error ${res.status}: ${errText}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        return text;
+      }
+    } catch (e: unknown) {
+      console.error(`Error llamando a Gemini (${model}):`, e);
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
+  }
+
+  throw lastError || new Error("No se pudo obtener respuesta de Google Gemini");
 }
 
 function parseCoachActionBlock(rawText: string): { cleanText: string; action?: CoachActionProposal } {
@@ -78,10 +140,10 @@ export async function askCoachAI(messages: ChatMessage[], todayParam?: string): 
   const context = buildCoachAthleteContext(todayParam);
   const anthropicClient = getAnthropicClient();
   const geminiApiKey = getGeminiApiKey();
+  let geminiError: string | null = null;
 
   const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
-  const isExplicitChangeRequest =
-    /cambia|c[aá]mbiame|sustituye|sustit[uú]yeme|pon|p[oó]nme|modifica|pasa|mueve/i.test(lastUserMsg);
+  const isExplicitChangeRequest = checkIsExplicitChangeOrder(lastUserMsg);
 
   const systemPrompt = `
 Eres el Entrenador Personal de Élite y Especialista en Fisiología del Ejercicio de Daniel Espinosa dentro de su aplicación oficial "EntrenoApp".
@@ -91,21 +153,27 @@ REGLAS FUNDAMENTALES QUE DEBES CUMPLIR SIEMPRE:
 1. CONTEXTO REAL: Tienes acceso directo a sus datos biométricos, entrenamientos completados, descanso y estado de carga de la semana actual. Utiliza siempre estos datos reales para justificar tus respuestas.
 2. FRECUENCIA CARDÍACA: Daniel tiene indicación médica de entrenar por RITMO (min/km) y RPE (escala 1 a 10 de Foster), NUNCA por zonas de pulso absoluto (lpm) debido a su frecuencia cardíaca de reposo elevada (~100 lpm, apto sin restricciones).
 3. MODELO DE CARGA (ACWR): Conoces el modelo de Tim Gabbett de Carga Aguda vs Crónica. Si su ratio está bajo (<0.80) a mitad de semana, sabes que es una infracarga matemática temporal porque la semana está en curso. Si está por encima de 1.50, adviertes del riesgo lesional.
-4. CAPACIDAD DE CAMBIAR ENTRENAMIENTOS EN LA APP:
-   TIENES ACCESO DIRECTO PARA MODIFICAR EL CALENDARIO DE LA APP. Si el atleta te pide expresamente cambiar una sesión (o si recomiendas firmemente sustituir un entreno por otro, ej: cambiar carrera por natación o gimnasio o pasar a descanso), añade al final de tu respuesta un bloque especial con la acción a aplicar:
+4. PRIORIDAD MARATÓN (CARRERA A PIE):
+   El gran objetivo macro de Daniel es correr una Maratón (segunda maratón, ritmo objetivo 5:00-5:15 min/km).
+   - Los rodajes y tiradas largas del fin de semana (sábado y domingo) son la base específica más valiosa para la economía de carrera y adaptaciones óseas/tendinosas.
+   - La natación y el gimnasio son excelentes complementos para descargar articulaciones y ganar fuerza, pero NO deben sustituir a la ligera las tiradas de carrera del fin de semana a menos que haya una sobrecarga, molestia o fatiga evidente.
+   - Si el atleta duda o pregunta si es mejor esperar a ver cómo responde a las sesiones intermedias (jueves y viernes) antes de tocar el fin de semana, analiza con criterio: lo ideal es evaluar la fatiga acumulada tras esas sesiones antes de tomar una decisión precipitada.
+5. CAPACIDAD DE CAMBIAR ENTRENAMIENTOS EN LA APP:
+   TIENES ACCESO DIRECTO PARA MODIFICAR EL CALENDARIO DE LA APP.
+   - Si el atleta te da una ORDEN EXPRESA de cambiar una sesión, o si tras deliberar concluyes que debe sustituirse un entreno por otro, añade al final de tu respuesta:
    \`\`\`coach_action
    {
      "type": "modify_session",
-     "date": "${context.today}",
-     "toDiscipline": "gimnasio",
-     "plannedCode": "TORSO",
-     "durationMin": 50,
-     "notes": "Gimnasio Tren Superior (Empuje/Tirón) pautado por el entrenador tras CrossFit",
-     "summary": "Programar Gimnasio Tren Superior (Torso) para el ${context.today}"
+     "date": "YYYY-MM-DD",
+     "toDiscipline": "natacion" | "gimnasio" | "carrera" | "crossfit" | "descanso",
+     "plannedCode": "N1",
+     "durationMin": 40,
+     "notes": "...",
+     "summary": "..."
    }
    \`\`\`
-   Valores válidos para "toDiscipline": "carrera", "gimnasio", "natacion", "crossfit", "descanso", "otro".
-5. TONO: Habla como su entrenador personal de confianza: profesional, claro, motivador, con criterio deportivo estricto y pautas tácticas accionables. Evita rodeos innecesarios o respuestas genéricas de enciclopedia.
+   - ¡IMPORTANTE! Si el atleta sólo te está pidiendo OPINIÓN, consejo o deliberación (ej: "¿Qué opinas de...", "¿Esperamos a ver la carga...?"), NO apliques cambios precipitados en el calendario de hoy. Razona detalladamente, sopesa las opciones y dale tu visión experta.
+6. TONO: Habla como su entrenador personal de confianza: profesional, claro, motivador, con criterio deportivo estricto y pautas tácticas accionables.
 
 ${context.contextMarkdown}
 `.trim();
@@ -142,6 +210,7 @@ ${context.contextMarkdown}
       };
     } catch (err: unknown) {
       console.error("Error llamando a Google Gemini API:", err);
+      geminiError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -279,7 +348,27 @@ ${context.contextMarkdown}
 
 ¿Quieres que te deje configurada esta sesión de **Gimnasio (Tren Superior)** para el viernes en tu plan semanal?`;
   }
-  // CASO B: Natación
+  // CASO B1: Duda sobre natación el fin de semana vs esperar a ver la carga
+  else if (
+    (lastUserMsg.includes("nataci") || lastUserMsg.includes("nadar")) &&
+    (lastUserMsg.includes("sabado") ||
+      lastUserMsg.includes("domingo") ||
+      lastUserMsg.includes("fin de semana") ||
+      lastUserMsg.includes("esperamos") ||
+      lastUserMsg.includes("opinas"))
+  ) {
+    fallbackReply = `Mi recomendación como tu entrenador personal es clara: **esperemos y de momento no toquemos el fin de semana**.
+
+### ¿Por qué mantener el plan y esperar?
+1. **La prioridad absoluta es tu Maratón**: Las sesiones del sábado (rodaje progresivo R2) y domingo (tirada larga R5) son el núcleo de tu preparación de carrera. La natación es un fantástico recuperador articular y metabólico, pero no genera el impacto ni las adaptaciones neuromusculares y óseas que necesitas para los 42 km.
+2. **Evaluemos primero las sesiones de hoy y mañana**:
+   - Hoy tienes prevista sesión de carrera y mañana viernes tenemos pautado gimnasio/nado complementario.
+   - Lo más inteligente es ver cómo asimilas ambas cargas, cómo responde tu musculatura tras el pico de CrossFit del miércoles y cómo amanece tu **Readiness** el sábado.
+3. **Estrategia y plan de contingencia**:
+   - Si tras la sesión de hoy o mañana sientes sobrecarga en sóleos/lumbares o fatiga excesiva, entonces sí podemos transformar el entreno del sábado o domingo en natación suave (**N1 · 40 min**).
+   - Si tus piernas responden bien, mantendremos las zapatillas puestas para seguir sumando hacia tu objetivo.`;
+  }
+  // CASO B2: Natación hoy o cambio directo
   else if (lastUserMsg.includes("nataci") || lastUserMsg.includes("nadar")) {
     actionCandidate = {
       type: "modify_session",
@@ -355,8 +444,10 @@ El objetivo es sumar volumen aeróbico puro protegiendo las articulaciones y cer
 Para la duda que planteas (*"${messages[messages.length - 1]?.content}"*): si necesitas ajustar cualquier sesión (ej: cambiar carrera por natación o gym, o añadir descanso), indícamelo directamente y te lo actualizaré en la app.`;
   }
 
-  // Notificar al usuario cómo activar el modelo libre si no hay clave
-  if (!geminiApiKey && !anthropicClient) {
+  // Notificar al usuario cómo activar el modelo libre si no hay clave o si falló
+  if (geminiError) {
+    fallbackReply += `\n\n> ⚠️ *Nota técnica: Se detectó tu clave de Gemini pero Google devolvió un error al procesarla (${geminiError.slice(0, 150)}). He respondido con el motor fisiológico local.*`;
+  } else if (!geminiApiKey && !anthropicClient) {
     fallbackReply += `\n\n> 💡 *Nota: Para mantener un diálogo 100% abierto con razonamiento ilimitado como en ChatGPT, puedes añadir una clave gratuita de **Google Gemini** (se obtiene gratis en aistudio.google.com sin tarjeta) en **Configuración**.*`;
   }
 
