@@ -14,18 +14,23 @@ import {
   Flame,
   ArrowRight,
   Info,
+  CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import type { CoachActionProposal, CoachActionResult } from "@/lib/coach-ai/actions";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  appliedAction?: CoachActionResult;
+  proposedAction?: CoachActionProposal;
 }
 
 const SUGGESTED_QUESTIONS = [
+  "Cámbiame el entreno de hoy por natación",
   "¿Puedo meter natación hoy tras el CrossFit de ayer?",
   "¿Por qué tengo el ACWR en 0.54 y qué pauta debo seguir?",
   "¿Cómo debo enfocar la tirada larga del fin de semana?",
@@ -116,6 +121,8 @@ export default function EntrenadorPage() {
         role: "assistant",
         content: data.reply || "No he podido procesar la respuesta en este momento.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        appliedAction: data.appliedAction,
+        proposedAction: data.proposedAction,
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -132,6 +139,46 @@ export default function EntrenadorPage() {
       ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApplyProposed = async (msgId: string, action: CoachActionProposal) => {
+    try {
+      const res = await fetch("/api/coach/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (data.ok && data.result) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId ? { ...m, proposedAction: undefined, appliedAction: data.result } : m
+          )
+        );
+      }
+    } catch (e) {
+      console.error("Error aplicando propuesta:", e);
+    }
+  };
+
+  const handleUndo = async (msgId: string, sessionId: number, previousState: any) => {
+    try {
+      const res = await fetch("/api/coach/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ undo: true, sessionId, previousState }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId ? { ...m, appliedAction: undefined } : m
+          )
+        );
+      }
+    } catch (e) {
+      console.error("Error deshaciendo cambio:", e);
     }
   };
 
@@ -304,6 +351,81 @@ export default function EntrenadorPage() {
                   }}
                 >
                   <div style={{ wordBreak: "break-word" }}>{m.content}</div>
+
+                  {/* Tarjeta de acción aplicada directamente en la app */}
+                  {m.appliedAction?.success && (
+                    <div
+                      className="animate-in"
+                      style={{
+                        marginTop: "var(--space-3)",
+                        padding: "var(--space-2) var(--space-3)",
+                        borderRadius: "var(--radius-sm)",
+                        background: "rgba(34, 197, 94, 0.12)",
+                        border: "1px solid rgba(34, 197, 94, 0.35)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: "var(--space-2)",
+                      }}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--color-success)" }}>
+                        <CheckCircle2 size={15} />
+                        <span>{m.appliedAction.message || "Plan actualizado en la app"}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href="/plan-semanal"
+                          className="text-xs font-bold text-brand hover:underline"
+                          style={{ fontSize: "0.75rem" }}
+                        >
+                          Ver plan ↗
+                        </Link>
+                        {m.appliedAction.sessionId && m.appliedAction.previousState && (
+                          <button
+                            type="button"
+                            onClick={() => handleUndo(m.id, m.appliedAction!.sessionId!, m.appliedAction!.previousState!)}
+                            className="text-xs text-muted hover:underline"
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                          >
+                            Deshacer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tarjeta de propuesta de cambio (para aplicar con 1 toque) */}
+                  {m.proposedAction && !m.appliedAction && (
+                    <div
+                      className="animate-in"
+                      style={{
+                        marginTop: "var(--space-3)",
+                        padding: "var(--space-3)",
+                        borderRadius: "var(--radius-sm)",
+                        background: "rgba(47, 111, 235, 0.08)",
+                        border: "1px solid rgba(47, 111, 235, 0.3)",
+                      }}
+                    >
+                      <div className="text-xs font-semibold text-brand flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+                        <Sparkles size={14} />
+                        <span>Ajuste recomendado en tu plan:</span>
+                      </div>
+                      <div className="text-xs" style={{ marginBottom: 8, color: "var(--color-foreground)" }}>
+                        {m.proposedAction.summary}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => handleApplyProposed(m.id, m.proposedAction!)}
+                        style={{ fontSize: "var(--text-xs)", padding: "0.3rem 0.75rem" }}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>Aplicar cambio en la app</span>
+                      </Button>
+                    </div>
+                  )}
+
                   <div
                     style={{
                       fontSize: "0.65rem",
