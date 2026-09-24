@@ -242,8 +242,9 @@ export default function EntrenadorPage() {
           border: "1px solid var(--color-border)",
           display: "flex",
           flexDirection: "column",
-          minHeight: 460,
-          maxHeight: "65vh",
+          minHeight: 380,
+          height: "calc(100dvh - 320px)",
+          maxHeight: 680,
         }}
       >
         {/* Mensajes */}
