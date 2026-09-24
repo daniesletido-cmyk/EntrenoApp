@@ -27,6 +27,10 @@ import {
   CheckCircle2,
   BedDouble,
   Flame,
+  HelpCircle,
+  Info,
+  Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -34,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { Modal } from "@/components/ui/modal";
 import { addDays, todayISO } from "@/lib/dates";
 
 interface WeekHistory {
@@ -157,6 +162,7 @@ export default function ProgresoPage() {
   const [activeTab, setActiveTab] = useState<"todos" | "entrenos" | "fuerza" | "sueno" | "peso">("todos");
   const [weightForm, setWeightForm] = useState({ date: "", weight_kg: "" });
   const [saving, setSaving] = useState(false);
+  const [alertModal, setAlertModal] = useState<"acwr" | "sleep" | "compliance" | null>(null);
   const toast = useToast();
 
   const load = useCallback(() => {
@@ -309,9 +315,13 @@ export default function ProgresoPage() {
           <div className="text-xl font-bold flex items-center gap-2">
             {currentAcwr !== null ? currentAcwr : "—"}
             {currentAcwr !== null && (
-              <span
-                className="badge text-xs"
+              <button
+                type="button"
+                onClick={() => setAlertModal("acwr")}
+                className="badge text-xs flex items-center gap-1"
                 style={{
+                  border: "none",
+                  cursor: "pointer",
                   backgroundColor:
                     currentAcwr >= 0.8 && currentAcwr <= 1.3
                       ? "rgba(34, 197, 94, 0.15)"
@@ -325,13 +335,37 @@ export default function ProgresoPage() {
                       ? "var(--color-danger)"
                       : "var(--color-warning)",
                 }}
+                title="Pulsa para ver por qué sale esta alerta"
               >
-                {currentAcwr >= 0.8 && currentAcwr <= 1.3 ? "Óptimo" : currentAcwr > 1.5 ? "Sobrecarga" : "Precaución"}
-              </span>
+                {currentAcwr >= 0.8 && currentAcwr <= 1.3
+                  ? "Óptimo"
+                  : currentAcwr > 1.5
+                  ? "Sobrecarga"
+                  : "Precaución"}
+                <HelpCircle size={11} style={{ opacity: 0.8 }} />
+              </button>
             )}
           </div>
-          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-            Zona óptima: 0.8 a 1.3
+          <div className="flex items-center justify-between text-xs" style={{ marginTop: 2 }}>
+            <span className="text-muted">Zona óptima: 0.8 a 1.3</span>
+            {currentAcwr !== null && (
+              <button
+                type="button"
+                onClick={() => setAlertModal("acwr")}
+                className="text-brand flex items-center gap-0.5"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  textDecoration: "underline",
+                }}
+              >
+                ¿Por qué?
+              </button>
+            )}
           </div>
         </div>
 
@@ -905,6 +939,151 @@ export default function ProgresoPage() {
             description="A medida que registres sesiones de entreno, pesos en el gimnasio o importes tus noches de sueño, verás aquí tus gráficos y análisis avanzados."
           />
         </div>
+      )}
+
+      {/* Modal explicativo de alertas */}
+      {alertModal === "acwr" && (
+        <Modal
+          title="Diagnóstico del Ratio ACWR"
+          onClose={() => setAlertModal(null)}
+          footer={
+            <Button variant="primary" onClick={() => setAlertModal(null)}>
+              Entendido
+            </Button>
+          }
+        >
+          <div className="grid gap-3" style={{ padding: "var(--space-2) 0" }}>
+            <div
+              className="flex items-center justify-between"
+              style={{
+                padding: "var(--space-3)",
+                borderRadius: "var(--radius-md)",
+                background:
+                  currentAcwr !== null && currentAcwr >= 0.8 && currentAcwr <= 1.3
+                    ? "rgba(34, 197, 94, 0.08)"
+                    : currentAcwr !== null && currentAcwr > 1.5
+                    ? "rgba(239, 68, 68, 0.08)"
+                    : "rgba(249, 115, 22, 0.08)",
+                border: `1px solid ${
+                  currentAcwr !== null && currentAcwr >= 0.8 && currentAcwr <= 1.3
+                    ? "rgba(34, 197, 94, 0.25)"
+                    : currentAcwr !== null && currentAcwr > 1.5
+                    ? "rgba(239, 68, 68, 0.25)"
+                    : "rgba(249, 115, 22, 0.25)"
+                }`,
+              }}
+            >
+              <div>
+                <div className="text-xs text-muted">Ratio ACWR Actual</div>
+                <div className="text-2xl font-black">{currentAcwr ?? "—"}</div>
+              </div>
+              <span
+                className="badge font-bold"
+                style={{
+                  fontSize: "0.8rem",
+                  padding: "4px 10px",
+                  background:
+                    currentAcwr !== null && currentAcwr >= 0.8 && currentAcwr <= 1.3
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : currentAcwr !== null && currentAcwr > 1.5
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "rgba(249, 115, 22, 0.15)",
+                  color:
+                    currentAcwr !== null && currentAcwr >= 0.8 && currentAcwr <= 1.3
+                      ? "var(--color-success)"
+                      : currentAcwr !== null && currentAcwr > 1.5
+                      ? "var(--color-danger)"
+                      : "var(--color-warning)",
+                }}
+              >
+                {currentAcwr !== null && currentAcwr >= 0.8 && currentAcwr <= 1.3
+                  ? "Óptimo (0.8 - 1.3)"
+                  : currentAcwr !== null && currentAcwr > 1.5
+                  ? "Sobrecarga (>1.5)"
+                  : "Precaución (<0.8 ó 1.3-1.5)"}
+              </span>
+            </div>
+
+            <div className="surface" style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)" }}>
+              <div className="font-semibold text-sm flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+                <Info size={16} style={{ color: "var(--color-brand)" }} />
+                <span>¿Por qué sale esta alerta?</span>
+              </div>
+              <p className="text-sm text-muted" style={{ lineHeight: 1.55 }}>
+                {currentAcwr !== null && currentAcwr < 0.8 ? (
+                  <>
+                    Tu ratio actual marca <strong>{currentAcwr}</strong>, por debajo del umbral de normalidad (0.80).
+                    Esto se debe principalmente a que <strong>la semana actual está a mitad de camino</strong> (o se han registrado menos sesiones en los últimos 7 días).
+                    El algoritmo compara la carga de los últimos 7 días con el promedio de una semana habitual completa de las últimas 4 semanas.
+                    Al dividir pocos días acumulados entre una semana completa, el cálculo matemático resulta bajo (&lt;0.80).
+                  </>
+                ) : currentAcwr !== null && currentAcwr > 1.5 ? (
+                  <>
+                    Tu ratio actual es de <strong>{currentAcwr}</strong>, superando el límite seguro (1.50).
+                    Has aumentado de forma brusca el volumen o la intensidad en los últimos 7 días respecto a la media del último mes.
+                  </>
+                ) : (
+                  <>
+                    Tu ratio se encuentra en la <strong>zona óptima de progresión (0.80 - 1.30)</strong>.
+                    Estás aplicando la sobrecarga progresiva perfecta para mejorar sin riesgo de lesión.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="surface" style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)" }}>
+              <div className="font-semibold text-sm flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+                <AlertTriangle size={16} style={{ color: "var(--color-warning)" }} />
+                <span>¿Hay peligro o riesgo de lesión?</span>
+              </div>
+              <p className="text-sm text-muted" style={{ lineHeight: 1.55 }}>
+                {currentAcwr !== null && currentAcwr < 0.8 ? (
+                  <>
+                    <strong>No hay riesgo de fatiga ni sobrecarga en este momento.</strong> Tu cuerpo está asimilando el trabajo y fresco.
+                    La alerta de precaución es <strong>preventiva</strong>: te avisa para que no intentes compensar el volumen de golpe metiendo sesiones descomunales en 24-48h, ya que los picos repentinos sí disparan el riesgo de rotura o sobrecarga tendinosa.
+                  </>
+                ) : currentAcwr !== null && currentAcwr > 1.5 ? (
+                  <>
+                    <strong>Riesgo elevado de lesión y fatiga aguda.</strong> Ratios superiores a 1.50 multiplican por 2 a 4 veces la probabilidad de problemas articulares o musculares.
+                  </>
+                ) : (
+                  <>
+                    Riesgo mínimo. La adaptación biológica es óptima.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div
+              style={{
+                padding: "var(--space-3)",
+                borderRadius: "var(--radius-md)",
+                background: "linear-gradient(135deg, rgba(47, 111, 235, 0.08) 0%, rgba(47, 111, 235, 0.02) 100%)",
+                border: "1px solid rgba(47, 111, 235, 0.25)",
+              }}
+            >
+              <div className="font-semibold text-sm flex items-center gap-1.5 text-brand" style={{ marginBottom: 4 }}>
+                <Sparkles size={16} />
+                <span>Instrucciones de tu Entrenador Personal</span>
+              </div>
+              <p className="text-sm text-muted" style={{ lineHeight: 1.55 }}>
+                {currentAcwr !== null && currentAcwr < 0.8 ? (
+                  <>
+                    &ldquo;Tranquilo, vas por el buen camino. Sigue el plan programado para los días que quedan de semana (como la tirada larga del sábado y los rodajes pautados) a las intensidades fijadas. Al completar las sesiones, el ratio subirá de forma natural a la zona verde (0.80 - 1.30).&rdquo;
+                  </>
+                ) : currentAcwr !== null && currentAcwr > 1.5 ? (
+                  <>
+                    &ldquo;Toca frenar un punto. Baja la intensidad de las próximas sesiones a RPE 4-5 o sustituye una carrera intensa por movilidad o descanso activo.&rdquo;
+                  </>
+                ) : (
+                  <>
+                    &ldquo;Excelente trabajo. Mantén la consistencia y la progresión planificada.&rdquo;
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

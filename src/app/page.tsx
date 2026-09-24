@@ -22,6 +22,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Loading } from "@/components/ui/loading";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CoachSummaryCard } from "@/components/coach-summary-card";
+import type { WeeklyCoachAssessment } from "@/lib/coach-assessment";
 
 interface Summary {
   weekStart: string;
@@ -86,6 +88,7 @@ export default function ResumenPage() {
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [raceDate, setRaceDate] = useState<string | null>(null);
   const [nextGoal, setNextGoal] = useState<Goal | null>(null);
+  const [coachAssessment, setCoachAssessment] = useState<WeeklyCoachAssessment | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -95,13 +98,15 @@ export default function ResumenPage() {
       fetch(`/api/recommendations?week=${weekStart}`).then((r) => r.json()),
       fetch("/api/settings").then((r) => r.json()),
       fetch("/api/goals").then((r) => r.json()),
+      fetch(`/api/coach-assessment?week=${weekStart}`).then((r) => r.json()).catch(() => ({ assessment: null })),
     ])
-      .then(([s, r, cfg, g]) => {
+      .then(([s, r, cfg, g, ca]) => {
         setSummary(s);
         setRec(r);
         setRaceDate(cfg.settings?.goal_race_date ?? null);
         const activos: Goal[] = (g.goals ?? []).filter((x: Goal) => x.status === "activo" && x.target_date);
         setNextGoal(activos.length > 0 ? activos[0] : null);
+        setCoachAssessment(ca?.assessment ?? null);
       })
       .finally(() => setLoading(false));
   }, [weekStart]);
@@ -144,6 +149,8 @@ export default function ResumenPage() {
 
       {!loading && summary && (
         <div className="animate-in grid gap-5">
+          {coachAssessment && <CoachSummaryCard assessment={coachAssessment} />}
+
           {rec && (
             <div
               className="flex items-start gap-3"
