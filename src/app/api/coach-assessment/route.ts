@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { computeCoachWeeklyAssessment } from "@/lib/coach-assessment";
 import { todayISO, weekStartOf } from "@/lib/dates";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const weekParam = req.nextUrl.searchParams.get("week") ?? weekStartOf(todayISO());
   try {

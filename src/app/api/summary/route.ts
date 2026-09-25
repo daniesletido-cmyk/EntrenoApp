@@ -26,6 +26,9 @@ function isWalkingSession(s: {
   return false;
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const weekParam = req.nextUrl.searchParams.get("week") ?? todayISO();
   const weekStart = weekStartOf(weekParam);

@@ -17,6 +17,7 @@ import {
   ArrowLeftRight,
   Copy,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -112,14 +113,36 @@ export default function PlanSemanalPage() {
     }
   }
 
-  const load = useCallback(() => {
-    fetch(`/api/sessions?week=${weekStart}`)
-      .then((r) => r.json())
-      .then((d) => setSessions(d.sessions ?? []));
-  }, [weekStart]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    try {
+      const res = await fetch(`/api/sessions?week=${weekStart}&t=${Date.now()}`, { cache: "no-store" });
+      const d = await res.json();
+      setSessions(d.sessions ?? []);
+      if (isManual) {
+        toast.push("success", "Plan semanal actualizado");
+      }
+    } catch {
+      if (isManual) {
+        toast.push("error", "Error al actualizar el plan");
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [weekStart, toast]);
 
   useEffect(() => {
-    load();
+    load(false);
+  }, [load]);
+
+  useEffect(() => {
+    function onGlobalRefresh() {
+      load(true);
+    }
+    window.addEventListener("entrenoapp:refresh", onGlobalRefresh);
+    return () => window.removeEventListener("entrenoapp:refresh", onGlobalRefresh);
   }, [load]);
 
   const days = weekDates(weekStart);
@@ -288,13 +311,32 @@ export default function PlanSemanalPage() {
         title="Plan semanal"
         description="Planifica qué toca cada día — carrera, gimnasio, natación… — y luego registra el resultado en Registro."
         actions={
-          <>
+          <div className="flex items-center gap-2">
             <input ref={importFileRef} type="file" accept=".xlsx,.csv,.pdf,.png,.jpg,.jpeg" onChange={handleImportFile} style={{ display: "none" }} />
-            <Button variant="secondary" loading={importLoading} onClick={() => importFileRef.current?.click()}>
-              <FileUp size={15} />
+            <Button
+              variant="secondary"
+              loading={importLoading}
+              onClick={() => importFileRef.current?.click()}
+              style={{ height: 38, minHeight: 38, borderRadius: "var(--radius-full)", padding: "0 14px" }}
+            >
+              <FileUp size={14} />
               Importar plan
             </Button>
-          </>
+            <button
+              className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+              onClick={() => load(true)}
+              disabled={refreshing}
+              style={{
+                height: 38,
+                minHeight: 38,
+                borderRadius: "var(--radius-full)",
+                padding: "0 14px",
+              }}
+            >
+              <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
+              <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+            </button>
+          </div>
         }
       />
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   CalendarCheck2,
@@ -15,6 +15,7 @@ import {
   Timer,
   Flag,
   Footprints,
+  RefreshCw,
 } from "lucide-react";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -23,6 +24,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Loading } from "@/components/ui/loading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CoachSummaryCard } from "@/components/coach-summary-card";
+import { useToast } from "@/components/ui/toast";
 import type { WeeklyCoachAssessment } from "@/lib/coach-assessment";
 
 interface Summary {
@@ -90,26 +92,56 @@ export default function ResumenPage() {
   const [nextGoal, setNextGoal] = useState<Goal | null>(null);
   const [coachAssessment, setCoachAssessment] = useState<WeeklyCoachAssessment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const toast = useToast();
+
+  const loadData = useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const t = Date.now();
+      const [s, r, cfg, g, ca] = await Promise.all([
+        fetch(`/api/summary?week=${weekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/recommendations?week=${weekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/settings?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/goals?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/coach-assessment?week=${weekStart}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => ({ assessment: null })),
+      ]);
+
+      setSummary(s);
+      setRec(r);
+      setRaceDate(cfg.settings?.goal_race_date ?? null);
+      const activos: Goal[] = (g.goals ?? []).filter((x: Goal) => x.status === "activo" && x.target_date);
+      setNextGoal(activos.length > 0 ? activos[0] : null);
+      setCoachAssessment(ca?.assessment ?? null);
+
+      if (isManual) {
+        toast.push("success", "Resumen, consejos y carga actualizados");
+      }
+    } catch {
+      if (isManual) {
+        toast.push("error", "Error al actualizar los datos");
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [weekStart, toast]);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      fetch(`/api/summary?week=${weekStart}`).then((r) => r.json()),
-      fetch(`/api/recommendations?week=${weekStart}`).then((r) => r.json()),
-      fetch("/api/settings").then((r) => r.json()),
-      fetch("/api/goals").then((r) => r.json()),
-      fetch(`/api/coach-assessment?week=${weekStart}`).then((r) => r.json()).catch(() => ({ assessment: null })),
-    ])
-      .then(([s, r, cfg, g, ca]) => {
-        setSummary(s);
-        setRec(r);
-        setRaceDate(cfg.settings?.goal_race_date ?? null);
-        const activos: Goal[] = (g.goals ?? []).filter((x: Goal) => x.status === "activo" && x.target_date);
-        setNextGoal(activos.length > 0 ? activos[0] : null);
-        setCoachAssessment(ca?.assessment ?? null);
-      })
-      .finally(() => setLoading(false));
-  }, [weekStart]);
+    loadData(false);
+  }, [loadData]);
+
+  useEffect(() => {
+    function onGlobalRefresh() {
+      loadData(true);
+    }
+    window.addEventListener("entrenoapp:refresh", onGlobalRefresh);
+    return () => window.removeEventListener("entrenoapp:refresh", onGlobalRefresh);
+  }, [loadData]);
 
   const fmt = (n: number | null, suffix = "") => (n === null ? "—" : `${n.toFixed(1)}${suffix}`);
   const fmtPace = (minPerKm: number | null) => {
@@ -144,6 +176,22 @@ export default function ResumenPage() {
           summary?.weekStart
             ? `Semana del ${summary.weekStart} · Carga y rendimiento`
             : "Seguimiento y rendimiento semanal"
+        }
+        actions={
+          <button
+            className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            style={{
+              height: 38,
+              minHeight: 38,
+              borderRadius: "var(--radius-full)",
+              padding: "0 14px",
+            }}
+          >
+            <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
+            <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+          </button>
         }
       />
 

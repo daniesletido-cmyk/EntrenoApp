@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Sun,
   Footprints,
@@ -24,6 +24,7 @@ import {
   ChevronUp,
   Activity,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { todayISO, isoDayOfWeek, weekStartOf } from "@/lib/dates";
@@ -177,18 +178,22 @@ export default function HoyPage() {
     }
   }
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const t = Date.now();
       const [settingsRes, sessionsRes, recRes, sleepRes, readinessRes] = await Promise.all([
-        fetch("/api/settings").then((r) => r.json()),
-        fetch(`/api/sessions?from=${today}&to=${today}`).then((r) => r.json()),
-        fetch(`/api/recommendations?week=${weekStartOf(today)}`).then((r) => r.json()),
-        fetch(`/api/sleep?from=${today}&to=${today}`).then((r) => r.json()).catch(() => ({ logs: [] })),
-        fetch(`/api/readiness?date=${today}`).then((r) => r.json()).catch(() => ({ readiness: null })),
+        fetch(`/api/settings?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/sessions?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/recommendations?week=${weekStartOf(today)}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ logs: [] })),
+        fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
       ]);
-      if (cancelled) return;
+
       const s: Record<string, string> = settingsRes.settings ?? {};
       setSettings(s);
       setSessions(sessionsRes.sessions ?? []);
@@ -198,17 +203,34 @@ export default function HoyPage() {
       setSleep(sleepLogs.find((l) => l.date === today) ?? null);
 
       const phase = phaseForDate(today, s);
-      const menuRes = await fetch(`/api/menu?phase=${phase}`).then((r) => r.json());
-      if (cancelled) return;
+      const menuRes = await fetch(`/api/menu?phase=${phase}&t=${t}`, { cache: "no-store" }).then((r) => r.json());
       const dow = isoDayOfWeek(today);
       setMenu((menuRes.items ?? []).filter((m: MenuItem) => m.day_of_week === dow));
+
+      if (isManual) {
+        toast.push("success", "Estado del día y entrenos actualizados");
+      }
+    } catch {
+      if (isManual) {
+        toast.push("error", "Error al actualizar los datos");
+      }
+    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [today]);
+  }, [today, toast]);
+
+  useEffect(() => {
+    load(false);
+  }, [load]);
+
+  useEffect(() => {
+    function onGlobalRefresh() {
+      load(true);
+    }
+    window.addEventListener("entrenoapp:refresh", onGlobalRefresh);
+    return () => window.removeEventListener("entrenoapp:refresh", onGlobalRefresh);
+  }, [load]);
 
   const raceDays = daysUntil(settings.goal_race_date, today);
   const trainingSessions = sessions.filter((s) => s.discipline !== "descanso");
@@ -228,12 +250,31 @@ export default function HoyPage() {
         title="Hoy"
         description={formatToday(today).replace(/^\w/, (c) => c.toUpperCase())}
         actions={
-          raceDays !== null && (
-            <span className="badge badge-info" style={{ fontSize: "var(--text-sm)", padding: "0.4rem 0.8rem" }}>
-              <Flag size={14} style={{ marginRight: 4 }} />
-              {raceDays >= 0 ? `Faltan ${raceDays} días para el maratón` : `Maratón hace ${-raceDays} días`}
-            </span>
-          )
+          <div className="flex items-center gap-2">
+            {raceDays !== null && (
+              <span
+                className="badge badge-info hidden sm:inline-flex"
+                style={{ fontSize: "var(--text-xs)", padding: "0.4rem 0.8rem", borderRadius: "var(--radius-full)" }}
+              >
+                <Flag size={13} style={{ marginRight: 4 }} />
+                {raceDays >= 0 ? `Faltan ${raceDays} días para el maratón` : `Maratón hace ${-raceDays} días`}
+              </span>
+            )}
+            <button
+              className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+              onClick={() => load(true)}
+              disabled={refreshing}
+              style={{
+                height: 38,
+                minHeight: 38,
+                borderRadius: "var(--radius-full)",
+                padding: "0 14px",
+              }}
+            >
+              <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
+              <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+            </button>
+          </div>
         }
       />
 

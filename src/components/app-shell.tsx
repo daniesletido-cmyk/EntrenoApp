@@ -19,6 +19,7 @@ import {
   Sun,
   Dumbbell,
   Bot,
+  RefreshCw,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
@@ -72,6 +73,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [raceDate, setRaceDate] = useState("26/04/2027");
   const current = LINKS.find((l) => l.href === pathname);
+
+  const [isGlobalRefreshing, setIsGlobalRefreshing] = useState(false);
+
+  const triggerGlobalRefresh = () => {
+    setIsGlobalRefreshing(true);
+    window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+    setTimeout(() => setIsGlobalRefreshing(false), 900);
+  };
 
   useEffect(() => {
     fetch("/api/settings")
@@ -147,7 +156,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {/* Footer del sidebar con selector de tema */}
+        {/* Footer del sidebar con selector de tema y refresco */}
         <div
           style={{
             padding: "var(--space-3) var(--space-3)",
@@ -161,6 +170,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="text-xs text-muted">Tema visual</span>
             <ThemeToggle />
           </div>
+          <button
+            onClick={triggerGlobalRefresh}
+            className="btn btn-secondary btn-sm"
+            style={{ width: "100%", justifyContent: "center", gap: 6, fontSize: "0.78rem" }}
+            title="Refrescar métricas, cargas y consejos"
+          >
+            <RefreshCw size={13} className={isGlobalRefreshing ? "animate-spin text-primary" : ""} />
+            <span>{isGlobalRefreshing ? "Actualizando..." : "Refrescar datos"}</span>
+          </button>
           <div className="text-xs text-faint" style={{ marginTop: 2 }}>
             <div>Maratón · {raceDate}</div>
             <div style={{ color: "var(--color-text-muted)", fontSize: "0.72rem" }}>Daniel Espinosa</div>
@@ -199,7 +217,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
 
-          <ThemeToggle />
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={triggerGlobalRefresh}
+              className="btn btn-ghost btn-icon"
+              aria-label="Refrescar datos"
+              title="Refrescar métricas y consejos"
+              style={{ width: 38, height: 38, minWidth: 38, borderRadius: "50%" }}
+            >
+              <RefreshCw size={17} className={isGlobalRefreshing ? "animate-spin text-primary" : "text-muted"} />
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Drawer móvil */}
