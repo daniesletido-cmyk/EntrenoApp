@@ -306,31 +306,32 @@ export default function PlanSemanalPage() {
   const totalSessions = sessions.filter((s) => s.discipline !== "descanso").length;
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-x-hidden">
       <PageHeader
         title="Plan semanal"
         description="Planifica qué toca cada día — carrera, gimnasio, natación… — y luego registra el resultado en Registro."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <input ref={importFileRef} type="file" accept=".xlsx,.csv,.pdf,.png,.jpg,.jpeg" onChange={handleImportFile} style={{ display: "none" }} />
             <Button
               variant="secondary"
               loading={importLoading}
               onClick={() => importFileRef.current?.click()}
-              style={{ height: 38, minHeight: 38, borderRadius: "var(--radius-full)", padding: "0 14px" }}
+              style={{ height: 36, minHeight: 36, borderRadius: "var(--radius-full)", padding: "0 14px", flex: "1 1 auto" }}
             >
               <FileUp size={14} />
               Importar plan
             </Button>
             <button
-              className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5"
               onClick={() => load(true)}
               disabled={refreshing}
               style={{
-                height: 38,
-                minHeight: 38,
+                height: 36,
+                minHeight: 36,
                 borderRadius: "var(--radius-full)",
                 padding: "0 14px",
+                flex: "1 1 auto",
               }}
             >
               <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
@@ -342,19 +343,19 @@ export default function PlanSemanalPage() {
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
       {importPreview && (
-        <div className="surface animate-in" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)", borderColor: "var(--color-brand)" }}>
-          <div className="flex items-start justify-between" style={{ marginBottom: "var(--space-3)" }}>
-            <div>
+        <div className="surface animate-in w-full overflow-hidden" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-4)", borderColor: "var(--color-brand)" }}>
+          <div className="flex items-start justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+            <div className="min-w-0">
               <div className="font-semibold text-sm">Sesiones detectadas en el archivo</div>
               {importInfo && (
                 <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                   Método: {importInfo.method}
-                  {importInfo.skipped > 0 ? ` · ${importInfo.skipped} fila(s) descartadas (no se pudo determinar el día)` : ""}
+                  {importInfo.skipped > 0 ? ` · ${importInfo.skipped} fila(s) descartadas` : ""}
                   — revisa cada fila antes de importar.
                 </div>
               )}
             </div>
-            <button className="btn btn-ghost btn-icon" aria-label="Descartar importación" onClick={() => setImportPreview(null)}>
+            <button className="btn btn-ghost btn-icon-sm flex-shrink-0" aria-label="Descartar importación" onClick={() => setImportPreview(null)}>
               <X size={15} />
             </button>
           </div>
@@ -365,7 +366,7 @@ export default function PlanSemanalPage() {
             <div className="grid gap-2" style={{ marginBottom: "var(--space-3)" }}>
               {importPreview.map((row, i) => (
                 <div key={i} className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                  <div className="flex flex-wrap items-end gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 items-end">
                     <Input
                       label="Fecha"
                       type="date"
@@ -384,25 +385,27 @@ export default function PlanSemanalPage() {
                       value={row.planned_code ?? ""}
                       onChange={(e) => updatePreviewRow(i, { planned_code: e.target.value || null })}
                     />
-                    <label className="flex items-center gap-2 text-xs text-muted" style={{ minHeight: 38 }}>
-                      <input
-                        type="checkbox"
-                        checked={row.is_long_run}
-                        onChange={(e) => updatePreviewRow(i, { is_long_run: e.target.checked })}
-                      />
-                      Tirada larga
-                    </label>
-                    <button className="btn btn-ghost btn-icon" aria-label="Quitar esta fila" onClick={() => removePreviewRow(i)}>
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="flex items-center justify-between gap-2 h-10">
+                      <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={row.is_long_run}
+                          onChange={(e) => updatePreviewRow(i, { is_long_run: e.target.checked })}
+                        />
+                        Tirada larga
+                      </label>
+                      <button className="btn btn-ghost btn-icon-sm" aria-label="Quitar esta fila" onClick={() => removePreviewRow(i)}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
                   <div style={{ marginTop: "var(--space-2)" }}>
                     <Textarea
                       label="Detalle del entrenamiento (ejercicios, series, RPE, ritmos...)"
-                      rows={row.notes && row.notes.length > 120 ? 5 : 2}
+                      rows={row.notes && row.notes.length > 120 ? 4 : 2}
                       value={row.notes ?? ""}
                       onChange={(e) => updatePreviewRow(i, { notes: e.target.value || null })}
-                      hint="Revisa que coincida con el documento original antes de importar — se guarda tal cual."
+                      hint="Revisa que coincida con el documento original antes de importar."
                     />
                   </div>
                 </div>
@@ -411,7 +414,7 @@ export default function PlanSemanalPage() {
           )}
 
           {importPreview.length > 0 && (
-            <Button variant="primary" loading={importCommitting} onClick={commitImport}>
+            <Button variant="primary" loading={importCommitting} onClick={commitImport} style={{ height: 36, minHeight: 36, fontSize: "0.8rem" }}>
               <Plus size={15} />
               Añadir {importPreview.length} sesión(es) al plan
             </Button>
@@ -420,7 +423,7 @@ export default function PlanSemanalPage() {
       )}
 
       {totalSessions === 0 && (
-        <div style={{ marginBottom: "var(--space-5)" }}>
+        <div style={{ marginBottom: "var(--space-4)" }}>
           <EmptyState
             icon={<Footprints size={22} />}
             title="Esta semana todavía no tiene sesiones"
@@ -429,7 +432,7 @@ export default function PlanSemanalPage() {
         </div>
       )}
 
-      <div className="grid gap-3">
+      <div className="grid gap-2.5 w-full">
         {days.map((date, i) => {
           const daySessions = sessions.filter((s) => s.date === date);
           const f = form[date] ?? { discipline: "", planned_code: "", is_long_run: false, notes: "" };
@@ -439,20 +442,20 @@ export default function PlanSemanalPage() {
           return (
             <div
               key={date}
-              className="surface"
+              className="surface w-full overflow-hidden"
               style={{
-                padding: "var(--space-4)",
+                padding: "var(--space-3) var(--space-3)",
                 borderLeft: isToday ? "3px solid var(--color-brand)" : undefined,
               }}
             >
               {/* Day Header */}
-              <div className="flex items-center justify-between gap-3" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-3)" : 0 }}>
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-2 w-full" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-2)" : 0 }}>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div
                     style={{
-                      width: 44,
-                      height: 48,
-                      borderRadius: "var(--radius-md)",
+                      width: 38,
+                      height: 42,
+                      borderRadius: "var(--radius-sm)",
                       background: isToday ? "var(--color-brand)" : "var(--color-surface-raised)",
                       color: isToday ? "#ffffff" : "var(--color-text)",
                       display: "flex",
@@ -460,28 +463,28 @@ export default function PlanSemanalPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       border: isToday ? "none" : "1px solid var(--color-border)",
-                      boxShadow: isToday ? "0 4px 14px rgba(59, 130, 246, 0.4)" : "none",
+                      boxShadow: isToday ? "0 4px 12px rgba(59, 130, 246, 0.35)" : "none",
                       flexShrink: 0,
                     }}
                   >
-                    <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.05em", opacity: isToday ? 0.95 : 0.65 }}>
+                    <span style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.05em", opacity: isToday ? 0.95 : 0.65 }}>
                       {DAY_NAMES_ES[i].substring(0, 3).toUpperCase()}
                     </span>
-                    <span style={{ fontSize: "1.15rem", fontWeight: 800, lineHeight: 1 }}>
+                    <span style={{ fontSize: "1rem", fontWeight: 800, lineHeight: 1 }}>
                       {parseInt(date.split("-")[2] || "1", 10)}
                     </span>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm sm:text-base">{DAY_NAMES_ES[i]}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-sm truncate">{DAY_NAMES_ES[i]}</span>
                       {isToday && (
-                        <span className="badge badge-brand" style={{ fontSize: "0.68rem", padding: "0.1rem 0.45rem" }}>
+                        <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "0.08rem 0.35rem" }}>
                           Hoy
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-muted" style={{ marginTop: 1 }}>
+                    <div className="text-xs text-muted truncate" style={{ marginTop: 1 }}>
                       {daySessions.length === 0
                         ? "Descanso / Sin programar"
                         : `${daySessions.length} entreno${daySessions.length > 1 ? "s" : ""}`}
@@ -491,30 +494,30 @@ export default function PlanSemanalPage() {
 
                 {!isAdding && daySessions.length === 0 && (
                   <button
-                    className="btn btn-secondary text-xs"
+                    className="btn btn-secondary text-xs flex-shrink-0"
                     onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
-                    style={{ height: 34, minHeight: 34, padding: "0 12px", borderRadius: "var(--radius-full)" }}
+                    style={{ height: 32, minHeight: 32, padding: "0 10px", borderRadius: "var(--radius-full)", fontSize: "0.72rem" }}
                   >
-                    <Plus size={14} />
-                    Planificar
+                    <Plus size={13} />
+                    <span>Planificar</span>
                   </button>
                 )}
 
                 {!isAdding && daySessions.length > 0 && (
                   <button
-                    className="btn btn-ghost text-xs"
+                    className="btn btn-ghost text-xs flex-shrink-0"
                     onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
-                    style={{ height: 32, minHeight: 32, padding: "0 10px", borderRadius: "var(--radius-full)" }}
+                    style={{ height: 30, minHeight: 30, padding: "0 8px", borderRadius: "var(--radius-full)", fontSize: "0.72rem" }}
                   >
-                    <Plus size={13} />
-                    Añadir otro
+                    <Plus size={12} />
+                    <span>Añadir</span>
                   </button>
                 )}
               </div>
 
               {/* Day Sessions List */}
               {daySessions.length > 0 && (
-                <ul className="grid gap-2" style={{ marginBottom: isAdding ? "var(--space-3)" : 0 }}>
+                <ul className="grid gap-2 w-full" style={{ marginBottom: isAdding ? "var(--space-2)" : 0 }}>
                   {daySessions.map((s) => {
                     const meta = DISCIPLINE_MAP[s.discipline] ?? DISCIPLINES[4];
                     const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
@@ -524,18 +527,18 @@ export default function PlanSemanalPage() {
                     return (
                       <li
                         key={s.id}
-                        className="surface-raised"
+                        className="surface-raised w-full overflow-hidden"
                         style={{
-                          padding: "var(--space-3)",
+                          padding: "var(--space-2) var(--space-3)",
                           borderRadius: "var(--radius-md)",
                         }}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2.5 text-sm min-w-0">
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                             <div
                               style={{
-                                width: 34,
-                                height: 34,
+                                width: 32,
+                                height: 32,
                                 borderRadius: "var(--radius-sm)",
                                 background: discTheme.bg,
                                 display: "flex",
@@ -545,21 +548,21 @@ export default function PlanSemanalPage() {
                                 color: discTheme.color,
                               }}
                             >
-                              <Icon size={17} />
+                              <Icon size={16} />
                             </div>
-                            <div className="min-w-0">
-                              <div className="font-bold text-sm truncate" style={{ color: "var(--color-text)" }}>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-xs sm:text-sm truncate" style={{ color: "var(--color-text)" }}>
                                 {meta.label} {s.planned_code ? `· ${s.planned_code}` : ""}
                               </div>
-                              <div className="flex items-center gap-1.5" style={{ marginTop: 2 }}>
+                              <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 2 }}>
                                 {!!s.is_long_run && (
-                                  <span className="badge badge-info" style={{ fontSize: "0.68rem" }}>
+                                  <span className="badge badge-info" style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}>
                                     Tirada larga
                                   </span>
                                 )}
                                 <span
                                   className={`badge ${s.status === "realizada" ? "badge-success" : "badge-neutral"}`}
-                                  style={{ fontSize: "0.68rem" }}
+                                  style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}
                                 >
                                   {STATUS_LABEL[s.status] ?? s.status}
                                 </span>
@@ -567,58 +570,58 @@ export default function PlanSemanalPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
                             <button
-                              className="btn btn-ghost btn-icon"
+                              className="btn btn-ghost btn-icon-sm"
                               aria-label="Intercambiar con otra sesión de la semana"
                               title="Intercambiar día"
                               onClick={() => (isSwapping ? cancelSwap() : startSwap(s.id))}
                             >
-                              <ArrowLeftRight size={15} />
+                              <ArrowLeftRight size={14} />
                             </button>
                             <button
-                              className="btn btn-ghost btn-icon"
+                              className="btn btn-ghost btn-icon-sm"
                               aria-label="Escribir o editar el detalle del entreno"
                               title="Editar notas del entreno"
                               onClick={() => (isEditing ? setEditingId(null) : startEditingNotes(s))}
                             >
-                              <NotebookPen size={15} />
+                              <NotebookPen size={14} />
                             </button>
                             <button
-                              className="btn btn-ghost btn-icon"
+                              className="btn btn-ghost btn-icon-sm"
                               aria-label="Copiar entreno para Notas"
                               title="Copiar entreno para Notas"
                               onClick={() => copySession(s)}
                             >
                               {copiedId === s.id ? (
-                                <Check size={15} style={{ color: "var(--color-success)" }} />
+                                <Check size={14} style={{ color: "var(--color-success)" }} />
                               ) : (
-                                <Copy size={15} />
+                                <Copy size={14} />
                               )}
                             </button>
                             <button
-                              className="btn btn-ghost btn-icon"
+                              className="btn btn-ghost btn-icon-sm"
                               aria-label="Quitar sesión"
                               title="Eliminar sesión"
                               onClick={() => requestRemoveSession(s.id)}
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </div>
 
                         {!isEditing && s.notes && (
                           <div
-                            className="text-xs sm:text-sm text-muted"
+                            className="text-xs text-muted w-full"
                             style={{
                               marginTop: "var(--space-2)",
-                              marginLeft: 42,
                               padding: "var(--space-2) var(--space-3)",
                               background: "var(--color-surface)",
                               borderRadius: "var(--radius-sm)",
-                              borderLeft: `2px solid ${discTheme.color}`,
+                              borderLeft: `3px solid ${discTheme.color}`,
                               whiteSpace: "pre-wrap",
-                              lineHeight: 1.5,
+                              lineHeight: 1.45,
+                              wordBreak: "break-word",
                             }}
                           >
                             {s.notes}
@@ -626,7 +629,7 @@ export default function PlanSemanalPage() {
                         )}
 
                         {isEditing && (
-                          <div style={{ marginTop: "var(--space-3)", paddingLeft: 36 }}>
+                          <div className="w-full" style={{ marginTop: "var(--space-2)" }}>
                             <Textarea
                               label="Detalle del entrenamiento (ejercicios, series, RPE, ritmos...)"
                               rows={4}
@@ -635,11 +638,11 @@ export default function PlanSemanalPage() {
                               hint="Escríbelo directamente según tu plan."
                             />
                             <div className="flex gap-2" style={{ marginTop: "var(--space-2)" }}>
-                              <Button variant="primary" loading={savingNotes} onClick={() => saveNotes(s.id)}>
+                              <Button variant="primary" loading={savingNotes} onClick={() => saveNotes(s.id)} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
                                 <Save size={14} />
                                 Guardar
                               </Button>
-                              <Button variant="ghost" onClick={() => setEditingId(null)}>
+                              <Button variant="ghost" onClick={() => setEditingId(null)} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
                                 Cancelar
                               </Button>
                             </div>
@@ -647,7 +650,7 @@ export default function PlanSemanalPage() {
                         )}
 
                         {isSwapping && (
-                          <div style={{ marginTop: "var(--space-3)", paddingLeft: 36 }}>
+                          <div className="w-full" style={{ marginTop: "var(--space-2)" }}>
                             <Select
                               label="Intercambiar con"
                               value={swapTarget}
@@ -667,11 +670,11 @@ export default function PlanSemanalPage() {
                                 })}
                             </Select>
                             <div className="flex gap-2" style={{ marginTop: "var(--space-2)" }}>
-                              <Button variant="primary" loading={swapping} disabled={!swapTarget} onClick={() => confirmSwap(s.id)}>
+                              <Button variant="primary" loading={swapping} disabled={!swapTarget} onClick={() => confirmSwap(s.id)} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
                                 <ArrowLeftRight size={14} />
                                 Intercambiar
                               </Button>
-                              <Button variant="ghost" onClick={cancelSwap}>
+                              <Button variant="ghost" onClick={cancelSwap} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
                                 Cancelar
                               </Button>
                             </div>
@@ -686,37 +689,37 @@ export default function PlanSemanalPage() {
               {/* Inline Add Session Form */}
               {isAdding && (
                 <div
-                  className="surface-raised"
+                  className="surface-raised w-full"
                   style={{
                     padding: "var(--space-3)",
                     borderRadius: "var(--radius-md)",
                     marginTop: daySessions.length > 0 ? "var(--space-2)" : 0,
                   }}
                 >
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div style={{ minWidth: 140, flex: 1 }}>
-                      <Select
-                        aria-label="Añadir disciplina"
-                        value={f.discipline}
-                        onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, discipline: e.target.value } }))}
-                      >
-                        <option value="">Disciplina…</option>
-                        {DISCIPLINES.map((d) => (
-                          <option key={d.value} value={d.value}>
-                            {d.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div style={{ minWidth: 140, flex: 1 }}>
-                      <Input
-                        aria-label="Código de la receta"
-                        placeholder="Código (R2, Día A…)"
-                        value={f.planned_code}
-                        onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, planned_code: e.target.value } }))}
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 text-xs text-muted" style={{ minHeight: 38 }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Select
+                      aria-label="Añadir disciplina"
+                      value={f.discipline}
+                      onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, discipline: e.target.value } }))}
+                    >
+                      <option value="">Disciplina…</option>
+                      {DISCIPLINES.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </Select>
+
+                    <Input
+                      aria-label="Código de la receta"
+                      placeholder="Código (R2, Día A…)"
+                      value={f.planned_code}
+                      onChange={(e) => setForm((p) => ({ ...p, [date]: { ...f, planned_code: e.target.value } }))}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2" style={{ marginTop: "var(--space-2)" }}>
+                    <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
                       <input
                         type="checkbox"
                         checked={f.is_long_run}
@@ -724,19 +727,28 @@ export default function PlanSemanalPage() {
                       />
                       Tirada larga
                     </label>
+
                     <div className="flex items-center gap-1.5">
-                      <Button variant="primary" disabled={!f.discipline} loading={savingDate === date} onClick={() => addSession(date)}>
-                        <Plus size={15} />
-                        Guardar
-                      </Button>
                       <Button
                         variant="ghost"
                         onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "", planned_code: "", is_long_run: false, notes: "" } }))}
+                        style={{ height: 32, minHeight: 32, fontSize: "0.75rem", padding: "0 10px" }}
                       >
                         Cancelar
                       </Button>
+                      <Button
+                        variant="primary"
+                        disabled={!f.discipline}
+                        loading={savingDate === date}
+                        onClick={() => addSession(date)}
+                        style={{ height: 32, minHeight: 32, fontSize: "0.75rem", padding: "0 12px" }}
+                      >
+                        <Plus size={13} />
+                        Guardar
+                      </Button>
                     </div>
                   </div>
+
                   <div style={{ marginTop: "var(--space-2)" }}>
                     <Textarea
                       aria-label="Detalle del entrenamiento (opcional)"

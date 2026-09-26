@@ -11,13 +11,13 @@ export function PageHeader({
 }) {
   return (
     <div
-      className="flex items-start justify-between gap-4"
-      style={{ marginBottom: "var(--space-4)", flexWrap: "wrap" }}
+      className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full"
+      style={{ marginBottom: "var(--space-4)" }}
     >
-      <div>
+      <div className="min-w-0 flex-1">
         <h1
           style={{
-            fontSize: "clamp(1.5rem, 4vw, 1.85rem)",
+            fontSize: "clamp(1.35rem, 4vw, 1.85rem)",
             fontWeight: 800,
             letterSpacing: "-0.03em",
             color: "var(--color-text)",
@@ -35,7 +35,11 @@ export function PageHeader({
           </p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>{actions}</div>}
+      {actions && (
+        <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end flex-shrink-0">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

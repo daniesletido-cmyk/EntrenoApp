@@ -20,14 +20,14 @@ export default function WeekSwitcher({
   const weekEnd = addDays(weekStart, 6);
   const isCurrent = weekStart <= todayISO() && todayISO() <= weekEnd;
   return (
-    <div className="flex items-center gap-2" style={{ marginBottom: "var(--space-4)" }}>
+    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full" style={{ marginBottom: "var(--space-4)" }}>
       <div
-        className="surface flex items-center justify-between"
+        className="surface flex items-center justify-between w-full sm:w-auto"
         style={{
-          padding: "4px",
+          padding: "3px 4px",
           borderRadius: "var(--radius-full)",
-          maxWidth: 380,
-          flex: 1,
+          flex: "1 1 auto",
+          maxWidth: "100%",
         }}
       >
         <button
@@ -35,25 +35,26 @@ export default function WeekSwitcher({
           aria-label="Semana anterior"
           onClick={() => onChange(addDays(weekStart, -7))}
           style={{
-            width: 36,
-            height: 36,
-            minHeight: 36,
-            minWidth: 36,
+            width: 34,
+            height: 34,
+            minHeight: 34,
+            minWidth: 34,
             padding: 0,
             borderRadius: "var(--radius-full)",
+            flexShrink: 0,
           }}
         >
           <ChevronLeft size={16} />
         </button>
 
-        <div className="flex items-center gap-2" style={{ padding: "0 8px" }}>
-          <span className="text-xs sm:text-sm font-semibold tracking-tight">
+        <div className="flex items-center justify-center gap-1.5 min-w-0 flex-1 px-1">
+          <span className="text-xs sm:text-sm font-semibold tracking-tight truncate">
             {formatRange(weekStart, weekEnd)}
           </span>
           {isCurrent ? (
             <span
-              className="badge badge-brand"
-              style={{ padding: "0.15rem 0.5rem", fontSize: "0.68rem" }}
+              className="badge badge-brand flex-shrink-0"
+              style={{ padding: "0.1rem 0.45rem", fontSize: "0.65rem" }}
             >
               Esta semana
             </span>
@@ -65,12 +66,13 @@ export default function WeekSwitcher({
           aria-label="Semana siguiente"
           onClick={() => onChange(addDays(weekStart, 7))}
           style={{
-            width: 36,
-            height: 36,
-            minHeight: 36,
-            minWidth: 36,
+            width: 34,
+            height: 34,
+            minHeight: 34,
+            minWidth: 34,
             padding: 0,
             borderRadius: "var(--radius-full)",
+            flexShrink: 0,
           }}
         >
           <ChevronRight size={16} />
@@ -79,13 +81,14 @@ export default function WeekSwitcher({
 
       {!isCurrent && (
         <button
-          className="btn btn-secondary text-xs"
+          className="btn btn-secondary text-xs w-full sm:w-auto"
           onClick={() => onChange(weekStartOf(todayISO()))}
           style={{
-            minHeight: 38,
-            height: 38,
+            minHeight: 36,
+            height: 36,
             borderRadius: "var(--radius-full)",
             padding: "0 14px",
+            justifyContent: "center",
           }}
         >
           Semana actual
