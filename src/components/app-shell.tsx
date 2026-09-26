@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useToast } from "@/components/ui/toast";
 
 const NAV_GROUPS = [
   {
@@ -70,6 +71,8 @@ const LINKS = NAV_GROUPS.flatMap((g) => g.links);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const toast = useToast();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [raceDate, setRaceDate] = useState("26/04/2027");
   const current = LINKS.find((l) => l.href === pathname);
@@ -79,6 +82,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const triggerGlobalRefresh = () => {
     setIsGlobalRefreshing(true);
     window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+    router.refresh();
+    toast.push("success", "Datos y métricas actualizados");
     setTimeout(() => setIsGlobalRefreshing(false), 900);
   };
 

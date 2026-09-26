@@ -27,11 +27,10 @@ export function StatCard({
   const t = TONE_STYLES[tone];
   return (
     <div
-      className="surface surface-interactive flex flex-col justify-between"
+      className="surface surface-interactive flex flex-col justify-between w-full overflow-hidden"
       style={{
-        padding: "var(--space-4)",
+        padding: "var(--space-3)",
         position: "relative",
-        overflow: "hidden",
       }}
     >
       {/* Top subtle tone line */}
@@ -49,13 +48,14 @@ export function StatCard({
       )}
 
       <div>
-        <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+        <div className="flex items-center justify-between gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
           <span
+            className="truncate"
             style={{
-              fontSize: "0.7rem",
+              fontSize: "0.68rem",
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: "0.06em",
+              letterSpacing: "0.05em",
               color: "var(--color-text-muted)",
             }}
           >
@@ -64,8 +64,8 @@ export function StatCard({
           {icon && (
             <div
               style={{
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 borderRadius: "var(--radius-sm)",
                 display: "flex",
                 alignItems: "center",
@@ -81,9 +81,9 @@ export function StatCard({
         </div>
 
         <div
-          className="tabular-nums font-bold"
+          className="tabular-nums font-bold truncate"
           style={{
-            fontSize: "1.75rem",
+            fontSize: "clamp(1.25rem, 4vw, 1.65rem)",
             letterSpacing: "-0.03em",
             color: tone === "neutral" ? "var(--color-text)" : t.color,
             lineHeight: 1.1,
@@ -95,12 +95,14 @@ export function StatCard({
 
       {sublabel && (
         <div
-          className="text-xs text-muted"
+          className="text-xs text-muted truncate"
+          title={sublabel}
           style={{
             marginTop: "var(--space-2)",
-            paddingTop: "var(--space-2)",
+            paddingTop: "var(--space-1)",
             borderTop: "1px solid var(--color-border)",
-            lineHeight: 1.4,
+            fontSize: "0.7rem",
+            lineHeight: 1.35,
           }}
         >
           {sublabel}

@@ -197,7 +197,7 @@ export default function ResumenPage() {
 
       {raceDate && (
         <div
-          className="surface flex items-center justify-between gap-3 animate-in"
+          className="surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in w-full overflow-hidden"
           style={{
             padding: "var(--space-3) var(--space-4)",
             marginBottom: "var(--space-4)",
@@ -206,11 +206,11 @@ export default function ResumenPage() {
             borderRadius: "var(--radius-lg)",
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div
               style={{
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 borderRadius: "var(--radius-md)",
                 background: "var(--color-brand)",
                 color: "#ffffff",
@@ -221,21 +221,21 @@ export default function ResumenPage() {
                 flexShrink: 0,
               }}
             >
-              <Flag size={18} />
+              <Flag size={17} />
             </div>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-muted">
+            <div className="min-w-0">
+              <div className="text-xs font-bold uppercase tracking-wider text-muted truncate">
                 Objetivo Principal · Maratón
               </div>
-              <div className="font-extrabold text-sm sm:text-base">
+              <div className="font-extrabold text-xs sm:text-base truncate">
                 Faltan <span style={{ color: "var(--color-brand)" }}>{daysUntilRace(raceDate)} días</span> ({raceDate})
               </div>
             </div>
           </div>
           <Link
             href="/objetivos"
-            className="btn btn-secondary text-xs"
-            style={{ minHeight: 34, height: 34, padding: "0 12px", borderRadius: "var(--radius-full)", flexShrink: 0 }}
+            className="btn btn-secondary text-xs self-start sm:self-auto"
+            style={{ minHeight: 32, height: 32, padding: "0 12px", borderRadius: "var(--radius-full)", flexShrink: 0 }}
           >
             Ver objetivo
           </Link>
@@ -247,14 +247,14 @@ export default function ResumenPage() {
       {loading && <Loading label="Cargando resumen de la semana…" />}
 
       {!loading && summary && (
-        <div className="animate-in grid gap-5">
+        <div className="animate-in grid gap-4 w-full overflow-hidden">
           {coachAssessment && <CoachSummaryCard assessment={coachAssessment} />}
 
           {rec && rec.action !== "mantener" && (
             <div
-              className="surface flex items-start gap-3.5"
+              className="surface flex items-start gap-3.5 w-full"
               style={{
-                padding: "var(--space-4)",
+                padding: "var(--space-3) var(--space-4)",
                 borderLeft: `3px solid ${BANNER_STYLE[ACTION_BANNER[rec.action].tone].color}`,
               }}
             >
@@ -267,21 +267,21 @@ export default function ResumenPage() {
               >
                 {ACTION_BANNER[rec.action].icon}
               </span>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   className="font-semibold text-sm"
                   style={{ color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color }}
                 >
                   {ACTION_BANNER[rec.action].label}
                 </div>
-                <p className="text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
+                <p className="text-xs sm:text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
                   {rec.summary}
                 </p>
               </div>
               <Link
                 href="/recomendaciones"
                 className="btn btn-secondary text-xs"
-                style={{ flexShrink: 0, height: 36 }}
+                style={{ flexShrink: 0, height: 34, minHeight: 34 }}
               >
                 Ver detalle
                 <ArrowRight size={13} />
@@ -290,8 +290,8 @@ export default function ResumenPage() {
           )}
 
           {/* Core Week Metrics Grid */}
-          <div>
-            <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)" }}>
+          <div className="w-full">
+            <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
               <span className="text-xs font-semibold uppercase tracking-wider text-muted">
                 Métricas de la semana
               </span>
@@ -305,7 +305,7 @@ export default function ResumenPage() {
               )}
             </div>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full">
               <StatCard
                 label="Cumplimiento"
                 value={summary.compliancePct !== null ? `${summary.compliancePct.toFixed(0)}%` : "—"}
@@ -347,7 +347,7 @@ export default function ResumenPage() {
           </div>
 
           {/* Secondary stats: Pace & Goals */}
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full">
             <StatCard
               label="Ritmo medio carrera"
               value={fmtPace(summary.runAvgPaceMinKm ?? null)}
@@ -369,10 +369,10 @@ export default function ResumenPage() {
               }
             />
             <StatCard
-              label="Esfuerzo medio (RPE)"
+              label="Esfuerzo medio"
               value={fmt(summary.rpeAvg)}
               icon={<Gauge size={16} />}
-              sublabel="Escala subjetiva 0–10"
+              sublabel="RPE escala 0–10"
             />
             {nextGoal && (
               <StatCard

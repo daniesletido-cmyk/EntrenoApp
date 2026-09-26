@@ -37,20 +37,20 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
 
   return (
     <div
-      className="surface animate-in"
+      className="surface animate-in w-full overflow-hidden"
       style={{
-        padding: "var(--space-5)",
-        marginBottom: "var(--space-6)",
+        padding: "var(--space-3) var(--space-4)",
+        marginBottom: "var(--space-4)",
       }}
     >
       {/* 1. Header con Badge de Entrenador Personal */}
-      <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5" style={{ marginBottom: "var(--space-3)" }}>
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: "var(--radius-md)",
+              width: 34,
+              height: 34,
+              borderRadius: "var(--radius-sm)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -59,13 +59,13 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
               flexShrink: 0,
             }}
           >
-            <Sparkles size={18} />
+            <Sparkles size={17} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span
                 style={{
-                  fontSize: "0.68rem",
+                  fontSize: "0.65rem",
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
@@ -75,12 +75,12 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
                 Informe del Entrenador
               </span>
               {assessment.isCurrentWeek && (
-                <span className="badge badge-brand" style={{ fontSize: "0.65rem", padding: "1px 6px" }}>
+                <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "1px 5px" }}>
                   En curso
                 </span>
               )}
             </div>
-            <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginTop: 2, letterSpacing: "-0.015em" }}>
+            <h2 className="truncate" style={{ fontSize: "var(--text-base)", fontWeight: 700, marginTop: 1, letterSpacing: "-0.015em" }}>
               {coachVerdict.title}
             </h2>
           </div>
@@ -88,15 +88,15 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
 
         {/* Readiness Pill */}
         <div
-          className="flex items-center gap-2"
+          className="flex items-center gap-1.5 self-start sm:self-auto"
           style={{
             background: "var(--color-surface-raised)",
-            padding: "0.35rem 0.75rem",
+            padding: "0.25rem 0.65rem",
             borderRadius: "var(--radius-full)",
             border: "1px solid var(--color-border)",
           }}
         >
-          <Zap size={14} style={{ color: readinessToday.tone === "success" ? "var(--color-success)" : "var(--color-brand)" }} />
+          <Zap size={13} style={{ color: readinessToday.tone === "success" ? "var(--color-success)" : "var(--color-brand)" }} />
           <span className="text-xs text-muted">Readiness:</span>
           <span
             className="font-bold text-xs tabular-nums"
@@ -115,16 +115,15 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
       </div>
 
       {/* 2. Narrativa del Entrenador */}
-      <p className="text-sm text-muted" style={{ lineHeight: 1.6, marginBottom: "var(--space-4)" }}>
+      <p className="text-xs sm:text-sm text-muted" style={{ lineHeight: 1.55, marginBottom: "var(--space-3)" }}>
         {coachVerdict.narrative}
       </p>
 
       {/* 3. Métricas clave en una cuadrícula limpia y minimalista */}
       <div
-        className="grid gap-3"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-2.5"
         style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          marginBottom: "var(--space-4)",
+          marginBottom: "var(--space-3)",
         }}
       >
         {/* Métrica 1: Pico de Carga */}

@@ -193,32 +193,50 @@ export default function EntrenadorPage() {
     }
   };
 
+  // Escuchar refresco global
+  useEffect(() => {
+    function onRefresh() {
+      fetch("/api/coach-assessment?t=" + Date.now(), { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.assessment) {
+            const la = d.assessment.loadAnalysis;
+            const rd = d.assessment.readinessToday;
+            setContextSummary(`Carga: ${la.currentWeekLoad} pts · ACWR: ${la.acwr?.toFixed(2) ?? "—"} · Readiness: ${rd.score}/100`);
+          }
+        })
+        .catch(() => {});
+    }
+    window.addEventListener("entrenoapp:refresh", onRefresh);
+    return () => window.removeEventListener("entrenoapp:refresh", onRefresh);
+  }, []);
+
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", paddingBottom: "var(--space-6)" }}>
+    <div className="w-full max-w-full overflow-x-hidden" style={{ maxWidth: 960, margin: "0 auto", paddingBottom: "var(--space-4)" }}>
       {/* Cabecera */}
       <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
         <PageHeader
           title="Entrenador"
           description="Tu preparador personal y fisiólogo deportivo con acceso a tus datos en vivo."
         />
-        <Button variant="ghost" onClick={resetChat} title="Reiniciar conversación" style={{ fontSize: "var(--text-xs)" }}>
-          <RotateCcw size={14} />
-          Reiniciar chat
+        <Button variant="ghost" onClick={resetChat} title="Reiniciar conversación" style={{ fontSize: "var(--text-xs)", height: 32, minHeight: 32 }}>
+          <RotateCcw size={13} />
+          <span>Reiniciar chat</span>
         </Button>
       </div>
 
       {/* Barra de Contexto Biométrico en Vivo */}
       <div
-        className="surface flex items-center justify-between gap-3"
+        className="surface flex items-center justify-between gap-2.5 w-full"
         style={{
           padding: "var(--space-2) var(--space-3)",
           borderRadius: "var(--radius-md)",
           border: "1px solid var(--color-border)",
           background: "var(--color-brand-subtle)",
-          marginBottom: "var(--space-4)",
+          marginBottom: "var(--space-3)",
         }}
       >
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs min-w-0 flex-1">
           <div
             style={{
               width: 8,
@@ -226,53 +244,46 @@ export default function EntrenadorPage() {
               borderRadius: "50%",
               backgroundColor: "var(--color-success)",
               boxShadow: "0 0 8px var(--color-success)",
+              flexShrink: 0,
             }}
           />
-          <span className="font-semibold text-brand">Datos en tiempo real sincronizados:</span>
-          <span className="text-muted">{contextSummary}</span>
+          <span className="font-semibold text-brand hidden sm:inline flex-shrink-0">Datos en vivo:</span>
+          <span className="text-muted truncate">{contextSummary}</span>
         </div>
 
         <Link
           href="/configuracion"
           className="text-xs text-brand hover:underline flex items-center gap-1 flex-shrink-0"
-          style={{ fontSize: "0.75rem" }}
+          style={{ fontSize: "0.72rem" }}
         >
-          <span>Configuración</span>
-          <ArrowRight size={12} />
+          <span>Configurar</span>
+          <ArrowRight size={11} />
         </Link>
       </div>
 
       {/* Preguntas rápidas sugeridas */}
       <div style={{ marginBottom: "var(--space-3)" }}>
-        <div className="text-xs font-semibold text-muted" style={{ marginBottom: 6 }}>
-          Preguntas frecuentes al entrenador:
+        <div className="text-xs font-semibold text-muted" style={{ marginBottom: 4 }}>
+          Preguntas sugeridas:
         </div>
-        <div className="flex gap-2" style={{ overflowX: "auto", paddingBottom: 4 }}>
+        <div className="flex gap-1.5" style={{ overflowX: "auto", paddingBottom: 4 }}>
           {SUGGESTED_QUESTIONS.map((q, i) => (
             <button
               key={i}
               type="button"
               onClick={() => handleSend(q)}
               disabled={loading}
-              className="badge text-xs"
+              className="badge text-xs flex-shrink-0"
               style={{
                 cursor: "pointer",
-                padding: "0.4rem 0.75rem",
+                padding: "0.35rem 0.65rem",
                 borderRadius: 999,
                 background: "var(--color-surface-raised)",
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text)",
                 whiteSpace: "nowrap",
-                fontSize: "0.75rem",
+                fontSize: "0.72rem",
                 transition: "background 0.15s ease, border-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-brand)";
-                e.currentTarget.style.background = "rgba(47, 111, 235, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border)";
-                e.currentTarget.style.background = "var(--color-surface-raised)";
               }}
             >
               {q}
@@ -283,15 +294,14 @@ export default function EntrenadorPage() {
 
       {/* Ventana de Chat */}
       <div
-        className="surface"
+        className="surface w-full overflow-hidden"
         style={{
           borderRadius: "var(--radius-lg)",
           border: "1px solid var(--color-border)",
           display: "flex",
           flexDirection: "column",
-          minHeight: 380,
-          height: "calc(100dvh - 320px)",
-          maxHeight: 680,
+          minHeight: 340,
+          height: "clamp(340px, 58vh, 680px)",
         }}
       >
         {/* Mensajes */}

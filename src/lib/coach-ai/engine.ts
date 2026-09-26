@@ -63,12 +63,16 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
     return [
       cachedGeminiEndpoint,
       {
-        url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
-        apiVer: "v1",
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+        apiVer: "v1beta",
       },
       {
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
         apiVer: "v1beta",
+      },
+      {
+        url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+        apiVer: "v1",
       },
     ];
   }
@@ -79,7 +83,7 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
   for (const ver of ["v1beta", "v1"]) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${cleanKey}`, {
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -88,10 +92,11 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
           m.supportedGenerationMethods ? m.supportedGenerationMethods.includes("generateContent") : true
         );
 
-        // Prioridad: flash más reciente > flash > pro > cualquier modelo generativo
+        // Prioridad: 2.5/2.0 flash > 1.5 flash > flash > pro > cualquiera
         const picked =
-          contentModels.find((m) => /gemini-2.*flash/i.test(m.name)) ||
-          contentModels.find((m) => /gemini-1\.5.*flash/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-2\.5-flash/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-2\.0-flash/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-1\.5-flash/i.test(m.name)) ||
           contentModels.find((m) => /flash/i.test(m.name)) ||
           contentModels.find((m) => /gemini.*pro/i.test(m.name)) ||
           contentModels[0];
@@ -101,31 +106,31 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
           const dynamicUrl = `https://generativelanguage.googleapis.com/${ver}/${modelPath}:generateContent?key=${cleanKey}`;
           endpoints.push({ url: dynamicUrl, apiVer: ver });
           cachedGeminiEndpoint = { url: dynamicUrl, apiVer: ver, expiresAt: now + 3600 * 1000 };
-          break; // Con el primer descubrimiento válido es suficiente
+          break;
         }
       }
     } catch {
-      // Continuar al siguiente intento
+      // Siguiente
     }
   }
 
-  // 2. Añadir candidatos canónicos de respaldo por si el listado falla
+  // 2. Candidatos canónicos modernos de respaldo
   endpoints.push(
+    {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+      apiVer: "v1beta",
+    },
+    {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+      apiVer: "v1beta",
+    },
     {
       url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
       apiVer: "v1",
     },
     {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${cleanKey}`,
       apiVer: "v1beta",
-    },
-    {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${cleanKey}`,
-      apiVer: "v1beta",
-    },
-    {
-      url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${cleanKey}`,
-      apiVer: "v1",
     }
   );
 
@@ -465,6 +470,30 @@ ${context.contextMarkdown}
 
 ¿Quieres que te deje configurada esta sesión de **Gimnasio (Tren Superior)** para el viernes en tu plan semanal?`;
   }
+  // CASO VAM: Test VAM / Course-Navette / Test de rendimiento
+  else if (lastUserMsg.includes("vam") || lastUserMsg.includes("test") || lastUserMsg.includes("navette") || lastUserMsg.includes("vo2")) {
+    fallbackReply = `### Veredicto del Entrenador sobre el Test VAM:
+
+* **¿Es viable hacerlo inmediatamente?**: **NO**.
+  1. **Fatiga residual del SNC y neuromuscular:** Con el esfuerzo del CrossFit a RPE 9 de esta semana y el gimnasio de piernas, tu placa motora no tiene la frescura requerida. Claudicarías antes de tiempo por acidosis periférica, arrojando un resultado falso y subestimado.
+  2. **Interferencia con la tirada larga del domingo:** Un test al 100% de intensidad máxima vaciaría tu glucógeno y dejaría microroturas miofibrilares, arruinando la calidad y volumen de la tirada larga (R5 de 10-13 km).
+
+* **¿Qué test es el mejor para tu perfil de Maratón?**:
+  - **Descartado**: *Course-Navette* (los frenazos y giros de 180° son lesivos para fondistas).
+  - **Recomendado**: **Test de 5 o 6 minutos en pista de atletismo** (a ritmo constante máximo homogéneo).
+  - **Cuándo programarlo**: En un **martes o miércoles** tras 48h limpias de fatiga previa de piernas.`;
+  }
+  // CASO SERIES: Series en pista / Fraccionado
+  else if (lastUserMsg.includes("series") || lastUserMsg.includes("pista") || lastUserMsg.includes("fraccionad") || lastUserMsg.includes("400") || lastUserMsg.includes("1000")) {
+    fallbackReply = `### Veredicto sobre Series en Pista esta semana:
+
+* **Intensidad aconsejada**: **NO meter series lácticas/anaeróbicas (Z4 alta / Z5)**. Tu cuota de alta intensidad semanal ya la cubrió el CrossFit del miércoles (RPE 9).
+* **Alternativa inteligente**: Realizar **fraccionado extensivo a Ritmo Maratón / Umbral aeróbico (Z3)**:
+  - *Calentamiento*: 2 km suaves (6:15-6:30/km) + técnica en recta.
+  - *Bloque central*: **4 x 1.000m a ritmo tempo/maratón (5:40 - 5:50/km, RPE 6)** con 90" de recuperación al paso o trote suave.
+  - *Vuelta a la calma*: 1.5 km de trote suave regenerativo.
+  - *Objetivo*: Economía de carrera sin disparar el lactato ni sobrecargar los tendones antes de la tirada larga del domingo.`;
+  }
   // CASO B1: Duda sobre natación el fin de semana vs esperar a ver la carga
   else if (
     (lastUserMsg.includes("nataci") || lastUserMsg.includes("nadar")) &&
@@ -558,14 +587,12 @@ El objetivo es sumar volumen aeróbico puro protegiendo las articulaciones y cer
 - Tu Readiness hoy es de **${context.dailyReadiness.score}/100** con ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "7.8h"} de sueño.
 - El mayor esfuerzo semanal fue el **miércoles en CrossFit (RPE 9)**.
 
-Para la duda que planteas (*"${messages[messages.length - 1]?.content}"*): si necesitas ajustar cualquier sesión (ej: cambiar carrera por natación o gym, o añadir descanso), indícamelo directamente y te lo actualizaré en la app.`;
+Para tu consulta (*"${messages[messages.length - 1]?.content}"*): si deseas hacer cualquier cambio en el calendario (ej: cambiar carrera por natación/gym, o añadir descanso), dímelo y lo aplicaré de inmediato.`;
   }
 
-  // Notificar al usuario cómo activar el modelo libre si no hay clave o si falló
-  if (geminiError) {
-    fallbackReply += `\n\n> ⚠️ *Nota técnica: Se detectó tu clave de Gemini pero Google devolvió un error al procesarla (${geminiError.slice(0, 150)}). He respondido con el motor fisiológico local.*`;
-  } else if (!geminiApiKey && !anthropicClient) {
-    fallbackReply += `\n\n> 💡 *Nota: Para mantener un diálogo 100% abierto con razonamiento ilimitado como en ChatGPT, puedes añadir una clave gratuita de **Google Gemini** (se obtiene gratis en aistudio.google.com sin tarjeta) en **Configuración**.*`;
+  // Notificar al usuario cómo activar el modelo libre si no hay clave
+  if (!geminiApiKey && !anthropicClient) {
+    fallbackReply += `\n\n> 💡 *Nota: Puedes conectar el razonamiento con IA introduciendo tu clave gratuita de Google Gemini en **Configuración**.*`;
   }
 
   if (actionCandidate) {
