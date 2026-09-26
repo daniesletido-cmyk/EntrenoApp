@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "@/lib/repo/settings";
-import { buildCoachAthleteContext } from "@/lib/coach-ai/context";
+import { buildCoachAthleteContext, CoachAthleteContext } from "@/lib/coach-ai/context";
 import { executeCoachAction, CoachActionProposal, CoachActionResult } from "@/lib/coach-ai/actions";
 
 export interface ChatMessage {
@@ -79,7 +79,6 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
 
   const endpoints: { url: string; apiVer: string }[] = [];
 
-  // 1. Descubrimiento dinámico consultando a Google la lista de modelos habilitados para esta clave
   for (const ver of ["v1beta", "v1"]) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${cleanKey}`, {
@@ -92,7 +91,6 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
           m.supportedGenerationMethods ? m.supportedGenerationMethods.includes("generateContent") : true
         );
 
-        // Prioridad: 2.5/2.0 flash > 1.5 flash > flash > pro > cualquiera
         const picked =
           contentModels.find((m) => /gemini-2\.5-flash/i.test(m.name)) ||
           contentModels.find((m) => /gemini-2\.0-flash/i.test(m.name)) ||
@@ -114,7 +112,6 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
     }
   }
 
-  // 2. Candidatos canónicos modernos de respaldo
   endpoints.push(
     {
       url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
@@ -140,14 +137,12 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
 async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMessage[]): Promise<string> {
   const cleanKey = apiKey.trim();
 
-  // 1. Filtrar mensajes de bienvenida para que contents empiece SIEMPRE en role: "user"
   const firstUserIndex = messages.findIndex((m) => m.role === "user");
   if (firstUserIndex === -1) {
     return "";
   }
   const relevantMessages = messages.slice(firstUserIndex);
 
-  // 2. Garantizar alternancia estricta user -> model -> user...
   const contents: { role: "user" | "model"; parts: { text: string }[] }[] = [];
   for (const m of relevantMessages) {
     const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
@@ -167,7 +162,6 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
 
   for (const { url, apiVer } of endpoints) {
     try {
-      // Si la API es v1beta, admite system_instruction de primer nivel
       const bodyWithSystem =
         apiVer === "v1beta"
           ? {
@@ -193,7 +187,6 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
         body: JSON.stringify(bodyWithSystem),
       });
 
-      // Si falla por system_instruction en v1beta, reintentar inyectando en el mensaje de usuario
       if (res.status === 400 && apiVer === "v1beta") {
         const errText = await res.text();
         if (errText.includes("system_instruction") || errText.includes("unknown field")) {
@@ -224,7 +217,7 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
         console.warn(`Intento Gemini en ${url} falló (${res.status}):`, errText);
         lastError = new Error(`Gemini error ${res.status}: ${errText}`);
         if (res.status === 404) {
-          cachedGeminiEndpoint = null; // Invalidar caché
+          cachedGeminiEndpoint = null;
         }
         continue;
       }
@@ -258,11 +251,284 @@ function parseCoachActionBlock(rawText: string): { cleanText: string; action?: C
   }
 }
 
+/**
+ * MOTOR DE FISIOLOGÍA LOCAL EXPERTO
+ * Analiza pormenorizadamente cada pregunta del usuario, entiende el contexto de la conversación
+ * y genera respuestas fisiológicas dinámicas basadas en las métricas reales del atleta.
+ */
+function generateLocalExpertResponse(
+  messages: ChatMessage[],
+  context: CoachAthleteContext,
+  isExplicitChangeRequest: boolean
+): { reply: string; actionCandidate?: CoachActionProposal } {
+  const userMessages = messages.filter((m) => m.role === "user");
+  const assistantMessages = messages.filter((m) => m.role === "assistant");
+  const currentMsg = userMessages[userMessages.length - 1]?.content.trim() || "";
+  const lowerMsg = currentMsg.toLowerCase();
+  const prevUserMsg = userMessages.length > 1 ? userMessages[userMessages.length - 2].content.toLowerCase() : "";
+  const prevAssistantMsg = assistantMessages[assistantMessages.length - 1]?.content || "";
+
+  // 1. Detección de intenciones (Intents)
+  const hasVam = /\b(vam|test\s+vam|course[\s-]navette|test\s+de\s+5|test\s+de\s+6|vo2max|test\s+de\s+lactato|test\s+cooper)\b/i.test(lowerMsg);
+  const hasTrackSeries = /\b(series\b|pista|fraccionad\w*|1000m|400m|interval\w*|pasadas|series\s+en\s+pista)\b/i.test(lowerMsg);
+  const hasGymTorso = /\b(tren\s+superior|torso|pecho|espalda|brazo|biceps|triceps|press\b|jal[oó]n|remo\b|deltoides)\b/i.test(lowerMsg);
+  const hasGymLegs = /\b(tren\s+inferior|piernas?|sentadilla|cu[aá]driceps|isquios?|femoral|peso\s+muerto\s+pesado)\b/i.test(lowerMsg);
+  const hasCrossFit = /\b(crossfit|wod|wall\s*balls?|saltos?|peso\s+muerto|box\s*jumps?|burpees?)\b/i.test(lowerMsg);
+  const hasSwimming = /\b(nataci[oó]n|nadar|piscina|nado|crol)\b/i.test(lowerMsg);
+  const hasRest = /\b(descans\w*|parar|reposo|dormir\s+m[aá]s|recuperaci[oó]n\s+total)\b/i.test(lowerMsg);
+  const hasWeekendRunning = /\b(fin\s+de\s+semana|s[aá]bado|domingo|tirada\s+larga|reestructur\w*|carrera\s+del\s+fin)\b/i.test(lowerMsg);
+  const hasFitUploadOrEval = /\b(eval[uú]es?|evalua\w*|qu[eé]\s+tal\s+estoy|c[oó]mo\s+estoy|c[oó]mo\s+me\s+ves|\.fit|he\s+subido|acabo\s+de\s+hacer|cuando\s+meta|cuando\s+suba|he\s+terminado|mis\s+datos)\b/i.test(lowerMsg);
+  const hasSorenessInjury = /\b(molestias?|dolor|sobrecarga|tir[oó]n|s[oó]leo|gemelo|aquiles|tend[oó]n|rodilla|cintilla|fascitis|cargad\w*|agujetas)\b/i.test(lowerMsg);
+  const hasNutrition = /\b(com[eé]r?|cen\w*|desayun\w*|nutrici[oó]n|carbohidratos?|hidratos|geles?|sales|suplement\w*|omega-?3|alergia|frutos\s+secos|pescado|agua|hidrataci[oó]n)\b/i.test(lowerMsg);
+  const hasAcwrLoad = /\b(acwr|0\.54|infracarga|sobrecarga|gabbett|ratio|pts?\s+foster|carga\s+aguda|carga\s+cr[oó]nica|alerta)\b/i.test(lowerMsg);
+  const hasSleepReadiness = /\b(sue[ñn]o|dormir|horas?\s+de\s+sue[ñn]o|readiness|zepp|cansancio|energ[ií]a|despert\w*)\b/i.test(lowerMsg);
+  const hasPaceStrategy = /\b(ritmo\b|marat[oó]n|5:00|5:15|tiempo\s+objetivo|estrategia|abril\s+2027)\b/i.test(lowerMsg);
+  const hasFollowUp = /\b(y\s+entonces|y\s+ma[ñn]ana|qu[eé]\s+hago\s+ahora|ya\s+lo\s+(hice|met[ií]|sub[ií]|termin[eé])|vale|perfecto|entendido|de\s+acuerdo|qu[eé]\s+opinas)\b/i.test(lowerMsg);
+
+  const acuteLoad = context.weeklyAssessment.loadAnalysis.currentWeekLoad;
+  const acwrValue = context.weeklyAssessment.loadAnalysis.acwr !== null ? context.weeklyAssessment.loadAnalysis.acwr.toFixed(2) : "—";
+  const sleepHours = context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "buen descanso";
+  const readinessScore = context.dailyReadiness.score;
+
+  let reply = "";
+  let actionCandidate: CoachActionProposal | undefined;
+
+  // CASO 1: Consulta compuesta de gimnasio hoy + evaluación .fit + reestructuración fin de semana
+  if (hasGymTorso && (hasFitUploadOrEval || hasWeekendRunning)) {
+    reply = `¡Perfecto planteamiento Daniel! Te dejo mi análisis como tu entrenador:
+
+### 1. Sesión de Gimnasio (Tren Superior) de hoy
+* **Excelente elección fisiológica**: Al enfocar la sesión exclusivamente en torso (empuje/tirón: pectoral, dorsal, deltoides, brazos), evitamos generar daño miofibrilar en las piernas (cuádriceps, isquiosururales y sóleos).
+* **Demanda de SNC**: Mantén la intensidad en **RPE 7-8**, dejando 1-2 repeticiones en recámara (RIR 1-2) para no sobrecargar el sistema nervioso central.
+
+### 2. Evaluación de tu estado cuando importes el archivo .fit
+En cuanto metas el archivo \`.fit\` en la app:
+* Computaremos la **duración real y la carga Foster** de la sesión.
+* Comprobaremos tu ratio **ACWR** (actualmente en **${acwrValue}** con **${acuteLoad} pts** acumulados) para verificar que la carga aguda evoluciona dentro del rango seguro.
+* Tu Readiness diario (hoy en **${readinessScore}/100**) se recalculará sumando este estímulo.
+
+### 3. ¿Habrá que reestructurar los entrenos de carrera del fin de semana?
+* **Criterio principal**: Como tu gran meta es la **Maratón (objetivo 5:00-5:15 min/km)**, las tiradas del fin de semana (**Sábado R2 progresivo y Domingo tirada larga R5**) son el pilar más específico e insustituible.
+* **Decisión**: Al trabajar solo tren superior, **en principio NO será necesario recortar ni suspender el fin de semana de carrera**. 
+* **Plan de contingencia**: Si al registrar el entreno tu RPE supera 8.5 o notas fatiga sistémica alta al despertar mañana, ajustaremos el ritmo del sábado a rodaje regenerativo suave (R1) para llegar fresco a la tirada larga del domingo.
+
+¡A por el entreno de torso y cuando subas el .fit lo dejamos todo chequeado!`;
+  }
+
+  // CASO 2: Consulta sobre Test VAM y/o Series en pista
+  else if (hasVam || (hasTrackSeries && (lowerMsg.includes("mañana") || lowerMsg.includes("semana") || lowerMsg.includes("útil") || lowerMsg.includes("viable")))) {
+    const vamSection = hasVam
+      ? `### 1. ¿Es viable y útil hacer un Test VAM de carrera MAÑANA?
+* **Veredicto**: **NO es aconsejable hacerlo mañana**.
+* **Motivo fisiológico**:
+  - Un test de VAM exige el 100% de la capacidad glucolítica y neuromuscular. Si arrastras fatiga de sesiones previas (CrossFit a RPE alto o impacto articular), claudicarás prematuramente por acidosis y fatiga del SNC, dando una VAM subestimada y no válida.
+  - Además, vaciaría tus depósitos de glucógeno e interferiría directamente con la tirada larga del domingo, que es la sesión clave de tu preparación hacia la Maratón.
+* **Test recomendado para tu perfil**:
+  - ❌ **Descartado**: *Course-Navette* (los frenazos y giros continuos de 180° añaden estrés innecesario a tendones y sóleos).
+  - ✅ **Recomendado**: **Test de 5 o 6 minutos en pista de atletismo** a ritmo constante máximo sostenible.
+* **Protocolo previo**: Programarlo en una semana con 48h previas de frescura (ej. tras descanso activo/natación suave), con calentamiento de 15' trote suave (RPE 3-4) + 4 rectas progresivas de 80m.`
+      : "";
+
+    const seriesSection = (hasTrackSeries || hasVam)
+      ? `### 2. ¿Meter esta semana un día de series en pista?
+* **Distribución de intensidad (Regla 80/20)**:
+  - En tu modelo concurrente (Carrera + CrossFit + Natación), la cuota de alta intensidad anaeróbica/láctica semanal ya queda cubierta con las clases de CrossFit.
+  - Añadir series agónicas en pista (Z4/Z5 láctica) dispararía el riesgo de sobreentrenamiento y sobrecarga tendinosa.
+* **Estructura fraccionada recomendada**:
+  - En lugar de series anaeróbicas, realiza un **fraccionado extensivo a Ritmo Maratón / Umbral aeróbico (Z3)**:
+  - **Estructura**: *2 km calentamiento suave + 4 x 1.000m a ritmo tempo (5:35 - 5:45 min/km, RPE 6) con 90" de recuperación al trote + 1.5 km vuelta a la calma*.
+  - **Mejor ubicación**: Jueves o viernes, siempre que no coincida en el mismo día con sentadillas pesadas en CrossFit.`
+      : "";
+
+    reply = `${vamSection}\n\n${seriesSection}`.trim();
+  }
+
+  // CASO 3: Molestias musculares, tendones o prevención de lesiones
+  else if (hasSorenessInjury) {
+    const area = lowerMsg.includes("sóleo") || lowerMsg.includes("soleo")
+      ? "el sóleo"
+      : lowerMsg.includes("gemelo")
+      ? "los gemelos"
+      : lowerMsg.includes("aquiles")
+      ? "el tendón de Aquiles"
+      : lowerMsg.includes("rodilla") || lowerMsg.includes("cintilla")
+      ? "la rodilla / cintilla iliotibial"
+      : "la zona muscular sobrecargada";
+
+    reply = `### Protocolo del Entrenador para sobrecarga en ${area}:
+
+1. **Diagnóstico y principio de prudencia**:
+   - Con el volumen de carrera acumulado y el impacto de los saltos/pesas en CrossFit, ${area} absorbe una gran carga elástica.
+   - Si la molestia es una sobrecarga difusa (RPE ≤ 4 en dolor), podemos hacer **descarga activa**. Si hay dolor punzante al apoyar, suspender impacto de inmediato.
+
+2. **Acción para hoy**:
+   - **Sustituir impacto por Natación (N1 · 35-40 min)** o **trabajo de movilidad + tren superior**.
+   - El agua genera vasoconstricción/vasodilatación natural, drenando el edema sin estrés de impacto sobre ${area}.
+   - Aplicar automasaje suave con foam roller en la fascia circundante (nunca directamente sobre la inserción del tendón inflamado) y contrastes de agua fría.
+
+3. **Impacto en el fin de semana**:
+   - Monitorizaremos cómo evoluciona en las próximas 24h. Si mañana la molestia remite por completo, mantendremos la tirada a ritmo muy cómodo; de lo contrario, convertiremos el entreno en sesión de nado o descanso.`;
+
+    actionCandidate = {
+      type: "modify_session",
+      date: context.today,
+      toDiscipline: "natacion",
+      plannedCode: "N1",
+      durationMin: 35,
+      notes: `Descarga activa en natación pautada por sobrecarga en ${area}`,
+      summary: `Cambiar sesión de hoy a Natación suave (35 min) para descargar ${area}`,
+    };
+  }
+
+  // CASO 4: Consulta sobre cambio o planificación de Natación
+  else if (hasSwimming) {
+    const isWeekendTarget = lowerMsg.includes("sabado") || lowerMsg.includes("sábado") || lowerMsg.includes("domingo") || lowerMsg.includes("fin de semana");
+    const isConsultation = lowerMsg.includes("opinas") || lowerMsg.includes("ves") || lowerMsg.includes("esperamos") || lowerMsg.includes("crees");
+
+    if (isWeekendTarget && isConsultation) {
+      reply = `Mi criterio como tu entrenador es claro: **de momento mantengamos el plan del fin de semana y no metamos natación sábado/domingo**.
+
+### Razonamiento fisiológico:
+1. **Especificidad Maratón**: Para correr los 42 km a 5:00-5:15 min/km necesitas acumular adaptaciones tendinosas y eficiencia neuromuscular en bipedestación (impacto cíclico controlado). La natación es un recuperador articular fantástico, pero no sustituye el rodaje del fin de semana.
+2. **Evaluemos la respuesta a las sesiones intermedias**:
+   - Hoy y mañana completaremos las sesiones pautadas.
+   - Si al despertar el sábado tu Readiness está alto y las piernas no están sobrecargadas, saldremos a rodar.
+   - Si arrastras pesadez o fatiga articular el sábado, entonces sí modificaremos sobre la marcha a **Natación N1 (40 min)**.`;
+    } else {
+      actionCandidate = {
+        type: "modify_session",
+        date: context.today,
+        toDiscipline: "natacion",
+        plannedCode: "N1",
+        durationMin: 40,
+        notes: "Natación regenerativa suave (RPE 4-5) pautada para descarga articular y metabólica",
+        summary: "Cambiar la sesión de hoy a Natación regenerativa (N1 · 40 min)",
+      };
+
+      if (isExplicitChangeRequest) {
+        reply = `¡Hecho, Daniel! He actualizado tu plan directamente en la app a **Natación (N1 · 40 min)**.
+
+**Pautas para la sesión de nado:**
+* Enfoque: Regenerativo suave (**RPE 4-5**), buscando soltar musculatura y descomprimir columna y caderas tras el CrossFit.
+* Trabajo continuo de crol con pausas cada 100-200m, prestando atención a la amplitud de brazada y respiración bilateral.
+* No pases de 40 minutos para no añadir fatiga glucolítica antes de las tiradas de carrera del fin de semana.`;
+      } else {
+        reply = `Analizando tu estado de carga (**${acuteLoad} pts Foster** acumulados esta semana y Readiness de **${readinessScore}/100**):
+
+Meter **Natación hoy** es una **excelente decisión de descarga activa**, siempre que:
+1. La mantengas en zona aeróbica ligera (**RPE 4-5**) sin series al sprint.
+2. Te centres en la movilidad escapular y descompresión articular tras las sesiones de fuerza/CrossFit.
+3. No superes los 35-40 minutos de nado para que tus piernas lleguen 100% preparadas al bloque de carrera del fin de semana.
+
+¿Quieres que te deje aplicada esta sesión de Natación en el calendario de hoy?`;
+      }
+    }
+  }
+
+  // CASO 5: Descanso total o descanso activo
+  else if (hasRest) {
+    actionCandidate = {
+      type: "set_rest_day",
+      date: context.today,
+      toDiscipline: "descanso",
+      summary: "Marcar la sesión de hoy como Descanso Total",
+    };
+
+    if (isExplicitChangeRequest) {
+      reply = `¡Hecho! He configurado tu día de hoy como **Descanso Total** en la app. Con **${acuteLoad} pts Foster** acumulados en la semana, tu cuerpo aprovechará hoy para supercompensar, reponer glucógeno y reparar fibras musculares de cara al fin de semana.`;
+    } else {
+      reply = `Tomar hoy como **día de descanso** es una decisión muy sensata si sientes acumulación de fatiga. 
+* Llevas **${acuteLoad} pts Foster** acumulados en la semana.
+* Un día de descanso completo o un paseo ligero (descanso activo) reducirá la fatiga del SNC y asegurará que rindas al máximo en las sesiones del fin de semana.
+
+Si deseas que lo configure en la app, tienes el botón directo aquí abajo.`;
+    }
+  }
+
+  // CASO 6: Nutrición, Hidratación o Suplementación
+  else if (hasNutrition) {
+    reply = `### Pautas Nutricionales Adaptadas a tu Perfil:
+
+* **Tus requerimientos y exclusiones**:
+  - ⚠️ **Alergia estricta**: Cero frutos secos (nuez, avellana, almendra).
+  - ⚠️ **Sin pescado**: Aporte de ácidos grasos Omega-3 mediante suplementación diaria pautada.
+* **Cena previa a tirada larga o entreno exigente**:
+  - Carbohidratos complejos de fácil digestión: arroz blanco o pasta con aceite de oliva virgen extra, pechuga de pollo/pavo o huevos.
+  - Evitar exceso de fibra cruda o legumbres la noche anterior para prevenir molestias gastrointestinales durante la carrera.
+* **Desayuno el día de la tirada**:
+  - 2h a 2h30 antes de correr: Tostadas de pan blanco con mermelada/miel o avena cocida, más café o té y 400ml de agua con una pizca de sales.
+* **Estrategia intra-entreno (carrera > 60 min)**:
+  - 1 gel energético cada 40-45 minutos + pequeños sorbos de agua para entrenar el estómago de cara a la Maratón.`;
+  }
+
+  // CASO 7: Sueño, Recuperación y Readiness
+  else if (hasSleepReadiness) {
+    reply = `### Análisis de tu Descanso y Readiness de Hoy:
+
+* **Puntuación de Readiness**: **${readinessScore}/100 (${context.dailyReadiness.levelLabel})**.
+* **Sueño registrado (Zepp)**: **${sleepHours}** (Score Zepp: ${context.dailyReadiness.stats.sleepScore ?? "82"}/100).
+* **Diagnóstico fisiológico**: ${context.dailyReadiness.headline}.
+* **Recomendación para hoy**: ${context.dailyReadiness.coachAdvice}
+* **Recordatorio médico clave**: Daniel, recuerda que tu frecuencia cardíaca de reposo es naturalmente elevada (~100 lpm). Tu indicador de intensidad siempre debe ser el **RPE (escala 1-10) y el ritmo en min/km**, nunca las pulsaciones del reloj.`;
+  }
+
+  // CASO 8: Ratio ACWR y Mecánica de Carga
+  else if (hasAcwrLoad) {
+    reply = `### Diagnóstico del Ratio ACWR (**${acwrValue}** - Infracarga / Precaución):
+
+* **¿Por qué marca este valor?**
+  - El algoritmo de Tim Gabbett compara la carga de los últimos 7 días (aguda) con la media de las últimas 4 semanas (crónica).
+  - Al estar a mitad de semana con **${acuteLoad} pts Foster**, el ratio matemático es temporalmente inferior a 0.80 porque faltan por computar las sesiones clave de carrera del fin de semana.
+* **¿Hay riesgo lesional?**: **En absoluto**. No estás desentrenado ni sobrecargado; es simplemente la evolución natural de la semana en curso.
+* **Pauta a seguir**: Completa las sesiones programadas respetando los ritmos aeróbicos marcados y el ratio se equilibrará dentro de la zona óptima (**0.80 - 1.30**) al cerrar el domingo.`;
+  }
+
+  // CASO 9: Ritmo objetivo y Estrategia Maratón
+  else if (hasPaceStrategy) {
+    reply = `### Estrategia hacia tu 2ª Maratón (${context.profile.marathonDate || "26 de abril de 2027"}):
+
+* **Ritmo objetivo en carrera**: **5:00 - 5:15 min/km** (tiempo estimado: 3h30 - 3h41).
+* **Fase actual**: **${context.profile.currentPhase || "Fase 1a (Base aeróbica + Hipertrofia)"}**.
+* **Criterios de ritmo en tus entrenamientos actuales**:
+  - **R1 (Regenerativo)**: 6:15 - 6:40 min/km (RPE 3-4, conversación sin esfuerzo).
+  - **R2 (Aeróbico medio / Progresivo)**: 5:35 - 5:55 min/km (RPE 5-6).
+  - **R5 (Tirada larga de volumen)**: 5:45 - 6:10 min/km (RPE 4-5, foco en economía de carrera y utilización de grasas).
+  - **Ritmo Maratón específico**: 5:00 - 5:15 min/km (lo introduciremos en bloques controlados en fases más avanzadas).`;
+  }
+
+  // CASO 10: Continuación conversacional / Respuestas breves
+  else if (hasFollowUp && prevAssistantMsg) {
+    reply = `Entendido Daniel. Siguiendo lo que hablábamos:
+
+* Tu carga semanal actual es de **${acuteLoad} pts Foster** en ${context.weeklyAssessment.sessionsProgress.completedCount} sesiones, con un Readiness hoy de **${readinessScore}/100**.
+* Si estás listo para el entrenamiento programado, ejecútalo controlando el RPE y mantén una buena hidratación.
+* Si necesitas que ajuste cualquier sesión del plan o cree un registro alternativo, dímelo y lo configuramos al instante.`;
+  }
+
+  // CASO GENERAL DINÁMICO (Para cualquier otra consulta específica)
+  else {
+    const todaySessionInfo = context.upcomingSessions.find((s) => s.date === context.today);
+    reply = `He analizado tu consulta y el estado actual de tu preparación Daniel:
+
+### Resumen de tu estado en vivo:
+* **Carga de entrenamiento semanal**: **${acuteLoad} pts Foster** acumulados (${context.weeklyAssessment.sessionsProgress.completedCount} sesiones realizadas).
+* **Readiness de hoy**: **${readinessScore}/100 (${context.dailyReadiness.levelLabel})**, con **${sleepHours}** de sueño registrado.
+* **Sesión prevista para hoy**: ${todaySessionInfo ? `${todaySessionInfo.discipline.toUpperCase()} (${todaySessionInfo.planned_code || "Entreno pautado"} · ${todaySessionInfo.duration_min || 45} min)` : "Día sin sesión pautada / Descanso"}.
+
+### Criterio del Entrenador para tu consulta:
+Respecto a *"${currentMsg}"*:
+* Recuerda que el gran objetivo macro es tu **Maratón a ritmo 5:00-5:15 min/km**, combinada con fuerza y salud articular.
+* Guíate siempre por tu **RPE y ritmo por kilómetro**, manteniendo la disciplina en los descansos y la nutrición.
+* Si deseas que aplique un cambio específico en tu calendario (pasar a natación, modificar volumen, o añadir descanso), indícamelo expresamente o usa las opciones del chat.`;
+  }
+
+  return { reply, actionCandidate };
+}
+
 export async function askCoachAI(messages: ChatMessage[], todayParam?: string): Promise<CoachAIResponse> {
   const context = buildCoachAthleteContext(todayParam);
   const anthropicClient = getAnthropicClient();
   const geminiApiKey = getGeminiApiKey();
-  let geminiError: string | null = null;
 
   const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
   const isExplicitChangeRequest = checkIsExplicitChangeOrder(lastUserMsg);
@@ -332,7 +598,6 @@ ${context.contextMarkdown}
       };
     } catch (err: unknown) {
       console.error("Error llamando a Google Gemini API:", err);
-      geminiError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -431,182 +696,26 @@ ${context.contextMarkdown}
     // Continuar a motor local experto
   }
 
-  // 4. MOTOR DE FISIOLOGÍA LOCAL EXPERTO (Cubre consultas específicas con rigor deportivo)
-  let fallbackReply = "";
-  let actionCandidate: CoachActionProposal | undefined;
+  // 4. MOTOR DE FISIOLOGÍA LOCAL EXPERTO
+  const { reply: localReply, actionCandidate } = generateLocalExpertResponse(messages, context, isExplicitChangeRequest);
+  let finalReply = localReply;
 
-  // CASO A: Gimnasio / Tren Superior / Torso / Peso Muerto
-  if (
-    lastUserMsg.includes("tren superior") ||
-    lastUserMsg.includes("torso") ||
-    (lastUserMsg.includes("gimnasio") && (lastUserMsg.includes("superior") || lastUserMsg.includes("viernes") || lastUserMsg.includes("pecho") || lastUserMsg.includes("espalda"))) ||
-    lastUserMsg.includes("peso muerto")
-  ) {
-    const targetDate = "2026-09-25"; // Viernes
-    actionCandidate = {
-      type: "modify_session",
-      date: targetDate,
-      toDiscipline: "gimnasio",
-      plannedCode: "TORSO",
-      durationMin: 50,
-      notes: "Gimnasio Tren Superior (Empuje/Tirón) pautado tras el CrossFit de peso muerto",
-      summary: "Programar Gimnasio Tren Superior (Torso) para el viernes 25",
-    };
-
-    fallbackReply = `Meter **tren superior en el gimnasio el viernes** es una **excelente decisión estratégica**.
-
-### Por qué encaja a la perfección con tu semana:
-1. **Frescura muscular total**: El miércoles en la clase de CrossFit el estímulo principal fue **peso muerto y core** (alta demanda en cadena posterior, glúteos, erectores espinales y flexores). Tus grupos de empuje y tirón de tren superior (pectoral, dorsal, deltoides y brazos) están completamente descansados y sin daño miofibrilar residual.
-2. **Protección absoluta para el fin de semana**: Al trabajar torso el viernes evitas añadir fatiga a las piernas (nada de sentadillas ni peso muerto pesado). Esto permite que tus cuádriceps, gemelos e isquiosururales lleguen frescos para el bloque clave de carrera del fin de semana (**sábado R2 progresivo y domingo tirada larga R5**).
-
-### Pauta recomendada para la sesión del viernes:
-* **Enfoque**: Hipertrofia funcional / Fuerza de empuje y tirón a **RPE 7-8**.
-* **Ejercicios prioritarios**:
-  - *Press banca o press plano con mancuernas*: 4 series × 8-10 reps.
-  - *Remo en máquina o con apoyo en pecho*: 4 series × 10 reps (el soporte en pecho evita sobrecargar la zona lumbar fatigada por el peso muerto).
-  - *Jalón al pecho o dominadas*: 3-4 series × 8-12 reps.
-  - *Elevaciones laterales + face pulls*: 3 series × 12-15 reps (estabilidad escapular).
-* **Duración**: ~45-50 min sin llegar al fallo concéntrico extremo.
-
-¿Quieres que te deje configurada esta sesión de **Gimnasio (Tren Superior)** para el viernes en tu plan semanal?`;
-  }
-  // CASO VAM: Test VAM / Course-Navette / Test de rendimiento
-  else if (lastUserMsg.includes("vam") || lastUserMsg.includes("test") || lastUserMsg.includes("navette") || lastUserMsg.includes("vo2")) {
-    fallbackReply = `### Veredicto del Entrenador sobre el Test VAM:
-
-* **¿Es viable hacerlo inmediatamente?**: **NO**.
-  1. **Fatiga residual del SNC y neuromuscular:** Con el esfuerzo del CrossFit a RPE 9 de esta semana y el gimnasio de piernas, tu placa motora no tiene la frescura requerida. Claudicarías antes de tiempo por acidosis periférica, arrojando un resultado falso y subestimado.
-  2. **Interferencia con la tirada larga del domingo:** Un test al 100% de intensidad máxima vaciaría tu glucógeno y dejaría microroturas miofibrilares, arruinando la calidad y volumen de la tirada larga (R5 de 10-13 km).
-
-* **¿Qué test es el mejor para tu perfil de Maratón?**:
-  - **Descartado**: *Course-Navette* (los frenazos y giros de 180° son lesivos para fondistas).
-  - **Recomendado**: **Test de 5 o 6 minutos en pista de atletismo** (a ritmo constante máximo homogéneo).
-  - **Cuándo programarlo**: En un **martes o miércoles** tras 48h limpias de fatiga previa de piernas.`;
-  }
-  // CASO SERIES: Series en pista / Fraccionado
-  else if (lastUserMsg.includes("series") || lastUserMsg.includes("pista") || lastUserMsg.includes("fraccionad") || lastUserMsg.includes("400") || lastUserMsg.includes("1000")) {
-    fallbackReply = `### Veredicto sobre Series en Pista esta semana:
-
-* **Intensidad aconsejada**: **NO meter series lácticas/anaeróbicas (Z4 alta / Z5)**. Tu cuota de alta intensidad semanal ya la cubrió el CrossFit del miércoles (RPE 9).
-* **Alternativa inteligente**: Realizar **fraccionado extensivo a Ritmo Maratón / Umbral aeróbico (Z3)**:
-  - *Calentamiento*: 2 km suaves (6:15-6:30/km) + técnica en recta.
-  - *Bloque central*: **4 x 1.000m a ritmo tempo/maratón (5:40 - 5:50/km, RPE 6)** con 90" de recuperación al paso o trote suave.
-  - *Vuelta a la calma*: 1.5 km de trote suave regenerativo.
-  - *Objetivo*: Economía de carrera sin disparar el lactato ni sobrecargar los tendones antes de la tirada larga del domingo.`;
-  }
-  // CASO B1: Duda sobre natación el fin de semana vs esperar a ver la carga
-  else if (
-    (lastUserMsg.includes("nataci") || lastUserMsg.includes("nadar")) &&
-    (lastUserMsg.includes("sabado") ||
-      lastUserMsg.includes("domingo") ||
-      lastUserMsg.includes("fin de semana") ||
-      lastUserMsg.includes("esperamos") ||
-      lastUserMsg.includes("opinas"))
-  ) {
-    fallbackReply = `Mi recomendación como tu entrenador personal es clara: **esperemos y de momento no toquemos el fin de semana**.
-
-### ¿Por qué mantener el plan y esperar?
-1. **La prioridad absoluta es tu Maratón**: Las sesiones del sábado (rodaje progresivo R2) y domingo (tirada larga R5) son el núcleo de tu preparación de carrera. La natación es un fantástico recuperador articular y metabólico, pero no genera el impacto ni las adaptaciones neuromusculares y óseas que necesitas para los 42 km.
-2. **Evaluemos primero las sesiones de hoy y mañana**:
-   - Hoy tienes prevista sesión de carrera y mañana viernes tenemos pautado gimnasio/nado complementario.
-   - Lo más inteligente es ver cómo asimilas ambas cargas, cómo responde tu musculatura tras el pico de CrossFit del miércoles y cómo amanece tu **Readiness** el sábado.
-3. **Estrategia y plan de contingencia**:
-   - Si tras la sesión de hoy o mañana sientes sobrecarga en sóleos/lumbares o fatiga excesiva, entonces sí podemos transformar el entreno del sábado o domingo en natación suave (**N1 · 40 min**).
-   - Si tus piernas responden bien, mantendremos las zapatillas puestas para seguir sumando hacia tu objetivo.`;
-  }
-  // CASO B2: Natación hoy o cambio directo
-  else if (lastUserMsg.includes("nataci") || lastUserMsg.includes("nadar")) {
-    actionCandidate = {
-      type: "modify_session",
-      date: context.today,
-      toDiscipline: "natacion",
-      plannedCode: "N1",
-      durationMin: 40,
-      notes: "Natación regenerativa suave (RPE 4-5) pautada por el entrenador para descarga articular tras CrossFit",
-      summary: "Cambiar la sesión de hoy a Natación (N1 · 40 min)",
-    };
-
-    if (isExplicitChangeRequest) {
-      fallbackReply = `¡Hecho, Daniel! He actualizado tu plan directamente en la app. He cambiado la sesión prevista de hoy a **Natación (N1 · 40 min)**.
-
-**Pauta para la sesión de nado:**
-1. Ritmo continuo y suave (**RPE 4-5**) sin series agónicas para no sumar fatiga neuromuscular.
-2. Céntrate en la movilidad escapular y descompresión de columna y caderas tras la carga de CrossFit de ayer.
-3. No superes los 40 minutos para llegar fresco a las tiradas del fin de semana.`;
-    } else {
-      fallbackReply = `Como tu entrenador, analizando tu semana veo que llevas **${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts Foster** acumulados y tuviste el pico de carga el miércoles con CrossFit (RPE 9). 
-
-Meter natación hoy es una **excelente idea como descarga activa**, siempre y cuando:
-1. La enfoques a ritmo suave y continuo (RPE 4-5) para no sumar fatiga neuromuscular.
-2. Te centres en la movilidad escapular y descompresión tras los impactos articulares.
-3. No superes los 35-40 minutos de nado para llegar fresco a las tiradas del fin de semana.`;
-    }
-  }
-  // CASO C: Descanso
-  else if (lastUserMsg.includes("descanso") || lastUserMsg.includes("descansar") || lastUserMsg.includes("parar")) {
-    actionCandidate = {
-      type: "set_rest_day",
-      date: context.today,
-      toDiscipline: "descanso",
-      summary: "Marcar la sesión de hoy como Descanso Total",
-    };
-
-    if (isExplicitChangeRequest) {
-      fallbackReply = `De acuerdo, Daniel. He actualizado tu plan de hoy a **Descanso Total**. Con el pico de CrossFit de ayer y el volumen que tenemos programado para sábado y domingo, tu cuerpo asimilará la carga y llegarás con las piernas listas para el fin de semana.`;
-    } else {
-      fallbackReply = `Si notas pesadez muscular o sobrecarga articular, tomar hoy como **descanso total o activo (paseo ligero)** es una decisión inteligente. Protegerá las adaptaciones del pico de CrossFit y te asegurará máxima energía para las carreras del sábado y domingo.`;
-    }
-  }
-  // CASO D: Ratio ACWR y Alertas
-  else if (lastUserMsg.includes("acwr") || lastUserMsg.includes("alerta") || lastUserMsg.includes("0.54") || lastUserMsg.includes("precauci")) {
-    fallbackReply = `Tu ratio ACWR actual marca **${context.weeklyAssessment.loadAnalysis.acwr?.toFixed(2) ?? "0.54"} (Infracarga / Precaución)**.
-
-**¿Por qué te sale esto?**
-Porque estamos a mitad de semana y solo llevas computadas las sesiones de lunes a miércoles. El algoritmo compara estos 3-4 días con la media de una semana completa de 7 días (carga crónica). Al faltar los entrenamientos del fin de semana, matemáticamente da menos de 0.80.
-
-**Veredicto**: No hay riesgo de fatiga ni sobrecarga. Simplemente cumple las sesiones pautadas para sábado y domingo a intensidades controladas y el ratio volverá a la zona óptima (0.80 - 1.30).`;
-  }
-  // CASO E: Sueño y Readiness
-  else if (lastUserMsg.includes("sueño") || lastUserMsg.includes("dormir") || lastUserMsg.includes("readiness") || lastUserMsg.includes("cansad")) {
-    fallbackReply = `Tu estado de preparación (**Readiness**) para hoy es de **${context.dailyReadiness.score}/100 (${context.dailyReadiness.levelLabel})**.
-
-Anoche registraste **${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)} horas de descanso` : "buen descanso"}** (Score Zepp: ${context.dailyReadiness.stats.sleepScore ?? "82"}/100).
-Estás en un buen tono físico para asimilar la sesión de hoy. Recuerda Daniel: tu pulso no debe ser el baremo; guíate estrictamente por tus sensaciones y RPE.`;
-  }
-  // CASO F: Fin de semana y Tirada larga
-  else if (lastUserMsg.includes("fin de semana") || lastUserMsg.includes("sabado") || lastUserMsg.includes("domingo") || lastUserMsg.includes("tirada")) {
-    fallbackReply = `**Estrategia para el fin de semana**:
-- **Sábado**: Rodaje progresivo (R2) buscando ganar consistencia a ritmo alegre de maratón pero sin vaciar el tanque.
-- **Domingo**: Tirada larga (R5) a ritmo completamente conversacional y cómodo (RPE 4-5).
-El objetivo es sumar volumen aeróbico puro protegiendo las articulaciones y cerrando la semana en la franja ideal de carga.`;
-  }
-  // CASO GENERAL: Análisis del estado actual
-  else {
-    fallbackReply = `Analizando tu estado actual Daniel:
-- Llevas **${context.weeklyAssessment.sessionsProgress.completedCount} sesiones completadas** esta semana con **${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts Foster**.
-- Tu Readiness hoy es de **${context.dailyReadiness.score}/100** con ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "7.8h"} de sueño.
-- El mayor esfuerzo semanal fue el **miércoles en CrossFit (RPE 9)**.
-
-Para tu consulta (*"${messages[messages.length - 1]?.content}"*): si deseas hacer cualquier cambio en el calendario (ej: cambiar carrera por natación/gym, o añadir descanso), dímelo y lo aplicaré de inmediato.`;
-  }
-
-  // Notificar al usuario cómo activar el modelo libre si no hay clave
   if (!geminiApiKey && !anthropicClient) {
-    fallbackReply += `\n\n> 💡 *Nota: Puedes conectar el razonamiento con IA introduciendo tu clave gratuita de Google Gemini en **Configuración**.*`;
+    finalReply += `\n\n> 💡 *Nota: Si deseas conectar razonamiento generativo ilimitado en la nube, puedes añadir tu clave gratuita de Google Gemini en **Configuración**.*`;
   }
 
   if (actionCandidate) {
     if (isExplicitChangeRequest) {
       const applied = executeCoachAction(actionCandidate);
       return {
-        reply: fallbackReply,
+        reply: finalReply,
         contextSummary: `Carga: ${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts · ACWR: ${context.weeklyAssessment.loadAnalysis.acwr?.toFixed(2) ?? "—"} · Sueño: ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "—"}`,
         appliedAction: applied,
         isAiPowered: false,
       };
     } else {
       return {
-        reply: fallbackReply,
+        reply: finalReply,
         contextSummary: `Carga: ${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts · ACWR: ${context.weeklyAssessment.loadAnalysis.acwr?.toFixed(2) ?? "—"} · Sueño: ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "—"}`,
         proposedAction: actionCandidate,
         isAiPowered: false,
@@ -615,7 +724,7 @@ Para tu consulta (*"${messages[messages.length - 1]?.content}"*): si deseas hace
   }
 
   return {
-    reply: fallbackReply,
+    reply: finalReply,
     contextSummary: `Carga: ${context.weeklyAssessment.loadAnalysis.currentWeekLoad} pts · ACWR: ${context.weeklyAssessment.loadAnalysis.acwr?.toFixed(2) ?? "—"} · Sueño: ${context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "—"}`,
     isAiPowered: false,
   };
