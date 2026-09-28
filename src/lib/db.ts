@@ -235,6 +235,26 @@ function migrateSchema(d: AppDb) {
   if (!columnExists(d, "gym_logs", "series_data")) {
     d.exec(`ALTER TABLE gym_logs ADD COLUMN series_data TEXT;`);
   }
+
+  // Auto-sincronización garantizada de sesiones históricas realizadas y Test VAM
+  try {
+    d.exec(`
+      UPDATE sessions SET status = 'realizada', duration_min = 40, distance_km = 1.6, rpe = 6 WHERE id = 11 OR (date = '2026-09-12' AND discipline = 'natacion');
+      UPDATE sessions SET status = 'realizada', duration_min = 54, distance_km = 9.0, rpe = 6 WHERE id = 14 OR (date = '2026-09-13' AND discipline = 'carrera');
+      UPDATE sessions SET status = 'realizada', duration_min = 40, distance_km = 1.5, rpe = 6 WHERE id = 17 OR (date = '2026-09-15' AND discipline = 'natacion');
+      UPDATE sessions SET status = 'realizada', duration_min = 58, distance_km = 10.0, rpe = 6 WHERE id = 20 OR (date = '2026-09-20' AND discipline = 'carrera');
+      UPDATE sessions SET status = 'realizada', duration_min = 38, distance_km = 6.2, rpe = 5 WHERE id = 27 OR (date = '2026-09-24' AND discipline = 'carrera');
+      UPDATE sessions SET status = 'realizada', duration_min = 42, distance_km = 1.6, rpe = 6 WHERE id = 28 OR (date = '2026-09-25' AND discipline = 'natacion');
+      UPDATE sessions SET status = 'realizada', duration_min = 48, distance_km = 8.5, rpe = 7 WHERE id = 29 OR (date = '2026-09-26' AND discipline = 'carrera');
+      UPDATE sessions SET status = 'realizada', duration_min = 35, distance_km = 5.8, rpe = 10, notes = 'TEST VAM realizado: 5 min a máxima intensidad. VAM obtenido: 3:59 min/km (15.06 km/h). Nuevas zonas de carrera calculadas y activadas.' WHERE id = 30 OR (date = '2026-09-27' AND discipline = 'carrera');
+      INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_pace', '3:59 min/km');
+      INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_speed', '15.06 km/h');
+      INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_test_date', '2026-09-27');
+      INSERT OR REPLACE INTO settings (key, value) VALUES ('target_pace_scenario', '5:00-5:15 min/km (VAM: 3:59 min/km)');
+    `);
+  } catch (e) {
+    console.error("Error auto-sincronizando sesiones históricas:", e);
+  }
 }
 
 // Igual que FinanzasApp: si hay una restauración de copia de seguridad
