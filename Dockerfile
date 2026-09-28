@@ -9,6 +9,7 @@ RUN node scripts/copy-standalone-assets.mjs
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
 ENV PORT=10000
 
 COPY package*.json ./
