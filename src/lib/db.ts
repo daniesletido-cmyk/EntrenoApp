@@ -11,15 +11,25 @@ let db: DatabaseSync | null = null;
 
 function resolveDbPath(): string {
   // En la app de escritorio (Electron), main.cjs fijará DB_PATH a la carpeta
-  // de datos de usuario de Windows (userData). En desarrollo, usamos ./data.
+  // de datos de usuario de Windows (userData). En desarrollo o nube, usamos ./data.
+  let targetPath = path.join(process.cwd(), "data", "entrenoapp.db");
   if (process.env.DB_PATH) {
-    const dir = path.dirname(process.env.DB_PATH);
-    fs.mkdirSync(dir, { recursive: true });
-    return process.env.DB_PATH;
+    targetPath = process.env.DB_PATH;
   }
-  const dir = path.join(process.cwd(), "data");
+  const dir = path.dirname(targetPath);
   fs.mkdirSync(dir, { recursive: true });
-  return path.join(dir, "entrenoapp.db");
+
+  if (!fs.existsSync(targetPath)) {
+    const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
+    if (fs.existsSync(seedPath)) {
+      try {
+        fs.copyFileSync(seedPath, targetPath);
+      } catch (e) {
+        console.error("Error copiando seed de base de datos:", e);
+      }
+    }
+  }
+  return targetPath;
 }
 
 function toPlainObject<T>(row: T): T {
