@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy } from "lucide-react";
+import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy, Calendar, Activity, ArrowDown } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -103,6 +103,7 @@ interface SessionLite {
   discipline: string;
   planned_code: string | null;
   status: string;
+  notes?: string | null;
 }
 
 interface GymPreviewRow {
@@ -160,20 +161,31 @@ export default function GimnasioPage() {
       }
       setPrsMap(prMap);
 
-      const gymSession: SessionLite | undefined = (sessionsRes.sessions ?? []).find(
+      const allTodaySessions: SessionLite[] = sessionsRes.sessions ?? [];
+      const gymSession: SessionLite | undefined = allTodaySessions.find(
         (s: SessionLite) => s.discipline === "gimnasio"
       );
-      setScheduledSession(gymSession ?? null);
+      const otherSession: SessionLite | undefined = allTodaySessions.find(
+        (s: SessionLite) => s.discipline !== "descanso"
+      ) || allTodaySessions[0];
+
+      setScheduledSession(gymSession ?? otherSession ?? null);
 
       let matchedDay: GymDay | null = null;
-      if (gymSession?.planned_code) {
-        const code = String(gymSession.planned_code).trim().toLowerCase();
+      if (gymSession) {
+        const code = String(gymSession.planned_code || "").trim().toLowerCase();
+        const notes = String(gymSession.notes || "").trim().toLowerCase();
+        
         matchedDay =
           loadedDays.find((d) => d.name.trim().toLowerCase() === code) ||
-          loadedDays.find((d) => d.name.trim().toLowerCase().startsWith(code)) ||
-          loadedDays.find((d) => d.name.trim().toLowerCase().includes(code)) ||
-          loadedDays.find((d) => code.includes(d.name.trim().toLowerCase())) ||
-          null;
+          loadedDays.find((d) => {
+            const dName = d.name.toLowerCase();
+            if ((code.includes("día a") || code.includes("dia a")) && (dName.includes("día a") || dName.includes("dia a"))) return true;
+            if ((code.includes("día b") || code.includes("dia b") || code.includes("superior") || code.includes("torso")) && (dName.includes("día b") || dName.includes("dia b") || dName.includes("superior") || dName.includes("torso"))) return true;
+            if ((code.includes("inferior") || code.includes("pierna") || code.includes("full body")) && (dName.includes("inferior") || dName.includes("pierna") || dName.includes("full body"))) return true;
+            return dName.includes(code) || code.includes(dName) || notes.includes(dName);
+          }) ||
+          (loadedDays.length > 0 ? loadedDays[0] : null);
       }
       setScheduledGymDay(matchedDay);
 
@@ -627,83 +639,199 @@ export default function GimnasioPage() {
 
       {!loading && days.length > 0 && (
         <div className="animate-in grid gap-5">
-          {/* Banner de Rutina Activa para hoy */}
-          {scheduledGymDay && (
+          {/* 1. CASO A: Hoy SÍ toca Gimnasio */}
+          {scheduledGymDay ? (
             <div
-              className="surface"
+              className="surface animate-in"
               style={{
                 padding: "var(--space-4)",
+                borderRadius: "var(--radius-lg, 12px)",
+                border: "1px solid",
                 borderColor: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
-                background: completionPct === 100 ? "rgba(34, 197, 94, 0.05)" : "rgba(47, 111, 235, 0.05)",
+                background:
+                  completionPct === 100
+                    ? "linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(34, 197, 94, 0.03) 100%)"
+                    : "linear-gradient(135deg, rgba(47, 111, 235, 0.14) 0%, rgba(47, 111, 235, 0.04) 100%)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--space-3)",
+                boxShadow: "0 6px 24px -4px rgba(0, 0, 0, 0.25)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap" }}>
+                <div className="flex items-start gap-3">
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "var(--radius-md)",
+                      background: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
+                      color: "#ffffff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      boxShadow: completionPct === 100 ? "0 0 16px rgba(34, 197, 94, 0.4)" : "0 0 16px rgba(47, 111, 235, 0.4)",
+                    }}
+                  >
+                    <Dumbbell size={22} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: completionPct === 100 ? "rgba(34, 197, 94, 0.25)" : "rgba(47, 111, 235, 0.25)",
+                          color: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
+                          fontWeight: 700,
+                          fontSize: "0.72rem",
+                        }}
+                      >
+                        {completionPct === 100 ? "✓ Sesión Completada" : "⚡ ¡Hoy te toca Gimnasio!"}
+                      </span>
+                      <span className="font-bold text-base" style={{ letterSpacing: "-0.01em" }}>
+                        {scheduledGymDay.name}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted" style={{ marginTop: 4, maxWidth: 540 }}>
+                      {completionPct === 100
+                        ? "¡Gran trabajo! Has registrado y completado todos los ejercicios programados para hoy."
+                        : "Tu sesión de fuerza está lista para hoy. Introduce los pesos y repeticiones realizados en cada serie para actualizar tus marcas."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="ghost"
+                    onClick={copyActiveGymRoutine}
+                    style={{ padding: "0.35rem 0.75rem", fontSize: "var(--text-xs)" }}
+                    title="Copiar rutina para Notas"
+                  >
+                    {copiedRoutine ? (
+                      <Check size={14} style={{ color: "var(--color-success)" }} />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                    <span>{copiedRoutine ? "Copiada" : "Copiar rutina"}</span>
+                  </Button>
+
+                  <Button
+                    variant={selectedDayId !== scheduledGymDay.id ? "primary" : "secondary"}
+                    onClick={() => {
+                      if (selectedDayId !== scheduledGymDay.id) {
+                        setSelectedDayId(scheduledGymDay.id);
+                      }
+                      document.getElementById("rutina-ejercicios")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    style={{ padding: "0.35rem 0.85rem", fontSize: "var(--text-xs)" }}
+                  >
+                    <ArrowDown size={14} />
+                    <span>{selectedDayId !== scheduledGymDay.id ? "Empezar rutina de hoy" : "Ver ejercicios"}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Barra de progreso de la sesión de hoy */}
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold" style={{ marginBottom: 4 }}>
+                  <span className="text-muted">Progreso de la sesión:</span>
+                  <span style={{ color: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)" }}>
+                    {completedCount} de {dayExercises.length} ejercicios completados ({completionPct}%)
+                  </span>
+                </div>
+                <div
+                  style={{
+                    width: "100%",
+                    height: 7,
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                    borderRadius: 999,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${completionPct}%`,
+                      height: "100%",
+                      backgroundColor: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* 2. CASO B: Hoy NO toca Gimnasio */
+            <div
+              className="surface animate-in"
+              style={{
+                padding: "var(--space-4)",
+                borderRadius: "var(--radius-lg, 12px)",
+                border: "1px solid var(--color-border)",
+                background: "var(--color-surface)",
                 display: "flex",
                 flexDirection: "column",
                 gap: "var(--space-3)",
               }}
             >
-              <div className="flex items-center justify-between gap-3" style={{ flexWrap: "wrap" }}>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="badge"
+              <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap" }}>
+                <div className="flex items-start gap-3">
+                  <div
                     style={{
-                      backgroundColor: completionPct === 100 ? "rgba(34, 197, 94, 0.2)" : "rgba(47, 111, 235, 0.2)",
-                      color: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
-                      fontWeight: 700,
+                      width: 42,
+                      height: 42,
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--color-surface-raised)",
+                      border: "1px solid var(--color-border)",
+                      color: "var(--color-text-muted)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
-                    {completionPct === 100 ? "✓ Sesión Completada" : "⚡ Rutina Activa Hoy"}
-                  </span>
-                  <span className="font-semibold text-base">{scheduledGymDay.name}</span>
+                    <Calendar size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="badge badge-neutral"
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "0.72rem",
+                        }}
+                      >
+                        📅 Hoy no tienes Gimnasio programado
+                      </span>
+                      {scheduledSession && (
+                        <span className="text-xs text-muted">
+                          Entreno de hoy: <strong style={{ color: "var(--color-text)" }}>{scheduledSession.discipline.toUpperCase()}{scheduledSession.planned_code ? ` (${scheduledSession.planned_code})` : ""}</strong>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted" style={{ marginTop: 4, maxWidth: 580 }}>
+                      Hoy tu plan no tiene pautada sesión de pesas. Puedes consultar aquí abajo tus estadísticas de fuerza, marcas históricas (PR) y evolución de cargas en cada ejercicio, o seleccionar una rutina si deseas registrar un entrenamiento libre.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted font-medium">
-                    {completedCount} de {dayExercises.length} ejercicios completados ({completionPct}%)
-                  </span>
+
+                <div className="flex items-center gap-2">
                   <Button
-                    variant="ghost"
-                    onClick={copyActiveGymRoutine}
-                    style={{ padding: "0.25rem 0.65rem", fontSize: "var(--text-xs)" }}
-                    title="Copiar rutina para Notas"
+                    variant="secondary"
+                    onClick={() => {
+                      document.getElementById("rutina-ejercicios")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    style={{ padding: "0.35rem 0.75rem", fontSize: "var(--text-xs)" }}
                   >
-                    {copiedRoutine ? (
-                      <Check size={13} style={{ color: "var(--color-success)" }} />
-                    ) : (
-                      <Copy size={13} />
-                    )}
-                    {copiedRoutine ? "Copiada a Notas" : "Copiar rutina"}
+                    <Activity size={14} />
+                    <span>Ver estadísticas y marcas ↓</span>
                   </Button>
-                  {selectedDayId !== scheduledGymDay.id && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => setSelectedDayId(scheduledGymDay.id)}
-                      style={{ padding: "0.25rem 0.65rem", fontSize: "var(--text-xs)" }}
-                    >
-                      Ver rutina activa
-                    </Button>
-                  )}
                 </div>
-              </div>
-              <div
-                style={{
-                  width: "100%",
-                  height: 6,
-                  backgroundColor: "rgba(255, 255, 255, 0.08)",
-                  borderRadius: 999,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${completionPct}%`,
-                    height: "100%",
-                    backgroundColor: completionPct === 100 ? "var(--color-success)" : "var(--color-brand)",
-                    transition: "width 0.3s ease",
-                  }}
-                />
               </div>
             </div>
           )}
 
-          <div className="section-group" style={{ marginBottom: 0 }}>
+          <div id="rutina-ejercicios" className="section-group" style={{ marginBottom: 0 }}>
             <div className="flex items-center gap-3" style={{ flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
               <span className="label" style={{ marginBottom: 0 }}>
                 Día
