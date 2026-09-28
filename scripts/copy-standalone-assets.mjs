@@ -22,6 +22,7 @@ function copyRecursive(src, dest) {
 
 copyRecursive(path.join(root, "public"), path.join(standaloneDir, "public"));
 copyRecursive(path.join(root, ".next", "static"), path.join(standaloneDir, ".next", "static"));
+copyRecursive(path.join(root, "seed"), path.join(standaloneDir, "seed"));
 
 function replaceSymlinksWithRealFiles(dir) {
   if (!fs.existsSync(dir)) return;
