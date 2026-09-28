@@ -62,8 +62,9 @@ const NAV_GROUPS = [
 const BOTTOM_NAV = [
   { href: "/", label: "Resumen", icon: LayoutDashboard },
   { href: "/hoy", label: "Hoy", icon: Sun },
-  { href: "/entrenador", label: "Entrenador", icon: Bot },
+  { href: "/gimnasio", label: "Gimnasio", icon: Dumbbell },
   { href: "/plan-semanal", label: "Plan", icon: CalendarRange },
+  { href: "/entrenador", label: "Entrenador", icon: Bot },
   { href: "/registro", label: "Registro", icon: ClipboardList },
 ];
 
@@ -314,7 +315,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           style={{
             pointerEvents: "auto",
             margin: "0 auto",
-            maxWidth: 420,
+            maxWidth: 460,
             background: "var(--color-surface-translucent)",
             backdropFilter: "blur(24px)",
             WebkitBackdropFilter: "blur(24px)",
@@ -322,8 +323,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             borderRadius: "var(--radius-full)",
             boxShadow: "0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
             display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
-            padding: "5px 6px",
+            gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
+            padding: "4px 4px",
           }}
         >
           {BOTTOM_NAV.map((item) => {
@@ -340,7 +341,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 2,
-                  minHeight: 48,
+                  minHeight: 46,
+                  padding: "4px 2px",
                   borderRadius: "var(--radius-full)",
                   background: active ? "var(--color-brand)" : "transparent",
                   color: active ? "#ffffff" : "var(--color-text-muted)",
@@ -348,15 +350,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
                   textDecoration: "none",
                   position: "relative",
+                  overflow: "hidden",
                 }}
               >
-                <Icon size={17} strokeWidth={active ? 2.4 : 1.9} />
+                <Icon size={16} strokeWidth={active ? 2.4 : 1.9} />
                 <span
                   style={{
-                    fontSize: "0.65rem",
+                    fontSize: "0.62rem",
                     fontWeight: active ? 700 : 500,
                     letterSpacing: "-0.01em",
                     lineHeight: 1,
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
                   }}
                 >
                   {item.label}
