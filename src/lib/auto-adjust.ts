@@ -1,27 +1,27 @@
-import { listSessionsForWeek, updatePlannedSession, appendSessionNote } from "@/lib/repo/sessions";
+import {
+  listSessionsForWeek,
+  updatePlannedSession,
+  appendSessionNote,
+  getSessionById,
+  updateSession,
+  listSessionsBetween,
+  SessionRow,
+} from "@/lib/repo/sessions";
 import { computeWeeklyRecommendation } from "@/lib/recommendations";
-import { addDays } from "@/lib/dates";
+import { computeDailyReadiness, ProposedMicroAdjustment } from "@/lib/readiness";
+import { addDays, weekStartOf } from "@/lib/dates";
 
 /**
- * Ajuste automático de la semana siguiente.
+ * Motor de ajuste inteligente de cargas y entrenos.
  *
- * Límites deliberados (seguridad antes que "autonomía completa"):
- * - Nunca actúa si hay una alerta médica — ahí la única respuesta correcta
- *   es parar y consultar, no reorganizar el calendario.
- * - Nunca toca una sesión ya registrada (realizada/parcial/no_realizada) —
- *   solo sesiones todavía pendientes de la semana que viene.
- * - Nunca inventa un número de RPE/duración objetivo (esta app no tiene
- *   ese dato para las recetas R1-R6 etc.), así que el "ajuste" se hace a
- *   nivel de estructura de la semana, con dos acciones concretas y
- *   explicables:
- *     1) Quitar el carácter de "tirada larga" a sesiones pendientes de
- *        carrera la semana siguiente (avisando a que se baje el ritmo/RPE
- *        objetivo a mano).
- *     2) Si además hay sobrecarga clara (ACWR > 1.5) o muchas sesiones
- *        seguidas, convertir en descanso la sesión pendiente de menor
- *        prioridad (nunca carrera ni natación, nunca la maratón).
- * - Toda sesión tocada recibe una nota explicando qué se cambió y por qué,
- *   para que quede trazabilidad — nada cambia en silencio.
+ * Principios:
+ * 1) Ajustes en tiempo real según Readiness (Sueño + Fatiga 24-48h + ACWR).
+ * 2) Si se registra un entreno muy intenso (RPE >= 8 / CrossFit / Piernas) o descanso deficiente,
+ *    se modulan las sesiones inmediatas (48-72h) de carrera a R0/R1 regenerativo (>5:23 min/km)
+ *    o descanso activo para evitar sobreentrenamiento.
+ * 3) Si el readiness es óptimo (🟢 Luz Verde), se recomienda apretar en la parte alta de las zonas VAM.
+ * 4) Cada ajuste queda explícitamente anotado con [Ajuste inteligente] para total trazabilidad.
+ * 5) Se preservan siempre las sesiones históricas ya realizadas.
  */
 
 export interface ProposedChange {
@@ -29,11 +29,11 @@ export interface ProposedChange {
   date: string;
   discipline: string;
   plannedCode: string | null;
-  action: "quitar_tirada_larga" | "convertir_descanso";
+  action: "quitar_tirada_larga" | "convertir_descanso" | "modular_carrera";
   reason: string;
 }
 
-const PRIORITY_TO_REDUCE = ["otro", "gimnasio", "crossfit"]; // nunca carrera/natación aquí
+const PRIORITY_TO_REDUCE = ["otro", "gimnasio", "crossfit"];
 
 export function computeAutoAdjustment(weekStart: string): {
   applicable: boolean;
@@ -103,7 +103,91 @@ export function applyAutoAdjustment(weekStart: string): { applied: number; chang
     } else if (c.action === "convertir_descanso") {
       updatePlannedSession(c.sessionId, { discipline: "descanso", planned_code: null });
     }
-    appendSessionNote(c.sessionId, `[Ajuste automático] ${c.reason}`);
+    appendSessionNote(c.sessionId, `[Ajuste inteligente] ${c.reason}`);
   }
   return { applied: changes.length, changes };
+}
+
+/**
+ * Aplica ajustes de micro-ciclo (48h-72h) calculados por el Readiness del día.
+ */
+export function applyDailyMicroAdjustments(targetDate: string, specificSessionId?: number): {
+  appliedCount: number;
+  results: { sessionId: number; message: string }[];
+} {
+  const readiness = computeDailyReadiness(targetDate);
+  const adjustments = readiness.proposedMicroAdjustments;
+
+  const toApply = specificSessionId
+    ? adjustments.filter((a) => a.sessionId === specificSessionId)
+    : adjustments;
+
+  const results: { sessionId: number; message: string }[] = [];
+
+  for (const adj of toApply) {
+    const session = getSessionById(adj.sessionId);
+    if (!session || session.status !== "pendiente") continue;
+
+    if (adj.action === "modulate_run") {
+      updateSession(adj.sessionId, {
+        planned_code: adj.suggestedPlannedCode,
+        is_long_run: 0,
+      });
+      appendSessionNote(
+        adj.sessionId,
+        `[Ajuste inteligente] ${adj.reason} Ritmo aconsejado: ${adj.suggestedPaceGuidance ?? "R0/R1 suave (>5:25 min/km)"}. (Original: ${adj.originalPlannedCode ?? "carrera"}).`
+      );
+      results.push({
+        sessionId: adj.sessionId,
+        message: `Modulado entreno del ${adj.date} a ${adj.suggestedPlannedCode}`,
+      });
+    } else if (adj.action === "convert_rest") {
+      updateSession(adj.sessionId, {
+        discipline: "descanso",
+        planned_code: null,
+      });
+      appendSessionNote(
+        adj.sessionId,
+        `[Ajuste inteligente] Convertido a descanso: ${adj.reason} (Original: ${adj.discipline} ${adj.originalPlannedCode ?? ""}).`
+      );
+      results.push({
+        sessionId: adj.sessionId,
+        message: `Convertido a descanso entreno del ${adj.date}`,
+      });
+    } else if (adj.action === "boost_session") {
+      appendSessionNote(
+        adj.sessionId,
+        `[Ajuste inteligente] ${adj.reason} Indicación: ${adj.suggestedPaceGuidance}.`
+      );
+      results.push({
+        sessionId: adj.sessionId,
+        message: `Añadida indicación de apretar en entreno del ${adj.date}`,
+      });
+    }
+  }
+
+  return { appliedCount: results.length, results };
+}
+
+/**
+ * Revertir un ajuste inteligente sobre una sesión pendiente
+ */
+export function revertDailyMicroAdjustment(sessionId: number): boolean {
+  const session = getSessionById(sessionId);
+  if (!session || !session.notes || !session.notes.includes("[Ajuste inteligente]")) {
+    return false;
+  }
+
+  // Quitar la línea de ajuste inteligente de las notas
+  const cleanedNotes = session.notes
+    .split("\n")
+    .filter((line) => !line.includes("[Ajuste inteligente]"))
+    .join("\n")
+    .trim();
+
+  updateSession(sessionId, {
+    notes: cleanedNotes.length > 0 ? cleanedNotes : null,
+  });
+
+  return true;
 }

@@ -1,0 +1,13 @@
+{
+	"appId": "com.javatec.entrenoapp",
+	"appName": "EntrenoApp",
+	"webDir": "out",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"android": {
+		"allowMixedContent": true
+	},
+	"packageClassList": []
+}

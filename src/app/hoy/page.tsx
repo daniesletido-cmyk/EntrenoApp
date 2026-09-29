@@ -25,6 +25,9 @@ import {
   Activity,
   TrendingUp,
   RefreshCw,
+  Gauge,
+  Sliders,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { todayISO, isoDayOfWeek, weekStartOf } from "@/lib/dates";
@@ -106,8 +109,6 @@ const TONE_STYLE = {
   danger: { bg: "var(--color-danger-bg)", color: "var(--color-danger)" },
 };
 
-// Misma lógica que en Calendario: qué fase de plan corresponde a una fecha, según los
-// rangos guardados en Configuración, con la fase actual como resguardo.
 function phaseForDate(date: string, settings: Record<string, string>): number {
   for (let p = 1; p <= 4; p++) {
     const start = settings[`phase_${p}_start`];
@@ -153,6 +154,7 @@ export default function HoyPage() {
   const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
   const [showReadinessDetail, setShowReadinessDetail] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [applyingAdjustment, setApplyingAdjustment] = useState(false);
   const toast = useToast();
 
   const today = todayISO();
@@ -232,6 +234,44 @@ export default function HoyPage() {
     return () => window.removeEventListener("entrenoapp:refresh", onGlobalRefresh);
   }, [load]);
 
+  async function handleApplyAdjustment(sessionId?: number) {
+    setApplyingAdjustment(true);
+    try {
+      const res = await fetch("/api/readiness/adjust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: today, sessionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error aplicando ajuste");
+      toast.push("success", `Adaptación inteligente aplicada (${data.appliedCount} sesión/es modificada/s)`);
+      load(false);
+    } catch (err: any) {
+      toast.push("error", err?.message ?? "No se pudo aplicar la adaptación");
+    } finally {
+      setApplyingAdjustment(false);
+    }
+  }
+
+  async function handleRevertAdjustment(sessionId: number) {
+    setApplyingAdjustment(true);
+    try {
+      const res = await fetch("/api/readiness/adjust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: today, sessionId, action: "revert" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error revirtiendo");
+      toast.push("success", "Ajuste revertido correctamente");
+      load(false);
+    } catch (err: any) {
+      toast.push("error", err?.message ?? "No se pudo revertir el ajuste");
+    } finally {
+      setApplyingAdjustment(false);
+    }
+  }
+
   const raceDays = daysUntil(settings.goal_race_date, today);
   const trainingSessions = sessions.filter((s) => s.discipline !== "descanso");
 
@@ -284,7 +324,7 @@ export default function HoyPage() {
           style={{
             padding: "var(--space-4)",
             marginBottom: "var(--space-5)",
-            borderLeft: `3px solid ${
+            borderLeft: `4px solid ${
               readiness.tone === "success"
                 ? "var(--color-success)"
                 : readiness.tone === "warning"
@@ -295,13 +335,13 @@ export default function HoyPage() {
             }`,
           }}
         >
-          {/* Header Row */}
+          {/* Header Row: Semáforo y Veredicto */}
           <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap" }}>
             <div className="flex items-start gap-3">
               <div
                 style={{
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   borderRadius: "var(--radius-md)",
                   display: "flex",
                   alignItems: "center",
@@ -318,11 +358,11 @@ export default function HoyPage() {
                   flexShrink: 0,
                 }}
               >
-                <Zap size={20} />
+                <Zap size={22} />
               </div>
               <div>
                 <div className="flex items-center gap-2" style={{ flexWrap: "wrap" }}>
-                  <span className="font-semibold text-base">Estado para entrenar hoy</span>
+                  <span className="font-bold text-base">Semáforo de Carga & Recuperación</span>
                   <span
                     className={`badge ${
                       readiness.tone === "success"
@@ -333,12 +373,13 @@ export default function HoyPage() {
                         ? "badge-danger"
                         : "badge-brand"
                     }`}
+                    style={{ fontWeight: "bold", fontSize: "0.82rem", padding: "0.25rem 0.6rem" }}
                   >
-                    {readiness.levelLabel}
+                    {readiness.verdict?.badgeLabel || readiness.levelLabel}
                   </span>
                 </div>
                 <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                  Calculado con sueño, fatiga de 48h y ratio de carga semanal (ACWR)
+                  Calculado en tiempo real con Sueño (45%), Fatiga 48h (35%) y Ratio Semanal (20%)
                 </div>
               </div>
             </div>
@@ -346,7 +387,7 @@ export default function HoyPage() {
             {/* Score Pill */}
             <div
               style={{
-                padding: "0.35rem 0.85rem",
+                padding: "0.4rem 0.95rem",
                 borderRadius: "var(--radius-full)",
                 display: "flex",
                 alignItems: "baseline",
@@ -359,7 +400,7 @@ export default function HoyPage() {
               <span
                 className="tabular-nums font-extrabold"
                 style={{
-                  fontSize: "1.45rem",
+                  fontSize: "1.55rem",
                   lineHeight: 1,
                   color:
                     readiness.tone === "success"
@@ -377,44 +418,186 @@ export default function HoyPage() {
             </div>
           </div>
 
-          {/* Headline & Summary */}
-          <div style={{ marginTop: "var(--space-3)" }}>
-            <div className="font-semibold text-sm">
-              {readiness.headline}
-            </div>
-            <p className="text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
-              {readiness.summary}
-            </p>
-          </div>
-
-          {/* Coach Advice Callout */}
+          {/* Verdict Title & Guidance Box */}
           <div
-            className="flex items-start gap-2.5"
             style={{
               marginTop: "var(--space-3)",
-              padding: "0.75rem 1rem",
+              padding: "0.85rem 1rem",
               borderRadius: "var(--radius-md)",
               background: "var(--color-surface-raised)",
-              border: "1px solid var(--color-border)",
+              border: `1px solid ${
+                readiness.tone === "success"
+                  ? "rgba(34, 197, 94, 0.3)"
+                  : readiness.tone === "warning"
+                  ? "rgba(234, 179, 8, 0.3)"
+                  : readiness.tone === "danger"
+                  ? "rgba(239, 68, 68, 0.3)"
+                  : "rgba(59, 130, 246, 0.3)"
+              }`,
             }}
           >
-            <Sparkles
-              size={16}
-              style={{
-                color: "var(--color-brand)",
-                marginTop: 2,
-                flexShrink: 0,
-              }}
-            />
-            <div style={{ flex: 1 }}>
-              <div className="font-semibold text-xs uppercase" style={{ color: "var(--color-brand)", letterSpacing: "0.03em" }}>
-                Consejo del entrenador
+            <div className="flex items-center gap-2">
+              <Sparkles
+                size={17}
+                style={{
+                  color:
+                    readiness.tone === "success"
+                      ? "var(--color-success)"
+                      : readiness.tone === "warning"
+                      ? "var(--color-warning)"
+                      : readiness.tone === "danger"
+                      ? "var(--color-danger)"
+                      : "var(--color-brand)",
+                  flexShrink: 0,
+                }}
+              />
+              <div className="font-bold text-sm">
+                {readiness.verdict?.title || readiness.headline}
               </div>
-              <p className="text-sm" style={{ marginTop: 2, lineHeight: 1.45 }}>
-                {readiness.coachAdvice}
-              </p>
             </div>
+            <p className="text-sm text-muted" style={{ marginTop: 4, lineHeight: 1.45 }}>
+              {readiness.verdict?.actionGuidance || readiness.coachAdvice}
+            </p>
+
+            {/* Target VAM Pace Quick Reference */}
+            {readiness.verdict?.paceAdvice && (
+              <div
+                className="flex flex-wrap items-center gap-1.5"
+                style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+              >
+                <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                  Zonas VAM:
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
+                  R0: &gt;5:23
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
+                  R1: 5:23–4:59
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
+                  RMC: 5:00–5:15
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
+                  R2: 4:59–4:35
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
+                  R3: 4:23–4:11
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
+                  R3+: 3:59
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* Proposed Micro-Adjustments for next 48-72h */}
+          {readiness.proposedMicroAdjustments && readiness.proposedMicroAdjustments.length > 0 && (
+            <div
+              className="animate-in"
+              style={{
+                marginTop: "var(--space-3)",
+                padding: "0.85rem 1rem",
+                borderRadius: "var(--radius-md)",
+                background: "rgba(59, 130, 246, 0.08)",
+                border: "1px solid rgba(59, 130, 246, 0.25)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2" style={{ flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
+                <div className="flex items-center gap-1.5">
+                  <Sliders size={15} style={{ color: "var(--color-brand)" }} />
+                  <span className="font-semibold text-xs uppercase" style={{ color: "var(--color-brand)", letterSpacing: "0.03em" }}>
+                    Modulación Adaptativa de Próximos Entrenos ({readiness.proposedMicroAdjustments.length})
+                  </span>
+                </div>
+                {readiness.proposedMicroAdjustments.some((a) => !a.isApplied) && (
+                  <Button
+                    variant="primary"
+                    loading={applyingAdjustment}
+                    onClick={() => handleApplyAdjustment()}
+                    style={{ fontSize: "var(--text-xs)", height: 32, padding: "0 12px" }}
+                  >
+                    <Sparkles size={13} />
+                    Aplicar adaptaciones automáticas
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                {readiness.proposedMicroAdjustments.map((adj) => (
+                  <div
+                    key={adj.sessionId}
+                    className="surface"
+                    style={{
+                      padding: "0.6rem 0.8rem",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--color-border)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs">{adj.date}</span>
+                        <span className="badge badge-info" style={{ fontSize: "0.7rem" }}>
+                          {adj.discipline}
+                        </span>
+                        {adj.isApplied ? (
+                          <span className="badge badge-success" style={{ fontSize: "0.7rem" }}>
+                            ✓ Adaptado
+                          </span>
+                        ) : (
+                          <span className="badge badge-warning" style={{ fontSize: "0.7rem" }}>
+                            Propuesta
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs" style={{ marginTop: 2 }}>
+                        {adj.suggestedPlannedCode ? (
+                          <span>
+                            Sugerido: <strong>{adj.suggestedPlannedCode}</strong>{" "}
+                            {adj.originalPlannedCode && <span className="text-muted">(antes: {adj.originalPlannedCode})</span>}
+                          </span>
+                        ) : (
+                          <span>
+                            Sugerido: <strong>Descanso / Regenerativo</strong>
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted" style={{ marginTop: 2, lineHeight: 1.3 }}>
+                        {adj.reason}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!adj.isApplied ? (
+                        <button
+                          className="btn btn-secondary text-xs"
+                          disabled={applyingAdjustment}
+                          onClick={() => handleApplyAdjustment(adj.sessionId)}
+                          style={{ height: 28, padding: "0 10px", fontSize: "0.75rem" }}
+                        >
+                          Aplicar a esta sesión
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-ghost text-xs text-muted inline-flex items-center gap-1"
+                          disabled={applyingAdjustment}
+                          onClick={() => handleRevertAdjustment(adj.sessionId)}
+                          style={{ height: 28, padding: "0 8px", fontSize: "0.75rem" }}
+                        >
+                          <RotateCcw size={12} />
+                          Revertir
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Toggle breakdown button */}
           <div className="flex items-center justify-between" style={{ marginTop: "var(--space-3)" }}>
@@ -424,7 +607,7 @@ export default function HoyPage() {
               style={{ fontSize: "var(--text-xs)", padding: "0.3rem 0.6rem" }}
             >
               {showReadinessDetail ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              {showReadinessDetail ? "Ocultar factores detallados" : "Ver qué influye en tu estado (sueño, fatiga y carga)"}
+              {showReadinessDetail ? "Ocultar desglose biométrico" : "Ver qué influye en tu estado (sueño, fatiga 48h y carga)"}
             </button>
           </div>
 

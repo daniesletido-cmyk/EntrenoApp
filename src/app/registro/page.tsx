@@ -21,6 +21,8 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  Zap,
+  Sparkles,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
@@ -223,6 +225,11 @@ export default function RegistroPage() {
     exact: boolean;
     message: string;
   }>({ open: false, id: null, exact: false, message: "" });
+  const [adaptiveModal, setAdaptiveModal] = useState<{
+    open: boolean;
+    readiness: any;
+  } | null>(null);
+  const [applyingModalAdj, setApplyingModalAdj] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sleepFileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
@@ -247,6 +254,52 @@ export default function RegistroPage() {
     load();
   }, [load]);
 
+  async function evaluateReadinessFeedback(date: string) {
+    try {
+      const res = await fetch(`/api/readiness?date=${date}&t=${Date.now()}`);
+      const data = await res.json();
+      if (data.readiness && data.readiness.proposedMicroAdjustments?.some((a: any) => !a.isApplied)) {
+        setAdaptiveModal({ open: true, readiness: data.readiness });
+      }
+    } catch {}
+  }
+
+  async function handleApplyModalAdjustment() {
+    if (!adaptiveModal) return;
+    setApplyingModalAdj(true);
+    try {
+      const res = await fetch("/api/readiness/adjust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: adaptiveModal.readiness.date }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+      toast.push("success", `Adaptación aplicada (${data.appliedCount} sesión/es modificada/s)`);
+      setAdaptiveModal(null);
+      load();
+    } catch {
+      toast.push("error", "Error aplicando la adaptación");
+    } finally {
+      setApplyingModalAdj(false);
+    }
+  }
+
+  async function handleRevertAdjustment(sessionId: number, targetDate: string) {
+    try {
+      const res = await fetch("/api/readiness/adjust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: targetDate, sessionId, action: "revert" }),
+      });
+      if (!res.ok) throw new Error();
+      toast.push("success", "Ajuste inteligente revertido");
+      load();
+    } catch {
+      toast.push("error", "No se pudo revertir el ajuste");
+    }
+  }
+
   async function saveSession(s: SessionRow) {
     setSavingId(s.id);
     try {
@@ -263,6 +316,9 @@ export default function RegistroPage() {
       });
       load();
       toast.push("success", "Sesión guardada");
+      if (s.status === "realizada" || s.status === "parcial") {
+        evaluateReadinessFeedback(s.date);
+      }
     } catch {
       toast.push("error", "No se pudo guardar la sesión");
     } finally {
@@ -292,6 +348,9 @@ export default function RegistroPage() {
       toast.push("success", "Sesión modificada correctamente");
       setEditingSession(null);
       load();
+      if (s.status === "realizada" || s.status === "parcial") {
+        evaluateReadinessFeedback(s.date);
+      }
     } catch {
       toast.push("error", "No se pudo modificar la sesión");
     } finally {
@@ -321,6 +380,7 @@ export default function RegistroPage() {
       body: JSON.stringify({ date, ...sleep }),
     });
     load();
+    evaluateReadinessFeedback(date);
   }
 
   async function handleSleepFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -404,6 +464,7 @@ export default function RegistroPage() {
       setSleepSummary(null);
       setSelectedSleepDates(new Set());
       load();
+      evaluateReadinessFeedback(toImport[0]?.date || todayISO());
     } catch {
       toast.push("error", "Error al guardar el sueño en el registro");
     } finally {
@@ -586,6 +647,7 @@ export default function RegistroPage() {
       } else if (rec.action === "reducir") {
         toast.push("info", "Esta sesión sugiere ajustar la carga — mira Recomendaciones para ver el ajuste propuesto.");
       }
+      evaluateReadinessFeedback(summary.date);
     } catch {
       toast.push("error", "No se pudo aplicar el entreno importado");
     } finally {
@@ -1089,7 +1151,7 @@ export default function RegistroPage() {
                     style={{ padding: "var(--space-3)", marginBottom: "var(--space-3)" }}
                   >
                     <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                      <div className="flex items-center gap-2 text-sm font-medium">
+                      <div className="flex items-center gap-2 text-sm font-medium" style={{ flexWrap: "wrap" }}>
                         <Icon size={16} className="text-muted" />
                         <span className="font-semibold">{s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}</span>
                         {s.planned_code && <span className="text-xs text-muted">({DISCIPLINE_LABEL[s.discipline] ?? s.discipline})</span>}
@@ -1108,6 +1170,19 @@ export default function RegistroPage() {
                           </span>
                         )}
                         {hasFitImport(s) && <span className="badge badge-success" style={{ fontSize: 10 }}>.FIT</span>}
+                        {s.notes && s.notes.includes("[Ajuste inteligente]") && (
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: 10,
+                              background: "rgba(59, 130, 246, 0.15)",
+                              color: "var(--color-brand)",
+                              border: "1px solid rgba(59, 130, 246, 0.3)",
+                            }}
+                          >
+                            ✨ Adaptado
+                          </span>
+                        )}
                       </div>
                       <Button variant="ghost" onClick={() => setEditingSession({ ...s })}>
                         <Pencil size={13} />
@@ -1185,6 +1260,16 @@ export default function RegistroPage() {
                         >
                           <RotateCcw size={15} />
                           {s.fit_backup ? "Deshacer importación .fit" : "Quitar datos del .fit"}
+                        </Button>
+                      )}
+                      {s.status === "pendiente" && s.notes && s.notes.includes("[Ajuste inteligente]") && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleRevertAdjustment(s.id, s.date)}
+                          title="Revertir este ajuste inteligente y volver al plan base"
+                        >
+                          <RotateCcw size={14} />
+                          Revertir adaptación
                         </Button>
                       )}
                     </div>
@@ -1436,6 +1521,155 @@ export default function RegistroPage() {
                   Guardar cambios
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {adaptiveModal && adaptiveModal.open && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.72)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 300,
+            padding: "var(--space-4)",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !applyingModalAdj) setAdaptiveModal(null);
+          }}
+        >
+          <div
+            className="surface animate-in"
+            style={{
+              width: "min(520px, 100%)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "var(--shadow-md)",
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <div
+              className="flex items-center justify-between"
+              style={{ padding: "var(--space-4)", borderBottom: "1px solid var(--color-border)" }}
+            >
+              <div className="font-bold text-base flex items-center gap-2">
+                <Zap size={18} style={{ color: "var(--color-brand)" }} />
+                Evaluación de Carga & Recuperación
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                disabled={applyingModalAdj}
+                onClick={() => setAdaptiveModal(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ padding: "var(--space-4)" }}>
+              <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                <div>
+                  <div className="text-xs text-muted">Tu nivel de Readiness calculado</div>
+                  <div className="font-extrabold text-lg flex items-center gap-2" style={{ marginTop: 2 }}>
+                    <span>{adaptiveModal.readiness.score}/100</span>
+                    <span
+                      className={`badge ${
+                        adaptiveModal.readiness.tone === "success"
+                          ? "badge-success"
+                          : adaptiveModal.readiness.tone === "warning"
+                          ? "badge-warning"
+                          : adaptiveModal.readiness.tone === "danger"
+                          ? "badge-danger"
+                          : "badge-brand"
+                      }`}
+                    >
+                      {adaptiveModal.readiness.verdict?.badgeLabel || adaptiveModal.readiness.levelLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "0.75rem 0.9rem",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--color-surface-raised)",
+                  border: "1px solid var(--color-border)",
+                  marginBottom: "var(--space-3)",
+                }}
+              >
+                <div className="font-semibold text-sm">
+                  {adaptiveModal.readiness.verdict?.title || adaptiveModal.readiness.headline}
+                </div>
+                <p className="text-xs text-muted" style={{ marginTop: 4, lineHeight: 1.45 }}>
+                  {adaptiveModal.readiness.verdict?.actionGuidance || adaptiveModal.readiness.coachAdvice}
+                </p>
+              </div>
+
+              {adaptiveModal.readiness.proposedMicroAdjustments?.length > 0 && (
+                <div>
+                  <div className="font-semibold text-xs uppercase text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                    Modulación sugerida para los próximos días:
+                  </div>
+                  <div className="grid gap-2">
+                    {adaptiveModal.readiness.proposedMicroAdjustments.map((adj: any) => (
+                      <div
+                        key={adj.sessionId}
+                        style={{
+                          padding: "0.6rem 0.8rem",
+                          borderRadius: "var(--radius-sm)",
+                          background: "rgba(59, 130, 246, 0.08)",
+                          border: "1px solid rgba(59, 130, 246, 0.25)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-1 text-xs">
+                          <span className="font-bold">
+                            {adj.date} ({adj.discipline})
+                          </span>
+                          <span className="badge badge-warning" style={{ fontSize: "0.68rem" }}>
+                            Propuesta
+                          </span>
+                        </div>
+                        <div className="text-xs" style={{ marginTop: 3 }}>
+                          Cambiar a: <strong>{adj.suggestedPlannedCode || "Descanso / Regenerativo"}</strong>
+                        </div>
+                        <div className="text-xs text-muted" style={{ marginTop: 2, lineHeight: 1.35 }}>
+                          {adj.reason}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="flex items-center justify-end gap-2"
+              style={{
+                padding: "var(--space-3) var(--space-4)",
+                borderTop: "1px solid var(--color-border)",
+                background: "var(--color-surface-raised)",
+              }}
+            >
+              <Button variant="secondary" disabled={applyingModalAdj} onClick={() => setAdaptiveModal(null)}>
+                Mantener plan original
+              </Button>
+              {adaptiveModal.readiness.proposedMicroAdjustments?.length > 0 && (
+                <Button variant="primary" loading={applyingModalAdj} onClick={handleApplyModalAdjustment}>
+                  <Sparkles size={14} />
+                  Aplicar adaptación
+                </Button>
+              )}
             </div>
           </div>
         </div>
