@@ -5,21 +5,11 @@ import { addDays, weekDates } from "@/lib/dates";
 /**
  * Motor de recomendaciones de EntrenoApp.
  *
- * Principios en los que se basa (resumen, no sustituye criterio médico):
+ * Principios:
  * - Carga de sesión (Foster et al.): RPE (0-10) x duración en minutos = "carga" de esa sesión.
- * - ACWR, ratio de carga aguda:crónica (Gabbett 2016 y revisiones posteriores): carga de los
- *   últimos 7 días frente a la media semanal de las últimas 4 semanas. Zona "razonable" ~0.8-1.3;
- *   por encima de ~1.5 se asocia a mayor riesgo de lesión por subida brusca de carga.
- * - Regla del 10%: evitar subir el volumen semanal más de un ~10% de una semana a otra en fases
- *   de base — heurística clásica, no una ley física, pero razonable como límite de seguridad.
- * - Sueño y fatiga: sueño insuficiente o de mala calidad de forma sostenida reduce la capacidad
- *   de recuperación y sube el riesgo de lesión/enfermedad — señal para bajar intensidad, no para
- *   forzar series de calidad.
- * - Nunca se entrena por pulso en este caso (taquicardia, FC de reposo alta, apto sin
- *   restricciones): todas las recomendaciones son en términos de RPE/ritmo, nunca de frecuencia
- *   cardíaca absoluta.
- * - Señales de alarma (dolor articular persistente, síntomas cardiovasculares nuevos) cortocircuitan
- *   cualquier otra recomendación: la respuesta es parar y consultar médicamente, no "ajustar carga".
+ * - ACWR, ratio de carga aguda:crónica: últimos 7 días frente a media de 4 semanas.
+ * - Solo se analizan molestias/síntomas en sesiones YA REALIZADAS (no en las pendientes planificadas).
+ * - Se evitan falsos positivos por nombres de ejercicios (tobillo, gemelo, etc.).
  */
 
 export type Severity = "info" | "aviso" | "alerta_medica";
@@ -51,8 +41,7 @@ const CARDIO_RED_FLAGS = [
   "mareo intenso",
   "desmayo",
   "me desmaye",
-  "ahogo",
-  "falta de aire" ,
+  "falta de aire",
   "dificultad para respirar",
   "vision borrosa",
   "visión borrosa",
@@ -61,19 +50,17 @@ const CARDIO_RED_FLAGS = [
 const INJURY_KEYWORDS = [
   "dolor",
   "molestia",
-  "tirón",
-  "tiron",
+  "tirón muscular",
+  "tiron muscular",
+  "tiron en",
+  "tirón en",
   "pinchazo",
-  "rodilla",
-  "tobillo",
-  "gemelo",
-  "isquio",
+  "lesión",
+  "lesion",
+  "tendinitis",
   "fascitis",
-  "sobrecarga",
   "inflamación",
   "inflamacion",
-  "hinchazón",
-  "hinchazon",
   "contractura",
 ];
 
@@ -102,6 +89,12 @@ const NEGATION_PATTERNS = [
   "desapareció ",
   "desaparecio ",
   "nada de ",
+  "evitar ",
+  "prevenir ",
+  "empuje / ",
+  "empuje/ ",
+  "empuje/",
+  "empuje y ",
 ];
 
 function isNegated(text: string, kwIndex: number): boolean {
@@ -124,11 +117,20 @@ function hasAffirmativeMatch(text: string, kw: string): boolean {
 function scanNotes(sessions: SessionRow[], keywords: string[]): string[] {
   const hits: string[] = [];
   for (const s of sessions) {
+    // Solo escanear sesiones que el usuario haya registrado como realizadas o parciales
+    if (s.status !== "realizada" && s.status !== "parcial") continue;
     if (!s.notes) continue;
+
     const lower = s.notes.toLowerCase();
     for (const kw of keywords) {
       if (hasAffirmativeMatch(lower, kw)) {
-        hits.push(`${s.date} (${s.discipline}): "${s.notes}"`);
+        const kwIdx = lower.indexOf(kw);
+        const start = Math.max(0, kwIdx - 15);
+        const end = Math.min(s.notes.length, kwIdx + kw.length + 25);
+        let snippet = s.notes.slice(start, end).replace(/\n+/g, " ").trim();
+        if (start > 0) snippet = "..." + snippet;
+        if (end < s.notes.length) snippet = snippet + "...";
+        hits.push(`${s.date} (${s.discipline}): "${snippet}"`);
         break;
       }
     }
@@ -148,22 +150,32 @@ export function computeWeeklyRecommendation(weekStart: string): WeeklyRecommenda
   for (let i = 0; i < 4; i++) {
     const wStart = addDays(weekStart, -7 * (3 - i));
     const wEnd = addDays(wStart, 6);
-    const weekSessions = chronicSessions.filter((s) => s.date >= wStart && s.date <= wEnd);
-    weeklyLoads.push(weekSessions.reduce((sum, s) => sum + sessionLoad(s), 0));
+    const sessions = chronicSessions.filter((s) => s.date >= wStart && s.date <= wEnd);
+    const wLoad = sessions.reduce((sum, s) => sum + sessionLoad(s), 0);
+    weeklyLoads.push(wLoad);
   }
   const acuteLoad = weeklyLoads[3];
-  const chronicLoad = avg(weeklyLoads.slice(0, 3).filter((l) => l > 0)) ?? (weeklyLoads[3] > 0 ? weeklyLoads[3] : null);
-  const acwr = chronicLoad && chronicLoad > 0 ? acuteLoad / chronicLoad : null;
+  const chronicWeeklyAvg = avg(weeklyLoads.slice(0, 3));
+  const acwr = chronicWeeklyAvg && chronicWeeklyAvg > 0 ? acuteLoad / chronicWeeklyAvg : null;
 
-  const relevant = thisWeekSessions.filter((s) => s.discipline !== "descanso");
-  const withOutcome = relevant.filter((s) => s.status !== "pendiente");
-  const compliancePct =
-    relevant.length > 0
-      ? (relevant.filter((s) => s.status === "realizada" || s.status === "parcial").length / relevant.length) * 100
-      : null;
-  const rpeAvg = avg(withOutcome.map((s) => s.rpe ?? NaN));
-  const sleepHoursAvg = avg(thisWeekSleep.map((s) => s.hours ?? NaN));
-  const sleepQualityAvg = avg(thisWeekSleep.map((s) => s.quality ?? NaN));
+  // Cumplimiento de la semana actual
+  const plannedSessions = thisWeekSessions.filter((s) => s.discipline !== "descanso");
+  const completedSessions = plannedSessions.filter((s) => s.status === "realizada" || s.status === "parcial");
+  const compliancePct = plannedSessions.length > 0 ? (completedSessions.length / plannedSessions.length) * 100 : null;
+
+  // RPE medio de las sesiones completadas
+  const rpeValues = completedSessions.map((s) => s.rpe).filter((r): r is number => r !== null && r !== undefined);
+  const rpeAvg = avg(rpeValues);
+
+  // Sueño de la semana
+  const sleepHours = thisWeekSleep
+    .map((s) => s.hours)
+    .filter((h): h is number => typeof h === "number");
+  const sleepHoursAvg = avg(sleepHours);
+  const sleepQualities = thisWeekSleep
+    .map((s) => s.quality)
+    .filter((q): q is number => typeof q === "number");
+  const sleepQualityAvg = avg(sleepQualities);
 
   const flags: RecommendationFlag[] = [];
 
@@ -185,9 +197,9 @@ export function computeWeeklyRecommendation(weekStart: string): WeeklyRecommenda
       severity: "aviso",
       title: "Molestia física anotada esta semana",
       detail:
-        "Notas con posible molestia: " +
+        "Notas registradas con molestia: " +
         injuryHits.join("; ") +
-        ". Si es la primera vez que aparece, reduce carga en esa zona y vigila 3-4 días; si el dolor es articular y persistente (no solo agujetas musculares) o va a más, para y consulta con un profesional antes de seguir progresando.",
+        ". Si es la primera vez que aparece, reduce carga en esa zona y vigila 3-4 días.",
     });
   }
 
@@ -195,7 +207,7 @@ export function computeWeeklyRecommendation(weekStart: string): WeeklyRecommenda
     flags.push({
       severity: "aviso",
       title: "Subida brusca de carga (ACWR alto)",
-      detail: `La carga de esta semana es ${acwr.toFixed(2)}x la media de las últimas semanas — por encima de 1.5 se asocia a más riesgo de lesión. Conviene no seguir subiendo y estabilizar o bajar ligeramente la próxima semana.`,
+      detail: `La carga de esta semana es ${acwr.toFixed(2)}x la media de las últimas semanas (por encima de 1.5 se asocia a fatiga alta). Conviene no seguir subiendo la próxima semana.`,
     });
   }
 
@@ -203,7 +215,7 @@ export function computeWeeklyRecommendation(weekStart: string): WeeklyRecommenda
     flags.push({
       severity: "aviso",
       title: "Sueño por debajo de lo habitual",
-      detail: `Media de ${sleepHoursAvg.toFixed(1)}h esta semana (tu habitual son ~8h). El sueño insuficiente reduce la recuperación — si se repite, mejor bajar intensidad de las sesiones de calidad en vez de forzarlas.`,
+      detail: `Media de ${sleepHoursAvg.toFixed(1)}h esta semana. Conviene priorizar descanso y modular las sesiones de calidad.`,
     });
   }
 
@@ -211,7 +223,7 @@ export function computeWeeklyRecommendation(weekStart: string): WeeklyRecommenda
     flags.push({
       severity: "aviso",
       title: "Calidad de sueño baja de forma sostenida",
-      detail: `Calidad media ${sleepQualityAvg.toFixed(1)}/5 esta semana. Combinado con el entrenamiento, es una señal de fatiga acumulada más que de falta de forma.`,
+      detail: `Calidad media ${sleepQualityAvg.toFixed(1)}/5 esta semana. Señal de fatiga acumulada.`,
     });
   }
 
@@ -224,11 +236,11 @@ export function computeWeeklyRecommendation(weekStart: string): WeeklyRecommenda
     summary = "Señal de alarma esta semana: para el entrenamiento y consulta médicamente antes de continuar.";
   } else if (action === "reducir") {
     summary =
-      "Hay al menos una señal (molestia, carga o sueño) que aconseja bajar volumen o intensidad la semana que viene, no mantener el plan tal cual.";
+      "Hay al menos una señal (molestia registrada, carga o sueño) que aconseja bajar volumen o intensidad la semana que viene.";
   } else if (compliancePct !== null) {
     summary = `Semana sin señales de alarma. Cumplimiento ${compliancePct.toFixed(0)}% — se puede mantener o progresar el plan con normalidad.`;
   } else {
-    summary = "Todavía no hay datos suficientes esta semana para generar una recomendación fiable.";
+    summary = "Semana en curso sin alertas. Entrena según las sensaciones y el readiness diario.";
   }
 
   return {
