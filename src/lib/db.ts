@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { ensureAnnualPlanPopulated } from "@/lib/annual-plan-seed";
 
 // Mismo patrón que FinanzasApp: node:sqlite (nativo de Node, sin compilar nada),
 // sin better-sqlite3 ni Prisma. Cada fila se convierte a objeto plano porque
@@ -253,38 +254,7 @@ function migrateSchema(d: AppDb) {
       INSERT OR REPLACE INTO settings (key, value) VALUES ('target_pace_scenario', '5:00-5:15 min/km (VAM: 3:59 min/km)');
     `);
 
-    // Comprobar si faltan las sesiones del plan anual (a partir de 2026-10-05)
-    const futureCount = d.prepare<{ c: number }>("SELECT count(*) as c FROM sessions WHERE date >= '2026-10-05'").get();
-    if (!futureCount || Number(futureCount.c) < 50) {
-      // Importar dinámicamente o poblar el año completo
-      const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
-      if (fs.existsSync(seedPath)) {
-        const seedDb = new DatabaseSync(seedPath);
-        const allSeed = seedDb.prepare("SELECT * FROM sessions WHERE date >= '2026-10-05'").all() as Array<Record<string, unknown>>;
-        const now = new Date().toISOString();
-        const insertStmt = d.prepare(`
-          INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, status, duration_min, distance_km, notes, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, 0, 'pendiente', ?, ?, ?, ?, ?)
-        `);
-        d.transaction(() => {
-          for (const s of allSeed) {
-            insertStmt.run(
-              s.date,
-              s.week_start,
-              s.discipline,
-              s.planned_code ?? null,
-              s.is_long_run ? 1 : 0,
-              s.duration_min ?? null,
-              s.distance_km ?? null,
-              s.notes ?? null,
-              now,
-              now
-            );
-          }
-        })();
-        seedDb.close();
-      }
-    }
+    ensureAnnualPlanPopulated(d);
   } catch (e) {
     console.error("Error auto-sincronizando sesiones históricas y anuales:", e);
   }
