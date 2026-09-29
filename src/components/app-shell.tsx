@@ -207,23 +207,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             minHeight: 52,
           }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
               className="btn btn-ghost btn-icon"
               aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((v) => !v)}
-              style={{ width: 40, height: 40, minWidth: 40 }}
+              style={{ width: 38, height: 38, minWidth: 38 }}
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <Image src="/brand/logo-mark.png" alt="" width={24} height={24} className="rounded-md" />
-            <span className="font-semibold text-sm" style={{ letterSpacing: "-0.01em" }}>
-              {current?.label ?? "EntrenoApp"}
-            </span>
+            <Image src="/brand/logo-mark.png" alt="" width={24} height={24} className="rounded-md flex-shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-sm leading-tight truncate" style={{ letterSpacing: "-0.01em" }}>
+                {current?.label ?? "EntrenoApp"}
+              </span>
+              <span className="text-[10px] text-muted leading-tight truncate">
+                Daniel Espinosa · {raceDate}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={triggerGlobalRefresh}
               className="btn btn-ghost btn-icon"
@@ -286,8 +291,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <div>
-                  <div className="text-xs font-medium" style={{ color: "var(--color-text)" }}>
-                    EntrenoApp
+                  <div className="text-xs font-bold" style={{ color: "var(--color-text)" }}>
+                    Daniel Espinosa
                   </div>
                   <div className="text-xs text-faint">Maratón · {raceDate}</div>
                 </div>

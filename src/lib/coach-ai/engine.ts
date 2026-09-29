@@ -63,16 +63,12 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
     return [
       cachedGeminiEndpoint,
       {
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${cleanKey}`,
         apiVer: "v1beta",
       },
       {
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${cleanKey}`,
         apiVer: "v1beta",
-      },
-      {
-        url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
-        apiVer: "v1",
       },
     ];
   }
@@ -92,11 +88,11 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
         );
 
         const picked =
-          contentModels.find((m) => /gemini-2\.5-flash/i.test(m.name)) ||
-          contentModels.find((m) => /gemini-2\.0-flash/i.test(m.name)) ||
-          contentModels.find((m) => /gemini-1\.5-flash/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-3\.5-flash-lite/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-flash-latest/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-3-flash-preview/i.test(m.name)) ||
+          contentModels.find((m) => /gemini-2\.5-pro/i.test(m.name)) ||
           contentModels.find((m) => /flash/i.test(m.name)) ||
-          contentModels.find((m) => /gemini.*pro/i.test(m.name)) ||
           contentModels[0];
 
         if (picked) {
@@ -114,19 +110,19 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
 
   endpoints.push(
     {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${cleanKey}`,
       apiVer: "v1beta",
     },
     {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${cleanKey}`,
       apiVer: "v1beta",
     },
     {
-      url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
-      apiVer: "v1",
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${cleanKey}`,
+      apiVer: "v1beta",
     },
     {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${cleanKey}`,
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${cleanKey}`,
       apiVer: "v1beta",
     }
   );
@@ -185,6 +181,7 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyWithSystem),
+        signal: AbortSignal.timeout(15000),
       });
 
       if (res.status === 400 && apiVer === "v1beta") {
@@ -700,11 +697,7 @@ ${context.contextMarkdown}
 
   // 4. MOTOR DE FISIOLOGÍA LOCAL EXPERTO
   const { reply: localReply, actionCandidate } = generateLocalExpertResponse(messages, context, isExplicitChangeRequest);
-  let finalReply = localReply;
-
-  if (!geminiApiKey && !anthropicClient) {
-    finalReply += `\n\n> 💡 *Nota: Si deseas conectar razonamiento generativo ilimitado en la nube, puedes añadir tu clave gratuita de Google Gemini en **Configuración**.*`;
-  }
+  const finalReply = localReply;
 
   if (actionCandidate) {
     if (isExplicitChangeRequest) {

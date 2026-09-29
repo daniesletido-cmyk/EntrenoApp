@@ -11,13 +11,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No se proporcionaron mensajes" }, { status: 400 });
     }
 
-    const { reply, contextSummary, appliedAction, proposedAction } = await askCoachAI(messages, todayISO());
+    const { reply, contextSummary, appliedAction, proposedAction, isAiPowered } = await askCoachAI(messages, todayISO());
 
     return NextResponse.json({
       reply,
       contextSummary,
       appliedAction,
       proposedAction,
+      isAiPowered,
       timestamp: new Date().toISOString(),
     });
   } catch (err: unknown) {

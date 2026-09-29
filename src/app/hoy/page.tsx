@@ -288,16 +288,16 @@ export default function HoyPage() {
     <div>
       <PageHeader
         title="Hoy"
-        description={formatToday(today).replace(/^\w/, (c) => c.toUpperCase())}
+        description={`Daniel Espinosa · ${formatToday(today).replace(/^\w/, (c) => c.toUpperCase())}`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             {raceDays !== null && (
               <span
-                className="badge badge-info hidden sm:inline-flex"
-                style={{ fontSize: "var(--text-xs)", padding: "0.4rem 0.8rem", borderRadius: "var(--radius-full)" }}
+                className="badge badge-info inline-flex"
+                style={{ fontSize: "0.74rem", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-full)" }}
               >
-                <Flag size={13} style={{ marginRight: 4 }} />
-                {raceDays >= 0 ? `Faltan ${raceDays} días para el maratón` : `Maratón hace ${-raceDays} días`}
+                <Flag size={12} style={{ marginRight: 5, flexShrink: 0 }} />
+                {raceDays >= 0 ? `Maratón en ${raceDays} días` : `Maratón hace ${-raceDays} d`}
               </span>
             )}
             <button
@@ -305,13 +305,13 @@ export default function HoyPage() {
               onClick={() => load(true)}
               disabled={refreshing}
               style={{
-                height: 38,
-                minHeight: 38,
+                height: 36,
+                minHeight: 36,
                 borderRadius: "var(--radius-full)",
-                padding: "0 14px",
+                padding: "0 13px",
               }}
             >
-              <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
+              <RefreshCw size={13} className={refreshing ? "spinner" : ""} />
               <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
             </button>
           </div>

@@ -197,7 +197,7 @@ export default function ResumenPage() {
 
       {raceDate && (
         <div
-          className="surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in w-full overflow-hidden"
+          className="surface flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in w-full"
           style={{
             padding: "var(--space-3) var(--space-4)",
             marginBottom: "var(--space-4)",
@@ -206,11 +206,11 @@ export default function ResumenPage() {
             borderRadius: "var(--radius-lg)",
           }}
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 borderRadius: "var(--radius-md)",
                 background: "var(--color-brand)",
                 color: "#ffffff",
@@ -219,23 +219,32 @@ export default function ResumenPage() {
                 justifyContent: "center",
                 boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
                 flexShrink: 0,
+                marginTop: 2,
               }}
             >
-              <Flag size={17} />
+              <Flag size={18} />
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold uppercase tracking-wider text-muted truncate">
-                Objetivo Principal · Maratón
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Daniel Espinosa · Objetivo Principal
+                </span>
+                <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "1px 6px" }}>
+                  Maratón
+                </span>
               </div>
-              <div className="font-extrabold text-xs sm:text-base truncate">
-                Faltan <span style={{ color: "var(--color-brand)" }}>{daysUntilRace(raceDate)} días</span> ({raceDate})
+              <div className="font-extrabold text-sm sm:text-base leading-tight mt-0.5 text-foreground" style={{ wordBreak: "break-word" }}>
+                Faltan <span style={{ color: "var(--color-brand)" }}>{daysUntilRace(raceDate)} días</span>
+                <span className="text-xs sm:text-sm font-semibold text-muted ml-1.5 inline-block">
+                  ({new Date(raceDate + "T00:00:00Z").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })})
+                </span>
               </div>
             </div>
           </div>
           <Link
             href="/objetivos"
-            className="btn btn-secondary text-xs self-start sm:self-auto"
-            style={{ minHeight: 32, height: 32, padding: "0 12px", borderRadius: "var(--radius-full)", flexShrink: 0 }}
+            className="btn btn-secondary text-xs self-stretch sm:self-auto justify-center"
+            style={{ minHeight: 34, height: 34, padding: "0 14px", borderRadius: "var(--radius-full)", flexShrink: 0 }}
           >
             Ver objetivo
           </Link>
