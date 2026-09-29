@@ -30,11 +30,12 @@ interface Message {
 }
 
 const SUGGESTED_QUESTIONS = [
+  "¿Cuáles son mis ritmos de carrera según el Test VAM?",
   "Cámbiame el entreno de hoy por natación",
+  "¿Cómo debo enfocar el entreno de hoy según mi recuperación?",
   "¿Puedo meter natación hoy tras el CrossFit de ayer?",
-  "¿Por qué tengo el ACWR en 0.54 y qué pauta debo seguir?",
-  "¿Cómo debo enfocar la tirada larga del fin de semana?",
-  "Analiza mi descanso de anoche y dime si debo ajustar la intensidad hoy",
+  "¿Cómo debo plantear la nutrición y geles para la tirada larga?",
+  "¿Por qué tengo el ACWR en este valor y qué pauta debo seguir?",
 ];
 
 const INITIAL_MESSAGE: Message = {

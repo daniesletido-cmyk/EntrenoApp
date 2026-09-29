@@ -254,7 +254,7 @@ function parseCoachActionBlock(rawText: string): { cleanText: string; action?: C
 /**
  * MOTOR DE FISIOLOGÍA LOCAL EXPERTO
  * Analiza pormenorizadamente cada pregunta del usuario, entiende el contexto de la conversación
- * y genera respuestas fisiológicas dinámicas basadas en las métricas reales del atleta.
+ * y genera respuestas fisiológicas dinámicas basadas en las métricas reales del atleta y su VAM oficial (3:59).
  */
 function generateLocalExpertResponse(
   messages: ChatMessage[],
@@ -265,82 +265,72 @@ function generateLocalExpertResponse(
   const assistantMessages = messages.filter((m) => m.role === "assistant");
   const currentMsg = userMessages[userMessages.length - 1]?.content.trim() || "";
   const lowerMsg = currentMsg.toLowerCase();
-  const prevUserMsg = userMessages.length > 1 ? userMessages[userMessages.length - 2].content.toLowerCase() : "";
   const prevAssistantMsg = assistantMessages[assistantMessages.length - 1]?.content || "";
 
   // 1. Detección de intenciones (Intents)
-  const hasVam = /\b(vam|test\s+vam|course[\s-]navette|test\s+de\s+5|test\s+de\s+6|vo2max|test\s+de\s+lactato|test\s+cooper)\b/i.test(lowerMsg);
+  const hasVam = /\b(vam|test\s+vam|course[\s-]navette|test\s+de\s+5|test\s+de\s+6|vo2max|test\s+de\s+lactato|test\s+cooper|velocidad\s+aer[oó]bica)\b/i.test(lowerMsg);
   const hasTrackSeries = /\b(series\b|pista|fraccionad\w*|1000m|400m|interval\w*|pasadas|series\s+en\s+pista)\b/i.test(lowerMsg);
   const hasGymTorso = /\b(tren\s+superior|torso|pecho|espalda|brazo|biceps|triceps|press\b|jal[oó]n|remo\b|deltoides)\b/i.test(lowerMsg);
   const hasGymLegs = /\b(tren\s+inferior|piernas?|sentadilla|cu[aá]driceps|isquios?|femoral|peso\s+muerto\s+pesado)\b/i.test(lowerMsg);
   const hasCrossFit = /\b(crossfit|wod|wall\s*balls?|saltos?|peso\s+muerto|box\s*jumps?|burpees?)\b/i.test(lowerMsg);
   const hasSwimming = /\b(nataci[oó]n|nadar|piscina|nado|crol)\b/i.test(lowerMsg);
-  const hasRest = /\b(descans\w*|parar|reposo|dormir\s+m[aá]s|recuperaci[oó]n\s+total)\b/i.test(lowerMsg);
+  const hasRest = /\b(descans\w*|parar|reposo|dormir\s+m[aá]s|recuperaci[oó]n\s+total|vacaciones)\b/i.test(lowerMsg);
   const hasWeekendRunning = /\b(fin\s+de\s+semana|s[aá]bado|domingo|tirada\s+larga|reestructur\w*|carrera\s+del\s+fin)\b/i.test(lowerMsg);
   const hasFitUploadOrEval = /\b(eval[uú]es?|evalua\w*|qu[eé]\s+tal\s+estoy|c[oó]mo\s+estoy|c[oó]mo\s+me\s+ves|\.fit|he\s+subido|acabo\s+de\s+hacer|cuando\s+meta|cuando\s+suba|he\s+terminado|mis\s+datos)\b/i.test(lowerMsg);
   const hasSorenessInjury = /\b(molestias?|dolor|sobrecarga|tir[oó]n|s[oó]leo|gemelo|aquiles|tend[oó]n|rodilla|cintilla|fascitis|cargad\w*|agujetas)\b/i.test(lowerMsg);
   const hasNutrition = /\b(com[eé]r?|cen\w*|desayun\w*|nutrici[oó]n|carbohidratos?|hidratos|geles?|sales|suplement\w*|omega-?3|alergia|frutos\s+secos|pescado|agua|hidrataci[oó]n)\b/i.test(lowerMsg);
-  const hasAcwrLoad = /\b(acwr|0\.54|infracarga|sobrecarga|gabbett|ratio|pts?\s+foster|carga\s+aguda|carga\s+cr[oó]nica|alerta)\b/i.test(lowerMsg);
-  const hasSleepReadiness = /\b(sue[ñn]o|dormir|horas?\s+de\s+sue[ñn]o|readiness|zepp|cansancio|energ[ií]a|despert\w*)\b/i.test(lowerMsg);
-  const hasPaceStrategy = /\b(ritmo\b|marat[oó]n|5:00|5:15|tiempo\s+objetivo|estrategia|abril\s+2027)\b/i.test(lowerMsg);
+  const hasAcwrLoad = /\b(acwr|infracarga|sobrecarga|gabbett|ratio|pts?\s+foster|carga\s+aguda|carga\s+cr[oó]nica|alerta)\b/i.test(lowerMsg);
+  const hasSleepReadiness = /\b(sue[ñn]o|dormir|horas?\s+de\s+sue[ñn]o|readiness|zepp|cansancio|energ[ií]a|despert\w*|apretar|bajar\s+intensidad)\b/i.test(lowerMsg);
+  const hasPaceStrategy = /\b(ritmo\b|marat[oó]n|5:00|5:15|tiempo\s+objetivo|estrategia|zonas\s+de\s+ritmo|r0|r1|r2|r3|rmc)\b/i.test(lowerMsg);
   const hasFollowUp = /\b(y\s+entonces|y\s+ma[ñn]ana|qu[eé]\s+hago\s+ahora|ya\s+lo\s+(hice|met[ií]|sub[ií]|termin[eé])|vale|perfecto|entendido|de\s+acuerdo|qu[eé]\s+opinas)\b/i.test(lowerMsg);
 
   const acuteLoad = context.weeklyAssessment.loadAnalysis.currentWeekLoad;
   const acwrValue = context.weeklyAssessment.loadAnalysis.acwr !== null ? context.weeklyAssessment.loadAnalysis.acwr.toFixed(2) : "—";
   const sleepHours = context.dailyReadiness.stats.sleepHours ? `${context.dailyReadiness.stats.sleepHours.toFixed(1)}h` : "buen descanso";
   const readinessScore = context.dailyReadiness.score;
+  const readinessBadge = context.dailyReadiness.verdict?.badgeLabel || context.dailyReadiness.levelLabel;
 
   let reply = "";
   let actionCandidate: CoachActionProposal | undefined;
 
-  // CASO 1: Consulta compuesta de gimnasio hoy + evaluación .fit + reestructuración fin de semana
+  // CASO 1: Consulta compuesta de gimnasio torso + evaluación .fit + tiradas de fin de semana
   if (hasGymTorso && (hasFitUploadOrEval || hasWeekendRunning)) {
     reply = `¡Perfecto planteamiento Daniel! Te dejo mi análisis como tu entrenador:
 
 ### 1. Sesión de Gimnasio (Tren Superior) de hoy
-* **Excelente elección fisiológica**: Al enfocar la sesión exclusivamente en torso (empuje/tirón: pectoral, dorsal, deltoides, brazos), evitamos generar daño miofibrilar en las piernas (cuádriceps, isquiosururales y sóleos).
-* **Demanda de SNC**: Mantén la intensidad en **RPE 7-8**, dejando 1-2 repeticiones en recámara (RIR 1-2) para no sobrecargar el sistema nervioso central.
+* **Excelente elección fisiológica**: Al enfocar la sesión exclusivamente en torso (empuje/tirón: pectoral, dorsal, deltoides, brazos y core), preservamos las piernas al 100% (cuádriceps, isquios y sóleos) sin generar daño miofibrilar residual.
+* **Demanda de SNC**: Mantén la intensidad en **RPE 7-8**, dejando 1-2 repeticiones en recámara (RIR 1-2) para mantener el sistema nervioso central fresco.
 
 ### 2. Evaluación de tu estado cuando importes el archivo .fit
 En cuanto metas el archivo \`.fit\` en la app:
 * Computaremos la **duración real y la carga Foster** de la sesión.
-* Comprobaremos tu ratio **ACWR** (actualmente en **${acwrValue}** con **${acuteLoad} pts** acumulados) para verificar que la carga aguda evoluciona dentro del rango seguro.
-* Tu Readiness diario (hoy en **${readinessScore}/100**) se recalculará sumando este estímulo.
+* Comprobaremos tu ratio **ACWR** (actualmente en **${acwrValue}** con **${acuteLoad} pts** acumulados) para verificar que la carga evoluciona de forma segura.
+* Tu Readiness diario (hoy en **${readinessScore}/100 · ${readinessBadge}**) se recalculará sumando este estímulo.
 
 ### 3. ¿Habrá que reestructurar los entrenos de carrera del fin de semana?
-* **Criterio principal**: Como tu gran meta es la **Maratón (objetivo 5:00-5:15 min/km)**, las tiradas del fin de semana (**Sábado R2 progresivo y Domingo tirada larga R5**) son el pilar más específico e insustituible.
-* **Decisión**: Al trabajar solo tren superior, **en principio NO será necesario recortar ni suspender el fin de semana de carrera**. 
-* **Plan de contingencia**: Si al registrar el entreno tu RPE supera 8.5 o notas fatiga sistémica alta al despertar mañana, ajustaremos el ritmo del sábado a rodaje regenerativo suave (R1) para llegar fresco a la tirada larga del domingo.
+* **Criterio principal**: Como tu gran meta es la **Maratón (ritmo objetivo 5:00-5:15 min/km)**, las tiradas del fin de semana (**Sábado R2 a 4:35-4:59 min/km y Domingo tirada larga R1/RMC**) son el pilar más específico.
+* **Decisión**: Al trabajar solo torso hoy, **NO será necesario recortar ni suspender el fin de semana de carrera**.
+* **Plan de contingencia**: Si al registrar el entreno tu RPE supera 8.5 o notas fatiga sistémica alta al despertar mañana, adaptaremos el ritmo del sábado a rodaje regenerativo suave R0/R1 (>5:23 min/km) para llegar fresco al domingo.
 
-¡A por el entreno de torso y cuando subas el .fit lo dejamos todo chequeado!`;
+¡A por la sesión y cuando subas el .fit lo dejamos todo registrado!`;
   }
 
   // CASO 2: Consulta sobre Test VAM y/o Series en pista
   else if (hasVam || (hasTrackSeries && (lowerMsg.includes("mañana") || lowerMsg.includes("semana") || lowerMsg.includes("útil") || lowerMsg.includes("viable")))) {
-    const vamSection = hasVam
-      ? `### 1. ¿Es viable y útil hacer un Test VAM de carrera MAÑANA?
-* **Veredicto**: **NO es aconsejable hacerlo mañana**.
-* **Motivo fisiológico**:
-  - Un test de VAM exige el 100% de la capacidad glucolítica y neuromuscular. Si arrastras fatiga de sesiones previas (CrossFit a RPE alto o impacto articular), claudicarás prematuramente por acidosis y fatiga del SNC, dando una VAM subestimada y no válida.
-  - Además, vaciaría tus depósitos de glucógeno e interferiría directamente con la tirada larga del domingo, que es la sesión clave de tu preparación hacia la Maratón.
-* **Test recomendado para tu perfil**:
-  - ❌ **Descartado**: *Course-Navette* (los frenazos y giros continuos de 180° añaden estrés innecesario a tendones y sóleos).
-  - ✅ **Recomendado**: **Test de 5 o 6 minutos en pista de atletismo** a ritmo constante máximo sostenible.
-* **Protocolo previo**: Programarlo en una semana con 48h previas de frescura (ej. tras descanso activo/natación suave), con calentamiento de 15' trote suave (RPE 3-4) + 4 rectas progresivas de 80m.`
-      : "";
+    reply = `### Análisis del Test VAM y Series en Pista:
 
-    const seriesSection = (hasTrackSeries || hasVam)
-      ? `### 2. ¿Meter esta semana un día de series en pista?
-* **Distribución de intensidad (Regla 80/20)**:
-  - En tu modelo concurrente (Carrera + CrossFit + Natación), la cuota de alta intensidad anaeróbica/láctica semanal ya queda cubierta con las clases de CrossFit.
-  - Añadir series agónicas en pista (Z4/Z5 láctica) dispararía el riesgo de sobreentrenamiento y sobrecarga tendinosa.
-* **Estructura fraccionada recomendada**:
-  - En lugar de series anaeróbicas, realiza un **fraccionado extensivo a Ritmo Maratón / Umbral aeróbico (Z3)**:
-  - **Estructura**: *2 km calentamiento suave + 4 x 1.000m a ritmo tempo (5:35 - 5:45 min/km, RPE 6) con 90" de recuperación al trote + 1.5 km vuelta a la calma*.
-  - **Mejor ubicación**: Jueves o viernes, siempre que no coincida en el mismo día con sentadillas pesadas en CrossFit.`
-      : "";
+* **Tu VAM Oficial Actual**: **3:59 min/km (15.06 km/h)**.
+* **Tus Zonas de Ritmo Actualizadas**:
+  - **R0 (Regenerativo)**: > 5:23 min/km (5:25 - 5:50 min/km) · RPE 3-4
+  - **R1 (Base Aeróbica Ligera)**: 5:23 - 4:59 min/km · RPE 4-5
+  - **RMC (Ritmo Maratón Objetivo)**: 5:00 - 5:15 min/km · RPE 5-6 (Sub 3h45)
+  - **R2 (Umbral Aeróbico / Tempo)**: 4:59 - 4:35 min/km · RPE 6-7
+  - **R3 (Umbral Anaeróbico)**: 4:23 - 4:11 min/km · RPE 7-8
+  - **R3+ (VAM / VO2max)**: 3:59 min/km · RPE 9-10
 
-    reply = `${vamSection}\n\n${seriesSection}`.trim();
+### ¿Es conveniente meter series o repetir test esta semana?
+1. **No repetir test de forma continuada**: Tu VAM de 3:59 min/km está perfectamente calibrada. Repetir un test máximo vaciaría el glucógeno y perjudicaría las tiradas largas.
+2. **Series en pista**: Con las sesiones de CrossFit y la fuerza, la cuota anaeróbica semanal está cubierta. Para carrera priorizamos el **trabajo extensivo a RMC (5:00-5:15 min/km) y bloques de R2 (4:35-4:59 min/km)** para potenciar la economía metabólica.`;
   }
 
   // CASO 3: Molestias musculares, tendones o prevención de lesiones
@@ -357,17 +347,17 @@ En cuanto metas el archivo \`.fit\` en la app:
 
     reply = `### Protocolo del Entrenador para sobrecarga en ${area}:
 
-1. **Diagnóstico y principio de prudencia**:
-   - Con el volumen de carrera acumulado y el impacto de los saltos/pesas en CrossFit, ${area} absorbe una gran carga elástica.
-   - Si la molestia es una sobrecarga difusa (RPE ≤ 4 en dolor), podemos hacer **descarga activa**. Si hay dolor punzante al apoyar, suspender impacto de inmediato.
+1. **Principio de prudencia y descompresión**:
+   - Con el impacto acumulado y los saltos/pesas en CrossFit, ${area} absorbe una gran carga elástica.
+   - Si la molestia es sobrecarga leve (RPE ≤ 3), realizaremos **descarga activa en natación**. Si notas dolor punzante al apoyar, suspender impacto de inmediato.
 
 2. **Acción para hoy**:
-   - **Sustituir impacto por Natación (N1 · 35-40 min)** o **trabajo de movilidad + tren superior**.
-   - El agua genera vasoconstricción/vasodilatación natural, drenando el edema sin estrés de impacto sobre ${area}.
-   - Aplicar automasaje suave con foam roller en la fascia circundante (nunca directamente sobre la inserción del tendón inflamado) y contrastes de agua fría.
+   - **Sustituir impacto por Natación (N1 · 35-40 min suave)** o trabajo de movilidad + torso.
+   - El agua genera vasoconstricción/vasodilatación natural, acelerando el drenaje y la recuperación sin impacto sobre ${area}.
+   - Aplicar automasaje suave en la fascia circundante y contrastes de agua fría.
 
-3. **Impacto en el fin de semana**:
-   - Monitorizaremos cómo evoluciona en las próximas 24h. Si mañana la molestia remite por completo, mantendremos la tirada a ritmo muy cómodo; de lo contrario, convertiremos el entreno en sesión de nado o descanso.`;
+3. **Seguimiento**:
+   - Monitorizaremos la respuesta en 24h. Si remite, retomaremos rodaje R0 suave (>5:25 min/km); si persiste, mantendremos descarga.`;
 
     actionCandidate = {
       type: "modify_session",
@@ -386,14 +376,14 @@ En cuanto metas el archivo \`.fit\` en la app:
     const isConsultation = lowerMsg.includes("opinas") || lowerMsg.includes("ves") || lowerMsg.includes("esperamos") || lowerMsg.includes("crees");
 
     if (isWeekendTarget && isConsultation) {
-      reply = `Mi criterio como tu entrenador es claro: **de momento mantengamos el plan del fin de semana y no metamos natación sábado/domingo**.
+      reply = `Mi criterio como tu entrenador es claro: **de momento mantengamos el plan de carrera del fin de semana y no metamos natación sábado/domingo**.
 
 ### Razonamiento fisiológico:
-1. **Especificidad Maratón**: Para correr los 42 km a 5:00-5:15 min/km necesitas acumular adaptaciones tendinosas y eficiencia neuromuscular en bipedestación (impacto cíclico controlado). La natación es un recuperador articular fantástico, pero no sustituye el rodaje del fin de semana.
-2. **Evaluemos la respuesta a las sesiones intermedias**:
-   - Hoy y mañana completaremos las sesiones pautadas.
-   - Si al despertar el sábado tu Readiness está alto y las piernas no están sobrecargadas, saldremos a rodar.
-   - Si arrastras pesadez o fatiga articular el sábado, entonces sí modificaremos sobre la marcha a **Natación N1 (40 min)**.`;
+1. **Especificidad Maratón**: Para correr los 42 km a 5:00-5:15 min/km necesitas acumular adaptaciones tendinosas y eficiencia neuromuscular en bipedestación. La natación es fantástica para recuperar entre semana, pero no sustituye la tirada clave del fin de semana.
+2. **Evaluemos la respuesta día a día**:
+   - Completamos los entrenos de jueves y viernes.
+   - Si al despertar el sábado tu Readiness está alto (🟢 Luz Verde) y las piernas no están sobrecargadas, saldremos a rodar.
+   - Solo si arrastras pesadez articular alta el sábado modificaremos a **Natación N1 (40 min)**.`;
     } else {
       actionCandidate = {
         type: "modify_session",
@@ -409,9 +399,9 @@ En cuanto metas el archivo \`.fit\` en la app:
         reply = `¡Hecho, Daniel! He actualizado tu plan directamente en la app a **Natación (N1 · 40 min)**.
 
 **Pautas para la sesión de nado:**
-* Enfoque: Regenerativo suave (**RPE 4-5**), buscando soltar musculatura y descomprimir columna y caderas tras el CrossFit.
+* Enfoque: Regenerativo suave (**RPE 4-5**), buscando soltar musculatura y descomprimir columna y caderas.
 * Trabajo continuo de crol con pausas cada 100-200m, prestando atención a la amplitud de brazada y respiración bilateral.
-* No pases de 40 minutos para no añadir fatiga glucolítica antes de las tiradas de carrera del fin de semana.`;
+* No pases de 40 minutos para no añadir fatiga glucolítica antes de las tiradas del fin de semana.`;
       } else {
         reply = `Analizando tu estado de carga (**${acuteLoad} pts Foster** acumulados esta semana y Readiness de **${readinessScore}/100**):
 
@@ -435,11 +425,11 @@ Meter **Natación hoy** es una **excelente decisión de descarga activa**, siemp
     };
 
     if (isExplicitChangeRequest) {
-      reply = `¡Hecho! He configurado tu día de hoy como **Descanso Total** en la app. Con **${acuteLoad} pts Foster** acumulados en la semana, tu cuerpo aprovechará hoy para supercompensar, reponer glucógeno y reparar fibras musculares de cara al fin de semana.`;
+      reply = `¡Hecho! He configurado tu día de hoy como **Descanso Total** en la app. Con **${acuteLoad} pts Foster** acumulados en la semana, tu cuerpo aprovechará hoy para supercompensar, reponer glucógeno y reparar fibras musculares.`;
     } else {
       reply = `Tomar hoy como **día de descanso** es una decisión muy sensata si sientes acumulación de fatiga. 
 * Llevas **${acuteLoad} pts Foster** acumulados en la semana.
-* Un día de descanso completo o un paseo ligero (descanso activo) reducirá la fatiga del SNC y asegurará que rindas al máximo en las sesiones del fin de semana.
+* Un día de descanso completo o un paseo ligero reducirá la fatiga del SNC y asegurará que rindas al máximo en las sesiones siguientes.
 
 Si deseas que lo configure en la app, tienes el botón directo aquí abajo.`;
     }
@@ -450,37 +440,39 @@ Si deseas que lo configure en la app, tienes el botón directo aquí abajo.`;
     reply = `### Pautas Nutricionales Adaptadas a tu Perfil:
 
 * **Tus requerimientos y exclusiones**:
-  - ⚠️ **Alergia estricta**: Cero frutos secos (nuez, avellana, almendra).
+  - ⚠️ **Alergia estricta**: Cero frutos secos (nuez, avellana, almendra, etc.).
   - ⚠️ **Sin pescado**: Aporte de ácidos grasos Omega-3 mediante suplementación diaria pautada.
 * **Cena previa a tirada larga o entreno exigente**:
   - Carbohidratos complejos de fácil digestión: arroz blanco o pasta con aceite de oliva virgen extra, pechuga de pollo/pavo o huevos.
   - Evitar exceso de fibra cruda o legumbres la noche anterior para prevenir molestias gastrointestinales durante la carrera.
 * **Desayuno el día de la tirada**:
   - 2h a 2h30 antes de correr: Tostadas de pan blanco con mermelada/miel o avena cocida, más café o té y 400ml de agua con una pizca de sales.
-* **Estrategia intra-entreno (carrera > 60 min)**:
-  - 1 gel energético cada 40-45 minutos + pequeños sorbos de agua para entrenar el estómago de cara a la Maratón.`;
+* **Estrategia intra-carrera (> 60 min)**:
+  - 1 gel energético cada 40-45 minutos + pequeños sorbos de agua para acostumbrar al estómago a asimilar glucógeno en carrera (vital para la Maratón).`;
   }
 
   // CASO 7: Sueño, Recuperación y Readiness
   else if (hasSleepReadiness) {
     reply = `### Análisis de tu Descanso y Readiness de Hoy:
 
-* **Puntuación de Readiness**: **${readinessScore}/100 (${context.dailyReadiness.levelLabel})**.
-* **Sueño registrado (Zepp)**: **${sleepHours}** (Score Zepp: ${context.dailyReadiness.stats.sleepScore ?? "82"}/100).
+* **Puntuación de Readiness**: **${readinessScore}/100 (${readinessBadge})**.
+* **Sueño registrado (Zepp)**: **${sleepHours}** (Score Zepp: ${context.dailyReadiness.stats.sleepScore ?? "—"}/100).
 * **Diagnóstico fisiológico**: ${context.dailyReadiness.headline}.
-* **Recomendación para hoy**: ${context.dailyReadiness.coachAdvice}
+* **Consejo del entrenador**: ${context.dailyReadiness.coachAdvice}
+* **Semáforo de Cargas**:
+  - ${context.dailyReadiness.verdict?.actionGuidance || "Entrena según sensaciones y respeta tus zonas VAM."}
 * **Recordatorio médico clave**: Daniel, recuerda que tu frecuencia cardíaca de reposo es naturalmente elevada (~100 lpm). Tu indicador de intensidad siempre debe ser el **RPE (escala 1-10) y el ritmo en min/km**, nunca las pulsaciones del reloj.`;
   }
 
   // CASO 8: Ratio ACWR y Mecánica de Carga
   else if (hasAcwrLoad) {
-    reply = `### Diagnóstico del Ratio ACWR (**${acwrValue}** - Infracarga / Precaución):
+    reply = `### Diagnóstico del Ratio ACWR (**${acwrValue}** - ${context.weeklyAssessment.loadAnalysis.acwrBadge}):
 
-* **¿Por qué marca este valor?**
-  - El algoritmo de Tim Gabbett compara la carga de los últimos 7 días (aguda) con la media de las últimas 4 semanas (crónica).
-  - Al estar a mitad de semana con **${acuteLoad} pts Foster**, el ratio matemático es temporalmente inferior a 0.80 porque faltan por computar las sesiones clave de carrera del fin de semana.
-* **¿Hay riesgo lesional?**: **En absoluto**. No estás desentrenado ni sobrecargado; es simplemente la evolución natural de la semana en curso.
-* **Pauta a seguir**: Completa las sesiones programadas respetando los ritmos aeróbicos marcados y el ratio se equilibrará dentro de la zona óptima (**0.80 - 1.30**) al cerrar el domingo.`;
+* **¿Cómo se interpreta este valor?**
+  - El modelo de Tim Gabbett compara la carga de los últimos 7 días (aguda) con la media de las últimas 4 semanas (crónica).
+  - Al estar a mitad de semana con **${acuteLoad} pts Foster**, el ratio matemático evoluciona a medida que completas los entrenamientos clave.
+* **¿Hay riesgo lesional?**: Con tu valor actual no hay sobrecarga peligrosa (el umbral de riesgo lesional está por encima de **1.50**).
+* **Pauta a seguir**: Completa las sesiones programadas respetando los ritmos aeróbicos marcados y el ratio se mantendrá dentro de la zona óptima (**0.80 - 1.30**) al cerrar el domingo.`;
   }
 
   // CASO 9: Ritmo objetivo y Estrategia Maratón
@@ -488,36 +480,38 @@ Si deseas que lo configure en la app, tienes el botón directo aquí abajo.`;
     reply = `### Estrategia hacia tu 2ª Maratón (${context.profile.marathonDate || "26 de abril de 2027"}):
 
 * **Ritmo objetivo en carrera**: **5:00 - 5:15 min/km** (tiempo estimado: 3h30 - 3h41).
-* **Fase actual**: **${context.profile.currentPhase || "Fase 1a (Base aeróbica + Hipertrofia)"}**.
-* **Criterios de ritmo en tus entrenamientos actuales**:
-  - **R1 (Regenerativo)**: 6:15 - 6:40 min/km (RPE 3-4, conversación sin esfuerzo).
-  - **R2 (Aeróbico medio / Progresivo)**: 5:35 - 5:55 min/km (RPE 5-6).
-  - **R5 (Tirada larga de volumen)**: 5:45 - 6:10 min/km (RPE 4-5, foco en economía de carrera y utilización de grasas).
-  - **Ritmo Maratón específico**: 5:00 - 5:15 min/km (lo introduciremos en bloques controlados en fases más avanzadas).`;
+* **VAM Oficial**: **3:59 min/km (15.06 km/h)**.
+* **Tus Zonas de Ritmo en Entrenamiento**:
+  - **R0 (Regenerativo)**: > 5:23 min/km (5:25 - 5:50 min/km) a RPE 3-4 (calentamiento, soltar piernas).
+  - **R1 (Base Aeróbica)**: 5:23 - 4:59 min/km a RPE 4-5 (rodajes de volumen cómodo).
+  - **RMC (Ritmo Maratón)**: 5:00 - 5:15 min/km a RPE 5-6 (bloques específicos de ritmo de competición).
+  - **R2 (Umbral Aeróbico)**: 4:59 - 4:35 min/km a RPE 6-7 (tempo medio, fatiga controlada).
+  - **R3 (Umbral Anaeróbico)**: 4:23 - 4:11 min/km a RPE 7-8 (bloques de crucero exigente).
+  - **R3+ (Series VAM)**: 3:59 min/km a RPE 9-10.`;
   }
 
   // CASO 10: Continuación conversacional / Respuestas breves
   else if (hasFollowUp && prevAssistantMsg) {
     reply = `Entendido Daniel. Siguiendo lo que hablábamos:
 
-* Tu carga semanal actual es de **${acuteLoad} pts Foster** en ${context.weeklyAssessment.sessionsProgress.completedCount} sesiones, con un Readiness hoy de **${readinessScore}/100**.
-* Si estás listo para el entrenamiento programado, ejecútalo controlando el RPE y mantén una buena hidratación.
+* Tu carga semanal actual es de **${acuteLoad} pts Foster** en ${context.weeklyAssessment.sessionsProgress.completedCount} sesiones, con un Readiness hoy de **${readinessScore}/100 (${readinessBadge})**.
+* Si estás listo para el entrenamiento programado, ejecútalo controlando el RPE y respetando los ritmos VAM.
 * Si necesitas que ajuste cualquier sesión del plan o cree un registro alternativo, dímelo y lo configuramos al instante.`;
   }
 
-  // CASO GENERAL DINÁMICO (Para cualquier otra consulta específica)
+  // CASO GENERAL DINÁMICO
   else {
     const todaySessionInfo = context.upcomingSessions.find((s) => s.date === context.today);
     reply = `He analizado tu consulta y el estado actual de tu preparación Daniel:
 
 ### Resumen de tu estado en vivo:
 * **Carga de entrenamiento semanal**: **${acuteLoad} pts Foster** acumulados (${context.weeklyAssessment.sessionsProgress.completedCount} sesiones realizadas).
-* **Readiness de hoy**: **${readinessScore}/100 (${context.dailyReadiness.levelLabel})**, con **${sleepHours}** de sueño registrado.
+* **Readiness de hoy**: **${readinessScore}/100 (${readinessBadge})**, con **${sleepHours}** de sueño registrado.
 * **Sesión prevista para hoy**: ${todaySessionInfo ? `${todaySessionInfo.discipline.toUpperCase()} (${todaySessionInfo.planned_code || "Entreno pautado"} · ${todaySessionInfo.duration_min || 45} min)` : "Día sin sesión pautada / Descanso"}.
 
-### Criterio del Entrenador para tu consulta:
+### Criterio del Entrenador:
 Respecto a *"${currentMsg}"*:
-* Recuerda que el gran objetivo macro es tu **Maratón a ritmo 5:00-5:15 min/km**, combinada con fuerza y salud articular.
+* Recuerda que tu gran objetivo es tu **Maratón a ritmo 5:00-5:15 min/km (VAM 3:59 min/km)**, combinada con fuerza y salud articular.
 * Guíate siempre por tu **RPE y ritmo por kilómetro**, manteniendo la disciplina en los descansos y la nutrición.
 * Si deseas que aplique un cambio específico en tu calendario (pasar a natación, modificar volumen, o añadir descanso), indícamelo expresamente o usa las opciones del chat.`;
   }
@@ -539,14 +533,22 @@ Tu objetivo es guiarlo hacia su meta de Maratón y progresión de fuerza/resiste
 
 REGLAS FUNDAMENTALES QUE DEBES CUMPLIR SIEMPRE:
 1. CONTEXTO REAL: Tienes acceso directo a sus datos biométricos, entrenamientos completados, descanso y estado de carga de la semana actual. Utiliza siempre estos datos reales para justificar tus respuestas.
-2. FRECUENCIA CARDÍACA: Daniel tiene indicación médica de entrenar por RITMO (min/km) y RPE (escala 1 a 10 de Foster), NUNCA por zonas de pulso absoluto (lpm) debido a su frecuencia cardíaca de reposo elevada (~100 lpm, apto sin restricciones).
-3. MODELO DE CARGA (ACWR): Conoces el modelo de Tim Gabbett de Carga Aguda vs Crónica. Si su ratio está bajo (<0.80) a mitad de semana, sabes que es una infracarga matemática temporal porque la semana está en curso. Si está por encima de 1.50, adviertes del riesgo lesional.
-4. PRIORIDAD MARATÓN (CARRERA A PIE):
+2. PRUEBA VAM Y ZONAS OFICIALES:
+   - VAM Oficial: 3:59 min/km (15.06 km/h).
+   - R0 (Regenerativo): > 5:23 min/km (5:25 - 5:50 min/km).
+   - R1 (Aeróbico Ligero / Base): 5:23 - 4:59 min/km.
+   - RMC (Ritmo Maratón Objetivo): 5:00 - 5:15 min/km (Sub 3h45).
+   - R2 (Umbral Aeróbico): 4:59 - 4:35 min/km.
+   - R3 (Umbral Anaeróbico): 4:23 - 4:11 min/km.
+   - R3+ (VAM / Series): 3:59 min/km.
+3. FRECUENCIA CARDÍACA: Daniel tiene indicación médica de entrenar por RITMO (min/km) y RPE (escala 1 a 10 de Foster), NUNCA por zonas de pulso absoluto (lpm) debido a su frecuencia cardíaca de reposo elevada (~100 lpm, apto sin restricciones).
+4. MODELO DE CARGA (ACWR): Conoces el modelo de Tim Gabbett de Carga Aguda vs Crónica. Si su ratio está bajo (<0.80) a mitad de semana, sabes que es una infracarga matemática temporal porque la semana está en curso. Si está por encima de 1.50, adviertes del riesgo lesional.
+5. PRIORIDAD MARATÓN (CARRERA A PIE):
    El gran objetivo macro de Daniel es correr una Maratón (segunda maratón, ritmo objetivo 5:00-5:15 min/km).
    - Los rodajes y tiradas largas del fin de semana (sábado y domingo) son la base específica más valiosa para la economía de carrera y adaptaciones óseas/tendinosas.
    - La natación y el gimnasio son excelentes complementos para descargar articulaciones y ganar fuerza, pero NO deben sustituir a la ligera las tiradas de carrera del fin de semana a menos que haya una sobrecarga, molestia o fatiga evidente.
    - Si el atleta duda o pregunta si es mejor esperar a ver cómo responde a las sesiones intermedias (jueves y viernes) antes de tocar el fin de semana, analiza con criterio: lo ideal es evaluar la fatiga acumulada tras esas sesiones antes de tomar una decisión precipitada.
-5. CAPACIDAD DE CAMBIAR ENTRENAMIENTOS EN LA APP:
+6. CAPACIDAD DE CAMBIAR ENTRENAMIENTOS EN LA APP:
    TIENES ACCESO DIRECTO PARA MODIFICAR EL CALENDARIO DE LA APP.
    - Si el atleta te da una ORDEN EXPRESA de cambiar una sesión, o si tras deliberar concluyes que debe sustituirse un entreno por otro, añade al final de tu respuesta:
    \`\`\`coach_action
@@ -561,7 +563,7 @@ REGLAS FUNDAMENTALES QUE DEBES CUMPLIR SIEMPRE:
    }
    \`\`\`
    - ¡IMPORTANTE! Si el atleta sólo te está pidiendo OPINIÓN, consejo o deliberación (ej: "¿Qué opinas de...", "¿Esperamos a ver la carga...?"), NO apliques cambios precipitados en el calendario de hoy. Razona detalladamente, sopesa las opciones y dale tu visión experta.
-6. TONO: Habla como su entrenador personal de confianza: profesional, claro, motivador, con criterio deportivo estricto y pautas tácticas accionables.
+7. TONO: Habla como su entrenador personal de confianza: profesional, claro, motivador, con criterio deportivo estricto y pautas tácticas accionables.
 
 ${context.contextMarkdown}
 `.trim();
