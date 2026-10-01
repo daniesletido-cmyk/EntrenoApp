@@ -474,35 +474,98 @@ export default function HoyPage() {
               {readiness.verdict?.actionGuidance || readiness.coachAdvice}
             </p>
 
-            {/* Target VAM Pace Quick Reference */}
-            {readiness.verdict?.paceAdvice && (
-              <div
-                className="flex flex-wrap items-center gap-1.5"
-                style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-              >
-                <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                  Zonas VAM:
-                </span>
-                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
-                  R0: &gt;5:23
-                </span>
-                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
-                  R1: 5:23–4:59
-                </span>
-                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
-                  RMC: 5:00–5:15
-                </span>
-                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
-                  R2: 4:59–4:35
-                </span>
-                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
-                  R3: 4:23–4:11
-                </span>
-                <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>
-                  R3+: 3:59
-                </span>
-              </div>
-            )}
+            {/* Target Sport-Specific Focus Badges */}
+            {(() => {
+              const activeDiscipline = readiness.stats?.todayDiscipline ?? sessions.find((s) => s.discipline !== "descanso")?.discipline ?? "descanso";
+              if (activeDiscipline === "carrera") {
+                return (
+                  <div
+                    className="flex flex-wrap items-center gap-1.5"
+                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+                  >
+                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                      Zonas VAM:
+                    </span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R0: &gt;5:23</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R1: 5:23–4:59</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>RMC: 5:00–5:15</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R2: 4:59–4:35</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R3: 4:23–4:11</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R3+: 3:59</span>
+                  </div>
+                );
+              }
+              if (activeDiscipline === "crossfit") {
+                return (
+                  <div
+                    className="flex flex-wrap items-center gap-1.5"
+                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+                  >
+                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                      Pauta CrossFit:
+                    </span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🔥 WOD + Skill</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>⚡ Intensidad: RPE 8.5–9</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🎯 Control Postural & Ritmo</span>
+                  </div>
+                );
+              }
+              if (activeDiscipline === "gimnasio") {
+                return (
+                  <div
+                    className="flex flex-wrap items-center gap-1.5"
+                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+                  >
+                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                      Pauta Fuerza:
+                    </span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🏋️ Básicos & Accesorios</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>💪 Cargas al 100% Objetivo</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🎯 RIR 1–2 (Sin fallo)</span>
+                  </div>
+                );
+              }
+              if (activeDiscipline === "natacion") {
+                return (
+                  <div
+                    className="flex flex-wrap items-center gap-1.5"
+                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+                  >
+                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                      Pauta Natación:
+                    </span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🏊‍♂️ Eficiencia & Deslizamiento</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🌊 SWOLF Eficiente</span>
+                  </div>
+                );
+              }
+              if (activeDiscipline === "ciclismo") {
+                return (
+                  <div
+                    className="flex flex-wrap items-center gap-1.5"
+                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+                  >
+                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                      Pauta Ciclismo:
+                    </span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🚴‍♂️ Cadencia Ágil: 85–95 rpm</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>⚡ Zona Z2 / Z3</span>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  className="flex flex-wrap items-center gap-1.5"
+                  style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
+                >
+                  <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
+                    Pauta del Día:
+                  </span>
+                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🌙 Supercompensación & Descanso</span>
+                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>💧 Hidratación & Nutrición</span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Proposed Micro-Adjustments for next 48-72h */}

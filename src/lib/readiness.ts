@@ -86,6 +86,205 @@ function sessionLoad(s: SessionRow): number {
   return s.rpe * s.duration_min;
 }
 
+function getSportSpecificReadinessAdvice(
+  overallScore: number,
+  todaySession: SessionRow | null
+): {
+  verdictType: VerdictType;
+  verdictBadgeLabel: string;
+  verdictTitle: string;
+  verdictDesc: string;
+  actionGuidance: string;
+  coachAdvice: string;
+  activeRecPace: string;
+} {
+  const discipline = todaySession?.discipline ?? "descanso";
+  const code = todaySession?.planned_code ? ` · ${todaySession.planned_code}` : "";
+  const name = todaySession ? `${todaySession.discipline}${code}` : "descanso";
+
+  if (overallScore >= 82) {
+    const verdictType: VerdictType = "push";
+    const verdictBadgeLabel = "🟢 PUEDES APRETAR MÁS";
+    const verdictTitle = "Luz Verde Total · Máxima Capacidad";
+    const verdictDesc = "Recuperación plena y sistema nervioso fresco. Tienes luz verde para dar el 100% en tu sesión programada.";
+    const activeRecPace = "Zona alta / Ritmo rápido / Cargas al 100%";
+
+    let actionGuidance = "";
+    let coachAdvice = "";
+
+    switch (discipline) {
+      case "crossfit":
+        actionGuidance = `Hoy toca CrossFit (${todaySession?.planned_code || "WOD + Skill"}): Depósito de energía al 100% y sistema neuromuscular fresco. Tienes luz verde para dar máxima intensidad en el WOD, clavar ritmos altos y atacar las transiciones con agresividad (RPE 8.5–9).`;
+        coachAdvice = `Hoy toca CrossFit (${todaySession?.planned_code || "WOD"}): Tienes luz verde total para afrontar el entrenamiento con máxima intensidad, controlando la técnica en fatiga.`;
+        break;
+      case "carrera":
+        actionGuidance = `Hoy toca Carrera (${todaySession?.planned_code || "Running"}): Piernas frescas y pulso basal descansado. Puedes rodar con soltura en la parte rápida de tu zona objetivo (R1 a 5:00 min/km, buscar R2 a 4:35 min/km o clavar RMC a 5:00–5:15 min/km).`;
+        coachAdvice = `Hoy toca Carrera (${todaySession?.planned_code || "Running"}): Tus piernas están frescas y el pulso descansado. Puedes buscar la parte más rápida de tus zonas VAM con total soltura.`;
+        break;
+      case "gimnasio":
+        actionGuidance = `Hoy toca Fuerza / Gimnasio (${todaySession?.planned_code || "Pesas"}): Recuperación neuromuscular óptima. Puedes mover los pesos objetivo con máxima aceleración concéntrica y añadir 2.5–5 kg si la técnica en básicos es sólida (RIR 1-2).`;
+        coachAdvice = `Hoy toca Gimnasio (${todaySession?.planned_code || "Pesas"}): Luz verde total para mover los pesos objetivo con técnica firme y buscar tu mejor rendimiento en los básicos.`;
+        break;
+      case "natacion":
+        actionGuidance = `Hoy toca Natación (${todaySession?.planned_code || "Piscina"}): Energía y coordinación al máximo. Excelente día para meter metros de calidad, buscando brazadas potentes, óptimo deslizamiento y ritmo constante por /100m.`;
+        coachAdvice = `Hoy toca Natación (${todaySession?.planned_code || "Piscina"}): Excelente coordinación para deslizar bien en el agua y mantener brazadas eficientes.`;
+        break;
+      case "ciclismo":
+        actionGuidance = `Hoy toca Ciclismo (${todaySession?.planned_code || "Bici"}): Frescura muscular total. Tienes luz verde para sostener vatios altos en subidas o tramos de tempo y rodar ágil a 85–95 rpm.`;
+        coachAdvice = `Hoy toca Ciclismo (${todaySession?.planned_code || "Bici"}): Buenas piernas para rodar a ritmo vivo y mantener una cadencia fluida.`;
+        break;
+      case "caminata":
+        actionGuidance = `Hoy toca Caminata / Senderismo (${todaySession?.planned_code || "Caminata"}): Excelente activación aeróbica sin impacto articular. Mantén un paso ágil y constante para oxigenar la musculatura.`;
+        coachAdvice = `Hoy toca Caminata: Actividad aeróbica perfecta para sumar movimiento activo sin fatiga articular.`;
+        break;
+      case "descanso":
+        actionGuidance = `Hoy es día de Descanso programado: Supercompensación óptima. Tu cuerpo está asimilando la carga acumulada y recargando glucógeno al 100% para los próximos entrenos.`;
+        coachAdvice = `Día de descanso programado: Aprovecha para recuperar profundamente y llegar fresco a la siguiente sesión.`;
+        break;
+      default:
+        actionGuidance = `Hoy toca ${todaySession?.planned_code || "Entrenamiento"}: Luz verde total. Tienes los depósitos llenos y la energía al máximo para rendir al 100%.`;
+        coachAdvice = `Día perfecto para entrenar con calidad y aprovechar tu excelente recuperación.`;
+        break;
+    }
+
+    return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
+  } else if (overallScore >= 66) {
+    const verdictType: VerdictType = "maintain";
+    const verdictBadgeLabel = "🟡 MANTÉN EL RITMO";
+    const verdictTitle = "Buen Tono · Ritmo Crucero";
+    const verdictDesc = "Nivel de energía y recuperación equilibrado. Cumple el entrenamiento programado según lo planeado.";
+    const activeRecPace = "Ritmo planificado / RPE 6-7";
+
+    let actionGuidance = "";
+    let coachAdvice = "";
+
+    switch (discipline) {
+      case "crossfit":
+        actionGuidance = `Hoy toca CrossFit (${todaySession?.planned_code || "WOD"}): Nivel de energía estable. Completa el WOD a ritmo crucero constante (RPE 7-8), gestionando bien las pausas y sin quemarte en las primeras rondas.`;
+        coachAdvice = `Hoy toca CrossFit (${todaySession?.planned_code || "WOD"}): Mantén un ritmo sostenido y buena técnica en cada movimiento.`;
+        break;
+      case "carrera":
+        actionGuidance = `Hoy toca Carrera (${todaySession?.planned_code || "Running"}): Tono físico estable. Cumple con precisión los ritmos pautados en tu zona VAM (R1 a 5:15–5:23 min/km) manteniendo RPE 5–7 sin forzar de más.`;
+        coachAdvice = `Hoy toca Carrera (${todaySession?.planned_code || "Running"}): Mantén el plan pautado y rueda con fluidez sin exceder los ritmos objetivo.`;
+        break;
+      case "gimnasio":
+        actionGuidance = `Hoy toca Fuerza / Gimnasio (${todaySession?.planned_code || "Pesas"}): Buen tono muscular. Cumple las series y repeticiones prescritas manteniendo RIR 2 y descansos completos entre series.`;
+        coachAdvice = `Hoy toca Gimnasio (${todaySession?.planned_code || "Pesas"}): Ejecuta las series pautadas con técnica impecable y buena recuperación entre series.`;
+        break;
+      case "natacion":
+        actionGuidance = `Hoy toca Natación (${todaySession?.planned_code || "Piscina"}): Tono aeróbico adecuado. Sigue la pauta de metros e intervalos buscando ritmo constante y buen SWOLF.`;
+        coachAdvice = `Hoy toca Natación (${todaySession?.planned_code || "Piscina"}): Concéntrate en la fluidez del nado y la respiración regular.`;
+        break;
+      case "ciclismo":
+        actionGuidance = `Hoy toca Ciclismo (${todaySession?.planned_code || "Bici"}): Buen nivel de energía. Rueda en zona Z2 aeróbica con cadencia ágil y cómoda sin sobrepasar el umbral.`;
+        coachAdvice = `Hoy toca Ciclismo (${todaySession?.planned_code || "Bici"}): Mantén un pedaleo redondo y constante a lo largo de la ruta.`;
+        break;
+      case "caminata":
+        actionGuidance = `Hoy toca Caminata (${todaySession?.planned_code || "Caminata"}): Paso continuo y cómodo para favorecer el retorno venoso y la quema aeróbica.`;
+        coachAdvice = `Hoy toca Caminata: Mantén un paso regular y oxigenante.`;
+        break;
+      case "descanso":
+        actionGuidance = `Hoy es día de Descanso programado: Recuperación adecuada. Mantén una buena hidratación y nutrición equilibrada para llegar a punto mañana.`;
+        coachAdvice = `Día de descanso: Asimilando el trabajo de la semana.`;
+        break;
+      default:
+        actionGuidance = `Sesión prevista: ${name}. Mantén las intensidades pautadas y RPE entre 5 y 7 según el plan.`;
+        coachAdvice = `Sesión prevista: ${name}. Mantén el plan pautado y escucha a tu cuerpo en el calentamiento.`;
+        break;
+    }
+
+    return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
+  } else if (overallScore >= 48) {
+    const verdictType: VerdictType = "reduce";
+    const verdictBadgeLabel = "🟠 BAJA LA INTENSIDAD";
+    const verdictTitle = "Precaución · Modula la Carga";
+    const verdictDesc = "Existe fatiga muscular residual o descanso incompleto. Conviene adaptar la sesión para no sobrecargar el organismo.";
+    const activeRecPace = "Ritmo regenerativo / RPE 4-5";
+
+    let actionGuidance = "";
+    let coachAdvice = "";
+
+    switch (discipline) {
+      case "crossfit":
+        actionGuidance = `Hoy toca CrossFit (${todaySession?.planned_code || "WOD"}): Fatiga acumulada detectada. Modula la intensidad del WOD: baja el ritmo a RPE 6, escala cargas o impactos si lo necesitas y prioriza técnica limpia sobre cronómetro.`;
+        coachAdvice = `Hoy toca CrossFit (${todaySession?.planned_code || "WOD"}): Calienta 5-10 min extra y no busques ir al fallo; entrena con margen de seguridad.`;
+        break;
+      case "carrera":
+        actionGuidance = `Hoy toca Carrera (${todaySession?.planned_code || "Running"}): Fatiga o deuda de sueño detectada. Rueda exclusivamente en zona R0/R1 regenerativa (>5:25 min/km, ej. 5:35–5:50 min/km) a RPE ≤ 5 sin meter series ni cambios de ritmo.`;
+        coachAdvice = `Hoy toca Carrera (${todaySession?.planned_code || "Running"}): Si notas pesadez o pulso alto, reduce ritmos a trote conversacional suave (RPE 4-5).`;
+        break;
+      case "gimnasio":
+        actionGuidance = `Hoy toca Fuerza / Gimnasio (${todaySession?.planned_code || "Pesas"}): Fatiga neuromuscular. Trabaja con pesos submáximos dejando 3–4 repeticiones en recámara (RIR 3-4) y evita series al fallo.`;
+        coachAdvice = `Hoy toca Gimnasio (${todaySession?.planned_code || "Pesas"}): Prioriza la calidad técnica y no fuerces kilos extras hoy.`;
+        break;
+      case "natacion":
+        actionGuidance = `Hoy toca Natación (${todaySession?.planned_code || "Piscina"}): Energía moderada. Realiza un nado suave y continuo sin series lácticas, buscando soltar hombros y espalda.`;
+        coachAdvice = `Hoy toca Natación (${todaySession?.planned_code || "Piscina"}): Nado regenerativo para soltar tensión articular.`;
+        break;
+      case "ciclismo":
+        actionGuidance = `Hoy toca Ciclismo (${todaySession?.planned_code || "Bici"}): Fatiga en piernas. Rueda suave en llano en Z1/Z2 regenerativo con desarrollo blando y cadencia suelta.`;
+        coachAdvice = `Hoy toca Ciclismo (${todaySession?.planned_code || "Bici"}): Pedaleo regenerativo sin forzar en repechos.`;
+        break;
+      case "caminata":
+        actionGuidance = `Hoy toca Caminata: Paseo suave y regenerativo a paso muy cómodo para favorecer la recuperación.`;
+        coachAdvice = `Paseo regenerativo suave para soltar piernas.`;
+        break;
+      case "descanso":
+        actionGuidance = `Hoy es día de Descanso: Excelente momento para recuperar la fatiga acumulada en las últimas 48h. Prioriza descanso, siesta e hidratación.`;
+        coachAdvice = `Descanso necesario: Permite que tus músculos y sistema nervioso se regeneren.`;
+        break;
+      default:
+        actionGuidance = `Hoy toca ${todaySession?.planned_code || "Entrenamiento"}: Reduce la exigencia hoy a un nivel suave o regenerativo (RPE ≤ 5).`;
+        coachAdvice = `Modula la sesión de hoy para no acumular sobreentrenamiento.`;
+        break;
+    }
+
+    return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
+  } else {
+    const verdictType: VerdictType = "rest";
+    const verdictBadgeLabel = "🔴 PRIORIZA DESCANSO";
+    const verdictTitle = "Descanso / Descarga Necesaria";
+    const verdictDesc = "Déficit agudo de sueño o saturación de carga. El entrenamiento duro hoy sería contraproducente para el rendimiento.";
+    const activeRecPace = "Descanso total o movilidad suave";
+
+    let actionGuidance = "";
+    let coachAdvice = "";
+
+    switch (discipline) {
+      case "crossfit":
+        actionGuidance = `Hoy toca CrossFit: Fatiga alta o descanso muy deficiente. Se aconseja cambiar el WOD de alta intensidad por una sesión suave de movilidad articular, estiramientos o descanso total para no sobrecargar el SNC.`;
+        coachAdvice = `Valora cambiar el CrossFit de hoy por descanso o movilidad articular para permitir que el cuerpo recupere.`;
+        break;
+      case "carrera":
+        actionGuidance = `Hoy toca Carrera: Sobrecarga o fatiga aguda. Se recomienda descanso total o paseo suave. Si decides trotar, no pases de 20 min en R0 regenerativo (>5:45 min/km).`;
+        coachAdvice = `Valora cambiar la carrera de hoy por descanso total o trote muy suave regenerativo.`;
+        break;
+      case "gimnasio":
+        actionGuidance = `Hoy toca Gimnasio: Fatiga alta. Reduce el volumen a la mitad o cambia la sesión por trabajo de movilidad y estiramientos para proteger tendones y articulaciones.`;
+        coachAdvice = `Descanso o descarga activa aconsejada para proteger el sistema muscular y articular.`;
+        break;
+      case "natacion":
+        actionGuidance = `Hoy toca Natación: Nivel de energía bajo. Limita la sesión a un baño regenerativo muy suave para soltar musculatura o tómate el día libre.`;
+        coachAdvice = `Sesión de descarga muy suave o descanso total.`;
+        break;
+      case "ciclismo":
+        actionGuidance = `Hoy toca Ciclismo: Fatiga alta. Limita el tiempo a un rodaje muy suave o sustituye por descanso total.`;
+        coachAdvice = `Descanso o rodaje regenerativo muy corto.`;
+        break;
+      case "descanso":
+        actionGuidance = `Hoy es día de Descanso crucial: El cuerpo necesita recuperación total. Hidrátate bien y prioriza dormir al menos 8 horas esta noche.`;
+        coachAdvice = `Descanso prioritario hoy.`;
+        break;
+      default:
+        actionGuidance = `Se recomienda descanso total o sesión suave de movilidad para permitir la recuperación.`;
+        coachAdvice = `Prioriza la recuperación y el descanso hoy.`;
+        break;
+    }
+
+    return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
+  }
+}
+
 export function computeDailyReadiness(targetDate: string): DailyReadiness {
   const yesterday = addDays(targetDate, -1);
   const twoDaysAgo = addDays(targetDate, -2);
@@ -292,105 +491,56 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
   let tone: DailyReadiness["tone"] = "brand";
   let headline = "";
   let summary = "";
-  let coachAdvice = "";
-
-  const todayName = todaySession ? `${todaySession.discipline} (${todaySession.planned_code ?? "sesión"})` : "descanso";
-
-  // Veredicto estructurado y semáforo de cargas
-  let verdictType: VerdictType = "maintain";
-  let verdictBadgeLabel = "🟡 MANTÉN EL RITMO";
-  let verdictTitle = "Rendimiento Estable · Sigue el Plan";
-  let verdictDesc = "Tus niveles de fatiga y sueño están equilibrados. Puedes cumplir el entrenamiento programado.";
-  let actionGuidance = "Mantén las intensidades pautadas. En carrera corre en zona R1 (5:23–4:59 min/km) o R2 (4:59–4:35 min/km) sin exceder RPE 6-7.";
-  let activeRecPace = "R1 (5:23 - 4:59 min/km) o R2 (4:59 - 4:35 min/km)";
 
   if (overallScore >= 82) {
     level = "optimo";
     levelLabel = "Óptimo · Luz Verde";
     tone = "success";
     headline = "¡Estado de forma y recuperación excelente!";
-    summary = "Tu cuerpo ha descansado profundamente y ha asimilado la carga previa. Tienes luz verde total para apretar y rendir al máximo.";
-    
-    verdictType = "push";
-    verdictBadgeLabel = "🟢 PUEDES APRETAR MÁS";
-    verdictTitle = "Luz Verde Total · Máxima Capacidad";
-    verdictDesc = "Recuperación plena y sistema nervioso fresco. Puedes buscar la parte más rápida de tus zonas objetivo o subir peso.";
-    actionGuidance = "Si hoy toca Carrera, puedes rodar con soltura en la parte alta de R1 (5:00 min/km), buscar R2 fuerte (4:35 min/km) o clavar RMC (5:00–5:15 min/km). En gimnasio puedes añadir 2.5–5 kg.";
-    activeRecPace = "Zona rápida: R1 (5:00 min/km) / R2 (4:35 min/km) / RMC (5:05 min/km)";
-
-    if (todaySession?.discipline === "gimnasio") {
-      coachAdvice = "Hoy toca Gimnasio: tienes luz verde total para mover los pesos objetivo con técnica firme y buscar tu mejor rendimiento en los básicos.";
-    } else if (todaySession?.discipline === "carrera") {
-      coachAdvice = "Hoy toca Carrera: tus piernas están frescas y el pulso basal descansado. Puedes clavar los ritmos previstos con total soltura buscando la parte alta de la zona.";
-    } else if (todaySession?.discipline === "natacion") {
-      coachAdvice = "Hoy toca Natación: excelente coordinación y energía para deslizar bien en el agua y mantener brazadas potentes.";
-    } else if (todaySession?.discipline === "crossfit") {
-      coachAdvice = "Hoy toca CrossFit: depósito de energía al 100% para afrontar el WOD con intensidad alta y buen control postural.";
-    } else {
-      coachAdvice = "Día perfecto para entrenar con calidad y aprovechar tu excelente recuperación.";
-    }
+    summary = "Tu cuerpo ha descansado profundamente y ha asimilado la carga previa. Tienes luz verde total para rendir al máximo.";
   } else if (overallScore >= 66) {
     level = "bueno";
     levelLabel = "Bueno · Listo para entrenar";
     tone = "brand";
     headline = "Recuperación adecuada y buen tono físico";
     summary = "Tus niveles de fatiga y descanso están equilibrados. Puedes completar el entreno programado según lo planeado.";
-    
-    verdictType = "maintain";
-    verdictBadgeLabel = "🟡 MANTÉN EL RITMO";
-    verdictTitle = "Buen Tono · Ritmo Crucero";
-    verdictDesc = "El cuerpo está listo para el entreno regular. No fuerces ritmos por encima de lo planificado.";
-    actionGuidance = `Sesión prevista: ${todayName}. Mantén RPE entre 5 y 7. Respeta los ritmos VAM estables (R1 a 5:15–5:23 min/km).`;
-    activeRecPace = "R1 (5:15 - 5:23 min/km) / R2 (4:45 - 4:59 min/km)";
-    coachAdvice = `Sesión prevista: ${todayName}. Mantén el plan pautado y escucha a tu cuerpo en el calentamiento; no fuerces más allá de lo necesario.`;
   } else if (overallScore >= 48) {
     level = "moderado";
     levelLabel = "Moderado · Con cautela";
     tone = "warning";
     headline = "Fatiga residual o sueño insuficiente";
     summary = "Existe deuda de descanso o fatiga muscular de las últimas 48h. Conviene modular la intensidad para no acumular sobreentrenamiento.";
-    
-    verdictType = "reduce";
-    verdictBadgeLabel = "🟠 BAJA LA INTENSIDAD";
-    verdictTitle = "Precaución · Modula la Carga";
-    verdictDesc = "Se aconseja rodar suave o rebajar series para permitir la regeneración tisular.";
-    actionGuidance = "Hoy reduce la exigencia: corre estrictamente en R0 / R1 regenerativo (>5:23 min/km, ej. 5:30–5:45 min/km) a RPE ≤ 5. En fuerza, mantén peso submáximo con 3-4 reps en recámara (RIR 3-4).";
-    activeRecPace = "R0 Regenerativo (>5:23 min/km, ej. 5:30 - 5:50 min/km)";
-    coachAdvice = `Para hoy (${todayName}): calienta 5-10 min extra. Si notas pesadez o pulso alto, baja un 10-15% la carga o corre a ritmos conversacionales suaves (RPE 4-5).`;
   } else {
     level = "bajo";
     levelLabel = "Fatiga Alta · Priorizar Descanso";
     tone = "danger";
     headline = "Señales de fatiga alta o descanso deficiente";
-    summary = "La combinación de poco sueño y esfuerzo reciente aconseja prudencia para evitar sobrecargas musculares, sobreentrenamiento o lesiones.";
-    
-    verdictType = "rest";
-    verdictBadgeLabel = "🔴 PRIORIZA DESCANSO";
-    verdictTitle = "Descanso / Descarga Necesaria";
-    verdictDesc = "Déficit agudo de sueño o saturación de impacto. El entrenamiento duro hoy sería contraproducente.";
-    actionGuidance = "Se recomienda descanso total, sesión suave de movilidad o natación regenerativa muy ligera (RPE 3). Si decides correr, no pases de 20-30 min a R0 muy suave (>5:40 min/km).";
-    activeRecPace = "R0 Muy Suave (>5:45 min/km) o Descanso Activo / Movilidad";
-    coachAdvice = `Valora cambiar la sesión de hoy (${todayName}) por descanso total, paseo suave o movilidad articular para permitir que el cuerpo recupere el glucógeno y la homeostasis.`;
+    summary = "La combinación de poco sueño y esfuerzo reciente aconseja prudencia para evitar sobrecargas musculares o sobreentrenamiento.";
   }
 
+  // Obtener diagnóstico y guía 100% personalizada al deporte de hoy
+  const sportAdvice = getSportSpecificReadinessAdvice(overallScore, todaySession);
+
   const verdict: ReadinessVerdict = {
-    type: verdictType,
-    badgeLabel: verdictBadgeLabel,
+    type: sportAdvice.verdictType,
+    badgeLabel: sportAdvice.verdictBadgeLabel,
     tone,
-    title: verdictTitle,
-    description: verdictDesc,
-    actionGuidance,
-    canPushMore: verdictType === "push",
-    shouldRest: verdictType === "rest",
+    title: sportAdvice.verdictTitle,
+    description: sportAdvice.verdictDesc,
+    actionGuidance: sportAdvice.actionGuidance,
+    canPushMore: sportAdvice.verdictType === "push",
+    shouldRest: sportAdvice.verdictType === "rest",
     paceAdvice: {
       r0: "> 5:23 min/km (5:25 - 5:50)",
       r1: "5:23 - 4:59 min/km",
       r2: "4:59 - 4:35 min/km",
       r3: "4:23 - 4:11 min/km",
       rmc: "5:00 - 5:15 min/km",
-      activeRecommendation: activeRecPace,
+      activeRecommendation: sportAdvice.activeRecPace,
     },
   };
+
+  const coachAdvice = sportAdvice.coachAdvice;
 
   // ==========================================
   // PROPUESTA DE AJUSTES MICRO (Próximos 3 días)

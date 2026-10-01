@@ -2,7 +2,7 @@ import { getDb } from "@/lib/db";
 import { weekStartOf } from "@/lib/dates";
 
 export type SessionStatus = "pendiente" | "realizada" | "parcial" | "no_realizada";
-export type Discipline = "carrera" | "gimnasio" | "natacion" | "crossfit" | "otro" | "descanso";
+export type Discipline = "carrera" | "gimnasio" | "natacion" | "crossfit" | "ciclismo" | "caminata" | "remo" | "otro" | "descanso";
 
 export interface SessionRow {
   id: number;
