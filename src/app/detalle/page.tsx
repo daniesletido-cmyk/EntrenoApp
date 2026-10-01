@@ -21,10 +21,20 @@ import {
   TrendingUp,
   Award,
   CheckCircle2,
+  CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
-import { todayISO } from "@/lib/dates";
+import WeekSwitcher from "@/components/week-switcher";
+import {
+  todayISO,
+  weekStartOf,
+  weekDates,
+  DAY_NAMES_ES,
+  isoDayOfWeek,
+  addDays,
+} from "@/lib/dates";
 
 const DISCIPLINE_ICON: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   carrera: Footprints,
@@ -32,6 +42,7 @@ const DISCIPLINE_ICON: Record<string, React.ComponentType<{ size?: number; class
   natacion: Waves,
   crossfit: Flame,
   otro: MoreHorizontal,
+  descanso: Moon,
 };
 
 const DISCIPLINE_LABEL: Record<string, string> = {
@@ -79,54 +90,118 @@ function rpeDescription(rpe: number | null): string {
 function DetalleContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialSessionId = searchParams.get("id");
 
-  const [allSessions, setAllSessions] = useState<any[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(initialSessionId ? Number(initialSessionId) : null);
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const today = todayISO();
+  const initialSessionId = searchParams.get("id");
+  const initialDate = searchParams.get("date") ?? today;
+
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate);
+  const [weekStart, setWeekStart] = useState<string>(weekStartOf(initialDate));
+  const [weekSessions, setWeekSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
+    initialSessionId ? Number(initialSessionId) : null
+  );
+  const [sessionDetail, setSessionDetail] = useState<any>(null);
+  const [loadingSession, setLoadingSession] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "zones" | "laps" | "gym" | "readiness">("general");
 
-  // Cargar lista de sesiones recientes
+  const days = weekDates(weekStart);
+
+  // 1. Cargar las sesiones de la semana activa
   useEffect(() => {
-    fetch("/api/history")
+    fetch(`/api/sessions?week=${weekStart}`)
       .then((r) => r.json())
       .then((res) => {
         const list = res.sessions ?? [];
-        setAllSessions(list);
-        if (!selectedId && list.length > 0) {
-          // Elegir la más reciente completada o de hoy
-          const today = todayISO();
-          const todaySession = list.find((s: any) => s.date === today);
-          const latestDone = list.find((s: any) => s.status === "realizada");
-          setSelectedId(todaySession ? todaySession.id : latestDone ? latestDone.id : list[0].id);
+        setWeekSessions(list);
+
+        // Si ya hay una sesión seleccionada por ID
+        if (selectedSessionId) {
+          const found = list.find((s: any) => s.id === selectedSessionId);
+          if (found) {
+            setSelectedDate(found.date);
+            return;
+          }
+        }
+
+        // Si no, auto-seleccionar la sesión del selectedDate
+        const dayList = list.filter((s: any) => s.date === selectedDate && s.discipline !== "descanso");
+        if (dayList.length > 0) {
+          setSelectedSessionId(dayList[0].id);
+        } else {
+          // Si el día actual no tiene sesiones, buscar el día más cercano con sesiones
+          const firstWithSession = list.find((s: any) => s.discipline !== "descanso");
+          if (firstWithSession) {
+            setSelectedDate(firstWithSession.date);
+            setSelectedSessionId(firstWithSession.id);
+          } else {
+            setSelectedSessionId(null);
+          }
         }
       })
       .catch(() => {});
-  }, []);
+  }, [weekStart]);
 
-  // Cargar detalle de la sesión seleccionada
-  useEffect(() => {
-    if (!selectedId) return;
-    setLoading(true);
-    fetch(`/api/sessions/${selectedId}`)
-      .then((r) => r.json())
-      .then((res) => setData(res))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [selectedId]);
-
-  const handleSelectSession = (id: number) => {
-    setSelectedId(id);
-    router.replace(`/detalle?id=${id}`);
+  // 2. Al cambiar de día, seleccionar automáticamente la primera sesión de ese día
+  const handleSelectDay = (date: string) => {
+    setSelectedDate(date);
+    const dayList = weekSessions.filter((s) => s.date === date && s.discipline !== "descanso");
+    if (dayList.length > 0) {
+      setSelectedSessionId(dayList[0].id);
+      router.replace(`/detalle?id=${dayList[0].id}&date=${date}`);
+    } else {
+      setSelectedSessionId(null);
+      setSessionDetail(null);
+      router.replace(`/detalle?date=${date}`);
+    }
   };
 
-  const session = data?.session;
-  const fit = data?.fitSummary;
-  const gym = data?.gymDetails ?? [];
-  const sleep = data?.sleep;
-  const readiness = data?.readiness;
-  const load = data?.load;
+  // 3. Al cambiar de sesión directamente
+  const handleSelectSession = (id: number) => {
+    setSelectedSessionId(id);
+    const s = weekSessions.find((item) => item.id === id);
+    if (s) {
+      setSelectedDate(s.date);
+      router.replace(`/detalle?id=${id}&date=${s.date}`);
+    }
+  };
+
+  // 4. Cambiar de fecha directamente desde el input de fecha
+  const handleDirectDateChange = (date: string) => {
+    if (!date) return;
+    setSelectedDate(date);
+    const newWeek = weekStartOf(date);
+    if (newWeek !== weekStart) {
+      setWeekStart(newWeek);
+    } else {
+      handleSelectDay(date);
+    }
+  };
+
+  // 5. Cargar detalle profundo de la sesión seleccionada
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setSessionDetail(null);
+      return;
+    }
+    setLoadingSession(true);
+    fetch(`/api/sessions/${selectedSessionId}`)
+      .then((r) => r.json())
+      .then((res) => setSessionDetail(res))
+      .catch(() => {})
+      .finally(() => setLoadingSession(false));
+  }, [selectedSessionId]);
+
+  const currentDaySessions = weekSessions.filter(
+    (s) => s.date === selectedDate && s.discipline !== "descanso"
+  );
+
+  const session = sessionDetail?.session;
+  const fit = sessionDetail?.fitSummary;
+  const gym = sessionDetail?.gymDetails ?? [];
+  const sleep = sessionDetail?.sleep;
+  const readiness = sessionDetail?.readiness;
+  const load = sessionDetail?.load;
 
   const IconComp = session?.discipline ? DISCIPLINE_ICON[session.discipline] ?? MoreHorizontal : Activity;
   const statusInfo = session ? STATUS_LABEL[session.status] ?? STATUS_LABEL.pendiente : STATUS_LABEL.pendiente;
@@ -139,47 +214,195 @@ function DetalleContent() {
     <div>
       <PageHeader
         title="Detalle del Entrenamiento"
-        description="Panel exhaustivo con todas las métricas, fisiología, zonas VAM, laps y cargas al detalle."
+        description="Selecciona cualquier día en el calendario para inspeccionar sus métricas, zonas VAM, laps y cargas."
+        actions={
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted font-medium flex items-center gap-1">
+              <CalendarDays size={14} />
+              <span>Ir al día:</span>
+            </label>
+            <input
+              type="date"
+              className="field-input text-xs"
+              style={{ width: 140, padding: "4px 8px", height: 36, borderRadius: "var(--radius-md)" }}
+              value={selectedDate}
+              onChange={(e) => handleDirectDateChange(e.target.value)}
+            />
+          </div>
+        }
       />
 
-      {/* Selector rápido de sesiones */}
-      <div className="surface" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-4)" }}>
+      {/* Navegador Semanal */}
+      <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
+
+      {/* SELECTOR DE DÍAS (Lunes a Domingo) */}
+      <div className="surface" style={{ padding: "var(--space-3)", marginBottom: "var(--space-4)" }}>
         <div className="text-xs uppercase font-semibold text-muted" style={{ marginBottom: "var(--space-2)" }}>
-          Selecciona un entrenamiento para ver todo su detalle:
+          📅 Selecciona un día para ver sus entrenamientos:
         </div>
-        <div className="flex items-center gap-2" style={{ overflowX: "auto", paddingBottom: 4 }}>
-          {allSessions.slice(0, 10).map((s: any) => {
-            const isSel = s.id === selectedId;
-            const Icon = DISCIPLINE_ICON[s.discipline] ?? MoreHorizontal;
+
+        <div
+          className="grid gap-2"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(105px, 1fr))",
+          }}
+        >
+          {days.map((date, idx) => {
+            const isSelected = date === selectedDate;
+            const isToday = date === today;
+            const daySess = weekSessions.filter((s) => s.date === date && s.discipline !== "descanso");
+            const dayNum = date.split("-")[2];
+
             return (
               <button
-                key={s.id}
-                onClick={() => handleSelectSession(s.id)}
-                className={`btn ${isSel ? "btn-primary" : "btn-secondary"} text-xs flex items-center gap-1.5`}
+                key={date}
+                type="button"
+                onClick={() => handleSelectDay(date)}
+                className="surface-interactive text-left flex flex-col justify-between"
                 style={{
-                  flexShrink: 0,
-                  padding: "0.4rem 0.75rem",
+                  padding: "var(--space-2) var(--space-3)",
                   borderRadius: "var(--radius-md)",
+                  borderWidth: isSelected ? 2 : 1,
+                  borderColor: isSelected
+                    ? "var(--color-brand)"
+                    : isToday
+                    ? "var(--color-accent)"
+                    : "var(--color-border)",
+                  backgroundColor: isSelected
+                    ? "var(--color-surface-hover)"
+                    : isToday
+                    ? "rgba(16, 185, 129, 0.05)"
+                    : "var(--color-surface-raised)",
+                  minHeight: 80,
+                  transition: "all 0.15s ease",
+                  cursor: "pointer",
                 }}
               >
-                <Icon size={14} />
-                <span>
-                  {s.date.slice(5)} · {s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}
-                </span>
-                {s.status === "realizada" && <span style={{ opacity: 0.8 }}>✓</span>}
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span
+                      className="font-bold text-xs"
+                      style={{
+                        color: isSelected
+                          ? "var(--color-brand)"
+                          : isToday
+                          ? "var(--color-accent)"
+                          : "var(--color-text)",
+                      }}
+                    >
+                      {DAY_NAMES_ES[idx].slice(0, 3)} {dayNum}
+                    </span>
+                    {isToday && (
+                      <span className="badge badge-accent" style={{ fontSize: "0.6rem", padding: "1px 4px" }}>
+                        Hoy
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid gap-1" style={{ marginTop: 6 }}>
+                    {daySess.length === 0 ? (
+                      <span className="text-faint text-xs italic">Descanso</span>
+                    ) : (
+                      daySess.map((ds) => {
+                        const SIcon = DISCIPLINE_ICON[ds.discipline] ?? MoreHorizontal;
+                        return (
+                          <div
+                            key={ds.id}
+                            className="flex items-center gap-1 text-xs truncate"
+                            style={{
+                              color: ds.status === "realizada" ? "var(--color-success)" : "var(--color-text-muted)",
+                            }}
+                          >
+                            <SIcon size={11} style={{ flexShrink: 0 }} />
+                            <span className="truncate font-medium">
+                              {ds.planned_code || DISCIPLINE_LABEL[ds.discipline] || ds.discipline}
+                            </span>
+                            {ds.status === "realizada" && <span style={{ fontSize: "0.65rem" }}>✓</span>}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {loading ? (
+      {/* SI ESE DÍA TIENE MÚLTIPLES SESIONES, MOSTRAR SELECTOR DE SESIÓN */}
+      {currentDaySessions.length > 1 && (
+        <div
+          className="surface flex flex-wrap items-center gap-2"
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            marginBottom: "var(--space-4)",
+            backgroundColor: "var(--color-surface-raised)",
+          }}
+        >
+          <span className="text-xs font-semibold text-muted">Sesiones de este día:</span>
+          {currentDaySessions.map((s, i) => {
+            const isSel = s.id === selectedSessionId;
+            const SIcon = DISCIPLINE_ICON[s.discipline] ?? MoreHorizontal;
+            return (
+              <button
+                key={s.id}
+                onClick={() => handleSelectSession(s.id)}
+                className={`btn ${isSel ? "btn-primary" : "btn-secondary"} text-xs flex items-center gap-1.5`}
+                style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-full)" }}
+              >
+                <SIcon size={13} />
+                <span>
+                  {i + 1}. {s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}
+                </span>
+                {s.status === "realizada" && <span style={{ opacity: 0.8 }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* CONTENIDO PRINCIPAL DE LA SESIÓN SELECCIONADA */}
+      {currentDaySessions.length === 0 ? (
+        <div className="surface text-center" style={{ padding: "var(--space-8) var(--space-4)" }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto var(--space-3) auto",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            <Moon size={26} />
+          </div>
+          <h3 className="font-semibold text-base">Día de Descanso o Sin Sesiones</h3>
+          <p className="text-xs text-muted" style={{ maxWidth: 420, margin: "var(--space-2) auto var(--space-4) auto" }}>
+            No hay ninguna sesión de entrenamiento planificada para el{" "}
+            <strong>
+              {new Date(`${selectedDate}T12:00:00`).toLocaleDateString("es-ES", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            </strong>
+            . Puedes seleccionar otro día con entrenamiento o añadir una sesión en Plan Semanal.
+          </p>
+          <button className="btn btn-secondary text-xs" onClick={() => router.push("/plan-semanal")}>
+            Ir a Plan Semanal
+          </button>
+        </div>
+      ) : loadingSession ? (
         <div className="surface flex items-center justify-center" style={{ height: 260 }}>
-          <div className="text-sm text-muted animate-pulse">Cargando métricas y análisis detallado...</div>
+          <div className="text-sm text-muted animate-pulse">Cargando métricas completas del entrenamiento...</div>
         </div>
       ) : !session ? (
         <div className="surface text-sm text-muted text-center" style={{ padding: "var(--space-6)" }}>
-          Selecciona una sesión de la lista para ver todos sus datos.
+          Selecciona una sesión para cargar los datos.
         </div>
       ) : (
         <div className="grid gap-4">
@@ -259,11 +482,7 @@ function DetalleContent() {
                 </div>
               </div>
 
-              {/* Botón directo para registrar o editar */}
-              <button
-                className="btn btn-secondary text-xs"
-                onClick={() => router.push("/registro")}
-              >
+              <button className="btn btn-secondary text-xs" onClick={() => router.push("/registro")}>
                 Ir a Registro
               </button>
             </div>
@@ -327,7 +546,6 @@ function DetalleContent() {
           {/* 1. RESUMEN & FISIOLOGÍA */}
           {activeTab === "general" && (
             <div className="grid gap-4">
-              {/* Grid de KPIs exhaustivos */}
               <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
                 <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
                   <div className="text-xs text-muted font-medium flex items-center gap-1">
