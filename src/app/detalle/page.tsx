@@ -21,10 +21,27 @@ import {
   TrendingUp,
   Award,
   CheckCircle2,
+  AlertTriangle,
   CalendarDays,
   Sparkles,
+  BarChart3,
+  ListOrdered,
+  Gauge,
+  Info,
 } from "lucide-react";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import WeekSwitcher from "@/components/week-switcher";
 import {
@@ -32,9 +49,8 @@ import {
   weekStartOf,
   weekDates,
   DAY_NAMES_ES,
-  isoDayOfWeek,
-  addDays,
 } from "@/lib/dates";
+import { formatSecondsDetailed } from "@/lib/fit-feedback";
 
 const DISCIPLINE_ICON: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   carrera: Footprints,
@@ -103,7 +119,8 @@ function DetalleContent() {
   );
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [loadingSession, setLoadingSession] = useState(false);
-  const [activeTab, setActiveTab] = useState<"general" | "zones" | "laps" | "gym" | "readiness">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
+  const [activeChart, setActiveChart] = useState<"pace_hr" | "zones" | "cadence">("pace_hr");
 
   const days = weekDates(weekStart);
 
@@ -198,6 +215,7 @@ function DetalleContent() {
 
   const session = sessionDetail?.session;
   const fit = sessionDetail?.fitSummary;
+  const structuredFeedback = sessionDetail?.structuredFeedback;
   const gym = sessionDetail?.gymDetails ?? [];
   const sleep = sessionDetail?.sleep;
   const readiness = sessionDetail?.readiness;
@@ -209,6 +227,17 @@ function DetalleContent() {
   const laps = fit?.laps ?? [];
   const deep = fit?.deepAnalysis;
   const zoneDist = deep?.zoneDistribution;
+
+  // Datos para gráfico de barras de zonas VAM
+  const zoneChartData = zoneDist
+    ? [
+        { name: "R0 Suave", timeMin: Number((zoneDist.r0TimeSec / 60).toFixed(1)), pct: zoneDist.r0Pct, color: "#64748b", rawTime: zoneDist.r0TimeSec },
+        { name: "R1 Base", timeMin: Number((zoneDist.r1TimeSec / 60).toFixed(1)), pct: zoneDist.r1Pct, color: "#10b981", rawTime: zoneDist.r1TimeSec },
+        { name: "R2 Tempo", timeMin: Number((zoneDist.r2TimeSec / 60).toFixed(1)), pct: zoneDist.r2Pct, color: "#f59e0b", rawTime: zoneDist.r2TimeSec },
+        { name: "R4 Maratón", timeMin: Number((zoneDist.r3TimeSec / 60).toFixed(1)), pct: zoneDist.r3Pct, color: "#8b5cf6", rawTime: zoneDist.r3TimeSec },
+        { name: "R5 Series", timeMin: Number((zoneDist.r5TimeSec / 60).toFixed(1)), pct: zoneDist.r5Pct, color: "#ef4444", rawTime: zoneDist.r5TimeSec },
+      ]
+    : [];
 
   return (
     <div>
@@ -502,7 +531,7 @@ function DetalleContent() {
                 style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
                 onClick={() => setActiveTab("general")}
               >
-                📊 Resumen & Fisiología
+                📊 Resumen & KPIs
               </button>
               {session.discipline === "carrera" && (
                 <button
@@ -515,11 +544,20 @@ function DetalleContent() {
               )}
               {laps.length > 0 && (
                 <button
+                  className={`btn ${activeTab === "charts" ? "btn-primary" : "btn-ghost"} text-xs`}
+                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  onClick={() => setActiveTab("charts")}
+                >
+                  📈 Gráficos & Curvas
+                </button>
+              )}
+              {laps.length > 0 && (
+                <button
                   className={`btn ${activeTab === "laps" ? "btn-primary" : "btn-ghost"} text-xs`}
                   style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
                   onClick={() => setActiveTab("laps")}
                 >
-                  ⏱️ Parciales y Vueltas ({laps.length})
+                  ⏱️ Parciales ({laps.length} vueltas)
                 </button>
               )}
               {gym.length > 0 && (
@@ -528,7 +566,7 @@ function DetalleContent() {
                   style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
                   onClick={() => setActiveTab("gym")}
                 >
-                  🏋️ Ejercicios de Fuerza ({gym.length})
+                  🏋️ Ejercicios ({gym.length})
                 </button>
               )}
               <button
@@ -679,6 +717,61 @@ function DetalleContent() {
                 )}
               </div>
 
+              {/* Diagnósticos del Entrenador IA */}
+              {structuredFeedback && (structuredFeedback.positives?.length > 0 || structuredFeedback.deviations?.length > 0) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Aspectos Positivos */}
+                  {structuredFeedback.positives?.length > 0 && (
+                    <div
+                      style={{
+                        padding: "var(--space-4)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(16, 185, 129, 0.08)",
+                        border: "1px solid rgba(16, 185, 129, 0.3)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-sm text-success" style={{ marginBottom: "var(--space-2)" }}>
+                        <CheckCircle2 size={16} />
+                        <span>Aspectos Positivos de la Sesión</span>
+                      </div>
+                      <ul className="grid gap-2 text-xs" style={{ color: "var(--color-text)", paddingLeft: 4 }}>
+                        {structuredFeedback.positives.map((pos: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-success font-bold">•</span>
+                            <span dangerouslySetInnerHTML={{ __html: pos.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Puntos de Mejora / Desviaciones */}
+                  {structuredFeedback.deviations?.length > 0 && (
+                    <div
+                      style={{
+                        padding: "var(--space-4)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(245, 158, 11, 0.08)",
+                        border: "1px solid rgba(245, 158, 11, 0.3)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-sm text-warning" style={{ marginBottom: "var(--space-2)" }}>
+                        <AlertTriangle size={16} />
+                        <span>Puntos a Cuidar / Desviaciones del Plan</span>
+                      </div>
+                      <ul className="grid gap-2 text-xs" style={{ color: "var(--color-text)", paddingLeft: 4 }}>
+                        {structuredFeedback.deviations.map((dev: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-warning font-bold">•</span>
+                            <span dangerouslySetInnerHTML={{ __html: dev.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Notas y pauta del entrenamiento */}
               <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
                 <div className="text-xs font-semibold uppercase text-muted" style={{ marginBottom: "var(--space-2)" }}>
@@ -709,19 +802,144 @@ function DetalleContent() {
           {/* 2. ZONAS VAM */}
           {activeTab === "zones" && (
             <div className="grid gap-4">
+              {/* Tarjeta de Cumplimiento de Objetivo */}
+              {structuredFeedback?.targetCompliance && (
+                <div
+                  className="surface-raised"
+                  style={{
+                    padding: "var(--space-4)",
+                    borderLeft: `4px solid ${structuredFeedback.targetCompliance.isCompliant ? "var(--color-success)" : "var(--color-warning)"}`,
+                  }}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs text-muted uppercase font-semibold">Evaluación de Zona Objetivo</div>
+                      <div className="font-bold text-base" style={{ marginTop: 2 }}>
+                        {structuredFeedback.targetCompliance.plannedZone} ({structuredFeedback.targetCompliance.plannedRange})
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-xs text-muted">Tiempo en Zona</div>
+                        <div className="text-base font-bold text-brand">
+                          {structuredFeedback.targetCompliance.timeInTargetFormatted} ({structuredFeedback.targetCompliance.compliancePct}%)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted" style={{ marginTop: "var(--space-2)" }}>
+                    {structuredFeedback.targetCompliance.verdict}
+                  </div>
+                </div>
+              )}
+
+              {/* Diagnósticos Positivos / Desviaciones */}
+              {structuredFeedback && (structuredFeedback.positives?.length > 0 || structuredFeedback.deviations?.length > 0) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {structuredFeedback.positives?.length > 0 && (
+                    <div
+                      style={{
+                        padding: "var(--space-3) var(--space-4)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(16, 185, 129, 0.08)",
+                        border: "1px solid rgba(16, 185, 129, 0.25)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs text-success" style={{ marginBottom: "var(--space-2)" }}>
+                        <CheckCircle2 size={14} />
+                        <span>Aspectos Positivos</span>
+                      </div>
+                      <ul className="grid gap-1.5 text-xs">
+                        {structuredFeedback.positives.map((p: string, i: number) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-success font-bold">•</span>
+                            <span dangerouslySetInnerHTML={{ __html: p.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {structuredFeedback.deviations?.length > 0 && (
+                    <div
+                      style={{
+                        padding: "var(--space-3) var(--space-4)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(245, 158, 11, 0.08)",
+                        border: "1px solid rgba(245, 158, 11, 0.25)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs text-warning" style={{ marginBottom: "var(--space-2)" }}>
+                        <AlertTriangle size={14} />
+                        <span>Desviaciones & Puntos de Mejora</span>
+                      </div>
+                      <ul className="grid gap-1.5 text-xs">
+                        {structuredFeedback.deviations.map((d: string, i: number) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-warning font-bold">•</span>
+                            <span dangerouslySetInnerHTML={{ __html: d.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Gráfico y Desglose de Zonas VAM */}
               <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
                 <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
                   <div className="font-semibold text-sm flex items-center gap-2">
                     <Target size={16} style={{ color: "var(--color-brand)" }} />
-                    Zonas de Intensidad VAM (Dani: 3:59 min/km · 15.06 km/h)
+                    Tiempo y Porcentaje por Zona VAM (Dani: 3:59 min/km · 15.06 km/h)
                   </div>
-                  {zoneDist?.targetZoneName && (
-                    <span className="badge badge-brand" style={{ fontSize: "0.75rem" }}>
-                      🎯 Objetivo: {zoneDist.targetZoneName} ({zoneDist.targetCompliancePct ?? 0}% en zona)
-                    </span>
-                  )}
                 </div>
 
+                {/* Gráfico de Barras de Tiempo por Zona */}
+                {zoneDist && (
+                  <div style={{ width: "100%", height: 180, marginBottom: "var(--space-4)" }}>
+                    <ResponsiveContainer>
+                      <BarChart data={zoneChartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                        <CartesianGrid stroke="#262c37" strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" stroke="#9aa3b2" fontSize={11} unit=" min" />
+                        <YAxis type="category" dataKey="name" stroke="#9aa3b2" fontSize={11} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const item = payload[0].payload;
+                              return (
+                                <div
+                                  style={{
+                                    backgroundColor: "#171b24",
+                                    border: "1px solid #262c37",
+                                    padding: "6px 10px",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  <div className="font-bold" style={{ color: item.color }}>
+                                    {item.name}
+                                  </div>
+                                  <div style={{ marginTop: 2 }}>
+                                    Tiempo: <strong>{formatSecondsDetailed(item.rawTime)}</strong> ({item.pct}%)
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="timeMin" radius={[0, 4, 4, 0]}>
+                          {zoneChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Barra Segmentada Visual */}
                 {zoneDist && (
                   <div
                     style={{
@@ -735,45 +953,46 @@ function DetalleContent() {
                   >
                     {zoneDist.r0Pct > 0 && (
                       <div
-                        title={`R0 Regenerativo: ${zoneDist.r0Pct}%`}
+                        title={`R0 Regenerativo: ${zoneDist.r0Pct}% (${formatSecondsDetailed(zoneDist.r0TimeSec)})`}
                         style={{ width: `${zoneDist.r0Pct}%`, backgroundColor: "#64748b" }}
                       />
                     )}
                     {zoneDist.r1Pct > 0 && (
                       <div
-                        title={`R1 Base Aeróbica: ${zoneDist.r1Pct}%`}
+                        title={`R1 Base Aeróbica: ${zoneDist.r1Pct}% (${formatSecondsDetailed(zoneDist.r1TimeSec)})`}
                         style={{ width: `${zoneDist.r1Pct}%`, backgroundColor: "#10b981" }}
                       />
                     )}
                     {zoneDist.r2Pct > 0 && (
                       <div
-                        title={`R2 Tempo: ${zoneDist.r2Pct}%`}
+                        title={`R2 Tempo: ${zoneDist.r2Pct}% (${formatSecondsDetailed(zoneDist.r2TimeSec)})`}
                         style={{ width: `${zoneDist.r2Pct}%`, backgroundColor: "#f59e0b" }}
                       />
                     )}
                     {zoneDist.r3Pct > 0 && (
                       <div
-                        title={`R4 Sub-VAM / Maratón: ${zoneDist.r3Pct}%`}
+                        title={`R4 Sub-VAM / Maratón: ${zoneDist.r3Pct}% (${formatSecondsDetailed(zoneDist.r3TimeSec)})`}
                         style={{ width: `${zoneDist.r3Pct}%`, backgroundColor: "#8b5cf6" }}
                       />
                     )}
                     {zoneDist.r5Pct > 0 && (
                       <div
-                        title={`R5 Series / VAM: ${zoneDist.r5Pct}%`}
+                        title={`R5 Series / VAM: ${zoneDist.r5Pct}% (${formatSecondsDetailed(zoneDist.r5TimeSec)})`}
                         style={{ width: `${zoneDist.r5Pct}%`, backgroundColor: "#ef4444" }}
                       />
                     )}
                   </div>
                 )}
 
-                {/* Tabla de Zonas */}
+                {/* Tabla de Zonas con Tiempo Exacto (Minutos y Segundos) */}
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", fontSize: "var(--text-xs)", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--color-border)", textAlign: "left", color: "var(--color-text-muted)" }}>
                         <th style={{ padding: "8px 4px" }}>Zona VAM</th>
                         <th style={{ padding: "8px 4px" }}>Rango Ritmo</th>
-                        <th style={{ padding: "8px 4px" }}>% Tiempo</th>
+                        <th style={{ padding: "8px 4px" }}>Tiempo Exacto</th>
+                        <th style={{ padding: "8px 4px" }}>% Total</th>
                         <th style={{ padding: "8px 4px" }}>Enfoque Fisiológico</th>
                       </tr>
                     </thead>
@@ -786,6 +1005,9 @@ function DetalleContent() {
                           </span>
                         </td>
                         <td style={{ padding: "8px 4px" }}>&gt; 5:25 min/km</td>
+                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "var(--color-text)" }}>
+                          {zoneDist ? formatSecondsDetailed(zoneDist.r0TimeSec) : "—"}
+                        </td>
                         <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r0Pct}%` : "—"}</td>
                         <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Calentamiento, vuelta a la calma y descarga</td>
                       </tr>
@@ -797,6 +1019,9 @@ function DetalleContent() {
                           </span>
                         </td>
                         <td style={{ padding: "8px 4px" }}>5:25 – 4:59 min/km</td>
+                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#10b981" }}>
+                          {zoneDist ? formatSecondsDetailed(zoneDist.r1TimeSec) : "—"}
+                        </td>
                         <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r1Pct}%` : "—"}</td>
                         <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Fondo aeróbico, capilarización, quema de grasas</td>
                       </tr>
@@ -808,6 +1033,9 @@ function DetalleContent() {
                           </span>
                         </td>
                         <td style={{ padding: "8px 4px" }}>4:59 – 4:35 min/km</td>
+                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#f59e0b" }}>
+                          {zoneDist ? formatSecondsDetailed(zoneDist.r2TimeSec) : "—"}
+                        </td>
                         <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r2Pct}%` : "—"}</td>
                         <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Resistencia aeróbica media, tolerancia lactato</td>
                       </tr>
@@ -819,6 +1047,9 @@ function DetalleContent() {
                           </span>
                         </td>
                         <td style={{ padding: "8px 4px" }}>4:35 – 4:10 min/km</td>
+                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#8b5cf6" }}>
+                          {zoneDist ? formatSecondsDetailed(zoneDist.r3TimeSec) : "—"}
+                        </td>
                         <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r3Pct}%` : "—"}</td>
                         <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Ritmo objetivo maratón y umbral anaeróbico</td>
                       </tr>
@@ -830,6 +1061,9 @@ function DetalleContent() {
                           </span>
                         </td>
                         <td style={{ padding: "8px 4px" }}>&lt; 4:10 min/km</td>
+                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#ef4444" }}>
+                          {zoneDist ? formatSecondsDetailed(zoneDist.r5TimeSec) : "—"}
+                        </td>
                         <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r5Pct}%` : "—"}</td>
                         <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Potencia aeróbica máxima (VO2max) y velocidad</td>
                       </tr>
@@ -840,31 +1074,144 @@ function DetalleContent() {
             </div>
           )}
 
-          {/* 3. PARCIALES Y VUELTAS */}
-          {activeTab === "laps" && (
+          {/* 3. GRÁFICOS & CURVAS */}
+          {activeTab === "charts" && (
             <div className="grid gap-4">
-              {laps.length >= 3 && (
-                <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                  <div className="text-xs uppercase text-muted font-semibold" style={{ marginBottom: "var(--space-2)" }}>
-                    📈 Curva de Ritmo y Frecuencia Cardíaca por Vuelta
+              <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                {/* Selector de tipo de gráfico */}
+                <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                  <div className="font-semibold text-sm flex items-center gap-2">
+                    <BarChart3 size={16} style={{ color: "var(--color-brand)" }} />
+                    Gráficos Interactivos de la Sesión
                   </div>
-                  <div style={{ width: "100%", height: 210 }}>
-                    <ResponsiveContainer>
-                      <LineChart data={laps.map((l: any) => ({ vuelta: l.index, Ritmo: l.avgPaceMinKm, FC: l.avgHeartRate }))}>
-                        <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
-                        <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
-                        <YAxis yAxisId="left" stroke="#9aa3b2" fontSize={11} reversed />
-                        <YAxis yAxisId="right" orientation="right" stroke="#9aa3b2" fontSize={11} />
-                        <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Line yAxisId="left" type="monotone" dataKey="Ritmo" stroke="#2f6feb" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                        <Line yAxisId="right" type="monotone" dataKey="FC" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="flex items-center gap-1">
+                    <button
+                      className={`btn ${activeChart === "pace_hr" ? "btn-primary" : "btn-secondary"} text-xs`}
+                      style={{ padding: "0.25rem 0.6rem" }}
+                      onClick={() => setActiveChart("pace_hr")}
+                    >
+                      Ritmo & Pulso
+                    </button>
+                    {zoneDist && (
+                      <button
+                        className={`btn ${activeChart === "zones" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.6rem" }}
+                        onClick={() => setActiveChart("zones")}
+                      >
+                        Zonas VAM
+                      </button>
+                    )}
+                    {laps.some((l: any) => l.avgCadence) && (
+                      <button
+                        className={`btn ${activeChart === "cadence" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.6rem" }}
+                        onClick={() => setActiveChart("cadence")}
+                      >
+                        Cadencia (ppm)
+                      </button>
+                    )}
                   </div>
                 </div>
-              )}
 
+                {/* Gráfico 1: Ritmo vs Pulso */}
+                {activeChart === "pace_hr" && (
+                  <div>
+                    <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                      Eje izquierdo: Ritmo (min/km, invertido para que arriba sea más rápido) • Eje derecho: Pulso cardíaco (lpm).
+                    </div>
+                    <div style={{ width: "100%", height: 260 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={laps.map((l: any) => ({ vuelta: `Km ${l.index}`, Ritmo: l.avgPaceMinKm, FC: l.avgHeartRate }))}>
+                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
+                          <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
+                          <YAxis yAxisId="left" stroke="#2f6feb" fontSize={11} reversed />
+                          <YAxis yAxisId="right" orientation="right" stroke="#ef4444" fontSize={11} domain={["dataMin - 10", "dataMax + 10"]} />
+                          <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Line yAxisId="left" type="monotone" dataKey="Ritmo" stroke="#2f6feb" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                          <Line yAxisId="right" type="monotone" dataKey="FC" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gráfico 2: Zonas VAM */}
+                {activeChart === "zones" && zoneDist && (
+                  <div>
+                    <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                      Minutos acumulados en cada zona de ritmo según tu VAM de 3:59 min/km.
+                    </div>
+                    <div style={{ width: "100%", height: 260 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={zoneChartData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
+                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
+                          <XAxis dataKey="name" stroke="#9aa3b2" fontSize={11} />
+                          <YAxis stroke="#9aa3b2" fontSize={11} unit=" m" />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const item = payload[0].payload;
+                                return (
+                                  <div
+                                    style={{
+                                      backgroundColor: "#171b24",
+                                      border: "1px solid #262c37",
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      fontSize: 12,
+                                    }}
+                                  >
+                                    <div className="font-bold" style={{ color: item.color }}>
+                                      {item.name}
+                                    </div>
+                                    <div>
+                                      Tiempo: <strong>{formatSecondsDetailed(item.rawTime)}</strong> ({item.pct}%)
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar dataKey="timeMin" radius={[4, 4, 0, 0]}>
+                            {zoneChartData.map((entry, index) => (
+                              <Cell key={`cell-chart-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gráfico 3: Cadencia */}
+                {activeChart === "cadence" && (
+                  <div>
+                    <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                      Evolución de la cadencia de zancada (ppm) a lo largo de los kilómetros.
+                    </div>
+                    <div style={{ width: "100%", height: 260 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={laps.map((l: any) => ({ vuelta: `Km ${l.index}`, Cadencia: l.avgCadence }))}>
+                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
+                          <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
+                          <YAxis stroke="#9aa3b2" fontSize={11} domain={[140, 200]} unit=" ppm" />
+                          <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Line type="monotone" dataKey="Cadencia" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 4. PARCIALES Y VUELTAS */}
+          {activeTab === "laps" && (
+            <div className="grid gap-4">
               <div className="surface-raised" style={{ padding: "var(--space-3)", overflowX: "auto" }}>
                 <div className="text-xs uppercase text-muted font-semibold" style={{ marginBottom: "var(--space-2)" }}>
                   📋 Tabla de Parciales ({laps.length} vueltas registradas)
@@ -901,7 +1248,7 @@ function DetalleContent() {
             </div>
           )}
 
-          {/* 4. FUERZA / GIMNASIO */}
+          {/* 5. FUERZA / GIMNASIO */}
           {activeTab === "gym" && (
             <div className="grid gap-3">
               <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
@@ -957,7 +1304,7 @@ function DetalleContent() {
             </div>
           )}
 
-          {/* 5. RECUPERACIÓN & CONTEXTO */}
+          {/* 6. RECUPERACIÓN & CONTEXTO */}
           {activeTab === "readiness" && (
             <div className="grid gap-3">
               <div className="surface-raised" style={{ padding: "var(--space-4)" }}>

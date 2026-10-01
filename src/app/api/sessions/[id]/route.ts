@@ -4,6 +4,7 @@ import { listGymExercises, listGymLogsForDate } from "@/lib/repo/gym";
 import { getSleepByDate } from "@/lib/repo/sleep";
 import { computeDailyReadiness } from "@/lib/readiness";
 import { sessionLoad } from "@/lib/recommendations";
+import { buildStructuredFitDiagnostics } from "@/lib/fit-feedback";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -21,6 +22,16 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       fitSummary = null;
     }
   }
+
+  let structuredFeedback = null;
+  if (fitSummary) {
+    try {
+      structuredFeedback = buildStructuredFitDiagnostics(fitSummary, session);
+    } catch {
+      structuredFeedback = null;
+    }
+  }
+
 
   // Si es sesión de gimnasio o crossfit, buscar los logs de ejercicios de ese día
   const allExercises = listGymExercises();
@@ -58,6 +69,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   return NextResponse.json({
     session,
     fitSummary,
+    structuredFeedback,
     gymDetails,
     sleep,
     readiness,

@@ -8,6 +8,32 @@ export interface FitFeedbackItem {
   text: string;
 }
 
+export interface FitStructuredFeedback {
+  summary: string;
+  positives: string[];
+  deviations: string[];
+  targetCompliance?: {
+    plannedZone: string;
+    plannedRange: string;
+    actualPace: string;
+    compliancePct: number;
+    timeInTargetSec: number;
+    timeInTargetFormatted: string;
+    verdict: string;
+    isCompliant: boolean;
+  } | null;
+}
+
+export function formatSecondsDetailed(seconds: number | null | undefined): string {
+  if (!seconds || seconds <= 0) return "0m 00s";
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
+}
+
 function formatPace(minKm: number): string {
   const min = Math.floor(minKm);
   const sec = Math.round((minKm - min) * 60);
@@ -36,7 +62,7 @@ function detectTargetZone(session?: SessionRow | null): TargetZoneInfo | null {
     };
   }
 
-  if (text.includes("R2") || text.includes("TEMPO") || text.includes("PROGRESIVO") || text.includes("UMBRAL AERÓBICO")) {
+  if (text.includes("R2") || text.includes("TEMPO") || text.includes("PROGRESIVO") || text.includes("UMBRAL AERÓBICO") || text.includes("UMBRAL AEROBICO")) {
     return {
       code: "R2",
       name: "Tempo Progresivo / Umbral (R2)",
@@ -50,19 +76,19 @@ function detectTargetZone(session?: SessionRow | null): TargetZoneInfo | null {
     return {
       code: "R4",
       name: "Ritmo Maratón Específico (R4)",
-      minPace: 5.0, // 5:00
-      maxPace: 5.25, // 5:15
-      rangeLabel: "5:15 - 5:00 min/km",
+      minPace: 4.166, // 4:10
+      maxPace: 4.583, // 4:35
+      rangeLabel: "4:35 - 4:10 min/km",
     };
   }
 
-  if (text.includes("R5") || text.includes("TIRADA LARGA") || text.includes("LONG RUN")) {
+  if (text.includes("R5") || text.includes("SERIES") || text.includes("VAM") || text.includes("INTERVAL")) {
     return {
       code: "R5",
-      name: "Tirada Larga de Volumen (R5)",
-      minPace: 5.083, // 5:05
-      maxPace: 5.416, // 5:25
-      rangeLabel: "5:25 - 5:05 min/km",
+      name: "Series / Intervalos VAM (R5)",
+      minPace: 3.5, // < 4:10
+      maxPace: 4.166,
+      rangeLabel: "< 4:10 min/km",
     };
   }
 
@@ -79,215 +105,180 @@ function detectTargetZone(session?: SessionRow | null): TargetZoneInfo | null {
   return null;
 }
 
-export function buildFitFeedback(summary: FitSummary, targetSession?: SessionRow | null): FitFeedbackItem[] {
-  const feedback: FitFeedbackItem[] = [];
+export function buildStructuredFitDiagnostics(summary: FitSummary, targetSession?: SessionRow | null): FitStructuredFeedback {
+  const positives: string[] = [];
+  const deviations: string[] = [];
+  let summaryText = "";
 
-  // =========================================================================
-  // 1. ANÁLISIS PROFUNDO DE ZONA OBJETIVO (CARRERA)
-  // =========================================================================
-  if (summary.sport === "carrera" && summary.avgPaceMinKm !== null) {
+  const zd = summary.deepAnalysis?.zoneDistribution;
+  const avgPace = summary.avgPaceMinKm;
+  const drift = summary.deepAnalysis?.aerobicDecouplingPct;
+  const cad = summary.deepAnalysis?.avgCadence ?? summary.avgCadence;
+  const stability = summary.deepAnalysis?.pacingStabilityScore;
+  const laps = summary.laps ?? [];
+
+  let targetCompliance: FitStructuredFeedback["targetCompliance"] = null;
+
+  if (summary.sport === "carrera") {
     const target = detectTargetZone(targetSession);
-    const avgPace = summary.avgPaceMinKm;
-    const zd = summary.deepAnalysis?.zoneDistribution;
 
-    if (target) {
+    if (target && avgPace !== null) {
+      let compliancePct = 0;
+      let timeInTargetSec = 0;
+
       if (zd) {
-        // Asignar nombres y veredictos a la distribución de zonas
-        let compliancePct = 0;
-        if (target.code === "R1") compliancePct = zd.r1Pct;
-        else if (target.code === "R2") compliancePct = zd.r2Pct;
-        else if (target.code === "R4" || target.code === "R3") compliancePct = zd.r3Pct;
-        else if (target.code === "R5") compliancePct = zd.r1Pct + zd.r0Pct;
-        else if (target.code === "R0") compliancePct = zd.r0Pct;
-
-        zd.targetZoneName = target.name;
-        zd.targetCompliancePct = compliancePct;
+        if (target.code === "R1") {
+          compliancePct = zd.r1Pct;
+          timeInTargetSec = zd.r1TimeSec;
+        } else if (target.code === "R2") {
+          compliancePct = zd.r2Pct;
+          timeInTargetSec = zd.r2TimeSec;
+        } else if (target.code === "R4") {
+          compliancePct = zd.r3Pct;
+          timeInTargetSec = zd.r3TimeSec;
+        } else if (target.code === "R5") {
+          compliancePct = zd.r5Pct;
+          timeInTargetSec = zd.r5TimeSec;
+        } else if (target.code === "R0") {
+          compliancePct = zd.r0Pct;
+          timeInTargetSec = zd.r0TimeSec;
+        }
       }
 
-      // Evaluación del ritmo medio vs objetivo
-      if (avgPace >= target.minPace && avgPace <= target.maxPace) {
-        feedback.push({
-          tone: "positive",
-          category: "objetivo",
-          text: `🎯 ¡Objetivo de zona cumplido con precisión! Has promediado ${formatPace(avgPace)}, clavado dentro del rango pautado para ${target.name} (${target.rangeLabel}).`,
-        });
+      const isPaceInTarget = avgPace >= target.minPace && avgPace <= target.maxPace;
+      const isComplianceGood = compliancePct >= 50 || isPaceInTarget;
+
+      let verdict = "";
+      if (isPaceInTarget) {
+        verdict = `Ritmo medio clavado en la zona (${formatPace(avgPace)} vs ${target.rangeLabel}).`;
+        positives.push(`🎯 **Precisión de Zona**: Ritmo medio ${formatPace(avgPace)} dentro del rango pautado para ${target.name} (${target.rangeLabel}).`);
       } else if (avgPace < target.minPace) {
-        // Corrió más rápido que lo pautado
         const diffSec = Math.round((target.minPace - avgPace) * 60);
-        if (target.code === "R1" || target.code === "R0" || target.code === "R5") {
-          feedback.push({
-            tone: "warning",
-            category: "objetivo",
-            text: `⚠️ Ritmo más rápido de lo pautado (${formatPace(avgPace)} vs objetivo ${target.rangeLabel}, ~${diffSec}s/km por encima). En sesiones de base/rodaje suave es crucial no forzar para favorecer la biogénesis mitocondrial y no acumular fatiga para el CrossFit o tiradas de calidad.`,
-          });
+        verdict = `Ritmo ${diffSec}s/km más rápido que la zona pautada (${formatPace(avgPace)} vs ${target.rangeLabel}).`;
+        if (target.code === "R1" || target.code === "R0") {
+          deviations.push(`⚠️ **Desvío a ritmos superiores**: Has rodado a ${formatPace(avgPace)} (~${diffSec}s/km más rápido del rango ${target.rangeLabel}). En sesiones de base/rodaje es vital no apretar para no saturar fibras rápidas ni acumular fatiga innecesaria para el CrossFit o tiradas.`);
         } else {
-          feedback.push({
-            tone: "positive",
-            category: "objetivo",
-            text: `⚡ Ritmo fuerte y con solvencia (${formatPace(avgPace)} vs objetivo ${target.rangeLabel}). Muy buenas sensaciones de ritmo tempo.`,
-          });
+          positives.push(`⚡ **Ritmo vivo y con solvencia**: ${formatPace(avgPace)} superando el objetivo de ${target.rangeLabel}.`);
         }
       } else {
-        // Corrió más lento que lo pautado
-        feedback.push({
-          tone: "neutral",
-          category: "objetivo",
-          text: `🌱 Ritmo relajado (${formatPace(avgPace)} vs objetivo ${target.rangeLabel}). Si sentías piernas cargadas o fatiga previa, es una decisión muy inteligente de autorregulación.`,
-        });
+        verdict = `Ritmo más suave que la pauta (${formatPace(avgPace)} vs ${target.rangeLabel}).`;
+        positives.push(`🌱 **Autorregulación inteligente**: Ritmo suave (${formatPace(avgPace)}) protegiendo la musculatura ante fatiga.`);
       }
-    } else {
-      // Si no hay sesión objetivo emparejada, dar lectura según zonas VAM (3:59 VAM)
+
+      targetCompliance = {
+        plannedZone: target.name,
+        plannedRange: target.rangeLabel,
+        actualPace: formatPace(avgPace),
+        compliancePct,
+        timeInTargetSec,
+        timeInTargetFormatted: formatSecondsDetailed(timeInTargetSec),
+        verdict,
+        isCompliant: isComplianceGood,
+      };
+
+      // Si fue rodaje R1 y pasó mucho tiempo en R2 (Zona Gris)
+      if (zd && (target.code === "R1" || target.code === "R0") && zd.r2Pct >= 20) {
+        deviations.push(`⚠️ **Incursión en Zona Gris (R2: 4:59-4:35 min/km)**: Pasaste ${formatSecondsDetailed(zd.r2TimeSec)} (${zd.r2Pct}% del entreno) en R2. Rodar demasiado rápido en días suaves acumula fatiga sin maximizar la potencia aeróbica.`);
+      }
+      if (zd && zd.r3Pct + zd.r5Pct >= 15 && target.code === "R1") {
+        deviations.push(`⚠️ **Picos de alta intensidad**: Has acumulado ${formatSecondsDetailed(zd.r3TimeSec + zd.r5TimeSec)} en R4/R5 (<4:35 min/km) en un rodaje pautado como aeróbico.`);
+      }
+    } else if (avgPace !== null) {
+      // Sin sesión objetivo explícita
       if (avgPace >= 4.983 && avgPace <= 5.416) {
-        feedback.push({
-          tone: "positive",
-          category: "ritmo",
-          text: `🎯 Ritmo medio ${formatPace(avgPace)} — En plena Zona R1 (Base Aeróbica · 5:25 a 4:59 min/km). Trabajo fisiológico ideal de desarrollo aeróbico.`,
-        });
+        positives.push(`🎯 **Desarrollo Aeróbico Puro (R1)**: Ritmo ${formatPace(avgPace)} óptimo para capilarización y quema de lípidos.`);
       } else if (avgPace >= 4.583 && avgPace < 4.983) {
-        feedback.push({
-          tone: "positive",
-          category: "ritmo",
-          text: `⚡ Ritmo medio ${formatPace(avgPace)} — En Zona R2 (Tempo / Umbral Aeróbico · 4:59 a 4:35 min/km). Excelente estímulo de resistencia a ritmo vivo.`,
-        });
+        positives.push(`⚡ **Ritmo Tempo Sólido (R2)**: Ritmo ${formatPace(avgPace)} en rango de tempo y umbral aeróbico.`);
       } else if (avgPace < 4.583) {
-        feedback.push({
-          tone: "positive",
-          category: "ritmo",
-          text: `🔥 Ritmo medio ${formatPace(avgPace)} — En Zona R3/R4 (Alta intensidad / Umbral · < 4:35 min/km). Gran demanda metabólica.`,
-        });
-      } else {
-        feedback.push({
-          tone: "neutral",
-          category: "ritmo",
-          text: `🌱 Ritmo medio ${formatPace(avgPace)} — En Zona R0 (Regenerativo · > 5:25 min/km). Excelente descarga y recuperación activa.`,
-        });
+        positives.push(`🔥 **Alta Intensidad (R4/R5)**: Ritmo ${formatPace(avgPace)} con gran demanda glucolítica.`);
       }
     }
 
-    // Comparación contra el histórico reciente del propio atleta
-    const from = addDays(summary.date, -56);
-    const to = addDays(summary.date, -1);
-    const history = listSessionsBetween(from, to).filter(
-      (s) =>
-        s.discipline === "carrera" &&
-        (s.status === "realizada" || s.status === "parcial") &&
-        s.distance_km &&
-        s.distance_km > 0 &&
-        s.duration_min &&
-        s.duration_min > 0
-    );
-    if (history.length >= 3) {
-      const paces = history.map((s) => (s.duration_min as number) / (s.distance_km as number));
-      const avgHistoricalPace = paces.reduce((a, b) => a + b, 0) / paces.length;
-      const diffPct = ((summary.avgPaceMinKm - avgHistoricalPace) / avgHistoricalPace) * 100;
-      if (diffPct <= -4) {
-        feedback.push({
-          tone: "positive",
-          category: "ritmo",
-          text: `📈 Ritmo un ${Math.abs(diffPct).toFixed(0)}% más rápido que tu media histórica reciente (${formatPace(avgHistoricalPace)}). Tu economía de carrera está progresando.`,
-        });
+    // Análisis de Pacing y Splits
+    if (laps.length >= 4) {
+      const withPace = laps.filter((l) => l.avgPaceMinKm !== null);
+      if (withPace.length >= 4) {
+        const mid = Math.floor(withPace.length / 2);
+        const firstHalf = withPace.slice(0, mid);
+        const secondHalf = withPace.slice(mid);
+        const avg = (arr: typeof withPace) => arr.reduce((a, b) => a + (b.avgPaceMinKm as number), 0) / arr.length;
+        const firstAvg = avg(firstHalf);
+        const secondAvg = avg(secondHalf);
+        const diffPct = ((secondAvg - firstAvg) / firstAvg) * 100;
+
+        if (diffPct >= 5) {
+          deviations.push(`📉 **Split Positivo (+${diffPct.toFixed(0)}%)**: Caída de ritmo en la 2ª mitad (${formatPace(firstAvg)} → ${formatPace(secondAvg)}). Vigila no salir con exceso de ímpetu en los primeros km.`);
+        } else if (diffPct <= -2.5) {
+          positives.push(`📈 **Split Negativo (${Math.abs(diffPct).toFixed(0)}% más rápido al final)**: Estrategia de carrera impecable (${formatPace(firstAvg)} → ${formatPace(secondAvg)}), acabando con fuerza.`);
+        } else {
+          positives.push(`⚖️ **Pacing Uniforme**: Ritmo muy homogéneo entre 1ª mitad (${formatPace(firstAvg)}) y 2ª mitad (${formatPace(secondAvg)}).`);
+        }
       }
     }
-  }
 
-  // =========================================================================
-  // 2. GESTIÓN DEL PACING Y SPLITS (Vueltas)
-  // =========================================================================
-  if (summary.laps.length >= 4) {
-    const withPace = summary.laps.filter((l) => l.avgPaceMinKm !== null);
-    if (withPace.length >= 4) {
-      const mid = Math.floor(withPace.length / 2);
-      const firstHalf = withPace.slice(0, mid);
-      const secondHalf = withPace.slice(mid);
-      const avg = (arr: typeof withPace) => arr.reduce((a, b) => a + (b.avgPaceMinKm as number), 0) / arr.length;
-      const firstAvg = avg(firstHalf);
-      const secondAvg = avg(secondHalf);
-      const diffPct = ((secondAvg - firstAvg) / firstAvg) * 100;
-
-      if (diffPct >= 5) {
-        feedback.push({
-          tone: "warning",
-          category: "estrategia",
-          text: `📉 Split positivo (+${diffPct.toFixed(0)}%): la 2ª mitad fue más lenta (${formatPace(firstAvg)} → ${formatPace(secondAvg)}). Típico de salida algo impetuosa o fatiga muscular al final.`,
-        });
-      } else if (diffPct <= -3) {
-        feedback.push({
-          tone: "positive",
-          category: "estrategia",
-          text: `📈 Split negativo (${Math.abs(diffPct).toFixed(0)}% más rápido al final): gestión de carrera impecable (${formatPace(firstAvg)} → ${formatPace(secondAvg)}), terminando fuerte y entero.`,
-        });
-      } else {
-        feedback.push({
-          tone: "positive",
-          category: "estrategia",
-          text: `⚖️ Pacing muy uniforme: ritmo casi idéntico entre la 1ª mitad (${formatPace(firstAvg)}) y la 2ª mitad (${formatPace(secondAvg)}). Gran control de esfuerzo.`,
-        });
+    // Estabilidad de ritmo
+    if (stability !== null && stability !== undefined) {
+      if (stability >= 85) {
+        positives.push(`🎯 **Regularidad de Paso (${stability}/100)**: Ritmo extraordinariamente estable vuelta a vuelta.`);
+      } else if (stability < 65) {
+        deviations.push(`〰️ **Variabilidad de Ritmo (${stability}/100)**: Tirones y cambios de velocidad marcados entre kilómetros.`);
       }
     }
-  }
 
-  // =========================================================================
-  // 3. DESACOPLAMIENTO CARDIOVASCULAR (Aerobic Drift)
-  // =========================================================================
-  if (summary.deepAnalysis?.aerobicDecouplingPct !== null && summary.deepAnalysis?.aerobicDecouplingPct !== undefined) {
-    const drift = summary.deepAnalysis.aerobicDecouplingPct;
-    if (drift <= 4.0) {
-      feedback.push({
-        tone: "positive",
-        category: "cardio",
-        text: `💚 Eficiencia cardiovascular óptima (Deriva: ${drift.toFixed(1)}%): el pulso se mantuvo totalmente estable respecto al ritmo a lo largo de todo el entreno.`,
-      });
-    } else if (drift > 7.0) {
-      feedback.push({
-        tone: "warning",
-        category: "cardio",
-        text: `⚠️ Desacoplamiento cardiovascular del ${drift.toFixed(1)}%: El pulso se elevó en el tramo final para sostener la misma velocidad (posible deshidratación, calor o fatiga muscular acumulada).`,
-      });
+    // Desacoplamiento Cardiovascular
+    if (drift !== null && drift !== undefined) {
+      if (drift <= 4.0) {
+        positives.push(`💚 **Eficiencia Cardiovascular Óptima (Deriva: ${drift.toFixed(1)}%)**: El pulso se mantuvo totalmente plano respecto al ritmo.`);
+      } else if (drift > 6.5) {
+        deviations.push(`⚠️ **Deriva Cardíaca Elevada (+${drift.toFixed(1)}%)**: El pulso subió significativamente al final para sostener la misma velocidad (deshidratación, calor o fatiga neuromuscular).`);
+      }
     }
-  }
 
-  // =========================================================================
-  // 4. BIOMECÁNICA Y CADENCIA
-  // =========================================================================
-  if (summary.deepAnalysis?.avgCadence) {
-    const cad = summary.deepAnalysis.avgCadence;
-    if (cad >= 170) {
-      feedback.push({
-        tone: "positive",
-        category: "cadencia",
-        text: `⚡ Cadencia media de ${cad} ppm: zancada fluida y reactiva, que minimiza el tiempo de contacto y protege las rodillas.`,
-      });
-    } else if (cad < 160) {
-      feedback.push({
-        tone: "neutral",
-        category: "cadencia",
-        text: `💡 Cadencia media de ${cad} ppm: busca progresivamente dar pasos un poco más cortos y frecuentes (~170 ppm) para reducir el impacto articular.`,
-      });
+    // Cadencia
+    if (cad) {
+      if (cad >= 170) {
+        positives.push(`⚡ **Cadencia Eficiente (${cad} ppm)**: Zancada fluida y reactiva, óptima para proteger tendones y rodillas.`);
+      } else if (cad < 160) {
+        deviations.push(`💡 **Cadencia Baja (${cad} ppm)**: Intenta acortar el paso y aumentar la frecuencia (~170 ppm) para reducir la carga de impacto en el asfalto.`);
+      }
     }
-  }
 
-  // =========================================================================
-  // 5. CROSSFIT / GIMNASIO / NATACIÓN
-  // =========================================================================
-  if (summary.sport === "crossfit") {
-    feedback.push({
-      tone: "positive",
-      category: "objetivo",
-      text: `🔥 Sesión de CrossFit / WOD registrada (${summary.durationMin?.toFixed(0)} min${summary.avgHeartRate ? `, FC media ${summary.avgHeartRate} lpm` : ""}). Alta demanda metabólica y de potencia neuromuscular.`,
-    });
+    summaryText = positives.length > 0
+      ? `Sesión analizada con ${positives.length} punto(s) fuerte(s) y ${deviations.length} área(s) a optimizar.`
+      : "Análisis biomecánico y fisiológico completado.";
+  } else if (summary.sport === "crossfit") {
+    positives.push(`🔥 Sesión de CrossFit / WOD completada (${summary.durationMin?.toFixed(0)} min). Alta demanda glucolítica y potencia neuromuscular.`);
+    if (summary.avgHeartRate && summary.avgHeartRate > 155) {
+      positives.push(`❤️ Estímulo cardiovascular alto (FC media ${summary.avgHeartRate} lpm).`);
+    }
+    summaryText = "Sesión funcional y de alta potencia neuromuscular registrada.";
   } else if (summary.sport === "gimnasio") {
-    feedback.push({
-      tone: "positive",
-      category: "objetivo",
-      text: `🏋️ Estímulo de fuerza registrado (${summary.durationMin?.toFixed(0)} min). Trabajo de hipertrofia y solidez musculoesquelética para soportar el impacto de carrera.`,
-    });
+    positives.push(`🏋️ Estímulo de fuerza completado (${summary.durationMin?.toFixed(0)} min). Refuerzo estructural y prevención de lesiones para carrera.`);
+    summaryText = "Trabajo de fuerza y solidez musculoesquelética completado.";
   } else if (summary.sport === "natacion") {
-    feedback.push({
-      tone: "positive",
-      category: "objetivo",
-      text: `🏊 Natación completada (${summary.distanceKm ? `${summary.distanceKm} km` : `${summary.durationMin} min`}). Excelente estímulo aeróbico con impacto cero en articulaciones.`,
-    });
+    positives.push(`🏊 Natación completada (${summary.distanceKm ? `${summary.distanceKm} km` : `${summary.durationMin} min`}). Gran estímulo cardiovascular con cero impacto articular.`);
+    summaryText = "Sesión aeróbica sin impacto articular completada.";
   }
 
-  return feedback;
+  return {
+    summary: summaryText,
+    positives,
+    deviations,
+    targetCompliance,
+  };
 }
+
+export function buildFitFeedback(summary: FitSummary, targetSession?: SessionRow | null): FitFeedbackItem[] {
+  const structured = buildStructuredFitDiagnostics(summary, targetSession);
+  const items: FitFeedbackItem[] = [];
+
+  for (const pos of structured.positives) {
+    items.push({ tone: "positive", text: pos.replace(/\*\*/g, "") });
+  }
+  for (const dev of structured.deviations) {
+    items.push({ tone: "warning", text: dev.replace(/\*\*/g, "") });
+  }
+
+  return items;
+}
+
