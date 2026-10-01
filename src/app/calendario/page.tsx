@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Flag, Target, Copy, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, Target, Copy, Check, Activity } from "lucide-react";
 import { toISODate, todayISO, isoDayOfWeek } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
+import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 
 interface Goal {
   id: number;
@@ -124,6 +125,7 @@ export default function CalendarioPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedSessionId, setCopiedSessionId] = useState<number | null>(null);
+  const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const toast = useToast();
 
   const load = useCallback(() => {
@@ -378,18 +380,29 @@ export default function CalendarioPage() {
                           {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
                           <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
                         </div>
-                        <button
-                          className="btn btn-ghost btn-icon"
-                          aria-label="Copiar este entreno para Notas"
-                          title="Copiar entreno para Notas"
-                          onClick={() => copySingleSession(s)}
-                        >
-                          {copiedSessionId === s.id ? (
-                            <Check size={14} style={{ color: "var(--color-success)" }} />
-                          ) : (
-                            <Copy size={14} />
-                          )}
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            className="btn btn-ghost text-xs inline-flex items-center gap-1"
+                            style={{ height: 26, padding: "0 6px", fontSize: "0.72rem" }}
+                            onClick={() => setDetailSessionId(s.id)}
+                            title="Ver análisis y métricas completas"
+                          >
+                            <Activity size={12} />
+                            Detalle
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-icon"
+                            aria-label="Copiar este entreno para Notas"
+                            title="Copiar entreno para Notas"
+                            onClick={() => copySingleSession(s)}
+                          >
+                            {copiedSessionId === s.id ? (
+                              <Check size={14} style={{ color: "var(--color-success)" }} />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                          </button>
+                        </div>
                       </div>
                       <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                         {[
@@ -427,6 +440,13 @@ export default function CalendarioPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {detailSessionId && (
+        <WorkoutDetailModal
+          sessionId={detailSessionId}
+          onClose={() => setDetailSessionId(null)}
+        />
       )}
     </div>
   );

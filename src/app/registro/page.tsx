@@ -24,6 +24,7 @@ import {
   Zap,
   Sparkles,
   Target,
+  Activity,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
@@ -35,6 +36,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ZeppSleepRow } from "@/lib/import/zepp-sleep";
+import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 
 interface FitLap {
   index: number;
@@ -255,6 +257,7 @@ export default function RegistroPage() {
     readiness: any;
   } | null>(null);
   const [applyingModalAdj, setApplyingModalAdj] = useState(false);
+  const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sleepFileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
@@ -656,6 +659,7 @@ export default function RegistroPage() {
           distance_km: summary.distanceKm,
           notes,
           fitImport: true,
+          fit_data: JSON.stringify(summary),
         }),
       });
       setFitResult(null);
@@ -1313,10 +1317,16 @@ export default function RegistroPage() {
                           </span>
                         )}
                       </div>
-                      <Button variant="ghost" onClick={() => setEditingSession({ ...s })}>
-                        <Pencil size={13} />
-                        Editar
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="secondary" onClick={() => setDetailSessionId(s.id)}>
+                          <Activity size={13} />
+                          Ver detalle
+                        </Button>
+                        <Button variant="ghost" onClick={() => setEditingSession({ ...s })}>
+                          <Pencil size={13} />
+                          Editar
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
@@ -1802,6 +1812,17 @@ export default function RegistroPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {detailSessionId && (
+        <WorkoutDetailModal
+          sessionId={detailSessionId}
+          onClose={() => setDetailSessionId(null)}
+          onEdit={(id) => {
+            const s = sessions.find((item) => item.id === id);
+            if (s) setEditingSession(s);
+          }}
+        />
       )}
 
       <ConfirmDialog

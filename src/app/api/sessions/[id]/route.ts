@@ -1,5 +1,76 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteSession, undoFitImport, updateSession } from "@/lib/repo/sessions";
+import { deleteSession, undoFitImport, updateSession, getSessionById } from "@/lib/repo/sessions";
+import { listGymExercises, listGymLogsForDate } from "@/lib/repo/gym";
+import { getSleepByDate } from "@/lib/repo/sleep";
+import { computeDailyReadiness } from "@/lib/readiness";
+import { sessionLoad } from "@/lib/recommendations";
+
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const sessionId = Number(id);
+  if (!Number.isFinite(sessionId)) return NextResponse.json({ error: "id inválido" }, { status: 400 });
+
+  const session = getSessionById(sessionId);
+  if (!session) return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
+
+  let fitSummary: any = null;
+  if (session.fit_data) {
+    try {
+      fitSummary = JSON.parse(session.fit_data);
+    } catch {
+      fitSummary = null;
+    }
+  }
+
+  // Si es sesión de gimnasio o crossfit, buscar los logs de ejercicios de ese día
+  const allExercises = listGymExercises();
+  const rawGymLogs = listGymLogsForDate(session.date);
+  const gymDetails = rawGymLogs.map((log) => {
+    const ex = allExercises.find((e) => e.id === log.exercise_id);
+    let seriesParsed = null;
+    if (log.series_data) {
+      try {
+        seriesParsed = JSON.parse(log.series_data);
+      } catch {}
+    }
+    return {
+      exerciseName: ex?.name ?? "Ejercicio",
+      weightKg: log.weight_kg,
+      sets: log.sets,
+      reps: log.reps,
+      completed: !!log.completed,
+      notes: log.notes,
+      series: seriesParsed,
+    };
+  });
+
+  // Datos de descanso y recuperación ese día
+  const sleep = getSleepByDate(session.date) ?? null;
+  const readiness = computeDailyReadiness(session.date);
+  const load = sessionLoad(session);
+
+  // Estimaciones / métricas derivadas
+  const duration = session.duration_min ?? 0;
+  const distance = session.distance_km ?? 0;
+  const avgPaceMinKm = distance > 0 && duration > 0 ? duration / distance : null;
+  const avgSpeedKmh = duration > 0 && distance > 0 ? distance / (duration / 60) : null;
+
+  return NextResponse.json({
+    session,
+    fitSummary,
+    gymDetails,
+    sleep,
+    readiness,
+    load: {
+      fosterLoad: load,
+      rpe: session.rpe,
+      durationMin: session.duration_min,
+      distanceKm: session.distance_km,
+      avgPaceMinKm,
+      avgSpeedKmh,
+    },
+  });
+}
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -29,6 +100,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     distance_km: body.distance_km !== undefined ? (body.distance_km === "" || body.distance_km === null ? null : Number(body.distance_km)) : undefined,
     notes: body.notes,
     fitImport: !!body.fitImport,
+    fit_data: body.fit_data !== undefined ? body.fit_data : undefined,
   });
 
   if (!session) {

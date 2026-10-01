@@ -76,6 +76,10 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
   return db.prepare<SleepRow>("SELECT * FROM sleep_logs WHERE date = ?").get(input.date)!;
 }
 
+export function getSleepByDate(date: string): SleepRow | undefined {
+  return getDb().prepare<SleepRow>("SELECT * FROM sleep_logs WHERE date = ?").get(date);
+}
+
 export function listSleepBetween(fromDate: string, toDate: string): SleepRow[] {
   return getDb()
     .prepare<SleepRow>("SELECT * FROM sleep_logs WHERE date >= ? AND date <= ? ORDER BY date ASC")

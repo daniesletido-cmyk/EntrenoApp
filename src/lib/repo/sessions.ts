@@ -21,6 +21,7 @@ export interface SessionRow {
   // último cambio fue aplicar un .fit importado — null si no aplica o si ya
   // se deshizo esa importación.
   fit_backup: string | null;
+  fit_data?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -182,7 +183,7 @@ export function undoFitImport(id: number): SessionRow | undefined {
     }
     getDb()
       .prepare(
-        `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, fit_backup = NULL, updated_at = ?
+        `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, fit_backup = NULL, fit_data = NULL, updated_at = ?
          WHERE id = ?`
       )
       .run(backup.status, backup.rpe, backup.duration_min, backup.distance_km, backup.notes, now, id);
@@ -194,7 +195,7 @@ export function undoFitImport(id: number): SessionRow | undefined {
   const cleanedNotes = stripFitNotes(current.notes);
   getDb()
     .prepare(
-      `UPDATE sessions SET status = 'pendiente', rpe = NULL, duration_min = NULL, distance_km = NULL, notes = ?, fit_backup = NULL, updated_at = ?
+      `UPDATE sessions SET status = 'pendiente', rpe = NULL, duration_min = NULL, distance_km = NULL, notes = ?, fit_backup = NULL, fit_data = NULL, updated_at = ?
        WHERE id = ?`
     )
     .run(cleanedNotes, now, id);
@@ -237,6 +238,7 @@ export interface UpdateSessionInput {
   distance_km?: number | null;
   notes?: string | null;
   fitImport?: boolean;
+  fit_data?: string | null;
 }
 
 export function updateSession(id: number, input: UpdateSessionInput): SessionRow | undefined {
@@ -259,6 +261,8 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
     fitBackup = JSON.stringify(backup);
   }
 
+  const fitData = input.fit_data !== undefined ? input.fit_data : current.fit_data;
+
   getDb()
     .prepare(
       `UPDATE sessions SET
@@ -274,6 +278,7 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
         distance_km = ?,
         notes = ?,
         fit_backup = ?,
+        fit_data = ?,
         updated_at = ?
        WHERE id = ?`
     )
@@ -290,6 +295,7 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
       input.distance_km !== undefined ? input.distance_km : current.distance_km,
       input.notes !== undefined ? input.notes : current.notes,
       fitBackup,
+      fitData ?? null,
       now,
       id
     );

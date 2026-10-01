@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import type { DailyReadiness } from "@/lib/readiness";
+import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 
 interface SessionRow {
   id: number;
@@ -155,6 +156,7 @@ export default function HoyPage() {
   const [showReadinessDetail, setShowReadinessDetail] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [applyingAdjustment, setApplyingAdjustment] = useState(false);
+  const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const toast = useToast();
 
   const today = todayISO();
@@ -771,6 +773,13 @@ export default function HoyPage() {
                       </p>
                     )}
                     <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-4)" }}>
+                      <button
+                        className="btn btn-secondary inline-flex"
+                        onClick={() => setDetailSessionId(s.id)}
+                      >
+                        <Activity size={14} />
+                        Ver detalle completo
+                      </button>
                       <Link href="/registro" className="btn btn-primary inline-flex">
                         Registrar resultado
                         <ArrowRight size={14} />
@@ -847,6 +856,13 @@ export default function HoyPage() {
           )}
         </div>
       </div>
+
+      {detailSessionId && (
+        <WorkoutDetailModal
+          sessionId={detailSessionId}
+          onClose={() => setDetailSessionId(null)}
+        />
+      )}
     </div>
   );
 }

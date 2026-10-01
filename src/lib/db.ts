@@ -205,6 +205,9 @@ function migrateSchema(d: AppDb) {
   if (!columnExists(d, "sessions", "fit_backup")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN fit_backup TEXT;`);
   }
+  if (!columnExists(d, "sessions", "fit_data")) {
+    d.exec(`ALTER TABLE sessions ADD COLUMN fit_data TEXT;`);
+  }
   if (!columnExists(d, "sessions", "is_extra")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN is_extra INTEGER NOT NULL DEFAULT 0;`);
   }
