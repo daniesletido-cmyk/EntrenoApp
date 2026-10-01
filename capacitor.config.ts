@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'EntrenoApp',
   webDir: 'out',
   server: {
-    androidScheme: 'https',
+    url: 'https://entrenoapp-production-f07b.up.railway.app',
     cleartext: true,
   },
   android: {

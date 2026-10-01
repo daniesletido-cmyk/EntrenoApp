@@ -2,7 +2,7 @@
   "name": "EntrenoApp",
   "short_name": "EntrenoApp",
   "description": "Registro de entrenamiento y nutrición · Diseñada por Daniel Espinosa",
-  "start_url": "/hoy",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#090d16",
   "theme_color": "#090d16",

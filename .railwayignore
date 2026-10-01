@@ -1,0 +1,14 @@
+node_modules
+.next
+android
+ios
+release
+out
+dist
+build
+.git
+.github
+*.apk
+*.ipa
+*.exe
+cloudflared.exe

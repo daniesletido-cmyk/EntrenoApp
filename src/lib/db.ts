@@ -16,6 +16,8 @@ function resolveDbPath(): string {
   let targetPath = path.join(process.cwd(), "data", "entrenoapp.db");
   if (process.env.DB_PATH) {
     targetPath = process.env.DB_PATH;
+  } else if (process.env.ENTRENO_DATA_DIR) {
+    targetPath = path.join(process.env.ENTRENO_DATA_DIR, "entrenoapp.db");
   }
   const dir = path.dirname(targetPath);
   fs.mkdirSync(dir, { recursive: true });

@@ -15,3 +15,7 @@ android/local.properties
 ios/App/build/
 ios/App/Pods/
 
+*.exe  
+*.apk  
+*.ipa  
+release/  
