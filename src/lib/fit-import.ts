@@ -1,7 +1,15 @@
 import FitParser from "fit-file-parser";
 import { toLocalISODate } from "@/lib/dates";
 
-export type FitSport = "carrera" | "natacion" | "gimnasio" | "crossfit" | "otro";
+export type FitSport =
+  | "carrera"
+  | "natacion"
+  | "gimnasio"
+  | "crossfit"
+  | "caminata"
+  | "ciclismo"
+  | "remo"
+  | "otro";
 
 export interface FitLap {
   index: number;
@@ -11,10 +19,16 @@ export interface FitLap {
   avgHeartRate: number | null;
   maxHeartRate?: number | null;
   avgCadence?: number | null;
+  // Métricas específicas según deporte
+  avgSpeedKmh?: number | null;
+  avgPowerWatts?: number | null;
+  pace100mFormatted?: string | null;
+  totalStrokes?: number | null;
+  avgSwolf?: number | null;
 }
 
 export interface FitZoneDistribution {
-  r0Pct: number; // > 5:25 min/km
+  r0Pct: number; // > 5:25 min/km (Regenerativo)
   r1Pct: number; // 5:25 - 4:59 min/km (Base Aeróbica)
   r2Pct: number; // 4:59 - 4:35 min/km (Tempo)
   r3Pct: number; // 4:35 - 4:10 min/km (Ritmo Maratón / Umbral)
@@ -30,6 +44,37 @@ export interface FitZoneDistribution {
   complianceTone?: "positive" | "warning" | "neutral" | null;
 }
 
+export interface FitHrZoneDistribution {
+  z1Sec: number; // Recuperación activa (<60% FCmax)
+  z2Sec: number; // Base Aeróbica / Quema grasas (60-70% FCmax)
+  z3Sec: number; // Tempo / Resistencia (70-80% FCmax)
+  z4Sec: number; // Umbral anaeróbico (80-90% FCmax)
+  z5Sec: number; // Potencia máxima / VO2max (>90% FCmax)
+  z1Pct: number;
+  z2Pct: number;
+  z3Pct: number;
+  z4Pct: number;
+  z5Pct: number;
+}
+
+export interface FitSwimmingMetrics {
+  poolLengthM?: number | null;
+  totalLengths?: number | null;
+  totalStrokes?: number | null;
+  avgSwolf?: number | null;
+  avgStrokeRate?: number | null;
+  pacePer100mSec?: number | null;
+  pacePer100mFormatted?: string | null;
+}
+
+export interface FitCyclingMetrics {
+  avgPowerWatts?: number | null;
+  maxPowerWatts?: number | null;
+  normalizedPowerWatts?: number | null;
+  avgSpeedKmh?: number | null;
+  maxSpeedKmh?: number | null;
+}
+
 export interface FitDeepAnalysis {
   avgCadence?: number | null;
   maxCadence?: number | null;
@@ -38,6 +83,12 @@ export interface FitDeepAnalysis {
   aerobicDecouplingPct?: number | null; // % deriva cardiovascular
   pacingStabilityScore?: number | null; // 0-100 regularidad
   zoneDistribution?: FitZoneDistribution | null;
+  hrZoneDistribution?: FitHrZoneDistribution | null;
+  swimmingMetrics?: FitSwimmingMetrics | null;
+  cyclingMetrics?: FitCyclingMetrics | null;
+  trainingEffect?: number | null;
+  anaerobicTrainingEffect?: number | null;
+  recoveryTimeHours?: number | null;
 }
 
 export interface FitSummary {
@@ -50,6 +101,8 @@ export interface FitSummary {
   durationMin: number | null;
   distanceKm: number | null;
   avgPaceMinKm: number | null;
+  avgSpeedKmh?: number | null;
+  avgPowerWatts?: number | null;
   avgHeartRate: number | null;
   maxHeartRate: number | null;
   calories: number | null;
@@ -59,7 +112,7 @@ export interface FitSummary {
   deepAnalysis: FitDeepAnalysis;
 }
 
-function mapSport(
+export function mapSport(
   raw: string | undefined | null,
   subRaw?: string | undefined | null,
   workoutName?: string | undefined | null,
@@ -70,7 +123,7 @@ function mapSport(
   const wkt = (workoutName ?? "").toLowerCase();
   const combined = `${s} ${sub} ${wkt}`;
 
-  // 1. Detección específica de CrossFit / WOD / Funcional / HIIT
+  // 1. Detección de CrossFit / WOD / HIIT / Funcional
   if (
     combined.includes("crossfit") ||
     combined.includes("cross_fit") ||
@@ -81,7 +134,9 @@ function mapSport(
     combined.includes("cross_training") ||
     combined.includes("crosstraining") ||
     combined.includes("funcional") ||
-    combined.includes("functional")
+    combined.includes("functional") ||
+    combined.includes("bootcamp") ||
+    combined.includes("metcon")
   ) {
     return "crossfit";
   }
@@ -91,6 +146,7 @@ function mapSport(
     combined.includes("swim") ||
     combined.includes("piscina") ||
     combined.includes("openwater") ||
+    combined.includes("open_water") ||
     combined.includes("aguas abiertas") ||
     combined.includes("natacion") ||
     combined.includes("natación")
@@ -98,7 +154,50 @@ function mapSport(
     return "natacion";
   }
 
-  // 3. Detección de Gimnasio / Fuerza / Pesas
+  // 3. Detección de Caminata / Senderismo / Marcha
+  if (
+    combined.includes("walk") ||
+    combined.includes("caminata") ||
+    combined.includes("marcha") ||
+    combined.includes("hike") ||
+    combined.includes("hiking") ||
+    combined.includes("senderismo") ||
+    combined.includes("trek") ||
+    combined.includes("trekking") ||
+    combined.includes("mountaineering")
+  ) {
+    return "caminata";
+  }
+
+  // 4. Detección de Ciclismo / Bici / Rodillo
+  if (
+    combined.includes("cycl") ||
+    combined.includes("bici") ||
+    combined.includes("bike") ||
+    combined.includes("ciclismo") ||
+    combined.includes("spinning") ||
+    combined.includes("gravel") ||
+    combined.includes("mountain_bike") ||
+    combined.includes("mtb") ||
+    combined.includes("e_bike")
+  ) {
+    return "ciclismo";
+  }
+
+  // 5. Detección de Remo / SkiErg
+  if (
+    combined.includes("rowing") ||
+    combined.includes("indoor_rowing") ||
+    combined.includes("remo") ||
+    combined.includes("skierg") ||
+    combined.includes("ski_erg") ||
+    combined.includes("kayak") ||
+    combined.includes("paddle")
+  ) {
+    return "remo";
+  }
+
+  // 6. Detección de Gimnasio / Fuerza / Pesas / Musculación
   if (
     combined.includes("strength") ||
     combined.includes("fuerza") ||
@@ -111,12 +210,15 @@ function mapSport(
     combined.includes("training") ||
     combined.includes("cardio") ||
     combined.includes("pilates") ||
-    combined.includes("bodybuilding")
+    combined.includes("bodybuilding") ||
+    combined.includes("yoga") ||
+    combined.includes("stretching") ||
+    combined.includes("mobility")
   ) {
     return "gimnasio";
   }
 
-  // 4. Detección de Carrera
+  // 7. Detección de Carrera
   if (
     combined.includes("run") ||
     combined.includes("carrera") ||
@@ -125,7 +227,6 @@ function mapSport(
     combined.includes("track") ||
     combined.includes("jogging")
   ) {
-    // Si la distancia es insignificante (<0.25 km) con duración > 10 min y no es cinta explícita, suele ser sala/gimnasio
     if (
       distanceKm !== null &&
       distanceKm !== undefined &&
@@ -145,7 +246,7 @@ function mapSport(
   return "otro";
 }
 
-function detectActivityName(
+export function detectActivityName(
   sport: FitSport,
   rawSport: string | null,
   rawSubSport: string | null,
@@ -158,14 +259,36 @@ function detectActivityName(
   const s = (rawSport ?? "").toLowerCase();
   const sub = (rawSubSport ?? "").toLowerCase();
 
+  if (sport === "caminata") {
+    if (s.includes("hike") || sub.includes("hike") || sub.includes("mountaineering")) return "Senderismo / Montaña";
+    if (sub.includes("speed_walking") || sub.includes("marcha")) return "Marcha Rápida";
+    return "Caminata";
+  }
+
+  if (sport === "ciclismo") {
+    if (sub.includes("mountain") || sub.includes("mtb")) return "Ciclismo MTB";
+    if (sub.includes("gravel")) return "Ciclismo Gravel";
+    if (sub.includes("indoor") || sub.includes("spin")) return "Ciclismo Indoor / Rodillo";
+    return "Ciclismo de Carretera";
+  }
+
   if (sport === "crossfit") {
     if (sub.includes("hiit")) return "CrossFit (Metcon / HIIT)";
     if (sub.includes("strength")) return "CrossFit (Fuerza / Skill)";
     return "CrossFit WOD";
   }
 
-  if (s.includes("walk") || sub.includes("walk")) return "Caminata";
-  if (s.includes("hike") || sub.includes("hike")) return "Senderismo";
+  if (sport === "natacion") {
+    if (sub.includes("open_water") || sub.includes("openwater")) return "Natación (Aguas abiertas)";
+    if (sub.includes("lap") || sub.includes("pool")) return "Natación (Piscina)";
+    return "Natación";
+  }
+
+  if (sport === "remo") {
+    if (sub.includes("indoor") || s.includes("indoor")) return "Remo Indoor (Ergómetro)";
+    if (s.includes("skierg")) return "SkiErg";
+    return "Remo";
+  }
 
   if (sport === "carrera") {
     if (sub.includes("trail")) return "Carrera Trail / Montaña";
@@ -175,20 +298,14 @@ function detectActivityName(
   }
 
   if (sport === "gimnasio") {
-    if (sub.includes("strength")) return "Fuerza / Gimnasio";
-    if (sub.includes("cardio")) return "Cardio";
+    if (sub.includes("strength")) return "Fuerza / Musculación";
+    if (sub.includes("cardio")) return "Cardio en Sala";
     if (sub.includes("hiit") || sub.includes("interval")) return "HIIT / Circuito";
+    if (sub.includes("calisthenics") || sub.includes("calistenia")) return "Calistenia";
+    if (sub.includes("yoga") || s.includes("yoga")) return "Yoga";
+    if (sub.includes("pilates") || s.includes("pilates")) return "Pilates";
+    if (sub.includes("stretch") || s.includes("mobility")) return "Movilidad y Estiramientos";
     return "Gimnasio";
-  }
-
-  if (sport === "natacion") {
-    if (sub.includes("open_water") || sub.includes("openwater")) return "Natación (Aguas abiertas)";
-    if (sub.includes("lap") || sub.includes("pool")) return "Natación (Piscina)";
-    return "Natación";
-  }
-
-  if (s.includes("cycl") || sub.includes("cycl") || s.includes("bici") || s.includes("bike")) {
-    return "Ciclismo";
   }
 
   return "Actividad .fit";
@@ -222,7 +339,6 @@ export function extractHeartRate(obj: Record<string, unknown> | null | undefined
     }
   }
 
-  // Búsqueda en campos secundarios o developer fields
   for (const [key, val] of Object.entries(obj)) {
     const lk = key.toLowerCase();
     if (lk.includes("max") || lk.includes("peak")) continue;
@@ -292,8 +408,6 @@ export function extractSpeedKmH(obj: Record<string, unknown> | null | undefined)
 
   for (const val of candidates) {
     if (typeof val === "number" && !Number.isNaN(val) && val > 0) {
-      // Si la velocidad es < 10 y parece m/s (en carrera 2.5 - 6 m/s), convertir si no está en km/h
-      // En fit-file-parser con speedUnit: "km/h", suele estar ya escalado a km/h
       return Number(val.toFixed(2));
     }
   }
@@ -307,14 +421,16 @@ export function extractDistanceKm(dist: unknown): number | null {
   return Number(dist.toFixed(3)); // ya en km
 }
 
-export function normalizeCadence(raw: unknown): number | null {
-  if (typeof raw !== "number" || Number.isNaN(raw) || raw <= 30) return null;
-  // Si viene en revoluciones de una sola pierna (ej 85 rpm), convertir a pasos/min (170 ppm)
+export function normalizeCadence(raw: unknown, isCycling: boolean = false): number | null {
+  if (typeof raw !== "number" || Number.isNaN(raw) || raw <= 25) return null;
+  // En ciclismo la cadencia suele ser 60-115 rpm (no se multiplica por 2)
+  if (isCycling) return Math.round(raw);
+  // En carrera/caminata, si viene en revoluciones de una sola pierna (<115), convertir a pasos/min
   if (raw < 115) return Math.round(raw * 2);
   return Math.round(raw);
 }
 
-export function extractCadence(obj: Record<string, unknown> | null | undefined): number | null {
+export function extractCadence(obj: Record<string, unknown> | null | undefined, isCycling: boolean = false): number | null {
   if (!obj || typeof obj !== "object") return null;
 
   const candidates = [
@@ -329,13 +445,81 @@ export function extractCadence(obj: Record<string, unknown> | null | undefined):
   ];
 
   for (const val of candidates) {
-    const norm = normalizeCadence(val);
+    const norm = normalizeCadence(val, isCycling);
     if (norm !== null) return norm;
   }
   return null;
 }
 
-// Calcula la distribución en zonas VAM (R0, R1, R2, R3/R4, R5) a partir de records
+export function extractPowerWatts(obj: Record<string, unknown> | null | undefined): number | null {
+  if (!obj || typeof obj !== "object") return null;
+  const candidates = [
+    obj.power,
+    obj.avg_power,
+    obj.normalized_power,
+    obj.instantaneous_power,
+    (obj as any).watts,
+  ];
+  for (const val of candidates) {
+    if (typeof val === "number" && !Number.isNaN(val) && val > 0 && val < 2500) {
+      return Math.round(val);
+    }
+  }
+  return null;
+}
+
+export function computeHrZonesFromRecords(
+  records: Record<string, unknown>[],
+  maxHrUser: number = 190
+): FitHrZoneDistribution | null {
+  if (!records || records.length === 0) return null;
+
+  let z1Sec = 0;
+  let z2Sec = 0;
+  let z3Sec = 0;
+  let z4Sec = 0;
+  let z5Sec = 0;
+  let validRecords = 0;
+
+  const z1Threshold = maxHrUser * 0.60;
+  const z2Threshold = maxHrUser * 0.70;
+  const z3Threshold = maxHrUser * 0.80;
+  const z4Threshold = maxHrUser * 0.90;
+
+  for (const r of records) {
+    const hr = extractHeartRate(r);
+    if (typeof hr !== "number" || hr < 40) continue;
+    validRecords++;
+    if (hr < z1Threshold) {
+      z1Sec++;
+    } else if (hr < z2Threshold) {
+      z2Sec++;
+    } else if (hr < z3Threshold) {
+      z3Sec++;
+    } else if (hr < z4Threshold) {
+      z4Sec++;
+    } else {
+      z5Sec++;
+    }
+  }
+
+  if (validRecords < 10) return null;
+  const total = validRecords;
+  return {
+    z1Sec,
+    z2Sec,
+    z3Sec,
+    z4Sec,
+    z5Sec,
+    z1Pct: Math.round((z1Sec / total) * 100),
+    z2Pct: Math.round((z2Sec / total) * 100),
+    z3Pct: Math.round((z3Sec / total) * 100),
+    z4Pct: Math.round((z4Sec / total) * 100),
+    z5Pct: Math.round((z5Sec / total) * 100),
+  };
+}
+
+// Calcula la distribución en zonas VAM (R0, R1, R2, R3/R4, R5) para carrera
 function computeZoneDistributionFromRecords(records: Record<string, unknown>[]): FitZoneDistribution | null {
   if (!records || records.length === 0) return null;
 
@@ -348,26 +532,21 @@ function computeZoneDistributionFromRecords(records: Record<string, unknown>[]):
 
   for (const r of records) {
     const speedKmH = extractSpeedKmH(r);
-    if (typeof speedKmH !== "number" || speedKmH <= 1.0) continue; // filtrar paradas
+    if (typeof speedKmH !== "number" || speedKmH <= 1.0) continue;
 
     const paceMinKm = 60 / speedKmH;
-    if (paceMinKm > 20 || paceMinKm < 2.2) continue; // filtrar valores atípicos
+    if (paceMinKm > 20 || paceMinKm < 2.2) continue;
 
     validRecords++;
     if (paceMinKm > 5.416) {
-      // > 5:25 min/km (R0 Regenerativo)
       r0Sec++;
     } else if (paceMinKm >= 4.983) {
-      // 4:59 a 5:25 min/km (R1 Base Aeróbica)
       r1Sec++;
     } else if (paceMinKm >= 4.583) {
-      // 4:35 a 4:59 min/km (R2 Tempo)
       r2Sec++;
     } else if (paceMinKm >= 4.166) {
-      // 4:10 a 4:35 min/km (R3/R4 Ritmo Maratón / Umbral)
       r3Sec++;
     } else {
-      // < 4:10 min/km (R5 / VAM)
       r5Sec++;
     }
   }
@@ -390,13 +569,12 @@ function computeZoneDistributionFromRecords(records: Record<string, unknown>[]):
 }
 
 // Genera splits por kilómetro a partir de los registros segundo a segundo
-function buildKmSplitsFromRecords(records: Record<string, unknown>[]): FitLap[] {
+function buildKmSplitsFromRecords(records: Record<string, unknown>[], isCycling: boolean = false): FitLap[] {
   if (!records || records.length < 10) return [];
 
   const validRecords = records.filter((r) => r.timestamp);
   if (validRecords.length === 0) return [];
 
-  // Normalizar distancias acumuladas de cada record
   let runningDist = 0;
   const processed = validRecords.map((r) => {
     const rawDist = extractDistanceKm(r.distance ?? (r as any).enhanced_distance);
@@ -408,8 +586,9 @@ function buildKmSplitsFromRecords(records: Record<string, unknown>[]): FitLap[] 
       timestamp: new Date(r.timestamp as string | Date).getTime(),
       distKm: runningDist,
       hr: extractHeartRate(r),
-      cadence: extractCadence(r),
+      cadence: extractCadence(r, isCycling),
       speedKmH: extractSpeedKmH(r),
+      power: extractPowerWatts(r),
     };
   });
 
@@ -418,11 +597,12 @@ function buildKmSplitsFromRecords(records: Record<string, unknown>[]): FitLap[] 
   let kmStartIdx = 0;
   let kmStartDist = processed[0].distKm;
   let kmStartTime = processed[0].timestamp;
+  const splitIntervalKm = isCycling ? 5.0 : 1.0;
 
   for (let i = 0; i < processed.length; i++) {
     const p = processed[i];
     const distDelta = p.distKm - kmStartDist;
-    const isKmPassed = distDelta >= 1.0;
+    const isKmPassed = distDelta >= splitIntervalKm;
     const isLastRecord = i === processed.length - 1;
 
     if (isKmPassed || isLastRecord) {
@@ -431,27 +611,32 @@ function buildKmSplitsFromRecords(records: Record<string, unknown>[]): FitLap[] 
       const segTimeMs = Math.max(3000, p.timestamp - kmStartTime);
       const segDurationMin = Number((segTimeMs / 60000).toFixed(2));
       const segPace = segDist > 0.05 ? Number((segDurationMin / segDist).toFixed(2)) : null;
+      const segSpeed = segDurationMin > 0 ? Number((segDist / (segDurationMin / 60)).toFixed(1)) : null;
 
-      // Pulso medio y máximo en este km
       const hrList = segRecords
         .map((x) => x.hr)
         .filter((h): h is number => typeof h === "number" && h > 40 && h < 235);
       const avgHr = hrList.length > 0 ? Math.round(hrList.reduce((a, b) => a + b, 0) / hrList.length) : null;
       const maxHr = hrList.length > 0 ? Math.max(...hrList) : null;
 
-      // Cadencia media en este km
       const cadList = segRecords
         .map((x) => x.cadence)
-        .filter((c): c is number => typeof c === "number" && c > 100);
+        .filter((c): c is number => typeof c === "number" && c > 30);
       const avgCad = cadList.length > 0 ? Math.round(cadList.reduce((a, b) => a + b, 0) / cadList.length) : null;
 
-      // Solo registrar si el segmento tiene una distancia o tiempo mínimo representativo
+      const powList = segRecords
+        .map((x) => x.power)
+        .filter((pw): pw is number => typeof pw === "number" && pw > 0);
+      const avgPow = powList.length > 0 ? Math.round(powList.reduce((a, b) => a + b, 0) / powList.length) : null;
+
       if (segDist >= 0.1 || splits.length === 0 || !isLastRecord) {
         splits.push({
           index: currentKm,
           distanceKm: Number(segDist.toFixed(2)),
           durationMin: segDurationMin,
           avgPaceMinKm: segPace,
+          avgSpeedKmh: segSpeed,
+          avgPowerWatts: avgPow,
           avgHeartRate: avgHr,
           maxHeartRate: maxHr,
           avgCadence: avgCad,
@@ -531,12 +716,13 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
 
       const sport = mapSport(rawSport, rawSubSport, rawWorkoutName, totalDistanceKm);
       const activityName = detectActivityName(sport, rawSport, rawSubSport, rawWorkoutName);
+      const isCycling = sport === "ciclismo";
+      const isSwimming = sport === "natacion";
 
       // Desglose de vueltas / laps
       const rawLaps = (data.laps as Record<string, unknown>[] | undefined) ?? [];
       let laps: FitLap[] = [];
 
-      // Si el reloj guardó vueltas específicas por km (>1 laps)
       if (rawLaps.length > 1) {
         laps = rawLaps.map((lap, i) => {
           const lapTimeSec = (lap.total_timer_time as number | undefined) ?? (lap.total_elapsed_time as number | undefined) ?? null;
@@ -546,36 +732,53 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
             lapDurationMin !== null && lapDistKm && lapDistKm > 0
               ? Number((lapDurationMin / lapDistKm).toFixed(2))
               : null;
+          const lapSpeed =
+            lapDurationMin !== null && lapDurationMin > 0 && lapDistKm && lapDistKm > 0
+              ? Number((lapDistKm / (lapDurationMin / 60)).toFixed(1))
+              : null;
 
-          const rawCad = extractCadence(lap);
+          const rawCad = extractCadence(lap, isCycling);
           const avgLapHr = extractHeartRate(lap);
           const maxLapHr = extractMaxHeartRate(lap);
+          const lapPower = extractPowerWatts(lap);
+
+          let pace100mFormatted: string | null = null;
+          if (isSwimming && lapDistKm && lapDistKm > 0 && lapDurationMin) {
+            const distM = lapDistKm * 1000;
+            const sec100m = (lapDurationMin * 60) / (distM / 100);
+            const m = Math.floor(sec100m / 60);
+            const s = Math.round(sec100m % 60);
+            pace100mFormatted = `${m}:${s.toString().padStart(2, "0")} /100m`;
+          }
 
           return {
             index: i + 1,
             distanceKm: lapDistKm !== null ? Number(lapDistKm.toFixed(2)) : null,
             durationMin: lapDurationMin,
             avgPaceMinKm: lapPace,
+            avgSpeedKmh: lapSpeed,
+            avgPowerWatts: lapPower,
+            pace100mFormatted,
             avgHeartRate: avgLapHr,
             maxHeartRate: maxLapHr,
             avgCadence: rawCad,
+            totalStrokes: (lap.total_strokes as number | undefined) ?? null,
+            avgSwolf: (lap.avg_swolf as number | undefined) ?? null,
           };
         });
 
-        // Si los laps del reloj no traían HR pero tenemos records segundo a segundo, usar los splits de records
         const hasHrInLaps = laps.some((l) => l.avgHeartRate !== null);
-        if (!hasHrInLaps && rawRecords.length >= 20) {
-          const splitLaps = buildKmSplitsFromRecords(rawRecords);
+        if (!hasHrInLaps && rawRecords.length >= 20 && !isSwimming) {
+          const splitLaps = buildKmSplitsFromRecords(rawRecords, isCycling);
           if (splitLaps.length > 0 && splitLaps.some((s) => s.avgHeartRate !== null)) {
             laps = splitLaps;
           }
         }
-      } else if (rawRecords.length >= 20 && sport === "carrera") {
-        // Si el reloj grabó todo como 1 sola vuelta, calcular los splits de 1km segundo a segundo
-        laps = buildKmSplitsFromRecords(rawRecords);
+      } else if (rawRecords.length >= 20 && (sport === "carrera" || sport === "caminata" || isCycling)) {
+        laps = buildKmSplitsFromRecords(rawRecords, isCycling);
       }
 
-      // Pulso cardíaco global (promedio de records si session no lo trae)
+      // Pulso cardíaco global
       const allHrs = rawRecords
         .map(extractHeartRate)
         .filter((h): h is number => typeof h === "number" && h > 40 && h < 235);
@@ -588,42 +791,71 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       const avgHeartRate = sessionAvgHr ?? calculatedAvgHr;
       const maxHeartRate = sessionMaxHr ?? calculatedMaxHr;
 
-      // Si aún no tenemos laps o solo quedó 1, construir un lap general con HR real
-      if (laps.length === 0 && durationMin !== null) {
-        laps = [
-          {
-            index: 1,
-            distanceKm: totalDistanceKm,
-            durationMin,
-            avgPaceMinKm,
-            avgHeartRate,
-            maxHeartRate,
-            avgCadence: extractCadence(session) ?? (rawRecords.length > 0 ? extractCadence(rawRecords[0]) : null),
-          },
-        ];
-      }
-
       // Cadencia global
       const allCads = rawRecords
-        .map(extractCadence)
-        .filter((c): c is number => typeof c === "number" && c > 100);
+        .map((r) => extractCadence(r, isCycling))
+        .filter((c): c is number => typeof c === "number" && c > 25);
       const calculatedAvgCad = allCads.length > 0 ? Math.round(allCads.reduce((a, b) => a + b, 0) / allCads.length) : null;
       const calculatedMaxCad = allCads.length > 0 ? Math.max(...allCads) : null;
-      const avgCadence = extractCadence(session) ?? calculatedAvgCad;
-      const maxCadence = (session.max_running_cadence as number | undefined) ? normalizeCadence(session.max_running_cadence) : calculatedMaxCad;
+      const avgCadence = extractCadence(session, isCycling) ?? calculatedAvgCad;
+      const maxCadence = (session.max_running_cadence as number | undefined) ? normalizeCadence(session.max_running_cadence, isCycling) : calculatedMaxCad;
+
+      // Velocidad y Potencia
+      const avgSpeedKmh =
+        durationMin && totalDistanceKm && totalDistanceKm > 0
+          ? Number((totalDistanceKm / (durationMin / 60)).toFixed(1))
+          : (session.avg_speed as number | undefined) ?? null;
+      const avgPowerWatts = extractPowerWatts(session);
 
       // Altimetría
       const elevationGainM = (session.total_ascent as number | undefined) ?? (session.enhanced_total_ascent as number | undefined) ?? null;
       const elevationLossM = (session.total_descent as number | undefined) ?? (session.enhanced_total_descent as number | undefined) ?? null;
 
+      // Métricas de Natación
+      let swimmingMetrics: FitSwimmingMetrics | null = null;
+      if (isSwimming) {
+        let pacePer100mSec: number | null = null;
+        let pacePer100mFormatted: string | null = null;
+        if (totalDistanceKm && totalDistanceKm > 0 && durationMin) {
+          const totalMeters = totalDistanceKm * 1000;
+          pacePer100mSec = Math.round((durationMin * 60) / (totalMeters / 100));
+          const m = Math.floor(pacePer100mSec / 60);
+          const s = Math.round(pacePer100mSec % 60);
+          pacePer100mFormatted = `${m}:${s.toString().padStart(2, "0")} /100m`;
+        }
+        swimmingMetrics = {
+          poolLengthM: (session.pool_length as number | undefined) ?? null,
+          totalLengths: (session.num_lengths as number | undefined) ?? (session.num_active_lengths as number | undefined) ?? null,
+          totalStrokes: (session.total_strokes as number | undefined) ?? null,
+          avgSwolf: (session.avg_swolf as number | undefined) ?? null,
+          avgStrokeRate: (session.avg_stroke_rate as number | undefined) ?? null,
+          pacePer100mSec,
+          pacePer100mFormatted,
+        };
+      }
+
+      // Métricas de Ciclismo
+      let cyclingMetrics: FitCyclingMetrics | null = null;
+      if (isCycling) {
+        cyclingMetrics = {
+          avgPowerWatts,
+          maxPowerWatts: (session.max_power as number | undefined) ?? null,
+          normalizedPowerWatts: (session.normalized_power as number | undefined) ?? null,
+          avgSpeedKmh,
+          maxSpeedKmh: (session.max_speed as number | undefined) ?? null,
+        };
+      }
+
+      // Distribución de Zonas VAM (para carrera) y Zonas FC (para todos los deportes)
       let zoneDistribution: FitZoneDistribution | null = null;
       if (sport === "carrera") {
         zoneDistribution = computeZoneDistributionFromRecords(rawRecords);
       }
+      const hrZoneDistribution = computeHrZonesFromRecords(rawRecords, maxHeartRate ?? 190);
 
-      // Cálculo de desacoplamiento cardiovascular (Aerobic Decoupling / Drift)
+      // Desacoplamiento cardiovascular
       let aerobicDecouplingPct: number | null = null;
-      if (laps.length >= 3) {
+      if (laps.length >= 3 && (sport === "carrera" || isCycling)) {
         const validLaps = laps.filter((l) => l.avgPaceMinKm !== null && l.avgHeartRate !== null && (l.avgHeartRate ?? 0) > 80);
         if (validLaps.length >= 3) {
           const mid = Math.floor(validLaps.length / 2);
@@ -643,7 +875,7 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         }
       }
 
-      // Estabilidad de ritmo (pacing stability score 0-100)
+      // Estabilidad de ritmo
       let pacingStabilityScore: number | null = null;
       if (laps.length >= 3) {
         const paces = laps.map((l) => l.avgPaceMinKm).filter((p): p is number => typeof p === "number" && p > 0);
@@ -656,6 +888,10 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         }
       }
 
+      const trainingEffect = (session.total_training_effect as number | undefined) ?? null;
+      const anaerobicTrainingEffect = (session.total_anaerobic_effect as number | undefined) ?? null;
+      const recoveryTimeHours = (session.recovery_time as number | undefined) ? Math.round((session.recovery_time as number) / 60) : null;
+
       const deepAnalysis: FitDeepAnalysis = {
         avgCadence,
         maxCadence,
@@ -664,7 +900,30 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         aerobicDecouplingPct,
         pacingStabilityScore,
         zoneDistribution,
+        hrZoneDistribution,
+        swimmingMetrics,
+        cyclingMetrics,
+        trainingEffect,
+        anaerobicTrainingEffect,
+        recoveryTimeHours,
       };
+
+      // Lap por defecto si no hay vueltas
+      if (laps.length === 0 && durationMin !== null) {
+        laps = [
+          {
+            index: 1,
+            distanceKm: totalDistanceKm,
+            durationMin,
+            avgPaceMinKm,
+            avgSpeedKmh,
+            avgPowerWatts,
+            avgHeartRate,
+            maxHeartRate,
+            avgCadence,
+          },
+        ];
+      }
 
       resolve({
         date: toLocalISODate(startDate),
@@ -676,6 +935,8 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         durationMin,
         distanceKm: totalDistanceKm !== null ? Number(totalDistanceKm.toFixed(2)) : null,
         avgPaceMinKm,
+        avgSpeedKmh,
+        avgPowerWatts,
         avgHeartRate,
         maxHeartRate,
         calories: (session.total_calories as number | undefined) ?? null,
@@ -687,4 +948,3 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
     });
   });
 }
-

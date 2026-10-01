@@ -63,6 +63,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     fitSummary,
     structuredFeedback: unified.structuredFeedback,
     zoneDistribution: unified.zoneDistribution,
+    hrZoneDistribution: unified.hrZoneDistribution,
     laps: unified.laps,
     isRealFit: unified.isRealFit,
     gymDetails,

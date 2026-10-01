@@ -28,6 +28,7 @@ import {
   UploadCloud,
   FileCheck,
   Check,
+  Bike,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -57,6 +58,9 @@ const DISCIPLINE_ICON: Record<string, React.ComponentType<{ size?: number; class
   gimnasio: Dumbbell,
   natacion: Waves,
   crossfit: Flame,
+  caminata: Footprints,
+  ciclismo: Bike,
+  remo: Waves,
   otro: MoreHorizontal,
   descanso: Moon,
 };
@@ -66,7 +70,10 @@ const DISCIPLINE_LABEL: Record<string, string> = {
   gimnasio: "Fuerza / Gimnasio",
   natacion: "Natación",
   crossfit: "CrossFit / Box WOD",
-  otro: "Entrenamiento Funcional",
+  caminata: "Caminata / Senderismo",
+  ciclismo: "Ciclismo",
+  remo: "Remo / SkiErg",
+  otro: "Entrenamiento General",
   descanso: "Descanso",
 };
 
@@ -272,8 +279,17 @@ function DetalleContent() {
   const IconComp = session?.discipline ? DISCIPLINE_ICON[session.discipline] ?? MoreHorizontal : Activity;
   const statusInfo = session ? STATUS_LABEL[session.status] ?? STATUS_LABEL.pendiente : STATUS_LABEL.pendiente;
   const deep = fit?.deepAnalysis;
+  const hrZoneDist = sessionDetail?.hrZoneDistribution ?? deep?.hrZoneDistribution;
 
-  // Datos para gráfico de barras de zonas VAM
+  const effectiveSport = fit?.sport ?? session?.discipline ?? "carrera";
+  const isSwimming = effectiveSport === "natacion";
+  const isCycling = effectiveSport === "ciclismo";
+  const isWalking = effectiveSport === "caminata";
+  const isRunning = effectiveSport === "carrera";
+  const isCrossfit = effectiveSport === "crossfit";
+  const isGym = effectiveSport === "gimnasio";
+
+  // Datos para gráfico de barras de zonas VAM (Carrera)
   const zoneChartData = zoneDist
     ? [
         { name: "R0 Suave", timeMin: Number((zoneDist.r0TimeSec / 60).toFixed(1)), pct: zoneDist.r0Pct, color: "#64748b", rawTime: zoneDist.r0TimeSec },
@@ -281,6 +297,17 @@ function DetalleContent() {
         { name: "R2 Tempo", timeMin: Number((zoneDist.r2TimeSec / 60).toFixed(1)), pct: zoneDist.r2Pct, color: "#f59e0b", rawTime: zoneDist.r2TimeSec },
         { name: "R4 Maratón", timeMin: Number((zoneDist.r3TimeSec / 60).toFixed(1)), pct: zoneDist.r3Pct, color: "#8b5cf6", rawTime: zoneDist.r3TimeSec },
         { name: "R5 Series", timeMin: Number((zoneDist.r5TimeSec / 60).toFixed(1)), pct: zoneDist.r5Pct, color: "#ef4444", rawTime: zoneDist.r5TimeSec },
+      ]
+    : [];
+
+  // Datos para gráfico de barras de Zonas de Frecuencia Cardíaca (Multi-deporte)
+  const hrZoneChartData = hrZoneDist
+    ? [
+        { name: "Z1 Recup", timeMin: Number((hrZoneDist.z1Sec / 60).toFixed(1)), pct: hrZoneDist.z1Pct, color: "#64748b", rawTime: hrZoneDist.z1Sec },
+        { name: "Z2 Base", timeMin: Number((hrZoneDist.z2Sec / 60).toFixed(1)), pct: hrZoneDist.z2Pct, color: "#10b981", rawTime: hrZoneDist.z2Sec },
+        { name: "Z3 Tempo", timeMin: Number((hrZoneDist.z3Sec / 60).toFixed(1)), pct: hrZoneDist.z3Pct, color: "#f59e0b", rawTime: hrZoneDist.z3Sec },
+        { name: "Z4 Umbral", timeMin: Number((hrZoneDist.z4Sec / 60).toFixed(1)), pct: hrZoneDist.z4Pct, color: "#8b5cf6", rawTime: hrZoneDist.z4Sec },
+        { name: "Z5 VO2max", timeMin: Number((hrZoneDist.z5Sec / 60).toFixed(1)), pct: hrZoneDist.z5Pct, color: "#ef4444", rawTime: hrZoneDist.z5Sec },
       ]
     : [];
 
@@ -676,7 +703,38 @@ function DetalleContent() {
                   </div>
                 </div>
 
-                {session.discipline === "carrera" && (
+                {/* Ritmo / Velocidad / SWOLF según deporte */}
+                {isSwimming && (deep?.swimmingMetrics?.pacePer100mFormatted || fit?.avgPaceMinKm) && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Zap size={12} /> Ritmo /100m
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                      {deep?.swimmingMetrics?.pacePer100mFormatted || "—"}
+                    </div>
+                    <div className="text-xs text-faint">
+                      {deep?.swimmingMetrics?.totalLengths ? `${deep.swimmingMetrics.totalLengths} largos` : "Natación"}
+                    </div>
+                  </div>
+                )}
+
+                {isCycling && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Zap size={12} /> Velocidad Media
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                      {deep?.cyclingMetrics?.avgSpeedKmh ?? fit?.avgSpeedKmh ?? load?.avgSpeedKmh
+                        ? `${(deep?.cyclingMetrics?.avgSpeedKmh ?? fit?.avgSpeedKmh ?? load?.avgSpeedKmh)?.toFixed(1)} km/h`
+                        : "—"}
+                    </div>
+                    <div className="text-xs text-faint">
+                      {deep?.cyclingMetrics?.maxSpeedKmh ? `Máx: ${deep.cyclingMetrics.maxSpeedKmh.toFixed(1)} km/h` : "Ciclismo"}
+                    </div>
+                  </div>
+                )}
+
+                {(isRunning || isWalking) && (
                   <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
                     <div className="text-xs text-muted font-medium flex items-center gap-1">
                       <Zap size={12} /> Ritmo Medio
@@ -686,6 +744,36 @@ function DetalleContent() {
                     </div>
                     <div className="text-xs text-faint">
                       {load?.avgSpeedKmh ? `${load.avgSpeedKmh.toFixed(1)} km/h` : "—"}
+                    </div>
+                  </div>
+                )}
+
+                {/* Potencia ciclista */}
+                {isCycling && (deep?.cyclingMetrics?.avgPowerWatts || fit?.avgPowerWatts) && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Zap size={12} /> Potencia Media
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-warning)", marginTop: 2 }}>
+                      {deep?.cyclingMetrics?.avgPowerWatts ?? fit?.avgPowerWatts} W
+                    </div>
+                    <div className="text-xs text-faint">
+                      {deep?.cyclingMetrics?.normalizedPowerWatts ? `NP: ${deep.cyclingMetrics.normalizedPowerWatts} W` : "Potenciómetro"}
+                    </div>
+                  </div>
+                )}
+
+                {/* Eficiencia SWOLF en natación */}
+                {isSwimming && deep?.swimmingMetrics?.avgSwolf != null && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Waves size={12} /> SWOLF Medio
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                      {deep.swimmingMetrics.avgSwolf}
+                    </div>
+                    <div className="text-xs text-faint">
+                      {deep.swimmingMetrics.avgStrokeRate ? `${deep.swimmingMetrics.avgStrokeRate} brazadas/min` : "Eficiencia acuática"}
                     </div>
                   </div>
                 )}
@@ -736,13 +824,15 @@ function DetalleContent() {
                 {fit?.avgCadence != null && (
                   <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
                     <div className="text-xs text-muted font-medium flex items-center gap-1">
-                      <Activity size={12} /> Cadencia
+                      <Activity size={12} /> {isCycling ? "Cadencia Pedaleo" : isSwimming ? "Frec. Brazada" : "Cadencia"}
                     </div>
                     <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
-                      {fit.avgCadence} ppm
+                      {fit.avgCadence} {isCycling ? "rpm" : isSwimming ? "br/min" : "ppm"}
                     </div>
                     <div className="text-xs text-faint">
-                      {fit.avgCadence >= 170 ? "Cadencia eficiente" : "Mejorable (>170 ppm)"}
+                      {isCycling
+                        ? fit.avgCadence >= 80 ? "Cadencia ágil" : "Cadencia de fuerza"
+                        : fit.avgCadence >= 170 ? "Cadencia eficiente" : "Mejorable"}
                     </div>
                   </div>
                 )}
@@ -756,6 +846,18 @@ function DetalleContent() {
                       +{fit.elevationGainM} m
                     </div>
                     <div className="text-xs text-faint">Altimetría ascendida</div>
+                  </div>
+                )}
+
+                {fit?.calories != null && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Flame size={12} style={{ color: "var(--color-warning)" }} /> Calorías
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
+                      {fit.calories} kcal
+                    </div>
+                    <div className="text-xs text-faint">Gasto energético</div>
                   </div>
                 )}
 
@@ -962,195 +1064,310 @@ function DetalleContent() {
                 </div>
               )}
 
-              {/* Gráfico y Desglose de Zonas VAM */}
-              <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
-                <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                  <div className="font-semibold text-sm flex items-center gap-2">
-                    <Target size={16} style={{ color: "var(--color-brand)" }} />
-                    Tiempo y Porcentaje por Zona VAM (Dani: 3:59 min/km · 15.06 km/h)
-                  </div>
-                  {!isRealFit && (
-                    <span className="text-xs text-muted italic">
-                      Mostrando distribución teórica del plan
-                    </span>
-                  )}
-                </div>
+              {/* Gráfico y Desglose de Zonas VAM (Carrera) o Zonas FC (Multi-deporte) */}
+              <div className="grid gap-4">
+                {zoneDist && isRunning && (
+                  <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                    <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="font-semibold text-sm flex items-center gap-2">
+                        <Target size={16} style={{ color: "var(--color-brand)" }} />
+                        Distribución de Zonas de Ritmo VAM (Base VAM: 3:59 min/km · 15.06 km/h)
+                      </div>
+                      {!isRealFit && (
+                        <span className="text-xs text-muted italic">
+                          Mostrando distribución teórica del plan
+                        </span>
+                      )}
+                    </div>
 
-                {/* Gráfico de Barras de Tiempo por Zona */}
-                {zoneDist && (
-                  <div style={{ width: "100%", height: 180, marginBottom: "var(--space-4)" }}>
-                    <ResponsiveContainer>
-                      <BarChart data={zoneChartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                        <CartesianGrid stroke="#262c37" strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" stroke="#9aa3b2" fontSize={11} unit=" min" />
-                        <YAxis type="category" dataKey="name" stroke="#9aa3b2" fontSize={11} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const item = payload[0].payload;
-                              return (
-                                <div
-                                  style={{
-                                    backgroundColor: "#171b24",
-                                    border: "1px solid #262c37",
-                                    padding: "6px 10px",
-                                    borderRadius: 6,
-                                    fontSize: 12,
-                                  }}
-                                >
-                                  <div className="font-bold" style={{ color: item.color }}>
-                                    {item.name}
+                    {/* Gráfico de Barras de Tiempo por Zona VAM */}
+                    <div style={{ width: "100%", height: 180, marginBottom: "var(--space-4)" }}>
+                      <ResponsiveContainer>
+                        <BarChart data={zoneChartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" stroke="#9aa3b2" fontSize={11} unit=" min" />
+                          <YAxis type="category" dataKey="name" stroke="#9aa3b2" fontSize={11} />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const item = payload[0].payload;
+                                return (
+                                  <div
+                                    style={{
+                                      backgroundColor: "#171b24",
+                                      border: "1px solid #262c37",
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      fontSize: 12,
+                                    }}
+                                  >
+                                    <div className="font-bold" style={{ color: item.color }}>
+                                      {item.name}
+                                    </div>
+                                    <div style={{ marginTop: 2 }}>
+                                      Tiempo: <strong>{formatSecondsDetailed(item.rawTime)}</strong> ({item.pct}%)
+                                    </div>
                                   </div>
-                                  <div style={{ marginTop: 2 }}>
-                                    Tiempo: <strong>{formatSecondsDetailed(item.rawTime)}</strong> ({item.pct}%)
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar dataKey="timeMin" radius={[0, 4, 4, 0]}>
+                            {zoneChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Barra Segmentada Visual */}
+                    <div
+                      style={{
+                        height: 18,
+                        borderRadius: 9,
+                        overflow: "hidden",
+                        display: "flex",
+                        backgroundColor: "#21262d",
+                        marginBottom: "var(--space-4)",
+                      }}
+                    >
+                      {zoneDist.r0Pct > 0 && (
+                        <div
+                          title={`R0 Regenerativo: ${zoneDist.r0Pct}% (${formatSecondsDetailed(zoneDist.r0TimeSec)})`}
+                          style={{ width: `${zoneDist.r0Pct}%`, backgroundColor: "#64748b" }}
                         />
-                        <Bar dataKey="timeMin" radius={[0, 4, 4, 0]}>
-                          {zoneChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                      )}
+                      {zoneDist.r1Pct > 0 && (
+                        <div
+                          title={`R1 Base Aeróbica: ${zoneDist.r1Pct}% (${formatSecondsDetailed(zoneDist.r1TimeSec)})`}
+                          style={{ width: `${zoneDist.r1Pct}%`, backgroundColor: "#10b981" }}
+                        />
+                      )}
+                      {zoneDist.r2Pct > 0 && (
+                        <div
+                          title={`R2 Tempo: ${zoneDist.r2Pct}% (${formatSecondsDetailed(zoneDist.r2TimeSec)})`}
+                          style={{ width: `${zoneDist.r2Pct}%`, backgroundColor: "#f59e0b" }}
+                        />
+                      )}
+                      {zoneDist.r3Pct > 0 && (
+                        <div
+                          title={`R4 Sub-VAM / Maratón: ${zoneDist.r3Pct}% (${formatSecondsDetailed(zoneDist.r3TimeSec)})`}
+                          style={{ width: `${zoneDist.r3Pct}%`, backgroundColor: "#8b5cf6" }}
+                        />
+                      )}
+                      {zoneDist.r5Pct > 0 && (
+                        <div
+                          title={`R5 Series / VAM: ${zoneDist.r5Pct}% (${formatSecondsDetailed(zoneDist.r5TimeSec)})`}
+                          style={{ width: `${zoneDist.r5Pct}%`, backgroundColor: "#ef4444" }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Tabla de Zonas con Tiempo Exacto */}
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", fontSize: "var(--text-xs)", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)", textAlign: "left", color: "var(--color-text-muted)" }}>
+                            <th style={{ padding: "8px 4px" }}>Zona VAM</th>
+                            <th style={{ padding: "8px 4px" }}>Rango Ritmo</th>
+                            <th style={{ padding: "8px 4px" }}>Tiempo Exacto</th>
+                            <th style={{ padding: "8px 4px" }}>% Total</th>
+                            <th style={{ padding: "8px 4px" }}>Enfoque Fisiológico</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#94a3b8" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#64748b" }} />
+                                R0 Regenerativo
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>&gt; 5:25 min/km</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "var(--color-text)" }}>
+                              {formatSecondsDetailed(zoneDist.r0TimeSec)}
+                            </td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist.r0Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Calentamiento, vuelta a la calma y descarga</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#10b981" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10b981" }} />
+                                R1 Base Aeróbica
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>5:25 – 4:59 min/km</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#10b981" }}>
+                              {formatSecondsDetailed(zoneDist.r1TimeSec)}
+                            </td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist.r1Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Fondo aeróbico, capilarización, quema de grasas</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#f59e0b" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
+                                R2 Tempo / Umbral
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>4:59 – 4:35 min/km</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#f59e0b" }}>
+                              {formatSecondsDetailed(zoneDist.r2TimeSec)}
+                            </td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist.r2Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Resistencia aeróbica media, tolerancia lactato</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#8b5cf6" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#8b5cf6" }} />
+                                R4 Sub-VAM / Maratón
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>4:35 – 4:10 min/km</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#8b5cf6" }}>
+                              {formatSecondsDetailed(zoneDist.r3TimeSec)}
+                            </td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist.r3Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Ritmo objetivo maratón y umbral anaeróbico</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#ef4444" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
+                                R5 Series / VAM
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>&lt; 4:10 min/km</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#ef4444" }}>
+                              {formatSecondsDetailed(zoneDist.r5TimeSec)}
+                            </td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist.r5Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Potencia aeróbica máxima (VO2max) y velocidad</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
-                {/* Barra Segmentada Visual */}
-                {zoneDist && (
-                  <div
-                    style={{
-                      height: 18,
-                      borderRadius: 9,
-                      overflow: "hidden",
-                      display: "flex",
-                      backgroundColor: "#21262d",
-                      marginBottom: "var(--space-4)",
-                    }}
-                  >
-                    {zoneDist.r0Pct > 0 && (
-                      <div
-                        title={`R0 Regenerativo: ${zoneDist.r0Pct}% (${formatSecondsDetailed(zoneDist.r0TimeSec)})`}
-                        style={{ width: `${zoneDist.r0Pct}%`, backgroundColor: "#64748b" }}
-                      />
-                    )}
-                    {zoneDist.r1Pct > 0 && (
-                      <div
-                        title={`R1 Base Aeróbica: ${zoneDist.r1Pct}% (${formatSecondsDetailed(zoneDist.r1TimeSec)})`}
-                        style={{ width: `${zoneDist.r1Pct}%`, backgroundColor: "#10b981" }}
-                      />
-                    )}
-                    {zoneDist.r2Pct > 0 && (
-                      <div
-                        title={`R2 Tempo: ${zoneDist.r2Pct}% (${formatSecondsDetailed(zoneDist.r2TimeSec)})`}
-                        style={{ width: `${zoneDist.r2Pct}%`, backgroundColor: "#f59e0b" }}
-                      />
-                    )}
-                    {zoneDist.r3Pct > 0 && (
-                      <div
-                        title={`R4 Sub-VAM / Maratón: ${zoneDist.r3Pct}% (${formatSecondsDetailed(zoneDist.r3TimeSec)})`}
-                        style={{ width: `${zoneDist.r3Pct}%`, backgroundColor: "#8b5cf6" }}
-                      />
-                    )}
-                    {zoneDist.r5Pct > 0 && (
-                      <div
-                        title={`R5 Series / VAM: ${zoneDist.r5Pct}% (${formatSecondsDetailed(zoneDist.r5TimeSec)})`}
-                        style={{ width: `${zoneDist.r5Pct}%`, backgroundColor: "#ef4444" }}
-                      />
-                    )}
+                {/* Zonas de Frecuencia Cardíaca (Para todos los deportes) */}
+                {hrZoneDist && (
+                  <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                    <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                      <Heart size={16} style={{ color: "var(--color-danger)" }} />
+                      Distribución por Zonas de Frecuencia Cardíaca (FC)
+                    </div>
+
+                    {/* Barra Segmentada FC */}
+                    <div
+                      style={{
+                        height: 18,
+                        borderRadius: 9,
+                        overflow: "hidden",
+                        display: "flex",
+                        backgroundColor: "#21262d",
+                        marginBottom: "var(--space-4)",
+                      }}
+                    >
+                      {hrZoneDist.z1Pct > 0 && (
+                        <div title={`Z1 Recuperación: ${hrZoneDist.z1Pct}% (${formatSecondsDetailed(hrZoneDist.z1Sec)})`} style={{ width: `${hrZoneDist.z1Pct}%`, backgroundColor: "#64748b" }} />
+                      )}
+                      {hrZoneDist.z2Pct > 0 && (
+                        <div title={`Z2 Base Aeróbica: ${hrZoneDist.z2Pct}% (${formatSecondsDetailed(hrZoneDist.z2Sec)})`} style={{ width: `${hrZoneDist.z2Pct}%`, backgroundColor: "#10b981" }} />
+                      )}
+                      {hrZoneDist.z3Pct > 0 && (
+                        <div title={`Z3 Tempo: ${hrZoneDist.z3Pct}% (${formatSecondsDetailed(hrZoneDist.z3Sec)})`} style={{ width: `${hrZoneDist.z3Pct}%`, backgroundColor: "#f59e0b" }} />
+                      )}
+                      {hrZoneDist.z4Pct > 0 && (
+                        <div title={`Z4 Umbral: ${hrZoneDist.z4Pct}% (${formatSecondsDetailed(hrZoneDist.z4Sec)})`} style={{ width: `${hrZoneDist.z4Pct}%`, backgroundColor: "#8b5cf6" }} />
+                      )}
+                      {hrZoneDist.z5Pct > 0 && (
+                        <div title={`Z5 VO2max: ${hrZoneDist.z5Pct}% (${formatSecondsDetailed(hrZoneDist.z5Sec)})`} style={{ width: `${hrZoneDist.z5Pct}%`, backgroundColor: "#ef4444" }} />
+                      )}
+                    </div>
+
+                    {/* Tabla Zonas FC */}
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", fontSize: "var(--text-xs)", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)", textAlign: "left", color: "var(--color-text-muted)" }}>
+                            <th style={{ padding: "8px 4px" }}>Zona FC</th>
+                            <th style={{ padding: "8px 4px" }}>Rango FC</th>
+                            <th style={{ padding: "8px 4px" }}>Tiempo</th>
+                            <th style={{ padding: "8px 4px" }}>% Total</th>
+                            <th style={{ padding: "8px 4px" }}>Impacto Fisiológico</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#94a3b8" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#64748b" }} />
+                                Z1 Recuperación
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>&lt; 60% FCmáx</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{formatSecondsDetailed(hrZoneDist.z1Sec)}</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{hrZoneDist.z1Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Regeneración activa, calentamiento y vuelta a la calma</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#10b981" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10b981" }} />
+                                Z2 Base Aeróbica
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>60% – 70% FCmáx</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#10b981" }}>{formatSecondsDetailed(hrZoneDist.z2Sec)}</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{hrZoneDist.z2Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Oxidación máxima de grasas y base mitocondrial</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#f59e0b" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
+                                Z3 Tempo / Aeróbica
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>70% – 80% FCmáx</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#f59e0b" }}>{formatSecondsDetailed(hrZoneDist.z3Sec)}</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{hrZoneDist.z3Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Resistencia aeróbica media y ritmo sostenido</td>
+                          </tr>
+                          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#8b5cf6" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#8b5cf6" }} />
+                                Z4 Umbral Anaeróbico
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>80% – 90% FCmáx</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#8b5cf6" }}>{formatSecondsDetailed(hrZoneDist.z4Sec)}</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{hrZoneDist.z4Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Tolerancia al lactato y alta demanda glucolítica</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: "8px 4px" }}>
+                              <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#ef4444" }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
+                                Z5 Potencia / VO2máx
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 4px" }}>&gt; 90% FCmáx</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700, color: "#ef4444" }}>{formatSecondsDetailed(hrZoneDist.z5Sec)}</td>
+                            <td style={{ padding: "8px 4px", fontWeight: 700 }}>{hrZoneDist.z5Pct}%</td>
+                            <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Picos de esfuerzo máximo, WODs intensos y series</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
-
-                {/* Tabla de Zonas con Tiempo Exacto */}
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", fontSize: "var(--text-xs)", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid var(--color-border)", textAlign: "left", color: "var(--color-text-muted)" }}>
-                        <th style={{ padding: "8px 4px" }}>Zona VAM</th>
-                        <th style={{ padding: "8px 4px" }}>Rango Ritmo</th>
-                        <th style={{ padding: "8px 4px" }}>Tiempo Exacto</th>
-                        <th style={{ padding: "8px 4px" }}>% Total</th>
-                        <th style={{ padding: "8px 4px" }}>Enfoque Fisiológico</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        <td style={{ padding: "8px 4px" }}>
-                          <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#94a3b8" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#64748b" }} />
-                            R0 Regenerativo
-                          </span>
-                        </td>
-                        <td style={{ padding: "8px 4px" }}>&gt; 5:25 min/km</td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "var(--color-text)" }}>
-                          {zoneDist ? formatSecondsDetailed(zoneDist.r0TimeSec) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r0Pct}%` : "—"}</td>
-                        <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Calentamiento, vuelta a la calma y descarga</td>
-                      </tr>
-                      <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        <td style={{ padding: "8px 4px" }}>
-                          <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#10b981" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10b981" }} />
-                            R1 Base Aeróbica
-                          </span>
-                        </td>
-                        <td style={{ padding: "8px 4px" }}>5:25 – 4:59 min/km</td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#10b981" }}>
-                          {zoneDist ? formatSecondsDetailed(zoneDist.r1TimeSec) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r1Pct}%` : "—"}</td>
-                        <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Fondo aeróbico, capilarización, quema de grasas</td>
-                      </tr>
-                      <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        <td style={{ padding: "8px 4px" }}>
-                          <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#f59e0b" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
-                            R2 Tempo / Umbral
-                          </span>
-                        </td>
-                        <td style={{ padding: "8px 4px" }}>4:59 – 4:35 min/km</td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#f59e0b" }}>
-                          {zoneDist ? formatSecondsDetailed(zoneDist.r2TimeSec) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r2Pct}%` : "—"}</td>
-                        <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Resistencia aeróbica media, tolerancia lactato</td>
-                      </tr>
-                      <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        <td style={{ padding: "8px 4px" }}>
-                          <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#8b5cf6" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#8b5cf6" }} />
-                            R4 Sub-VAM / Maratón
-                          </span>
-                        </td>
-                        <td style={{ padding: "8px 4px" }}>4:35 – 4:10 min/km</td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#8b5cf6" }}>
-                          {zoneDist ? formatSecondsDetailed(zoneDist.r3TimeSec) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r3Pct}%` : "—"}</td>
-                        <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Ritmo objetivo maratón y umbral anaeróbico</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: "8px 4px" }}>
-                          <span className="flex items-center gap-1.5 font-semibold" style={{ color: "#ef4444" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
-                            R5 Series / VAM
-                          </span>
-                        </td>
-                        <td style={{ padding: "8px 4px" }}>&lt; 4:10 min/km</td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700, color: "#ef4444" }}>
-                          {zoneDist ? formatSecondsDetailed(zoneDist.r5TimeSec) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 4px", fontWeight: 700 }}>{zoneDist ? `${zoneDist.r5Pct}%` : "—"}</td>
-                        <td style={{ padding: "8px 4px", color: "var(--color-text-muted)" }}>Potencia aeróbica máxima (VO2max) y velocidad</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
               </div>
             </div>
           )}
@@ -1171,15 +1388,15 @@ function DetalleContent() {
                       style={{ padding: "0.25rem 0.6rem" }}
                       onClick={() => setActiveChart("pace_hr")}
                     >
-                      Ritmo & Pulso
+                      {isCycling ? "Velocidad & Pulso" : "Ritmo & Pulso"}
                     </button>
-                    {zoneDist && (
+                    {(zoneDist || hrZoneDist) && (
                       <button
                         className={`btn ${activeChart === "zones" ? "btn-primary" : "btn-secondary"} text-xs`}
                         style={{ padding: "0.25rem 0.6rem" }}
                         onClick={() => setActiveChart("zones")}
                       >
-                        Zonas VAM
+                        {zoneDist && isRunning ? "Zonas VAM" : "Zonas FC"}
                       </button>
                     )}
                     {laps.some((l: any) => l.avgCadence) && (
@@ -1188,28 +1405,34 @@ function DetalleContent() {
                         style={{ padding: "0.25rem 0.6rem" }}
                         onClick={() => setActiveChart("cadence")}
                       >
-                        Cadencia (ppm)
+                        {isCycling ? "Cadencia (rpm)" : "Cadencia (ppm)"}
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Gráfico 1: Ritmo vs Pulso */}
+                {/* Gráfico 1: Ritmo / Velocidad vs Pulso */}
                 {activeChart === "pace_hr" && (
                   <div>
                     <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
-                      Eje izquierdo: Ritmo (min/km, invertido para que arriba sea más rápido) • Eje derecho: Pulso cardíaco (lpm).
+                      {isCycling
+                        ? "Eje izquierdo: Velocidad (km/h) • Eje derecho: Pulso cardíaco (lpm)."
+                        : "Eje izquierdo: Ritmo (min/km, invertido para que arriba sea más rápido) • Eje derecho: Pulso cardíaco (lpm)."}
                     </div>
                     <div style={{ width: "100%", height: 260 }}>
                       <ResponsiveContainer>
-                        <LineChart data={laps.map((l: any) => ({ vuelta: `Km ${l.index}`, Ritmo: l.avgPaceMinKm, FC: l.avgHeartRate }))}>
+                        <LineChart data={laps.map((l: any) => ({
+                          vuelta: `#${l.index}`,
+                          [isCycling ? "Velocidad" : "Ritmo"]: isCycling ? l.avgSpeedKmh : l.avgPaceMinKm,
+                          FC: l.avgHeartRate
+                        }))}>
                           <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
                           <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
-                          <YAxis yAxisId="left" stroke="#2f6feb" fontSize={11} reversed />
+                          <YAxis yAxisId="left" stroke="#2f6feb" fontSize={11} reversed={!isCycling} />
                           <YAxis yAxisId="right" orientation="right" stroke="#ef4444" fontSize={11} domain={["dataMin - 10", "dataMax + 10"]} />
                           <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line yAxisId="left" type="monotone" dataKey="Ritmo" stroke="#2f6feb" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                          <Line yAxisId="left" type="monotone" dataKey={isCycling ? "Velocidad" : "Ritmo"} stroke="#2f6feb" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
                           <Line yAxisId="right" type="monotone" dataKey="FC" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
                         </LineChart>
                       </ResponsiveContainer>
@@ -1217,15 +1440,17 @@ function DetalleContent() {
                   </div>
                 )}
 
-                {/* Gráfico 2: Zonas VAM */}
-                {activeChart === "zones" && zoneDist && (
+                {/* Gráfico 2: Zonas (VAM o FC) */}
+                {activeChart === "zones" && (zoneDist || hrZoneDist) && (
                   <div>
                     <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
-                      Minutos acumulados en cada zona de ritmo según tu VAM de 3:59 min/km.
+                      {zoneDist && isRunning
+                        ? "Minutos acumulados en cada zona de ritmo según tu VAM de 3:59 min/km."
+                        : "Minutos acumulados en cada zona de frecuencia cardíaca."}
                     </div>
                     <div style={{ width: "100%", height: 260 }}>
                       <ResponsiveContainer>
-                        <BarChart data={zoneChartData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
+                        <BarChart data={zoneDist && isRunning ? zoneChartData : hrZoneChartData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
                           <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
                           <XAxis dataKey="name" stroke="#9aa3b2" fontSize={11} />
                           <YAxis stroke="#9aa3b2" fontSize={11} unit=" m" />
@@ -1256,7 +1481,7 @@ function DetalleContent() {
                             }}
                           />
                           <Bar dataKey="timeMin" radius={[4, 4, 0, 0]}>
-                            {zoneChartData.map((entry, index) => (
+                            {(zoneDist && isRunning ? zoneChartData : hrZoneChartData).map((entry, index) => (
                               <Cell key={`cell-chart-${index}`} fill={entry.color} />
                             ))}
                           </Bar>
@@ -1270,14 +1495,14 @@ function DetalleContent() {
                 {activeChart === "cadence" && (
                   <div>
                     <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
-                      Evolución de la cadencia de zancada (ppm) a lo largo de los kilómetros.
+                      Evolución de la cadencia ({isCycling ? "rpm" : "ppm"}) a lo largo de las vueltas.
                     </div>
                     <div style={{ width: "100%", height: 260 }}>
                       <ResponsiveContainer>
-                        <LineChart data={laps.map((l: any) => ({ vuelta: `Km ${l.index}`, Cadencia: l.avgCadence }))}>
+                        <LineChart data={laps.map((l: any) => ({ vuelta: `#${l.index}`, Cadencia: l.avgCadence }))}>
                           <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
                           <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
-                          <YAxis stroke="#9aa3b2" fontSize={11} domain={[140, 200]} unit=" ppm" />
+                          <YAxis stroke="#9aa3b2" fontSize={11} domain={isCycling ? [50, 120] : [140, 200]} unit={isCycling ? " rpm" : " ppm"} />
                           <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
                           <Line type="monotone" dataKey="Cadencia" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
@@ -1303,24 +1528,40 @@ function DetalleContent() {
                       <th style={{ padding: "6px 8px" }}>Vuelta #</th>
                       <th style={{ padding: "6px 8px" }}>Distancia</th>
                       <th style={{ padding: "6px 8px" }}>Tiempo</th>
-                      <th style={{ padding: "6px 8px" }}>Ritmo</th>
+                      <th style={{ padding: "6px 8px" }}>{isSwimming ? "Ritmo /100m" : isCycling ? "Velocidad" : "Ritmo"}</th>
                       <th style={{ padding: "6px 8px" }}>FC Media</th>
-                      <th style={{ padding: "6px 8px" }}>Cadencia</th>
+                      <th style={{ padding: "6px 8px" }}>{isSwimming ? "Brazadas / SWOLF" : isCycling ? "Potencia / Cadencia" : "Cadencia"}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {laps.map((lap: any) => (
                       <tr key={lap.index} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        <td style={{ padding: "6px 8px", fontWeight: 600 }}>Km {lap.index}</td>
-                        <td style={{ padding: "6px 8px" }}>{lap.distanceKm !== null ? `${lap.distanceKm} km` : "—"}</td>
+                        <td style={{ padding: "6px 8px", fontWeight: 600 }}>#{lap.index}</td>
+                        <td style={{ padding: "6px 8px" }}>
+                          {lap.distanceKm !== null
+                            ? isSwimming
+                              ? `${Math.round(lap.distanceKm * 1000)} m`
+                              : `${lap.distanceKm} km`
+                            : "—"}
+                        </td>
                         <td style={{ padding: "6px 8px" }}>{formatDuration(lap.durationMin)}</td>
                         <td style={{ padding: "6px 8px", fontWeight: 700, color: "var(--color-brand)" }}>
-                          {formatPaceLocal(lap.avgPaceMinKm)}
+                          {isSwimming
+                            ? lap.pace100mFormatted || (lap.avgPaceMinKm ? formatPaceLocal(lap.avgPaceMinKm) : "—")
+                            : isCycling
+                            ? lap.avgSpeedKmh ? `${lap.avgSpeedKmh} km/h` : formatPaceLocal(lap.avgPaceMinKm)
+                            : formatPaceLocal(lap.avgPaceMinKm)}
                         </td>
                         <td style={{ padding: "6px 8px", color: lap.avgHeartRate ? "var(--color-danger)" : "inherit" }}>
                           {lap.avgHeartRate ? `${lap.avgHeartRate} lpm` : "—"}
                         </td>
-                        <td style={{ padding: "6px 8px" }}>{lap.avgCadence ? `${lap.avgCadence} ppm` : "—"}</td>
+                        <td style={{ padding: "6px 8px" }}>
+                          {isSwimming
+                            ? `${lap.totalStrokes ? `${lap.totalStrokes} br` : ""}${lap.avgSwolf ? ` · SWOLF ${lap.avgSwolf}` : "—"}`
+                            : isCycling
+                            ? `${lap.avgPowerWatts ? `${lap.avgPowerWatts} W` : ""}${lap.avgCadence ? ` · ${lap.avgCadence} rpm` : "—"}`
+                            : lap.avgCadence ? `${lap.avgCadence} ppm` : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
