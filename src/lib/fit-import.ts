@@ -210,7 +210,7 @@ function computeZoneDistributionFromRecords(records: Record<string, unknown>[]):
     if (typeof speedKmH !== "number" || speedKmH <= 1.0) continue; // filtrar paradas
 
     const paceMinKm = 60 / speedKmH;
-    if (paceMinKm > 20 || paceMinKm < 2.5) continue; // filtrar valores atípicos
+    if (paceMinKm > 20 || paceMinKm < 2.2) continue; // filtrar valores atípicos
 
     validRecords++;
     if (paceMinKm > 5.416) {
@@ -231,7 +231,7 @@ function computeZoneDistributionFromRecords(records: Record<string, unknown>[]):
     }
   }
 
-  if (validRecords < 30) return null; // menos de 30s de datos válidos
+  if (validRecords < 10) return null;
 
   const total = validRecords;
   return {
@@ -246,6 +246,77 @@ function computeZoneDistributionFromRecords(records: Record<string, unknown>[]):
     r3TimeSec: r3Sec,
     r5TimeSec: r5Sec,
   };
+}
+
+// Normaliza la cadencia a pasos totales por minuto (ppm, típicamente 150-195)
+function normalizeCadence(raw: unknown): number | null {
+  if (typeof raw !== "number" || Number.isNaN(raw) || raw <= 30) return null;
+  // Si viene en revoluciones de una sola pierna (ej 85 rpm), convertir a pasos/min (170 ppm)
+  if (raw < 115) return Math.round(raw * 2);
+  return Math.round(raw);
+}
+
+// Genera splits por kilómetro a partir de los registros segundo a segundo
+function buildKmSplitsFromRecords(records: Record<string, unknown>[]): FitLap[] {
+  if (!records || records.length < 20) return [];
+
+  // Ordenar records por tiempo
+  const sorted = [...records].filter((r) => r.timestamp);
+  if (sorted.length === 0) return [];
+
+  const splits: FitLap[] = [];
+  let currentKm = 1;
+  let kmStartIdx = 0;
+  let kmStartDist = ((sorted[0].distance as number | undefined) ?? 0);
+  let kmStartTime = new Date(sorted[0].timestamp as string | Date).getTime();
+
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i];
+    const dist = (r.distance as number | undefined) ?? 0;
+    const time = new Date(r.timestamp as string | Date).getTime();
+
+    // Cuando alcanzamos el siguiente kilómetro o el final de la actividad
+    const isKmPassed = dist - kmStartDist >= 1.0;
+    const isLastRecord = i === sorted.length - 1;
+
+    if (isKmPassed || isLastRecord) {
+      const segRecords = sorted.slice(kmStartIdx, i + 1);
+      const segDist = Math.max(0.05, dist - kmStartDist);
+      const segTimeMs = Math.max(5000, time - kmStartTime);
+      const segDurationMin = Number((segTimeMs / 60000).toFixed(2));
+      const segPace = segDist > 0 ? Number((segDurationMin / segDist).toFixed(2)) : null;
+
+      // Pulso medio y máximo en este km
+      const hrList = segRecords
+        .map((x) => x.heart_rate as number | undefined)
+        .filter((h): h is number => typeof h === "number" && h > 40 && h < 230);
+      const avgHr = hrList.length > 0 ? Math.round(hrList.reduce((a, b) => a + b, 0) / hrList.length) : null;
+      const maxHr = hrList.length > 0 ? Math.max(...hrList) : null;
+
+      // Cadencia media en este km
+      const cadList = segRecords
+        .map((x) => normalizeCadence((x.cadence as number | undefined) ?? (x.running_cadence as number | undefined)))
+        .filter((c): c is number => typeof c === "number" && c > 100);
+      const avgCad = cadList.length > 0 ? Math.round(cadList.reduce((a, b) => a + b, 0) / cadList.length) : null;
+
+      splits.push({
+        index: currentKm,
+        distanceKm: Number(segDist.toFixed(2)),
+        durationMin: segDurationMin,
+        avgPaceMinKm: segPace,
+        avgHeartRate: avgHr,
+        maxHeartRate: maxHr,
+        avgCadence: avgCad,
+      });
+
+      currentKm++;
+      kmStartIdx = i + 1;
+      kmStartDist = dist;
+      kmStartTime = time;
+    }
+  }
+
+  return splits;
 }
 
 export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
@@ -278,9 +349,23 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         return;
       }
 
+      const rawRecords = (data.records as Record<string, unknown>[] | undefined) ?? [];
+
       const totalTimerTimeSec = (session.total_timer_time as number | undefined) ?? null;
-      const totalDistanceKm = (session.total_distance as number | undefined) ?? null; // en km por lengthUnit
-      const durationMin = totalTimerTimeSec !== null ? Math.round((totalTimerTimeSec / 60) * 10) / 10 : null;
+      let totalDistanceKm = (session.total_distance as number | undefined) ?? null; // en km por lengthUnit
+      if ((totalDistanceKm === null || totalDistanceKm === 0) && rawRecords.length > 0) {
+        const lastDist = rawRecords[rawRecords.length - 1].distance as number | undefined;
+        if (typeof lastDist === "number" && lastDist > 0) {
+          totalDistanceKm = Number(lastDist.toFixed(2));
+        }
+      }
+
+      const durationMin = totalTimerTimeSec !== null
+        ? Math.round((totalTimerTimeSec / 60) * 10) / 10
+        : rawRecords.length > 0
+        ? Math.round((rawRecords.length / 60) * 10) / 10
+        : null;
+
       const avgPaceMinKm =
         durationMin !== null && totalDistanceKm && totalDistanceKm > 0
           ? Number((durationMin / totalDistanceKm).toFixed(2))
@@ -300,60 +385,89 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
 
       // Desglose de vueltas / laps
       const rawLaps = (data.laps as Record<string, unknown>[] | undefined) ?? [];
-      const laps: FitLap[] = rawLaps.map((lap, i) => {
-        const lapTimeSec = (lap.total_timer_time as number | undefined) ?? null;
-        const lapDistKm = (lap.total_distance as number | undefined) ?? null;
-        const lapDurationMin = lapTimeSec !== null ? Math.round((lapTimeSec / 60) * 100) / 100 : null;
-        const lapPace =
-          lapDurationMin !== null && lapDistKm && lapDistKm > 0
-            ? Number((lapDurationMin / lapDistKm).toFixed(2))
-            : null;
-        return {
-          index: i + 1,
-          distanceKm: lapDistKm !== null ? Number(lapDistKm.toFixed(2)) : null,
-          durationMin: lapDurationMin,
-          avgPaceMinKm: lapPace,
-          avgHeartRate: (lap.avg_heart_rate as number | undefined) ?? null,
-          maxHeartRate: (lap.max_heart_rate as number | undefined) ?? null,
-          avgCadence: (lap.avg_running_cadence as number | undefined) ?? (lap.avg_cadence as number | undefined) ?? null,
-        };
-      });
+      let laps: FitLap[] = [];
 
-      // Análisis profundo de registros segundo a segundo (records)
-      const rawRecords = (data.records as Record<string, unknown>[] | undefined) ?? [];
-      let zoneDistribution: FitZoneDistribution | null = null;
-      let avgCadence: number | null = (session.avg_running_cadence as number | undefined) ?? (session.avg_cadence as number | undefined) ?? null;
-      let maxCadence: number | null = (session.max_running_cadence as number | undefined) ?? (session.max_cadence as number | undefined) ?? null;
+      // Si el reloj guardó vueltas específicas por km (>1 laps)
+      if (rawLaps.length > 1) {
+        laps = rawLaps.map((lap, i) => {
+          const lapTimeSec = (lap.total_timer_time as number | undefined) ?? null;
+          const lapDistKm = (lap.total_distance as number | undefined) ?? null;
+          const lapDurationMin = lapTimeSec !== null ? Math.round((lapTimeSec / 60) * 100) / 100 : null;
+          const lapPace =
+            lapDurationMin !== null && lapDistKm && lapDistKm > 0
+              ? Number((lapDurationMin / lapDistKm).toFixed(2))
+              : null;
+
+          const rawCad = normalizeCadence((lap.avg_running_cadence as number | undefined) ?? (lap.avg_cadence as number | undefined));
+
+          return {
+            index: i + 1,
+            distanceKm: lapDistKm !== null ? Number(lapDistKm.toFixed(2)) : null,
+            durationMin: lapDurationMin,
+            avgPaceMinKm: lapPace,
+            avgHeartRate: (lap.avg_heart_rate as number | undefined) ?? null,
+            maxHeartRate: (lap.max_heart_rate as number | undefined) ?? null,
+            avgCadence: rawCad,
+          };
+        });
+      } else if (rawRecords.length >= 30 && sport === "carrera") {
+        // Si el reloj grabó todo como 1 sola vuelta, calcular los splits de 1km segundo a segundo
+        laps = buildKmSplitsFromRecords(rawRecords);
+      }
+
+      // Si aún no tenemos laps o solo quedó 1, construir un lap general
+      if (laps.length === 0 && durationMin !== null) {
+        laps = [
+          {
+            index: 1,
+            distanceKm: totalDistanceKm,
+            durationMin,
+            avgPaceMinKm,
+            avgHeartRate: (session.avg_heart_rate as number | undefined) ?? null,
+            maxHeartRate: (session.max_heart_rate as number | undefined) ?? null,
+            avgCadence: normalizeCadence((session.avg_running_cadence as number | undefined) ?? (session.avg_cadence as number | undefined)),
+          },
+        ];
+      }
+
+      // Pulso cardíaco global (promedio de records si session no lo trae)
+      const allHrs = rawRecords
+        .map((r) => r.heart_rate as number | undefined)
+        .filter((h): h is number => typeof h === "number" && h > 40 && h < 230);
+      const calculatedAvgHr = allHrs.length > 0 ? Math.round(allHrs.reduce((a, b) => a + b, 0) / allHrs.length) : null;
+      const calculatedMaxHr = allHrs.length > 0 ? Math.max(...allHrs) : null;
+      const avgHeartRate = (session.avg_heart_rate as number | undefined) ?? calculatedAvgHr;
+      const maxHeartRate = (session.max_heart_rate as number | undefined) ?? calculatedMaxHr;
+
+      // Cadencia global
+      const allCads = rawRecords
+        .map((r) => normalizeCadence((r.cadence as number | undefined) ?? (r.running_cadence as number | undefined)))
+        .filter((c): c is number => typeof c === "number" && c > 100);
+      const calculatedAvgCad = allCads.length > 0 ? Math.round(allCads.reduce((a, b) => a + b, 0) / allCads.length) : null;
+      const calculatedMaxCad = allCads.length > 0 ? Math.max(...allCads) : null;
+      const avgCadence = normalizeCadence((session.avg_running_cadence as number | undefined) ?? (session.avg_cadence as number | undefined)) ?? calculatedAvgCad;
+      const maxCadence = normalizeCadence((session.max_running_cadence as number | undefined) ?? (session.max_cadence as number | undefined)) ?? calculatedMaxCad;
+
+      // Altimetría
       const elevationGainM = (session.total_ascent as number | undefined) ?? null;
       const elevationLossM = (session.total_descent as number | undefined) ?? null;
 
+      let zoneDistribution: FitZoneDistribution | null = null;
       if (sport === "carrera") {
         zoneDistribution = computeZoneDistributionFromRecords(rawRecords);
-
-        // Si no vino la cadencia en la sesión, calcularla de los records
-        if (avgCadence === null && rawRecords.length > 0) {
-          const cadences = rawRecords
-            .map((r) => (r.cadence as number | undefined) ?? (r.running_cadence as number | undefined))
-            .filter((c): c is number => typeof c === "number" && c > 120);
-          if (cadences.length > 0) {
-            avgCadence = Math.round(cadences.reduce((a, b) => a + b, 0) / cadences.length);
-            maxCadence = Math.max(...cadences);
-          }
-        }
       }
 
       // Cálculo de desacoplamiento cardiovascular (Aerobic Decoupling / Drift)
       let aerobicDecouplingPct: number | null = null;
-      if (laps.length >= 4) {
-        const validLaps = laps.filter((l) => l.avgPaceMinKm !== null && l.avgHeartRate !== null && (l.avgHeartRate ?? 0) > 90);
-        if (validLaps.length >= 4) {
+      if (laps.length >= 3) {
+        const validLaps = laps.filter((l) => l.avgPaceMinKm !== null && l.avgHeartRate !== null && (l.avgHeartRate ?? 0) > 80);
+        if (validLaps.length >= 3) {
           const mid = Math.floor(validLaps.length / 2);
           const firstHalf = validLaps.slice(0, mid);
           const secondHalf = validLaps.slice(mid);
           const calcEfficiency = (arr: typeof validLaps) => {
             const avgP = arr.reduce((acc, cur) => acc + (cur.avgPaceMinKm as number), 0) / arr.length;
             const avgHr = arr.reduce((acc, cur) => acc + (cur.avgHeartRate as number), 0) / arr.length;
-            // Velocidad (m/min) / FC (ppm)
             const speedMMin = avgP > 0 ? 1000 / avgP : 0;
             return speedMMin / avgHr;
           };
@@ -373,7 +487,6 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
           const meanPace = paces.reduce((a, b) => a + b, 0) / paces.length;
           const variance = paces.reduce((acc, val) => acc + Math.pow(val - meanPace, 2), 0) / paces.length;
           const stdDev = Math.sqrt(variance);
-          // 0 s desviación -> 100 pts; 30s desviación -> 50 pts
           const score = Math.max(0, Math.min(100, Math.round(100 - (stdDev * 60) * 1.6)));
           pacingStabilityScore = score;
         }
@@ -399,8 +512,8 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         durationMin,
         distanceKm: totalDistanceKm !== null ? Number(totalDistanceKm.toFixed(2)) : null,
         avgPaceMinKm,
-        avgHeartRate: (session.avg_heart_rate as number | undefined) ?? null,
-        maxHeartRate: (session.max_heart_rate as number | undefined) ?? null,
+        avgHeartRate,
+        maxHeartRate,
         calories: (session.total_calories as number | undefined) ?? null,
         avgCadence,
         elevationGainM,
@@ -410,3 +523,4 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
     });
   });
 }
+
