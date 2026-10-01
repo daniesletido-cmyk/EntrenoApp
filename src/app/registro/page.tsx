@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Zap,
   Sparkles,
+  Target,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
@@ -41,6 +42,26 @@ interface FitLap {
   durationMin: number | null;
   avgPaceMinKm: number | null;
   avgHeartRate: number | null;
+  avgCadence?: number | null;
+}
+
+interface FitZoneDistribution {
+  r0Pct: number;
+  r1Pct: number;
+  r2Pct: number;
+  r3Pct: number;
+  r5Pct: number;
+  targetZoneName?: string | null;
+  targetCompliancePct?: number | null;
+}
+
+interface FitDeepAnalysis {
+  avgCadence?: number | null;
+  maxCadence?: number | null;
+  elevationGainM?: number | null;
+  aerobicDecouplingPct?: number | null;
+  pacingStabilityScore?: number | null;
+  zoneDistribution?: FitZoneDistribution | null;
 }
 
 interface FitSummary {
@@ -55,11 +76,15 @@ interface FitSummary {
   avgHeartRate: number | null;
   maxHeartRate: number | null;
   calories: number | null;
+  avgCadence?: number | null;
+  elevationGainM?: number | null;
   laps: FitLap[];
+  deepAnalysis?: FitDeepAnalysis;
 }
 
 interface FitFeedbackItem {
   tone: "positive" | "neutral" | "warning";
+  category?: "objetivo" | "ritmo" | "cardio" | "cadencia" | "estrategia";
   text: string;
 }
 
@@ -986,6 +1011,26 @@ export default function RegistroPage() {
               <MiniStat label="Ritmo medio" value={formatPace(fitResult.summary.avgPaceMinKm)} />
             )}
             {fitResult.summary.calories !== null && <MiniStat label="Calorías" value={String(fitResult.summary.calories)} />}
+            {fitResult.summary.avgCadence != null && (
+              <MiniStat label="Cadencia" value={`${fitResult.summary.avgCadence} ppm`} hint="Cadencia media de zancada" />
+            )}
+            {fitResult.summary.elevationGainM != null && (
+              <MiniStat label="Desnivel +" value={`+${fitResult.summary.elevationGainM} m`} />
+            )}
+            {fitResult.summary.deepAnalysis?.aerobicDecouplingPct != null && (
+              <MiniStat
+                label="Desacopl. cardíaco"
+                value={`${fitResult.summary.deepAnalysis.aerobicDecouplingPct > 0 ? "+" : ""}${fitResult.summary.deepAnalysis.aerobicDecouplingPct}%`}
+                hint="Deriva FC 1ª vs 2ª mitad (<5% excelente, >5% fatiga aeróbica)"
+              />
+            )}
+            {fitResult.summary.deepAnalysis?.pacingStabilityScore != null && (
+              <MiniStat
+                label="Estabilidad ritmo"
+                value={`${fitResult.summary.deepAnalysis.pacingStabilityScore}/100`}
+                hint="Consistencia de ritmo en la sesión"
+              />
+            )}
             {fitResult.summary.avgHeartRate !== null && (
               <MiniStat
                 label="FC media"
@@ -995,6 +1040,90 @@ export default function RegistroPage() {
               />
             )}
           </div>
+
+          {/* Desglose de zonas VAM para carrera */}
+          {fitResult.summary.deepAnalysis?.zoneDistribution && fitResult.summary.sport === "carrera" && (
+            <div className="surface-raised" style={{ padding: "var(--space-3)", marginBottom: "var(--space-4)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
+                <div className="flex items-center gap-1.5 text-xs uppercase font-semibold text-muted">
+                  <Target size={14} style={{ color: "var(--color-brand)" }} />
+                  Distribución de Zonas VAM (VAM 3:59)
+                </div>
+                {fitResult.summary.deepAnalysis.zoneDistribution.targetZoneName && (
+                  <span className="badge badge-brand" style={{ fontSize: "0.72rem", padding: "2px 8px" }}>
+                    🎯 Objetivo: {fitResult.summary.deepAnalysis.zoneDistribution.targetZoneName} ({fitResult.summary.deepAnalysis.zoneDistribution.targetCompliancePct ?? 0}%)
+                  </span>
+                )}
+              </div>
+
+              {/* Barra segmentada */}
+              <div
+                style={{
+                  height: 12,
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  display: "flex",
+                  backgroundColor: "#21262d",
+                  marginBottom: "var(--space-2)",
+                }}
+              >
+                {fitResult.summary.deepAnalysis.zoneDistribution.r0Pct > 0 && (
+                  <div
+                    title={`R0 Regenerativo (>5:25): ${fitResult.summary.deepAnalysis.zoneDistribution.r0Pct}%`}
+                    style={{ width: `${fitResult.summary.deepAnalysis.zoneDistribution.r0Pct}%`, backgroundColor: "#64748b" }}
+                  />
+                )}
+                {fitResult.summary.deepAnalysis.zoneDistribution.r1Pct > 0 && (
+                  <div
+                    title={`R1 Base Aeróbica (5:25-4:59): ${fitResult.summary.deepAnalysis.zoneDistribution.r1Pct}%`}
+                    style={{ width: `${fitResult.summary.deepAnalysis.zoneDistribution.r1Pct}%`, backgroundColor: "#10b981" }}
+                  />
+                )}
+                {fitResult.summary.deepAnalysis.zoneDistribution.r2Pct > 0 && (
+                  <div
+                    title={`R2 Tempo (4:59-4:35): ${fitResult.summary.deepAnalysis.zoneDistribution.r2Pct}%`}
+                    style={{ width: `${fitResult.summary.deepAnalysis.zoneDistribution.r2Pct}%`, backgroundColor: "#f59e0b" }}
+                  />
+                )}
+                {fitResult.summary.deepAnalysis.zoneDistribution.r3Pct > 0 && (
+                  <div
+                    title={`R4 Sub-VAM / Maratón (4:35-4:10): ${fitResult.summary.deepAnalysis.zoneDistribution.r3Pct}%`}
+                    style={{ width: `${fitResult.summary.deepAnalysis.zoneDistribution.r3Pct}%`, backgroundColor: "#8b5cf6" }}
+                  />
+                )}
+                {fitResult.summary.deepAnalysis.zoneDistribution.r5Pct > 0 && (
+                  <div
+                    title={`R5 Series (<4:10): ${fitResult.summary.deepAnalysis.zoneDistribution.r5Pct}%`}
+                    style={{ width: `${fitResult.summary.deepAnalysis.zoneDistribution.r5Pct}%`, backgroundColor: "#ef4444" }}
+                  />
+                )}
+              </div>
+
+              {/* Leyenda de porcentajes */}
+              <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                <span className="flex items-center gap-1">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#64748b", display: "inline-block" }} />
+                  R0 (&gt;5:25): <strong style={{ color: "var(--color-text)" }}>{fitResult.summary.deepAnalysis.zoneDistribution.r0Pct}%</strong>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10b981", display: "inline-block" }} />
+                  R1 Base (5:25-4:59): <strong style={{ color: "var(--color-text)" }}>{fitResult.summary.deepAnalysis.zoneDistribution.r1Pct}%</strong>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b", display: "inline-block" }} />
+                  R2 Tempo (4:59-4:35): <strong style={{ color: "var(--color-text)" }}>{fitResult.summary.deepAnalysis.zoneDistribution.r2Pct}%</strong>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#8b5cf6", display: "inline-block" }} />
+                  R4 Maratón (4:35-4:10): <strong style={{ color: "var(--color-text)" }}>{fitResult.summary.deepAnalysis.zoneDistribution.r3Pct}%</strong>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444", display: "inline-block" }} />
+                  R5 Series (&lt;4:10): <strong style={{ color: "var(--color-text)" }}>{fitResult.summary.deepAnalysis.zoneDistribution.r5Pct}%</strong>
+                </span>
+              </div>
+            </div>
+          )}
 
           {fitResult.swapSuggestions.length > 0 && (
             <div className="grid gap-2" style={{ marginBottom: "var(--space-4)" }}>

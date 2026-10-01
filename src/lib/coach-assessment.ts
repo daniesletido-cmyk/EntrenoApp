@@ -88,6 +88,15 @@ export interface WeeklyCoachAssessment {
   };
 }
 
+const DISCIPLINE_DISPLAY: Record<string, string> = {
+  carrera: "Carrera",
+  gimnasio: "Fuerza / Gimnasio",
+  crossfit: "CrossFit WOD",
+  natacion: "Natación",
+  otro: "Actividad",
+  descanso: "Descanso",
+};
+
 export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoachAssessment {
   const today = todayISO();
   const weekStart = weekStartParam ? weekStartOf(weekStartParam) : weekStartOf(today);
@@ -184,7 +193,7 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
         rpe: s.rpe,
         load: Math.round(l),
         notes: s.notes,
-        highlightText: `El pico de más carga de la semana fue el ${dayName} (${s.discipline}${s.planned_code ? ` · ${s.planned_code}` : ""}) con ${s.duration_min.toFixed(0)} min a RPE ${s.rpe}/10 (${Math.round(l)} pts de carga Foster).`,
+        highlightText: `El pico de más carga de la semana fue el ${dayName} (${DISCIPLINE_DISPLAY[s.discipline] ?? s.discipline}${s.planned_code ? ` · ${s.planned_code}` : ""}) con ${s.duration_min.toFixed(0)} min a RPE ${s.rpe}/10 (${Math.round(l)} pts de carga Foster).`,
       };
     }
   }
@@ -210,7 +219,7 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
         coachComment = `Actividad complementaria realizada (${s.duration_min ?? 0} min). Suma volumen sin impacto lesivo.`;
       }
     } else {
-      coachComment = "Pendiente de realizar según lo planificado.";
+      coachComment = `Pendiente: ${DISCIPLINE_DISPLAY[s.discipline] ?? s.discipline}${s.planned_code ? ` (${s.planned_code})` : ""} según plan.`;
     }
 
     return {
@@ -235,9 +244,16 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
   const pendingCount = plannedCount - completedCount;
   const compliancePct = plannedCount > 0 ? Math.round((completedCount / plannedCount) * 100) : null;
 
-  // 4. VEREDICTO NARRATIVO DEL ENTRENADOR PERSONAL
+  // 4. VEREDICTO NARRATIVO DINÁMICO DEL ENTRENADOR PERSONAL
   const lastNightHours = readiness.stats.sleepHours;
-  const sleepText = lastNightHours ? `${lastNightHours.toFixed(1)}h de sueño` : "sueño no registrado";
+  const sleepText = lastNightHours ? `${lastNightHours.toFixed(1)}h de sueño` : "sueño pendiente de registro";
+
+  // Identificar qué pasó ayer y qué toca hoy dinámicamente
+  const yesterdayDate = addDays(today, -1);
+  const yesterdaySessions = thisWeekSessions.filter((s) => s.date === yesterdayDate);
+  const yesterdayCompleted = yesterdaySessions.filter((s) => s.status === "realizada" || s.status === "parcial");
+  const todaySessions = thisWeekSessions.filter((s) => s.date === today);
+  const todaySession = todaySessions[0];
 
   let verdictTitle = "Semana con excelente ritmo y constancia";
   let verdictTone: WeeklyCoachAssessment["coachVerdict"]["tone"] = "success";
@@ -245,28 +261,63 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
   const actionablePoints: string[] = [];
 
   if (isCurrentWeek) {
-    if (completedCount >= 3) {
-      verdictTitle = "Llevas un arranque de semana impecable";
-      verdictTone = "success";
-      verdictNarrative = `Llevas ${completedCount} entrenamientos completados con ${totalMinutes} min de trabajo acumulado (${totalKm} km). Has tocado fuerza en gimnasio, natación y un estímulo de alta potencia en CrossFit. Tu descanso de anoche (${sleepText}) te coloca en buena disposición para la segunda mitad de la semana.`;
+    if (completedCount >= 1) {
+      verdictTitle = completedCount >= 3 ? "Llevas un arranque de semana impecable" : "Semana en marcha, buen ritmo";
+      verdictTone = completedCount >= 3 ? "success" : "brand";
+
+      const disciplinesSummary = Array.from(new Set(completedThisWeek.map((s) => DISCIPLINE_DISPLAY[s.discipline] ?? s.discipline))).join(", ");
+
+      verdictNarrative = `Llevas ${completedCount} de ${plannedCount} entrenamientos completados (${totalMinutes} min acumulados${totalKm > 0 ? `, ${totalKm} km` : ""}). Disciplinas trabajadas: ${disciplinesSummary}. Tu descanso (${sleepText}) y tu estado de readiness (${readiness.score}/100) te dan luz verde para los siguientes estímulos.`;
+
+      // Punto accionable sobre la sesión de hoy
+      if (todaySession) {
+        const todayName = DISCIPLINE_DISPLAY[todaySession.discipline] ?? todaySession.discipline;
+        if (todaySession.status === "pendiente") {
+          if (todaySession.discipline === "crossfit") {
+            actionablePoints.push(
+              `Hoy ${DAY_NAMES_ES[currentDow - 1]} toca ${todayName}${todaySession.planned_code ? ` (${todaySession.planned_code})` : ""}: día de alta demanda de potencia y sóleos/gemelos. Calienta bien tobillos y hombros antes de empezar.`
+            );
+          } else if (todaySession.discipline === "carrera") {
+            actionablePoints.push(
+              `Hoy ${DAY_NAMES_ES[currentDow - 1]} toca ${todayName}${todaySession.planned_code ? ` (${todaySession.planned_code})` : ""}: mantén el ritmo en zona objetivo sin forzar más de lo pautado.`
+            );
+          } else if (todaySession.discipline === "natacion") {
+            actionablePoints.push(
+              `Hoy ${DAY_NAMES_ES[currentDow - 1]} toca ${todayName}${todaySession.planned_code ? ` (${todaySession.planned_code})` : ""}: aprovecha el agua para descargar el impacto articular de las piernas y soltar caja torácica.`
+            );
+          } else if (todaySession.discipline === "gimnasio") {
+            actionablePoints.push(
+              `Hoy ${DAY_NAMES_ES[currentDow - 1]} toca ${todayName}${todaySession.planned_code ? ` (${todaySession.planned_code})` : ""}: foco en la técnica y RPE controlado en los ejercicios principales.`
+            );
+          } else {
+            actionablePoints.push(`Hoy ${DAY_NAMES_ES[currentDow - 1]} toca ${todayName}: completa la sesión según las sensaciones del día.`);
+          }
+        } else {
+          actionablePoints.push(`Sesión de hoy (${todayName}) completada con éxito. Rehidrata bien y cuida la cena para recuperar.`);
+        }
+      }
+
+      // Punto accionable sobre lo que pasó ayer
+      if (yesterdayCompleted.length > 0) {
+        const ySession = yesterdayCompleted[0];
+        const yName = DISCIPLINE_DISPLAY[ySession.discipline] ?? ySession.discipline;
+        actionablePoints.push(
+          `Asimilación de ayer: completaste ${yName}${ySession.planned_code ? ` (${ySession.planned_code})` : ""} (${ySession.duration_min ? `${ySession.duration_min} min` : ""} a RPE ${ySession.rpe ?? 6}/10). La respuesta de fatiga está dentro de los márgenes normales.`
+        );
+      }
+
       actionablePoints.push(
-        "Gestiona el impacto de hoy: tras el pico de CrossFit de ayer (RPE 9), la sesión de carrera debe ser estrictamente regenerativa (RPE 4-5) para no acumular fatiga innecesaria.",
-        "Aprovecha la natación del viernes como descarga y descompresión articular antes del bloque de impacto del fin de semana.",
-        "Guarda energía para el fin de semana: el sábado y domingo suman el 60% del kilometraje semanal en carrera (R2 progresivo y tirada larga R5)."
-      );
-    } else if (completedCount >= 1) {
-      verdictTitle = "Semana en marcha, buen comienzo";
-      verdictTone = "brand";
-      verdictNarrative = `Llevas ${completedCount} sesiones realizadas de las ${plannedCount} programadas. Estás dentro del ritmo para cumplir con el plan semanal sin forzar.`;
-      actionablePoints.push(
-        "Mantén la consistencia diaria para asimilar el volumen sin tener que recuperar sesiones al final de la semana.",
-        "Monitorea el sueño diario en Zepp para asegurar al menos 7.5–8 horas de descanso reparador."
+        "Guarda energía para el bloque clave del fin de semana (rodaje progresivo R2 y tirada larga R5 de maratón)."
       );
     } else {
       verdictTitle = "Inicio de semana pendiente";
       verdictTone = "warning";
-      verdictNarrative = "Aún no hay sesiones registradas esta semana. Es el momento perfecto para arrancar con el primer entreno y asentar la rutina semanal.";
-      actionablePoints.push("Inicia con la sesión planificada para hoy asegurando un buen calentamiento previo.");
+      verdictNarrative = "Aún no hay sesiones registradas esta semana. Es el momento de arrancar con el primer entreno y asentar la rutina semanal.";
+      if (todaySession) {
+        actionablePoints.push(`Inicia hoy con ${DISCIPLINE_DISPLAY[todaySession.discipline] ?? todaySession.discipline}${todaySession.planned_code ? ` (${todaySession.planned_code})` : ""} asegurando un buen calentamiento.`);
+      } else {
+        actionablePoints.push("Revisa el plan semanal y registra tu primera sesión.");
+      }
     }
   } else {
     verdictTitle = `Resumen de la semana del ${weekStart.slice(5)}`;
