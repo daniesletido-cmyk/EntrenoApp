@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Activity,
@@ -25,9 +25,9 @@ import {
   CalendarDays,
   Sparkles,
   BarChart3,
-  ListOrdered,
-  Gauge,
-  Info,
+  UploadCloud,
+  FileCheck,
+  Check,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -121,7 +121,9 @@ function DetalleContent() {
   const [loadingSession, setLoadingSession] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
   const [activeChart, setActiveChart] = useState<"pace_hr" | "zones" | "cadence">("pace_hr");
+  const [uploadingFit, setUploadingFit] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const days = weekDates(weekStart);
 
   // 1. Cargar las sesiones de la semana activa
@@ -209,6 +211,49 @@ function DetalleContent() {
       .finally(() => setLoadingSession(false));
   }, [selectedSessionId]);
 
+  // Subida directa de archivo .FIT
+  async function handleDirectFitUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedSessionId) return;
+    setUploadingFit(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/sessions/import-fit", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "No se pudo leer el archivo .fit");
+        return;
+      }
+      const { summary } = data;
+      await fetch(`/api/sessions/${selectedSessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "realizada",
+          discipline: summary.sport ?? session?.discipline,
+          planned_code: session?.planned_code || summary.activityName,
+          duration_min: summary.durationMin,
+          distance_km: summary.distanceKm,
+          fit_data: JSON.stringify(summary),
+          fitImport: true,
+        }),
+      });
+
+      // Recargar detalles y lista semanal
+      const resDetail = await fetch(`/api/sessions/${selectedSessionId}`).then((r) => r.json());
+      setSessionDetail(resDetail);
+      fetch(`/api/sessions?week=${weekStart}`)
+        .then((r) => r.json())
+        .then((res) => setWeekSessions(res.sessions ?? []));
+    } catch {
+      alert("Error al cargar el archivo .fit");
+    } finally {
+      setUploadingFit(false);
+      e.target.value = "";
+    }
+  }
+
   const currentDaySessions = weekSessions.filter(
     (s) => s.date === selectedDate && s.discipline !== "descanso"
   );
@@ -216,6 +261,9 @@ function DetalleContent() {
   const session = sessionDetail?.session;
   const fit = sessionDetail?.fitSummary;
   const structuredFeedback = sessionDetail?.structuredFeedback;
+  const zoneDist = sessionDetail?.zoneDistribution;
+  const laps = sessionDetail?.laps ?? fit?.laps ?? [];
+  const isRealFit = sessionDetail?.isRealFit ?? !!(fit || session?.fit_data);
   const gym = sessionDetail?.gymDetails ?? [];
   const sleep = sessionDetail?.sleep;
   const readiness = sessionDetail?.readiness;
@@ -223,10 +271,7 @@ function DetalleContent() {
 
   const IconComp = session?.discipline ? DISCIPLINE_ICON[session.discipline] ?? MoreHorizontal : Activity;
   const statusInfo = session ? STATUS_LABEL[session.status] ?? STATUS_LABEL.pendiente : STATUS_LABEL.pendiente;
-
-  const laps = fit?.laps ?? [];
   const deep = fit?.deepAnalysis;
-  const zoneDist = deep?.zoneDistribution;
 
   // Datos para gráfico de barras de zonas VAM
   const zoneChartData = zoneDist
@@ -241,6 +286,14 @@ function DetalleContent() {
 
   return (
     <div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".fit"
+        onChange={handleDirectFitUpload}
+        style={{ display: "none" }}
+      />
+
       <PageHeader
         title="Detalle del Entrenamiento"
         description="Selecciona cualquier día en el calendario para inspeccionar sus métricas, zonas VAM, laps y cargas."
@@ -489,11 +542,16 @@ function DetalleContent() {
                         Sesión Extra
                       </span>
                     ) : null}
-                    {session.fit_backup || session.fit_data || fit ? (
-                      <span className="badge badge-neutral" style={{ fontSize: "0.75rem" }}>
-                        ⌚ Archivo .FIT
+                    {isRealFit ? (
+                      <span className="badge badge-success flex items-center gap-1" style={{ fontSize: "0.75rem" }}>
+                        <FileCheck size={12} />
+                        Telemetría .FIT
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="badge badge-neutral" style={{ fontSize: "0.75rem" }}>
+                        📋 Prescripción del Plan
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted flex items-center gap-2" style={{ marginTop: 4 }}>
                     <Calendar size={13} />
@@ -511,9 +569,20 @@ function DetalleContent() {
                 </div>
               </div>
 
-              <button className="btn btn-secondary text-xs" onClick={() => router.push("/registro")}>
-                Ir a Registro
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn btn-secondary text-xs flex items-center gap-1.5"
+                  disabled={uploadingFit}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Cargar archivo .FIT de Garmin/Zepp para este entreno"
+                >
+                  <UploadCloud size={14} />
+                  <span>{uploadingFit ? "Importando..." : isRealFit ? "Reemplazar .FIT" : "Cargar .FIT"}</span>
+                </button>
+                <button className="btn btn-ghost text-xs" onClick={() => router.push("/registro")}>
+                  Ir a Registro
+                </button>
+              </div>
             </div>
 
             {/* Pestañas de Navegación del Detalle */}
@@ -732,7 +801,7 @@ function DetalleContent() {
                     >
                       <div className="flex items-center gap-2 font-bold text-sm text-success" style={{ marginBottom: "var(--space-2)" }}>
                         <CheckCircle2 size={16} />
-                        <span>Aspectos Positivos de la Sesión</span>
+                        <span>Aspectos Positivos & Enfoque</span>
                       </div>
                       <ul className="grid gap-2 text-xs" style={{ color: "var(--color-text)", paddingLeft: 4 }}>
                         {structuredFeedback.positives.map((pos: string, idx: number) => (
@@ -757,7 +826,7 @@ function DetalleContent() {
                     >
                       <div className="flex items-center gap-2 font-bold text-sm text-warning" style={{ marginBottom: "var(--space-2)" }}>
                         <AlertTriangle size={16} />
-                        <span>Puntos a Cuidar / Desviaciones del Plan</span>
+                        <span>Puntos a Cuidar / Desviaciones</span>
                       </div>
                       <ul className="grid gap-2 text-xs" style={{ color: "var(--color-text)", paddingLeft: 4 }}>
                         {structuredFeedback.deviations.map((dev: string, idx: number) => (
@@ -893,6 +962,11 @@ function DetalleContent() {
                     <Target size={16} style={{ color: "var(--color-brand)" }} />
                     Tiempo y Porcentaje por Zona VAM (Dani: 3:59 min/km · 15.06 km/h)
                   </div>
+                  {!isRealFit && (
+                    <span className="text-xs text-muted italic">
+                      Mostrando distribución teórica del plan
+                    </span>
+                  )}
                 </div>
 
                 {/* Gráfico de Barras de Tiempo por Zona */}
@@ -984,7 +1058,7 @@ function DetalleContent() {
                   </div>
                 )}
 
-                {/* Tabla de Zonas con Tiempo Exacto (Minutos y Segundos) */}
+                {/* Tabla de Zonas con Tiempo Exacto */}
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", fontSize: "var(--text-xs)", borderCollapse: "collapse" }}>
                     <thead>

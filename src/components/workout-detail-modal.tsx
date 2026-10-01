@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   Award,
   BarChart3,
+  UploadCloud,
+  FileCheck,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -98,9 +100,11 @@ function rpeDescription(rpe: number | null): string {
 export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetailModalProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadingFit, setUploadingFit] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
   const [activeChart, setActiveChart] = useState<"pace_hr" | "zones" | "cadence">("pace_hr");
   const panelRef = useRef<HTMLDivElement>(null);
+  const modalFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -123,11 +127,49 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  async function handleModalFitUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !sessionId) return;
+    setUploadingFit(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/sessions/import-fit", { method: "POST", body: fd });
+      const resJson = await res.json();
+      if (!res.ok) {
+        alert(resJson.error ?? "No se pudo leer el archivo .fit");
+        return;
+      }
+      const { summary } = resJson;
+      await fetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "realizada",
+          duration_min: summary.durationMin,
+          distance_km: summary.distanceKm,
+          fit_data: JSON.stringify(summary),
+          fitImport: true,
+        }),
+      });
+      const updated = await fetch(`/api/sessions/${sessionId}`).then((r) => r.json());
+      setData(updated);
+    } catch {
+      alert("Error al procesar el archivo .fit");
+    } finally {
+      setUploadingFit(false);
+      e.target.value = "";
+    }
+  }
+
   if (!sessionId) return null;
 
   const session = data?.session;
   const fit = data?.fitSummary;
   const structuredFeedback = data?.structuredFeedback;
+  const zoneDist = data?.zoneDistribution;
+  const laps = data?.laps ?? fit?.laps ?? [];
+  const isRealFit = data?.isRealFit ?? !!(fit || session?.fit_data);
   const gym = data?.gymDetails ?? [];
   const sleep = data?.sleep;
   const readiness = data?.readiness;
@@ -135,10 +177,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
   const IconComp = session?.discipline ? DISCIPLINE_ICON[session.discipline] ?? MoreHorizontal : Activity;
   const statusInfo = session ? STATUS_LABEL[session.status] ?? STATUS_LABEL.pendiente : STATUS_LABEL.pendiente;
-
-  const laps = fit?.laps ?? [];
   const deep = fit?.deepAnalysis;
-  const zoneDist = deep?.zoneDistribution;
 
   const zoneChartData = zoneDist
     ? [
@@ -170,6 +209,14 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      <input
+        ref={modalFileInputRef}
+        type="file"
+        accept=".fit"
+        onChange={handleModalFitUpload}
+        style={{ display: "none" }}
+      />
+
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -240,11 +287,16 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     Sesión Extra
                   </span>
                 ) : null}
-                {session?.fit_backup || session?.fit_data || fit ? (
-                  <span className="badge badge-neutral" style={{ fontSize: "0.7rem" }}>
-                    ⌚ Archivo .FIT
+                {isRealFit ? (
+                  <span className="badge badge-success flex items-center gap-1" style={{ fontSize: "0.7rem" }}>
+                    <FileCheck size={11} />
+                    Telemetría .FIT
                   </span>
-                ) : null}
+                ) : (
+                  <span className="badge badge-neutral" style={{ fontSize: "0.7rem" }}>
+                    📋 Prescripción del Plan
+                  </span>
+                )}
               </div>
               <div className="text-xs text-muted flex items-center gap-2" style={{ marginTop: 3 }}>
                 <Calendar size={13} />
@@ -264,10 +316,20 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              className="btn btn-secondary text-xs flex items-center gap-1"
+              style={{ padding: "0.3rem 0.6rem" }}
+              disabled={uploadingFit}
+              onClick={() => modalFileInputRef.current?.click()}
+              title="Cargar archivo .FIT para esta sesión"
+            >
+              <UploadCloud size={13} />
+              <span>{uploadingFit ? "..." : isRealFit ? "Reemplazar .FIT" : "Cargar .FIT"}</span>
+            </button>
             {onEdit && session && (
               <button
-                className="btn btn-secondary text-xs"
+                className="btn btn-ghost text-xs"
                 style={{ padding: "0.3rem 0.6rem" }}
                 onClick={() => {
                   onClose();
@@ -508,7 +570,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                         >
                           <div className="flex items-center gap-2 font-bold text-xs text-success" style={{ marginBottom: "var(--space-2)" }}>
                             <CheckCircle2 size={15} />
-                            <span>Aspectos Positivos de la Sesión</span>
+                            <span>Aspectos Positivos & Enfoque</span>
                           </div>
                           <ul className="grid gap-1.5 text-xs">
                             {structuredFeedback.positives.map((pos: string, idx: number) => (
@@ -666,6 +728,11 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                         <Target size={16} style={{ color: "var(--color-brand)" }} />
                         Tiempo y Porcentaje por Zona VAM (Dani: 3:59 min/km · 15.06 km/h)
                       </div>
+                      {!isRealFit && (
+                        <span className="text-xs text-muted italic">
+                          Mostrando distribución teórica del plan
+                        </span>
+                      )}
                     </div>
 
                     {/* Gráfico de Barras de Tiempo por Zona */}

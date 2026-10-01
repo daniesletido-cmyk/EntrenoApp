@@ -268,6 +268,174 @@ export function buildStructuredFitDiagnostics(summary: FitSummary, targetSession
   };
 }
 
+export function buildPlannedZoneDistribution(session: SessionRow): FitZoneDistribution | null {
+  if (session.discipline !== "carrera") return null;
+  const target = detectTargetZone(session);
+  const totalMin = session.duration_min ?? 45;
+  const totalSec = totalMin * 60;
+
+  let r0Sec = 0;
+  let r1Sec = 0;
+  let r2Sec = 0;
+  let r3Sec = 0;
+  let r5Sec = 0;
+
+  if (target?.code === "R1") {
+    // 10 min calentamiento/vuelta a la calma R0, resto R1
+    r0Sec = Math.min(600, totalSec * 0.2);
+    r1Sec = totalSec - r0Sec;
+  } else if (target?.code === "R2") {
+    // 15 min R0/R1, resto R2
+    r0Sec = totalSec * 0.15;
+    r1Sec = totalSec * 0.25;
+    r2Sec = totalSec * 0.60;
+  } else if (target?.code === "R4") {
+    // 15 min calentamiento R0/R1, resto R4
+    r0Sec = totalSec * 0.15;
+    r1Sec = totalSec * 0.20;
+    r3Sec = totalSec * 0.65;
+  } else if (target?.code === "R5") {
+    r0Sec = totalSec * 0.25;
+    r1Sec = totalSec * 0.25;
+    r5Sec = totalSec * 0.50;
+  } else {
+    // R0 por defecto
+    r0Sec = totalSec * 0.85;
+    r1Sec = totalSec * 0.15;
+  }
+
+  const r0Pct = Math.round((r0Sec / totalSec) * 100);
+  const r1Pct = Math.round((r1Sec / totalSec) * 100);
+  const r2Pct = Math.round((r2Sec / totalSec) * 100);
+  const r3Pct = Math.round((r3Sec / totalSec) * 100);
+  const r5Pct = Math.round((r5Sec / totalSec) * 100);
+
+  return {
+    r0Pct,
+    r1Pct,
+    r2Pct,
+    r3Pct,
+    r5Pct,
+    r0TimeSec: Math.round(r0Sec),
+    r1TimeSec: Math.round(r1Sec),
+    r2TimeSec: Math.round(r2Sec),
+    r3TimeSec: Math.round(r3Sec),
+    r5TimeSec: Math.round(r5Sec),
+    targetZoneName: target?.name ?? "Base Aeróbica (R1)",
+    targetCompliancePct: 100,
+    complianceVerdict: "Pauta planificada según VAM de 3:59 min/km",
+    complianceTone: "positive",
+  };
+}
+
+export function buildPlannedLaps(session: SessionRow): any[] {
+  if (session.discipline !== "carrera") return [];
+  const distanceKm = session.distance_km ?? 8;
+  const durationMin = session.duration_min ?? 45;
+  const totalLaps = Math.max(1, Math.round(distanceKm));
+  const avgPace = durationMin / distanceKm;
+  const target = detectTargetZone(session);
+
+  const laps = [];
+  for (let i = 1; i <= totalLaps; i++) {
+    let lapPace = avgPace;
+    if (i === 1) lapPace = avgPace * 1.05; // 1er km algo más suave
+    else if (i === totalLaps) lapPace = avgPace * 1.03; // Vuelta a la calma
+    else if (target?.code === "R2" && i >= Math.floor(totalLaps / 2)) lapPace = avgPace * 0.96; // Progresivo
+    else lapPace = avgPace * 0.99;
+
+    laps.push({
+      index: i,
+      distanceKm: 1.0,
+      durationMin: Number(lapPace.toFixed(2)),
+      avgPaceMinKm: Number(lapPace.toFixed(2)),
+      avgHeartRate: target?.code === "R1" ? 142 : target?.code === "R2" ? 158 : 138,
+      avgCadence: 172,
+    });
+  }
+  return laps;
+}
+
+export function buildUnifiedSessionDiagnostics(
+  session: SessionRow,
+  fitSummary?: FitSummary | null
+): {
+  structuredFeedback: FitStructuredFeedback;
+  zoneDistribution: FitZoneDistribution | null;
+  laps: any[];
+  isRealFit: boolean;
+} {
+  if (fitSummary && fitSummary.sport) {
+    const structured = buildStructuredFitDiagnostics(fitSummary, session);
+    return {
+      structuredFeedback: structured,
+      zoneDistribution: fitSummary.deepAnalysis?.zoneDistribution ?? null,
+      laps: fitSummary.laps ?? [],
+      isRealFit: true,
+    };
+  }
+
+  // Si no hay archivo .fit, generar la prescripción y diagnóstico del plan
+  const target = detectTargetZone(session);
+  const plannedZones = buildPlannedZoneDistribution(session);
+  const plannedLaps = buildPlannedLaps(session);
+  const positives: string[] = [];
+  const deviations: string[] = [];
+
+  const avgPace = session.distance_km && session.duration_min ? session.duration_min / session.distance_km : null;
+
+  if (session.discipline === "carrera") {
+    if (target) {
+      positives.push(`🎯 **Pauta de Zona Objetivo**: ${target.name} con rango de ritmo pautado entre **${target.rangeLabel}** (según tu VAM de 3:59 min/km).`);
+      positives.push(`⚡ **Estrategia de Cadencia**: Busca mantener 170-175 ppm fluidas para minimizar el tiempo de contacto y proteger las rodillas.`);
+      positives.push(`💚 **Enfoque Fisiológico**: Desarrollo aeróbico y densidad mitocondrial sin generar acidez láctica para llegar fresco al CrossFit.`);
+      
+      if (avgPace) {
+        if (avgPace >= target.minPace && avgPace <= target.maxPace) {
+          positives.push(`✅ **Ritmo Registrado en Rango**: Has promediado ${formatPace(avgPace)}, dentro del objetivo ${target.rangeLabel}.`);
+        } else if (avgPace < target.minPace) {
+          const diffSec = Math.round((target.minPace - avgPace) * 60);
+          deviations.push(`⚠️ **Ritmo más rápido de la pauta**: Has rodado a ${formatPace(avgPace)} (~${diffSec}s/km más vivo que ${target.rangeLabel}). Vigila no entrar en Zona Gris para asimilar bien la carga semanal.`);
+        }
+      }
+    } else {
+      positives.push(`🏃 **Sesión de Carrera**: Trabajo aeróbico continuo y desarrollo de resistencia.`);
+    }
+  } else if (session.discipline === "crossfit") {
+    positives.push(`🔥 **CrossFit / Box WOD**: Alta demanda glucolítica y potencia neuromuscular.`);
+    positives.push(`💡 **Estrategia**: Pacing en transiciones y control de fatiga en gemelos si tocan saltos dobles.`);
+  } else if (session.discipline === "gimnasio") {
+    positives.push(`🏋️ **Fuerza Estructural**: Refuerzo de tren superior, estabilidad lumbo-pélvica y prevención de lesiones.`);
+  } else if (session.discipline === "natacion") {
+    positives.push(`🏊 **Natación**: Estímulo aeróbico regenerativo con impacto articular cero.`);
+  }
+
+  const targetCompliance = target
+    ? {
+        plannedZone: target.name,
+        plannedRange: target.rangeLabel,
+        actualPace: avgPace ? formatPace(avgPace) : target.rangeLabel,
+        compliancePct: 100,
+        timeInTargetSec: plannedZones?.r1TimeSec ?? 2100,
+        timeInTargetFormatted: formatSecondsDetailed(plannedZones?.r1TimeSec ?? 2100),
+        verdict: `Sesión planificada en ${target.name} (${target.rangeLabel}). Sube el archivo .FIT para analizar tus métricas segundo a segundo.`,
+        isCompliant: true,
+      }
+    : null;
+
+  return {
+    structuredFeedback: {
+      summary: `Pauta de entrenamiento basada en VAM 3:59 min/km.`,
+      positives,
+      deviations,
+      targetCompliance,
+    },
+    zoneDistribution: plannedZones,
+    laps: plannedLaps,
+    isRealFit: false,
+  };
+}
+
 export function buildFitFeedback(summary: FitSummary, targetSession?: SessionRow | null): FitFeedbackItem[] {
   const structured = buildStructuredFitDiagnostics(summary, targetSession);
   const items: FitFeedbackItem[] = [];
@@ -281,4 +449,5 @@ export function buildFitFeedback(summary: FitSummary, targetSession?: SessionRow
 
   return items;
 }
+
 
