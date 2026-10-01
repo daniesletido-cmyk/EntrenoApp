@@ -293,6 +293,19 @@ export default function HoyPage() {
         description={`Daniel Espinosa · ${formatToday(today).replace(/^\w/, (c) => c.toUpperCase())}`}
         actions={
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <Link
+              href="/detalle"
+              className="btn btn-primary text-xs inline-flex items-center gap-1.5"
+              style={{
+                height: 36,
+                minHeight: 36,
+                borderRadius: "var(--radius-full)",
+                padding: "0 13px",
+              }}
+            >
+              <Activity size={13} />
+              <span>Ver Detalle Entreno</span>
+            </Link>
             {raceDays !== null && (
               <span
                 className="badge badge-info inline-flex"

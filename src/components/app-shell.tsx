@@ -37,6 +37,7 @@ const NAV_GROUPS = [
     title: "Entrenamiento",
     links: [
       { href: "/registro", label: "Registro", icon: ClipboardList },
+      { href: "/detalle", label: "Detalle Entreno", icon: Activity },
       { href: "/plan-semanal", label: "Plan semanal", icon: CalendarRange },
       { href: "/gimnasio", label: "Gimnasio", icon: Dumbbell },
       { href: "/calendario", label: "Calendario", icon: Calendar },

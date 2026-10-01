@@ -16,6 +16,7 @@ import {
   Flag,
   Footprints,
   RefreshCw,
+  Activity,
 } from "lucide-react";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -178,20 +179,35 @@ export default function ResumenPage() {
             : "Seguimiento y rendimiento semanal"
         }
         actions={
-          <button
-            className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            style={{
-              height: 38,
-              minHeight: 38,
-              borderRadius: "var(--radius-full)",
-              padding: "0 14px",
-            }}
-          >
-            <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
-            <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/detalle"
+              className="btn btn-primary text-xs inline-flex items-center gap-1.5"
+              style={{
+                height: 38,
+                minHeight: 38,
+                borderRadius: "var(--radius-full)",
+                padding: "0 14px",
+              }}
+            >
+              <Activity size={14} />
+              <span>Ver Detalle Entreno</span>
+            </Link>
+            <button
+              className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+              onClick={() => loadData(true)}
+              disabled={refreshing}
+              style={{
+                height: 38,
+                minHeight: 38,
+                borderRadius: "var(--radius-full)",
+                padding: "0 14px",
+              }}
+            >
+              <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
+              <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+            </button>
+          </div>
         }
       />
 
