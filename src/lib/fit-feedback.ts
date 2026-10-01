@@ -336,21 +336,44 @@ export function buildPlannedLaps(session: SessionRow): any[] {
   const avgPace = durationMin / distanceKm;
   const target = detectTargetZone(session);
 
+  // Extraer FC de notas si vino de una importación previa o registro
+  let baseHr = 146;
+  const notesMatch = (session.notes ?? "").match(/FC media\s*(\d+)\s*lpm/i) ?? (session.notes ?? "").match(/(\d+)\s*lpm/i);
+  if (notesMatch && Number(notesMatch[1]) > 50 && Number(notesMatch[1]) < 220) {
+    baseHr = Number(notesMatch[1]);
+  } else if (target?.code === "R1") {
+    baseHr = 146;
+  } else if (target?.code === "R2") {
+    baseHr = 162;
+  } else if (target?.code === "R4") {
+    baseHr = 172;
+  } else if (target?.code === "R5") {
+    baseHr = 182;
+  } else {
+    baseHr = 135;
+  }
+
   const laps = [];
   for (let i = 1; i <= totalLaps; i++) {
     let lapPace = avgPace;
-    if (i === 1) lapPace = avgPace * 1.05; // 1er km algo más suave
-    else if (i === totalLaps) lapPace = avgPace * 1.03; // Vuelta a la calma
+    if (i === 1) lapPace = avgPace * 1.05; // 1er km más suave de calentamiento
+    else if (i === totalLaps) lapPace = avgPace * 1.02; // Vuelta a la calma
     else if (target?.code === "R2" && i >= Math.floor(totalLaps / 2)) lapPace = avgPace * 0.96; // Progresivo
     else lapPace = avgPace * 0.99;
+
+    // Curva fisiológica y deriva cardiovascular progresiva
+    const progress = totalLaps > 1 ? (i - 1) / (totalLaps - 1) : 0.5;
+    const driftFactor = 0.88 + progress * 0.15; // Desde ~88% en km 1 hasta ~103% al final
+    const lapHr = Math.round(baseHr * driftFactor);
 
     laps.push({
       index: i,
       distanceKm: 1.0,
       durationMin: Number(lapPace.toFixed(2)),
       avgPaceMinKm: Number(lapPace.toFixed(2)),
-      avgHeartRate: target?.code === "R1" ? 142 : target?.code === "R2" ? 158 : 138,
-      avgCadence: 172,
+      avgHeartRate: lapHr,
+      maxHeartRate: Math.round(lapHr + 6),
+      avgCadence: 172 + (i % 2 === 0 ? 1 : -1),
     });
   }
   return laps;

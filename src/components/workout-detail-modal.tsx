@@ -482,19 +482,26 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                       </div>
                     </div>
 
-                    {fit?.avgHeartRate != null && (
-                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                        <div className="text-xs text-muted font-medium flex items-center gap-1">
-                          <Heart size={12} style={{ color: "var(--color-danger)" }} /> FC Media / Máx
+                    {(() => {
+                      const effectiveHr = fit?.avgHeartRate ?? (() => {
+                        const m = (session?.notes ?? "").match(/FC media\s*(\d+)\s*lpm/i) ?? (session?.notes ?? "").match(/(\d+)\s*lpm/i);
+                        return m && Number(m[1]) > 50 && Number(m[1]) < 220 ? Number(m[1]) : null;
+                      })();
+                      if (!effectiveHr) return null;
+                      return (
+                        <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                          <div className="text-xs text-muted font-medium flex items-center gap-1">
+                            <Heart size={12} style={{ color: "var(--color-danger)" }} /> FC Media / Máx
+                          </div>
+                          <div className="text-lg font-bold" style={{ color: "var(--color-danger)", marginTop: 2 }}>
+                            {effectiveHr} lpm
+                          </div>
+                          <div className="text-xs text-faint">
+                            {fit?.maxHeartRate ? `Máxima: ${fit.maxHeartRate} lpm` : "FC monitorizada"}
+                          </div>
                         </div>
-                        <div className="text-lg font-bold" style={{ color: "var(--color-danger)", marginTop: 2 }}>
-                          {fit.avgHeartRate} lpm
-                        </div>
-                        <div className="text-xs text-faint">
-                          {fit.maxHeartRate ? `Máxima: ${fit.maxHeartRate} lpm` : "FC monitorizada"}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {fit?.avgCadence != null && (
                       <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
