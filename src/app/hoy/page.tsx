@@ -38,6 +38,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import type { DailyReadiness } from "@/lib/readiness";
+import { parseWorkoutModification } from "@/lib/workout-modifications";
+import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 
 interface SessionRow {
@@ -814,8 +816,39 @@ export default function HoyPage() {
               {trainingSessions.map((s) => {
                 const meta = DISCIPLINE_META[s.discipline] ?? DISCIPLINE_META.otro;
                 const Icon = meta.Icon;
+                const modInfo = parseWorkoutModification(s, readiness?.proposedMicroAdjustments);
+
+                const cleanNotes = s.notes
+                  ? s.notes
+                      .split("\n")
+                      .filter((line) => !line.includes("[Ajuste inteligente]"))
+                      .join("\n")
+                      .trim()
+                  : "";
+
                 return (
-                  <div key={s.id} className="surface" style={{ padding: "var(--space-4)" }}>
+                  <div
+                    key={s.id}
+                    className="surface animate-in"
+                    style={{
+                      padding: "var(--space-4)",
+                      border: modInfo && modInfo.isModified
+                        ? "1.5px solid rgba(245, 158, 11, 0.45)"
+                        : "1px solid var(--color-border)",
+                      boxShadow: modInfo && modInfo.isModified
+                        ? "0 4px 20px rgba(245, 158, 11, 0.12)"
+                        : undefined,
+                    }}
+                  >
+                    {/* Banner ultra-visual si hay adaptación por carga o fatiga */}
+                    {modInfo && modInfo.isModified && (
+                      <WorkoutModificationBanner
+                        info={modInfo}
+                        onRevert={() => handleRevertAdjustment(s.id)}
+                        reverting={applyingAdjustment}
+                      />
+                    )}
+
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
                         <div
@@ -834,9 +867,18 @@ export default function HoyPage() {
                           <Icon size={21} />
                         </div>
                         <div>
-                          <div className="font-semibold" style={{ fontSize: "var(--text-base)" }}>
-                            {meta.label}
-                            {s.planned_code ? ` · ${s.planned_code}` : ""}
+                          <div className="font-semibold flex items-center gap-2 flex-wrap" style={{ fontSize: "var(--text-base)" }}>
+                            <span>{meta.label}</span>
+                            {s.planned_code && <span>· {s.planned_code}</span>}
+                            {modInfo && modInfo.isModified && (
+                              <span
+                                className="badge badge-warning flex items-center gap-1"
+                                style={{ fontSize: "0.68rem", fontWeight: 700 }}
+                              >
+                                <Zap size={11} />
+                                <span>{modInfo.badgeLabel}</span>
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
                             <span className={`badge ${STATUS_TONE[s.status] === "success" ? "badge-success" : STATUS_TONE[s.status] === "warning" ? "badge-warning" : ""}`}>
@@ -847,12 +889,12 @@ export default function HoyPage() {
                         </div>
                       </div>
                     </div>
-                    {s.notes && (
+                    {cleanNotes && (
                       <p
                         className="text-sm text-muted"
                         style={{ marginTop: "var(--space-3)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}
                       >
-                        {s.notes}
+                        {cleanNotes}
                       </p>
                     )}
                     <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-4)" }}>

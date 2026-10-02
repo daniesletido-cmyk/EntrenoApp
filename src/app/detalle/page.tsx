@@ -64,6 +64,8 @@ import {
   DAY_NAMES_ES,
 } from "@/lib/dates";
 import { formatSecondsDetailed } from "@/lib/fit-feedback";
+import { parseWorkoutModification } from "@/lib/workout-modifications";
+import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 
 const DISCIPLINE_ICON: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   carrera: Footprints,
@@ -353,6 +355,8 @@ function DetalleContent() {
       ]
     : [];
 
+  const modInfo = session ? parseWorkoutModification(session) : null;
+
   return (
     <div>
       <input
@@ -558,13 +562,20 @@ function DetalleContent() {
         </div>
       ) : (
         <div className="grid gap-4">
+          {/* Banner visual si la sesión fue adaptada por carga, fatiga o entrenador */}
+          {modInfo && modInfo.isModified && (
+            <WorkoutModificationBanner info={modInfo} />
+          )}
+
           {/* Tarjeta de Cabecera del Entreno */}
           <div
             className="surface"
             style={{
               padding: "var(--space-4)",
               background: "var(--color-surface)",
-              border: "1px solid var(--color-border-strong)",
+              border: modInfo && modInfo.isModified
+                ? "1.5px solid rgba(245, 158, 11, 0.45)"
+                : "1px solid var(--color-border-strong)",
               borderRadius: "var(--radius-lg)",
             }}
           >
@@ -602,6 +613,12 @@ function DetalleContent() {
                     >
                       {statusInfo.label}
                     </span>
+                    {modInfo && modInfo.isModified && (
+                      <span className="badge badge-warning flex items-center gap-1 font-bold" style={{ fontSize: "0.75rem" }}>
+                        <Zap size={11} />
+                        <span>{modInfo.badgeLabel}</span>
+                      </span>
+                    )}
                     {session.is_long_run ? (
                       <span className="badge badge-brand flex items-center gap-1" style={{ fontSize: "0.75rem" }}>
                         <Star size={11} />

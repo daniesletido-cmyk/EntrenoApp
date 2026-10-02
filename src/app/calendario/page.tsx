@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Flag, Target, Copy, Check, Activity } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, Target, Copy, Check, Activity, Zap } from "lucide-react";
 import { toISODate, todayISO, isoDayOfWeek } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal } from "@/components/ui/modal";
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
+import { parseWorkoutModification } from "@/lib/workout-modifications";
+import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 
 interface Goal {
   id: number;
@@ -314,12 +316,32 @@ export default function CalendarioPage() {
                         Tirada larga
                       </span>
                     )}
-                    {daySessions.map((s) => (
-                      <div key={s.id} className="text-faint" style={{ fontSize: 10 }}>
-                        {s.discipline}
-                        {s.planned_code ? ` ${s.planned_code}` : ""}
-                      </div>
-                    ))}
+                    {daySessions.map((s) => {
+                      const mod = parseWorkoutModification(s);
+                      return (
+                        <div key={s.id} className="text-faint flex items-center gap-1 flex-wrap" style={{ fontSize: 10 }}>
+                          <span>{s.discipline} {s.planned_code ? ` ${s.planned_code}` : ""}</span>
+                          {mod && mod.isModified && (
+                            <span
+                              className="badge badge-warning"
+                              style={{
+                                fontSize: 9,
+                                padding: "0 4px",
+                                height: 16,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 2,
+                                fontWeight: 700,
+                              }}
+                              title={mod.headline}
+                            >
+                              <Zap size={8} />
+                              Adaptado
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </button>
               );
@@ -376,51 +398,80 @@ export default function CalendarioPage() {
                 <p className="text-sm text-muted">Sin sesiones planificadas este día.</p>
               ) : (
                 <div className="grid gap-2">
-                  {selectedSessions.map((s) => (
-                    <div key={s.id} className="surface-raised text-sm" style={{ padding: "var(--space-2) var(--space-3)" }}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 font-medium">
-                          {DISCIPLINE_LABEL[s.discipline] ?? s.discipline}
-                          {s.planned_code ? ` — ${s.planned_code}` : ""}
-                          {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
-                          <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            className="btn btn-ghost text-xs inline-flex items-center gap-1"
-                            style={{ height: 26, padding: "0 6px", fontSize: "0.72rem" }}
-                            onClick={() => setDetailSessionId(s.id)}
-                            title="Ver análisis y métricas completas"
-                          >
-                            <Activity size={12} />
-                            Detalle
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-icon"
-                            aria-label="Copiar este entreno para Notas"
-                            title="Copiar entreno para Notas"
-                            onClick={() => copySingleSession(s)}
-                          >
-                            {copiedSessionId === s.id ? (
-                              <Check size={14} style={{ color: "var(--color-success)" }} />
-                            ) : (
-                              <Copy size={14} />
+                  {selectedSessions.map((s) => {
+                    const mod = parseWorkoutModification(s);
+                    const cleanNotes = s.notes
+                      ? s.notes
+                          .split("\n")
+                          .filter((l) => !l.includes("[Ajuste inteligente]"))
+                          .join("\n")
+                          .trim()
+                      : "";
+
+                    return (
+                      <div
+                        key={s.id}
+                        className="surface-raised text-sm"
+                        style={{
+                          padding: "var(--space-3)",
+                          border: mod && mod.isModified ? "1px solid rgba(245, 158, 11, 0.45)" : undefined,
+                        }}
+                      >
+                        {mod && mod.isModified && (
+                          <div style={{ marginBottom: 8 }}>
+                            <WorkoutModificationBanner info={mod} />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 font-medium flex-wrap">
+                            <span>{DISCIPLINE_LABEL[s.discipline] ?? s.discipline}</span>
+                            {s.planned_code ? <span>— {s.planned_code}</span> : ""}
+                            {mod && mod.isModified && (
+                              <span className="badge badge-warning flex items-center gap-1 font-bold" style={{ fontSize: "0.68rem" }}>
+                                <Zap size={10} />
+                                <span>{mod.badgeLabel}</span>
+                              </span>
                             )}
-                          </button>
+                            {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
+                            <span className="badge badge-neutral">{STATUS_LABEL[s.status] ?? s.status}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              className="btn btn-ghost text-xs inline-flex items-center gap-1"
+                              style={{ height: 26, padding: "0 6px", fontSize: "0.72rem" }}
+                              onClick={() => setDetailSessionId(s.id)}
+                              title="Ver análisis y métricas completas"
+                            >
+                              <Activity size={12} />
+                              Detalle
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-icon"
+                              aria-label="Copiar este entreno para Notas"
+                              title="Copiar entreno para Notas"
+                              onClick={() => copySingleSession(s)}
+                            >
+                              {copiedSessionId === s.id ? (
+                                <Check size={14} style={{ color: "var(--color-success)" }} />
+                              ) : (
+                                <Copy size={14} />
+                              )}
+                            </button>
+                          </div>
                         </div>
+                        <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                          {[
+                            s.rpe !== null ? `RPE ${s.rpe}` : null,
+                            s.duration_min !== null ? `${s.duration_min} min` : null,
+                            s.distance_km !== null ? `${s.distance_km} km` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                        {cleanNotes && <div className="text-sm text-muted" style={{ marginTop: 4 }}>{cleanNotes}</div>}
                       </div>
-                      <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                        {[
-                          s.rpe !== null ? `RPE ${s.rpe}` : null,
-                          s.duration_min !== null ? `${s.duration_min} min` : null,
-                          s.distance_km !== null ? `${s.distance_km} km` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
-                      {s.notes && <div className="text-sm" style={{ marginTop: 4 }}>{s.notes}</div>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

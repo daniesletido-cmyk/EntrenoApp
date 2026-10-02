@@ -18,6 +18,7 @@ import {
   Copy,
   Check,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -28,6 +29,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
+import { parseWorkoutModification } from "@/lib/workout-modifications";
+import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 
 interface PlanPreviewRow {
   date: string;
@@ -524,6 +527,15 @@ export default function PlanSemanalPage() {
                     const Icon = meta.Icon;
                     const isEditing = editingId === s.id;
                     const isSwapping = swappingId === s.id;
+                    const mod = parseWorkoutModification(s);
+                    const cleanNotes = s.notes
+                      ? s.notes
+                          .split("\n")
+                          .filter((l) => !l.includes("[Ajuste inteligente]"))
+                          .join("\n")
+                          .trim()
+                      : "";
+
                     return (
                       <li
                         key={s.id}
@@ -531,8 +543,16 @@ export default function PlanSemanalPage() {
                         style={{
                           padding: "var(--space-2) var(--space-3)",
                           borderRadius: "var(--radius-md)",
+                          border: mod && mod.isModified ? "1px solid rgba(245, 158, 11, 0.45)" : undefined,
                         }}
                       >
+                        {/* Banner visual si la sesión está adaptada */}
+                        {mod && mod.isModified && (
+                          <div style={{ marginBottom: 6 }}>
+                            <WorkoutModificationBanner info={mod} />
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between gap-2 w-full">
                           <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                             <div
@@ -555,6 +575,12 @@ export default function PlanSemanalPage() {
                                 {meta.label} {s.planned_code ? `· ${s.planned_code}` : ""}
                               </div>
                               <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 2 }}>
+                                {mod && mod.isModified && (
+                                  <span className="badge badge-warning flex items-center gap-1 font-bold" style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}>
+                                    <Zap size={9} />
+                                    <span>{mod.badgeLabel}</span>
+                                  </span>
+                                )}
                                 {!!s.is_long_run && (
                                   <span className="badge badge-info" style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}>
                                     Tirada larga
@@ -610,7 +636,7 @@ export default function PlanSemanalPage() {
                           </div>
                         </div>
 
-                        {!isEditing && s.notes && (
+                        {!isEditing && cleanNotes && (
                           <div
                             className="text-xs text-muted w-full"
                             style={{
