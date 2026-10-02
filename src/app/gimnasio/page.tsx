@@ -1524,53 +1524,53 @@ function ExerciseCard({
         className="flex flex-wrap items-center gap-1.5"
         style={{
           marginBottom: "var(--space-3)",
-          padding: "5px 8px",
-          borderRadius: "var(--radius-sm)",
-          backgroundColor: "rgba(255, 255, 255, 0.02)",
+          padding: "6px",
+          borderRadius: "var(--radius-md)",
+          backgroundColor: "rgba(255, 255, 255, 0.03)",
           border: "1px solid var(--color-border)",
         }}
       >
         <button
           type="button"
-          className="btn btn-ghost text-xs flex items-center gap-1"
-          style={{ padding: "0.2rem 0.5rem" }}
+          className="btn btn-ghost text-xs flex items-center gap-1.5"
+          style={{ padding: "0.3rem 0.6rem", minHeight: 32, borderRadius: "var(--radius-full)" }}
           onClick={() => onOpenSwap(exercise, currentMaxWeight)}
           title="Sustituir por máquina o variante si está ocupada (Smart Swap)"
         >
-          <ArrowLeftRight size={12} style={{ color: "var(--color-brand)" }} />
+          <ArrowLeftRight size={13} style={{ color: "var(--color-brand)" }} />
           <span>Smart Swap</span>
         </button>
 
         <button
           type="button"
-          className="btn btn-ghost text-xs flex items-center gap-1"
-          style={{ padding: "0.2rem 0.5rem" }}
+          className="btn btn-ghost text-xs flex items-center gap-1.5"
+          style={{ padding: "0.3rem 0.6rem", minHeight: 32, borderRadius: "var(--radius-full)" }}
           onClick={() => onOpenPlateCalc(exercise, currentMaxWeight)}
           title="Calculadora visual de discos en barra olímpica"
         >
-          <Scale size={12} style={{ color: "var(--color-warning)" }} />
+          <Scale size={13} style={{ color: "var(--color-warning)" }} />
           <span>Discos</span>
         </button>
 
         <button
           type="button"
-          className="btn btn-ghost text-xs flex items-center gap-1"
-          style={{ padding: "0.2rem 0.5rem" }}
+          className="btn btn-ghost text-xs flex items-center gap-1.5"
+          style={{ padding: "0.3rem 0.6rem", minHeight: 32, borderRadius: "var(--radius-full)" }}
           onClick={() => onOpenOverload(exercise, currentMaxWeight, parsed.detail || "8-10")}
           title="Reglas automáticas de sobrecarga progresiva"
         >
-          <TrendingUp size={12} style={{ color: "var(--color-success)" }} />
+          <TrendingUp size={13} style={{ color: "var(--color-success)" }} />
           <span>Sobrecarga</span>
         </button>
 
         <button
           type="button"
-          className="btn btn-ghost text-xs flex items-center gap-1"
-          style={{ padding: "0.2rem 0.5rem" }}
+          className="btn btn-ghost text-xs flex items-center gap-1.5"
+          style={{ padding: "0.3rem 0.6rem", minHeight: 32, borderRadius: "var(--radius-full)" }}
           onClick={() => onOpenVoice(exercise)}
           title="Dictar series por voz manos libres (Web Speech API)"
         >
-          <Mic size={12} style={{ color: "#ec4899" }} />
+          <Mic size={13} style={{ color: "#ec4899" }} />
           <span>Voz</span>
         </button>
       </div>

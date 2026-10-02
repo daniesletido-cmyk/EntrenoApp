@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun } from "lucide-react";
+import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SecuritySettingsModal } from "@/components/auth/security-settings-modal";
+import { isAppLockEnabled, getAppLockType, lockSession } from "@/lib/security";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -36,6 +38,22 @@ export default function ConfiguracionPage() {
     node_env?: string;
   } | null>(null);
   const toast = useToast();
+
+  const [securityModalOpen, setSecurityModalOpen] = useState(false);
+  const [lockEnabled, setLockEnabled] = useState(false);
+  const [lockType, setLockType] = useState<"pin" | "password">("pin");
+
+  const refreshSecurity = () => {
+    setLockEnabled(isAppLockEnabled());
+    setLockType(getAppLockType());
+  };
+
+  useEffect(() => {
+    refreshSecurity();
+    const handleSec = () => refreshSecurity();
+    window.addEventListener("entrenoapp:security_changed", handleSec);
+    return () => window.removeEventListener("entrenoapp:security_changed", handleSec);
+  }, []);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -351,6 +369,54 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
+        {/* SECCIÓN SEGURIDAD Y BLOQUEO DE LA APP */}
+        <div className="surface" style={{ padding: "var(--space-4)" }}>
+          <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Lock size={16} className="text-brand" />
+              <span>Seguridad y Bloqueo de Acceso</span>
+            </div>
+            {lockEnabled ? (
+              <span className="badge badge-success">
+                {lockType === "pin" ? "PIN Activo (4-6 dígitos)" : "Contraseña Activa"}
+              </span>
+            ) : (
+              <span className="badge badge-neutral">Desactivado (Acceso libre)</span>
+            )}
+          </div>
+          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
+            Protege el acceso a tus métricas y registros con un código PIN o contraseña alfanumérica. La app te pedirá
+            la clave al iniciarse para garantizar tu máxima privacidad en el móvil o escritorio.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {lockEnabled ? (
+              <>
+                <Button variant="primary" onClick={() => setSecurityModalOpen(true)}>
+                  <KeyRound size={15} />
+                  <span>Modificar o Quitar Clave</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    lockSession();
+                    toast.push("info", "Aplicación bloqueada");
+                  }}
+                  title="Bloquear la app inmediatamente para probar el desbloqueo"
+                >
+                  <Lock size={15} />
+                  <span>Bloquear ahora</span>
+                </Button>
+              </>
+            ) : (
+              <Button variant="primary" onClick={() => setSecurityModalOpen(true)}>
+                <Lock size={15} />
+                <span>Activar PIN o Contraseña</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-2)" }}>
             Copia de seguridad
@@ -440,6 +506,12 @@ export default function ConfiguracionPage() {
         tone={confirmState.tone}
         onConfirm={confirmState.onConfirm}
         onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+      />
+
+      <SecuritySettingsModal
+        open={securityModalOpen}
+        onClose={() => setSecurityModalOpen(false)}
+        onChanged={refreshSecurity}
       />
     </div>
   );

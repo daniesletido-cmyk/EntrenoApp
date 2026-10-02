@@ -7,6 +7,7 @@ import "@fontsource/inter/800.css";
 import "./globals.css";
 import AppShell from "@/components/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
+import { AppLockGuard } from "@/components/auth/app-lock-guard";
 
 export const viewport: Viewport = {
   themeColor: "#090d16",
@@ -53,7 +54,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ToastProvider>
-          <AppShell>{children}</AppShell>
+          <AppLockGuard>
+            <AppShell>{children}</AppShell>
+          </AppLockGuard>
         </ToastProvider>
       </body>
     </html>

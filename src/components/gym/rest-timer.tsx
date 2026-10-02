@@ -74,16 +74,14 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
   if (isMinimized) {
     return (
       <div
-        className="animate-in"
+        className="animate-in rest-timer-float"
         style={{
           position: "fixed",
-          bottom: 24,
-          right: 24,
           zIndex: 9999,
           backgroundColor: "var(--color-surface)",
           border: "2px solid var(--color-brand)",
           borderRadius: 999,
-          padding: "6px 14px",
+          padding: "8px 16px",
           display: "flex",
           alignItems: "center",
           gap: 8,
@@ -96,17 +94,28 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
         <span className="font-bold text-sm" style={{ color: timeLeft === 0 ? "var(--color-success)" : "var(--color-text)" }}>
           {timeLeft === 0 ? "¡A entrenar!" : formattedTime}
         </span>
+        <style jsx>{`
+          .rest-timer-float {
+            bottom: calc(76px + env(safe-area-inset-bottom, 16px));
+            right: 16px;
+            max-width: calc(100vw - 32px);
+          }
+          @media (min-width: 768px) {
+            .rest-timer-float {
+              bottom: 24px;
+              right: 24px;
+            }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
     <div
-      className="animate-in"
+      className="animate-in rest-timer-float"
       style={{
         position: "fixed",
-        bottom: 24,
-        right: 24,
         zIndex: 9999,
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border-strong)",
@@ -116,6 +125,19 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
         width: 290,
       }}
     >
+      <style jsx>{`
+        .rest-timer-float {
+          bottom: calc(76px + env(safe-area-inset-bottom, 16px));
+          right: 16px;
+          max-width: calc(100vw - 32px);
+        }
+        @media (min-width: 768px) {
+          .rest-timer-float {
+            bottom: 24px;
+            right: 24px;
+          }
+        }
+      `}</style>
       <div className="flex items-center justify-between gap-2" style={{ marginBottom: 6 }}>
         <div className="flex items-center gap-1.5 text-xs font-bold text-brand">
           <Timer size={14} />

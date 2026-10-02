@@ -155,13 +155,16 @@ export function PlateCalculatorModal({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
+            width: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
           }}
         >
-          <div className="text-xs font-semibold text-muted" style={{ marginBottom: 12 }}>
+          <div className="text-xs font-semibold text-muted" style={{ marginBottom: 12, textAlign: "center" }}>
             Discos cargados en cada manga (un lado):
           </div>
 
-          <div className="flex items-center justify-center" style={{ height: 100, minWidth: 280 }}>
+          <div className="flex items-center justify-center" style={{ height: 100, minWidth: "min-content", padding: "0 8px" }}>
             {/* Eje de la barra */}
             <div
               style={{
