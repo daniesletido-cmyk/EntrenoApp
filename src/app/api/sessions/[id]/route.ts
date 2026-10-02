@@ -66,6 +66,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     hrZoneDistribution: unified.hrZoneDistribution,
     laps: unified.laps,
     isRealFit: unified.isRealFit,
+    timeSeries: unified.timeSeries,
+    pacingAnalysis: unified.pacingAnalysis,
     gymDetails,
     sleep,
     readiness,

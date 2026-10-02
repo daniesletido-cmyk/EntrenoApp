@@ -1,5 +1,5 @@
 import { SessionRow } from "@/lib/repo/sessions";
-import type { FitSummary, FitZoneDistribution, FitHrZoneDistribution } from "@/lib/fit-import";
+import type { FitSummary, FitZoneDistribution, FitHrZoneDistribution, FitTimeSeriesPoint, FitPacingAnalysis } from "@/lib/fit-import";
 
 export interface FitFeedbackItem {
   tone: "positive" | "neutral" | "warning";
@@ -237,6 +237,22 @@ export function buildStructuredFitDiagnostics(summary: FitSummary, targetSession
       }
     }
 
+    const pacing = summary.deepAnalysis?.pacingAnalysis ?? summary.pacingAnalysis;
+    if (pacing?.bestEfforts && pacing.bestEfforts.length > 0) {
+      const best1k = pacing.bestEfforts.find((b) => b.label === "1 km");
+      if (best1k) {
+        positives.push(`⚡ **Mejor 1K de la sesión**: Completado en ${best1k.timeFormatted} (${best1k.paceFormatted})${best1k.avgHeartRate ? ` a ${best1k.avgHeartRate} lpm` : ""}.`);
+      }
+    }
+
+    if (pacing?.avgStrideLengthM) {
+      positives.push(`📏 **Longitud de Zancada (${pacing.avgStrideLengthM.toFixed(2)} m)**: Amplitud media de paso ${pacing.maxStrideLengthM ? `(máx: ${pacing.maxStrideLengthM.toFixed(2)} m)` : ""}.`);
+    }
+
+    if (pacing?.slopeAnalysis?.uphillPaceMinKm && pacing.slopeAnalysis?.downhillPaceMinKm) {
+      positives.push(`⛰️ **Gestión del Relieve**: Subidas sostenidas a ${pacing.slopeAnalysis.uphillPaceFormatted} y bajadas aprovechadas a ${pacing.slopeAnalysis.downhillPaceFormatted}.`);
+    }
+
     summaryText = positives.length > 0
       ? `Sesión analizada con ${positives.length} punto(s) fuerte(s) y ${deviations.length} área(s) a optimizar.`
       : "Análisis biomecánico y fisiológico completado.";
@@ -430,15 +446,101 @@ export function buildUnifiedSessionDiagnostics(
   hrZoneDistribution: FitHrZoneDistribution | null;
   laps: any[];
   isRealFit: boolean;
+  timeSeries: FitTimeSeriesPoint[];
+  pacingAnalysis: FitPacingAnalysis | null;
 } {
   if (fitSummary && fitSummary.sport) {
     const structured = buildStructuredFitDiagnostics(fitSummary, session);
+    const laps = fitSummary.laps ?? [];
+    const timeSeries = fitSummary.timeSeries ?? fitSummary.deepAnalysis?.timeSeries ?? [];
+    
+    // Si no viene pacingAnalysis precalculado (importación previa), calcular fallback a partir de laps
+    let pacingAnalysis: FitPacingAnalysis | null = fitSummary.pacingAnalysis ?? fitSummary.deepAnalysis?.pacingAnalysis ?? null;
+    if (!pacingAnalysis && laps.length > 0) {
+      const valid1k = laps.filter((l) => (l.distanceKm ?? 0) >= 0.85 && l.avgPaceMinKm && l.avgPaceMinKm > 2.0);
+      const bestEfforts = valid1k.length > 0
+        ? [(() => {
+            const sorted = [...valid1k].sort((a, b) => (a.avgPaceMinKm ?? 0) - (b.avgPaceMinKm ?? 0));
+            const f = sorted[0];
+            const tSec = Math.round((f.durationMin ?? 0) * 60);
+            const p = f.avgPaceMinKm ?? 0;
+            const min = Math.floor(p);
+            const sec = Math.round((p - min) * 60);
+            return {
+              label: "1 km",
+              distanceM: 1000,
+              timeSec: tSec,
+              timeFormatted: `${Math.floor(tSec / 60)}:${Math.round(tSec % 60).toString().padStart(2, "0")}`,
+              paceMinKm: p,
+              paceFormatted: `${min}:${sec.toString().padStart(2, "0")} /km`,
+              avgHeartRate: f.avgHeartRate ?? null,
+            };
+          })()]
+        : [];
+
+      let splitHalves = null;
+      if (laps.length >= 2) {
+        const mid = Math.floor(laps.length / 2);
+        const h1 = laps.slice(0, mid);
+        const h2 = laps.slice(mid);
+        const calcHalf = (arr: typeof laps) => {
+          const d = arr.reduce((acc, c) => acc + (c.distanceKm ?? 0), 0);
+          const t = arr.reduce((acc, c) => acc + (c.durationMin ?? 0), 0);
+          const pace = d > 0.1 ? t / d : 0;
+          const hrs = arr.map((x) => x.avgHeartRate).filter((h): h is number => typeof h === "number");
+          const avgHr = hrs.length > 0 ? Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length) : null;
+          return { d, tSec: Math.round(t * 60), pace, avgHr };
+        };
+        const half1 = calcHalf(h1);
+        const half2 = calcHalf(h2);
+        const paceDiffSec = Math.round((half2.pace - half1.pace) * 60);
+        const fmtP = (p: number) => {
+          const m = Math.floor(p);
+          const s = Math.round((p - m) * 60);
+          return `${m}:${s.toString().padStart(2, "0")} /km`;
+        };
+        splitHalves = {
+          firstHalfDistKm: Number(half1.d.toFixed(2)),
+          firstHalfTimeSec: half1.tSec,
+          firstHalfPaceMinKm: Number(half1.pace.toFixed(2)),
+          firstHalfPaceFormatted: fmtP(half1.pace),
+          firstHalfAvgHr: half1.avgHr,
+          secondHalfDistKm: Number(half2.d.toFixed(2)),
+          secondHalfTimeSec: half2.tSec,
+          secondHalfPaceMinKm: Number(half2.pace.toFixed(2)),
+          secondHalfPaceFormatted: fmtP(half2.pace),
+          secondHalfAvgHr: half2.avgHr,
+          paceDiffSec,
+          splitType: (paceDiffSec <= -3 ? "negativo" : Math.abs(paceDiffSec) < 3 ? "parejo" : "positivo") as "negativo" | "parejo" | "positivo",
+          splitDescription: paceDiffSec <= -3
+            ? `2ª mitad ${Math.abs(paceDiffSec)}s/km más rápida (${fmtP(half2.pace)} vs ${fmtP(half1.pace)}).`
+            : Math.abs(paceDiffSec) < 3
+            ? `Ritmo uniforme en ambas mitades (${fmtP(half1.pace)} y ${fmtP(half2.pace)}).`
+            : `2ª mitad ${paceDiffSec}s/km más lenta (${fmtP(half2.pace)} vs ${fmtP(half1.pace)}).`,
+        };
+      }
+
+      pacingAnalysis = {
+        bestEfforts,
+        splitHalves,
+        slopeAnalysis: null,
+        avgStrideLengthM: fitSummary.deepAnalysis?.avgStrideLengthM ?? null,
+        maxStrideLengthM: fitSummary.deepAnalysis?.maxStrideLengthM ?? null,
+        elevationGainM: fitSummary.elevationGainM ?? null,
+        elevationLossM: fitSummary.deepAnalysis?.elevationLossM ?? null,
+        minAltitudeM: fitSummary.deepAnalysis?.minAltitudeM ?? null,
+        maxAltitudeM: fitSummary.deepAnalysis?.maxAltitudeM ?? null,
+      };
+    }
+
     return {
       structuredFeedback: structured,
       zoneDistribution: fitSummary.deepAnalysis?.zoneDistribution ?? null,
       hrZoneDistribution: fitSummary.deepAnalysis?.hrZoneDistribution ?? null,
-      laps: fitSummary.laps ?? [],
+      laps,
       isRealFit: true,
+      timeSeries,
+      pacingAnalysis,
     };
   }
 
@@ -489,6 +591,34 @@ export function buildUnifiedSessionDiagnostics(
       }
     : null;
 
+  // Synthesize timeSeries points from planned laps if available
+  const plannedTimeSeries: FitTimeSeriesPoint[] = [];
+  if (plannedLaps.length > 0) {
+    let accDist = 0;
+    let accSec = 0;
+    for (const lap of plannedLaps) {
+      const stepSec = Math.round((lap.durationMin ?? 5) * 60 / 5);
+      const stepDist = (lap.distanceKm ?? 1) / 5;
+      for (let s = 1; s <= 5; s++) {
+        accDist += stepDist;
+        accSec += stepSec;
+        const mm = Math.floor(accSec / 60);
+        const ss = accSec % 60;
+        plannedTimeSeries.push({
+          timeSec: accSec,
+          timeFormatted: `${mm}:${ss.toString().padStart(2, "0")}`,
+          distanceKm: Number(accDist.toFixed(2)),
+          paceMinKm: lap.avgPaceMinKm ?? null,
+          speedKmh: lap.avgPaceMinKm ? Number((60 / lap.avgPaceMinKm).toFixed(1)) : null,
+          heartRate: lap.avgHeartRate ?? null,
+          altitudeM: 100,
+          cadence: lap.avgCadence ?? null,
+          strideLengthM: 1.15,
+        });
+      }
+    }
+  }
+
   return {
     structuredFeedback: {
       summary: `Pauta de entrenamiento basada en VAM 3:59 min/km.`,
@@ -500,6 +630,8 @@ export function buildUnifiedSessionDiagnostics(
     hrZoneDistribution: null,
     laps: plannedLaps,
     isRealFit: false,
+    timeSeries: plannedTimeSeries,
+    pacingAnalysis: null,
   };
 }
 

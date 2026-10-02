@@ -29,6 +29,11 @@ import {
   FileCheck,
   Check,
   Bike,
+  Gauge,
+  ArrowUpRight,
+  ArrowDownRight,
+  ArrowRight,
+  Timer,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -42,6 +47,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import WeekSwitcher from "@/components/week-switcher";
@@ -126,8 +133,8 @@ function DetalleContent() {
   );
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [loadingSession, setLoadingSession] = useState(false);
-  const [activeTab, setActiveTab] = useState<"general" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
-  const [activeChart, setActiveChart] = useState<"pace_hr" | "zones" | "cadence">("pace_hr");
+  const [activeTab, setActiveTab] = useState<"general" | "pacing" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
+  const [activeChart, setActiveChart] = useState<"pace_hr" | "elevation_pace" | "cadence_stride" | "zones">("pace_hr");
   const [uploadingFit, setUploadingFit] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,6 +287,32 @@ function DetalleContent() {
   const statusInfo = session ? STATUS_LABEL[session.status] ?? STATUS_LABEL.pendiente : STATUS_LABEL.pendiente;
   const deep = fit?.deepAnalysis;
   const hrZoneDist = sessionDetail?.hrZoneDistribution ?? deep?.hrZoneDistribution;
+  const pacingAnalysis = sessionDetail?.pacingAnalysis ?? fit?.pacingAnalysis ?? deep?.pacingAnalysis ?? null;
+  const timeSeries = sessionDetail?.timeSeries ?? fit?.timeSeries ?? deep?.timeSeries ?? [];
+
+  const continuousChartData = timeSeries.length > 0
+    ? timeSeries.map((pt: any) => ({
+        label: pt.timeFormatted,
+        timeSec: pt.timeSec,
+        distKm: pt.distanceKm,
+        Ritmo: pt.paceMinKm,
+        Velocidad: pt.speedKmh,
+        FC: pt.heartRate,
+        Altitud: pt.altitudeM,
+        Cadencia: pt.cadence,
+        Zancada: pt.strideLengthM,
+      }))
+    : laps.map((l: any) => ({
+        label: `km ${l.index}`,
+        timeSec: Math.round((l.durationMin ?? 0) * 60),
+        distKm: l.distanceKm ?? l.index,
+        Ritmo: l.avgPaceMinKm,
+        Velocidad: l.avgSpeedKmh,
+        FC: l.avgHeartRate,
+        Altitud: null,
+        Cadencia: l.avgCadence,
+        Zancada: null,
+      }));
 
   const effectiveSport = fit?.sport ?? session?.discipline ?? "carrera";
   const isSwimming = effectiveSport === "natacion";
@@ -629,6 +662,15 @@ function DetalleContent() {
               >
                 📊 Resumen & KPIs
               </button>
+              {(pacingAnalysis || session.discipline === "carrera") && (
+                <button
+                  className={`btn ${activeTab === "pacing" ? "btn-primary" : "btn-ghost"} text-xs`}
+                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  onClick={() => setActiveTab("pacing")}
+                >
+                  ⚡ Ritmos & Rendimiento
+                </button>
+              )}
               {session.discipline === "carrera" && (
                 <button
                   className={`btn ${activeTab === "zones" ? "btn-primary" : "btn-ghost"} text-xs`}
@@ -837,15 +879,70 @@ function DetalleContent() {
                   </div>
                 )}
 
-                {fit?.elevationGainM != null && (
+                {/* Mejor 1K de la sesión */}
+                {pacingAnalysis?.bestEfforts?.find((b: any) => b.label === "1 km") && (
                   <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
                     <div className="text-xs text-muted font-medium flex items-center gap-1">
-                      <Mountain size={12} /> Desnivel +
+                      <Zap size={12} style={{ color: "var(--color-brand)" }} /> Mejor 1K
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                      {pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").paceFormatted}
+                    </div>
+                    <div className="text-xs text-faint">
+                      {pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").timeFormatted}
+                      {pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").avgHeartRate ? ` · ${pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").avgHeartRate} lpm` : ""}
+                    </div>
+                  </div>
+                )}
+
+                {/* Split 1ª / 2ª mitad */}
+                {pacingAnalysis?.splitHalves && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <TrendingUp size={12} style={{ color: pacingAnalysis.splitHalves.splitType === "negativo" ? "var(--color-success)" : "var(--color-text)" }} /> Split 1ª / 2ª
+                    </div>
+                    <div
+                      className="text-xl font-bold"
+                      style={{
+                        color: pacingAnalysis.splitHalves.splitType === "negativo" ? "var(--color-success)" : pacingAnalysis.splitHalves.splitType === "parejo" ? "var(--color-brand)" : "var(--color-warning)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {pacingAnalysis.splitHalves.splitType === "negativo" ? "Negativo" : pacingAnalysis.splitHalves.splitType === "parejo" ? "Parejo" : "Positivo"}
+                    </div>
+                    <div className="text-xs text-faint">
+                      {pacingAnalysis.splitHalves.firstHalfPaceFormatted} → {pacingAnalysis.splitHalves.secondHalfPaceFormatted}
+                    </div>
+                  </div>
+                )}
+
+                {/* Longitud de Zancada (Carrera) */}
+                {(pacingAnalysis?.avgStrideLengthM || deep?.avgStrideLengthM) && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Footprints size={12} /> Long. Zancada
                     </div>
                     <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
-                      +{fit.elevationGainM} m
+                      {(pacingAnalysis?.avgStrideLengthM ?? deep?.avgStrideLengthM)?.toFixed(2)} m
                     </div>
-                    <div className="text-xs text-faint">Altimetría ascendida</div>
+                    <div className="text-xs text-faint">
+                      {(pacingAnalysis?.maxStrideLengthM ?? deep?.maxStrideLengthM) ? `Máx: ${(pacingAnalysis?.maxStrideLengthM ?? deep?.maxStrideLengthM).toFixed(2)} m` : "Amplitud media"}
+                    </div>
+                  </div>
+                )}
+
+                {/* Desnivel +/- y Altimetría */}
+                {(fit?.elevationGainM != null || pacingAnalysis?.elevationGainM != null) && (
+                  <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                    <div className="text-xs text-muted font-medium flex items-center gap-1">
+                      <Mountain size={12} /> Desnivel +/-
+                    </div>
+                    <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
+                      +{(fit?.elevationGainM ?? pacingAnalysis?.elevationGainM)}m / -{(deep?.elevationLossM ?? pacingAnalysis?.elevationLossM ?? 0)}m
+                    </div>
+                    <div className="text-xs text-faint">
+                      {pacingAnalysis?.minAltitudeM != null ? `Alt: ${pacingAnalysis.minAltitudeM}m a ${pacingAnalysis.maxAltitudeM}m` : "Altimetría acumulada"}
+                    </div>
                   </div>
                 )}
 
@@ -973,6 +1070,341 @@ function DetalleContent() {
                 ) : (
                   <div className="text-sm text-faint italic">No hay notas registradas para esta sesión.</div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* 1.5 RITMOS & RENDIMIENTO */}
+          {activeTab === "pacing" && (
+            <div className="grid gap-4">
+              {/* 1. Análisis de Mitades (Split 50/50) */}
+              <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                  <div className="font-semibold text-sm flex items-center gap-2">
+                    <TrendingUp size={16} style={{ color: "var(--color-brand)" }} />
+                    Estrategia de Ritmo: 1ª Mitad vs 2ª Mitad (Split 50/50)
+                  </div>
+                  {pacingAnalysis?.splitHalves && (
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        padding: "3px 10px",
+                        borderRadius: "var(--radius-full)",
+                        backgroundColor:
+                          pacingAnalysis.splitHalves.splitType === "negativo"
+                            ? "rgba(16, 185, 129, 0.15)"
+                            : pacingAnalysis.splitHalves.splitType === "parejo"
+                            ? "rgba(59, 130, 246, 0.15)"
+                            : "rgba(245, 158, 11, 0.15)",
+                        color:
+                          pacingAnalysis.splitHalves.splitType === "negativo"
+                            ? "var(--color-success)"
+                            : pacingAnalysis.splitHalves.splitType === "parejo"
+                            ? "var(--color-brand)"
+                            : "var(--color-warning)",
+                      }}
+                    >
+                      {pacingAnalysis.splitHalves.splitType === "negativo"
+                        ? "🚀 Split Negativo (Progresión)"
+                        : pacingAnalysis.splitHalves.splitType === "parejo"
+                        ? "⚖️ Split Parejo (Ritmo Constante)"
+                        : "⚠️ Split Positivo (Desaceleración)"}
+                    </span>
+                  )}
+                </div>
+
+                {pacingAnalysis?.splitHalves ? (
+                  <div>
+                    <div className="grid gap-3 sm:grid-cols-2" style={{ marginBottom: "var(--space-3)" }}>
+                      {/* 1ª Mitad */}
+                      <div
+                        style={{
+                          padding: "var(--space-3)",
+                          borderRadius: "var(--radius-md)",
+                          backgroundColor: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid var(--color-border)",
+                        }}
+                      >
+                        <div className="text-xs uppercase font-semibold text-muted flex items-center justify-between">
+                          <span>1ª Mitad ({pacingAnalysis.splitHalves.firstHalfDistKm} km)</span>
+                          <span className="badge badge-neutral" style={{ fontSize: "0.65rem" }}>0% - 50%</span>
+                        </div>
+                        <div className="flex items-baseline gap-2" style={{ marginTop: 6 }}>
+                          <span className="text-2xl font-bold" style={{ color: "var(--color-text)" }}>
+                            {pacingAnalysis.splitHalves.firstHalfPaceFormatted}
+                          </span>
+                          <span className="text-xs text-muted">
+                            ({Math.floor(pacingAnalysis.splitHalves.firstHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.firstHalfTimeSec % 60}s)
+                          </span>
+                        </div>
+                        {pacingAnalysis.splitHalves.firstHalfAvgHr && (
+                          <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 4 }}>
+                            <Heart size={11} style={{ color: "var(--color-danger)" }} />
+                            <span>FC media: <strong>{pacingAnalysis.splitHalves.firstHalfAvgHr} lpm</strong></span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2ª Mitad */}
+                      <div
+                        style={{
+                          padding: "var(--space-3)",
+                          borderRadius: "var(--radius-md)",
+                          backgroundColor:
+                            pacingAnalysis.splitHalves.splitType === "negativo"
+                              ? "rgba(16, 185, 129, 0.05)"
+                              : "rgba(255, 255, 255, 0.03)",
+                          border: `1px solid ${
+                            pacingAnalysis.splitHalves.splitType === "negativo"
+                              ? "rgba(16, 185, 129, 0.3)"
+                              : "var(--color-border)"
+                          }`,
+                        }}
+                      >
+                        <div className="text-xs uppercase font-semibold text-muted flex items-center justify-between">
+                          <span>2ª Mitad ({pacingAnalysis.splitHalves.secondHalfDistKm} km)</span>
+                          <span className="badge badge-neutral" style={{ fontSize: "0.65rem" }}>50% - 100%</span>
+                        </div>
+                        <div className="flex items-baseline gap-2" style={{ marginTop: 6 }}>
+                          <span
+                            className="text-2xl font-bold"
+                            style={{
+                              color:
+                                pacingAnalysis.splitHalves.splitType === "negativo"
+                                  ? "var(--color-success)"
+                                  : "var(--color-text)",
+                            }}
+                          >
+                            {pacingAnalysis.splitHalves.secondHalfPaceFormatted}
+                          </span>
+                          <span className="text-xs text-muted">
+                            ({Math.floor(pacingAnalysis.splitHalves.secondHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.secondHalfTimeSec % 60}s)
+                          </span>
+                        </div>
+                        {pacingAnalysis.splitHalves.secondHalfAvgHr && (
+                          <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 4 }}>
+                            <Heart size={11} style={{ color: "var(--color-danger)" }} />
+                            <span>FC media: <strong>{pacingAnalysis.splitHalves.secondHalfAvgHr} lpm</strong></span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: "var(--space-3)",
+                        borderRadius: "var(--radius-sm)",
+                        backgroundColor: "rgba(0,0,0,0.2)",
+                        border: "1px solid var(--color-border)",
+                        fontSize: "var(--text-xs)",
+                        color: "var(--color-text-muted)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      💡 <strong>Diagnóstico de ritmo:</strong> {pacingAnalysis.splitHalves.splitDescription}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted italic">
+                    Distancia insuficiente o sin datos de vueltas para calcular el split 50/50.
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Mejores Parciales (Peak Efforts) */}
+              <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                  <Zap size={16} style={{ color: "var(--color-warning)" }} />
+                  Mejores Parciales de la Sesión (Peak Efforts)
+                </div>
+
+                {pacingAnalysis?.bestEfforts && pacingAnalysis.bestEfforts.length > 0 ? (
+                  <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
+                    {pacingAnalysis.bestEfforts.map((effort: any, idx: number) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: "var(--space-3)",
+                          borderRadius: "var(--radius-md)",
+                          backgroundColor: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid var(--color-border)",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs" style={{ color: "var(--color-brand)" }}>
+                              {effort.label}
+                            </span>
+                            <span className="badge badge-neutral" style={{ fontSize: "0.6rem" }}>
+                              {effort.distanceM}m
+                            </span>
+                          </div>
+                          <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 4 }}>
+                            {effort.timeFormatted}
+                          </div>
+                          <div className="text-xs font-semibold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                            {effort.paceFormatted}
+                          </div>
+                        </div>
+                        {effort.avgHeartRate && (
+                          <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 6, paddingTop: 4, borderTop: "1px dashed var(--color-border)" }}>
+                            <Heart size={10} style={{ color: "var(--color-danger)" }} />
+                            <span>{effort.avgHeartRate} lpm</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted italic">
+                    No se han registrado tramos continuos suficientes para calcular mejores parciales.
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Desglose de Ritmo por Pendiente (Relieve) */}
+              {pacingAnalysis?.slopeAnalysis && (
+                <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                  <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                    <Mountain size={16} style={{ color: "var(--color-text)" }} />
+                    Gestión del Ritmo según el Relieve del Terreno
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {/* Subida */}
+                    <div
+                      style={{
+                        padding: "var(--space-3)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(239, 68, 68, 0.05)",
+                        border: "1px solid rgba(239, 68, 68, 0.2)",
+                      }}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: "var(--color-danger)" }}>
+                        <ArrowUpRight size={14} />
+                        <span>En Subida (&gt; +2%)</span>
+                      </div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 6 }}>
+                        {pacingAnalysis.slopeAnalysis.uphillPaceFormatted}
+                      </div>
+                      <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                        {pacingAnalysis.slopeAnalysis.uphillDistanceKm} km · {Math.round(pacingAnalysis.slopeAnalysis.uphillTimeSec / 60)} min
+                      </div>
+                    </div>
+
+                    {/* Llano */}
+                    <div
+                      style={{
+                        padding: "var(--space-3)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(59, 130, 246, 0.05)",
+                        border: "1px solid rgba(59, 130, 246, 0.2)",
+                      }}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: "var(--color-brand)" }}>
+                        <ArrowRight size={14} />
+                        <span>En Llano (-2% a +2%)</span>
+                      </div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 6 }}>
+                        {pacingAnalysis.slopeAnalysis.flatPaceFormatted}
+                      </div>
+                      <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                        {pacingAnalysis.slopeAnalysis.flatDistanceKm} km · {Math.round(pacingAnalysis.slopeAnalysis.flatTimeSec / 60)} min
+                      </div>
+                    </div>
+
+                    {/* Bajada */}
+                    <div
+                      style={{
+                        padding: "var(--space-3)",
+                        borderRadius: "var(--radius-md)",
+                        backgroundColor: "rgba(16, 185, 129, 0.05)",
+                        border: "1px solid rgba(16, 185, 129, 0.2)",
+                      }}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: "var(--color-success)" }}>
+                        <ArrowDownRight size={14} />
+                        <span>En Bajada (&lt; -2%)</span>
+                      </div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 6 }}>
+                        {pacingAnalysis.slopeAnalysis.downhillPaceFormatted}
+                      </div>
+                      <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                        {pacingAnalysis.slopeAnalysis.downhillDistanceKm} km · {Math.round(pacingAnalysis.slopeAnalysis.downhillTimeSec / 60)} min
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Dinámica de Carrera & Biomecánica */}
+              <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                  <Footprints size={16} style={{ color: "var(--color-brand)" }} />
+                  Biomecánica & Eficiencia Locomotriz
+                </div>
+
+                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
+                  {(pacingAnalysis?.avgStrideLengthM || deep?.avgStrideLengthM) && (
+                    <div style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-xs text-muted font-medium">Longitud Media Zancada</div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 4 }}>
+                        {(pacingAnalysis?.avgStrideLengthM ?? deep?.avgStrideLengthM)?.toFixed(2)} m
+                      </div>
+                      <div className="text-xs text-faint">
+                        {pacingAnalysis?.maxStrideLengthM ? `Máx: ${pacingAnalysis.maxStrideLengthM.toFixed(2)} m` : "Paso medio"}
+                      </div>
+                    </div>
+                  )}
+
+                  {fit?.avgCadence && (
+                    <div style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-xs text-muted font-medium">Cadencia Media</div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 4 }}>
+                        {fit.avgCadence} {isCycling ? "rpm" : "ppm"}
+                      </div>
+                      <div className="text-xs text-faint">
+                        {isCycling ? "Frecuencia de biela" : fit.avgCadence >= 170 ? "Cadencia eficiente" : "Cadencia baja"}
+                      </div>
+                    </div>
+                  )}
+
+                  {deep?.pacingStabilityScore != null && (
+                    <div style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-xs text-muted font-medium">Regularidad de Ritmo</div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-brand)", marginTop: 4 }}>
+                        {deep.pacingStabilityScore} / 100
+                      </div>
+                      <div className="text-xs text-faint">Homogeneidad de paso</div>
+                    </div>
+                  )}
+
+                  {deep?.aerobicDecouplingPct != null && (
+                    <div style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-xs text-muted font-medium">Deriva Cardiovascular</div>
+                      <div className="text-xl font-bold" style={{ color: Math.abs(deep.aerobicDecouplingPct) < 5 ? "var(--color-success)" : "var(--color-warning)", marginTop: 4 }}>
+                        {deep.aerobicDecouplingPct > 0 ? "+" : ""}{deep.aerobicDecouplingPct}%
+                      </div>
+                      <div className="text-xs text-faint">Desacoplamiento FC/Ritmo</div>
+                    </div>
+                  )}
+
+                  {(pacingAnalysis?.minAltitudeM != null || fit?.elevationGainM != null) && (
+                    <div style={{ padding: "var(--space-3)", borderRadius: "var(--radius-md)", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-xs text-muted font-medium">Rango Altimétrico</div>
+                      <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 4 }}>
+                        +{fit?.elevationGainM ?? pacingAnalysis?.elevationGainM ?? 0}m
+                      </div>
+                      <div className="text-xs text-faint">
+                        {pacingAnalysis?.minAltitudeM != null ? `${pacingAnalysis.minAltitudeM}m - ${pacingAnalysis.maxAltitudeM}m alt.` : "Desnivel"}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -1380,16 +1812,39 @@ function DetalleContent() {
                 <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
                   <div className="font-semibold text-sm flex items-center gap-2">
                     <BarChart3 size={16} style={{ color: "var(--color-brand)" }} />
-                    Gráficos Interactivos de la Sesión
+                    <span>Gráficos & Curvas Continuas</span>
+                    {timeSeries.length > 0 && (
+                      <span className="badge badge-success" style={{ fontSize: "0.65rem" }}>
+                        Telemetría {timeSeries.length} pts
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     <button
                       className={`btn ${activeChart === "pace_hr" ? "btn-primary" : "btn-secondary"} text-xs`}
                       style={{ padding: "0.25rem 0.6rem" }}
                       onClick={() => setActiveChart("pace_hr")}
                     >
-                      {isCycling ? "Velocidad & Pulso" : "Ritmo & Pulso"}
+                      {isCycling ? "Velocidad & FC" : "Ritmo & FC"}
                     </button>
+                    {continuousChartData.some((pt: any) => pt.Altitud != null && pt.Altitud > 0) && (
+                      <button
+                        className={`btn ${activeChart === "elevation_pace" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.6rem" }}
+                        onClick={() => setActiveChart("elevation_pace")}
+                      >
+                        ⛰️ Perfil Altimetría & Ritmo
+                      </button>
+                    )}
+                    {continuousChartData.some((pt: any) => pt.Cadencia != null) && (
+                      <button
+                        className={`btn ${activeChart === "cadence_stride" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.6rem" }}
+                        onClick={() => setActiveChart("cadence_stride")}
+                      >
+                        {isRunning ? "Cadencia & Zancada" : "Cadencia"}
+                      </button>
+                    )}
                     {(zoneDist || hrZoneDist) && (
                       <button
                         className={`btn ${activeChart === "zones" ? "btn-primary" : "btn-secondary"} text-xs`}
@@ -1399,48 +1854,151 @@ function DetalleContent() {
                         {zoneDist && isRunning ? "Zonas VAM" : "Zonas FC"}
                       </button>
                     )}
-                    {laps.some((l: any) => l.avgCadence) && (
-                      <button
-                        className={`btn ${activeChart === "cadence" ? "btn-primary" : "btn-secondary"} text-xs`}
-                        style={{ padding: "0.25rem 0.6rem" }}
-                        onClick={() => setActiveChart("cadence")}
-                      >
-                        {isCycling ? "Cadencia (rpm)" : "Cadencia (ppm)"}
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {/* Gráfico 1: Ritmo / Velocidad vs Pulso */}
+                {/* Gráfico 1: Ritmo / Velocidad Continuo vs Pulso */}
                 {activeChart === "pace_hr" && (
                   <div>
                     <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
                       {isCycling
-                        ? "Eje izquierdo: Velocidad (km/h) • Eje derecho: Pulso cardíaco (lpm)."
-                        : "Eje izquierdo: Ritmo (min/km, invertido para que arriba sea más rápido) • Eje derecho: Pulso cardíaco (lpm)."}
+                        ? "Curva continua • Eje izquierdo: Velocidad (km/h) • Eje derecho: Pulso cardíaco (lpm)."
+                        : "Curva continua • Eje izquierdo: Ritmo (min/km, invertido para que más arriba sea más rápido) • Eje derecho: Pulso cardíaco (lpm)."}
                     </div>
-                    <div style={{ width: "100%", height: 260 }}>
+                    <div style={{ width: "100%", height: 280 }}>
                       <ResponsiveContainer>
-                        <LineChart data={laps.map((l: any) => ({
-                          vuelta: `#${l.index}`,
-                          [isCycling ? "Velocidad" : "Ritmo"]: isCycling ? l.avgSpeedKmh : l.avgPaceMinKm,
-                          FC: l.avgHeartRate
-                        }))}>
+                        <LineChart data={continuousChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                           <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
-                          <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
-                          <YAxis yAxisId="left" stroke="#2f6feb" fontSize={11} reversed={!isCycling} />
-                          <YAxis yAxisId="right" orientation="right" stroke="#ef4444" fontSize={11} domain={["dataMin - 10", "dataMax + 10"]} />
-                          <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
+                          <XAxis dataKey="label" stroke="#9aa3b2" fontSize={11} minTickGap={25} />
+                          <YAxis
+                            yAxisId="left"
+                            stroke="#2f6feb"
+                            fontSize={11}
+                            reversed={!isCycling}
+                            domain={!isCycling ? ["dataMin - 0.2", "dataMax + 0.2"] : [0, "auto"]}
+                            tickFormatter={(v) => (!isCycling && typeof v === "number" ? `${Math.floor(v)}:${Math.round((v % 1) * 60).toString().padStart(2, "0")}` : `${v}`)}
+                          />
+                          <YAxis yAxisId="right" orientation="right" stroke="#ef4444" fontSize={11} domain={["dataMin - 5", "dataMax + 5"]} />
+                          <Tooltip
+                            contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }}
+                            formatter={(value: any, name: any) => {
+                              if (name === "Ritmo" && typeof value === "number") {
+                                const m = Math.floor(value);
+                                const s = Math.round((value - m) * 60);
+                                return [`${m}:${s.toString().padStart(2, "0")} min/km`, name];
+                              }
+                              if (name === "FC") return [`${value} lpm`, name];
+                              if (name === "Velocidad") return [`${value} km/h`, name];
+                              return [value, name];
+                            }}
+                          />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line yAxisId="left" type="monotone" dataKey={isCycling ? "Velocidad" : "Ritmo"} stroke="#2f6feb" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
-                          <Line yAxisId="right" type="monotone" dataKey="FC" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey={isCycling ? "Velocidad" : "Ritmo"}
+                            stroke="#2f6feb"
+                            strokeWidth={2}
+                            dot={timeSeries.length > 50 ? false : { r: 3 }}
+                            connectNulls
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="FC"
+                            stroke="#ef4444"
+                            strokeWidth={2}
+                            dot={timeSeries.length > 50 ? false : { r: 3 }}
+                            connectNulls
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
                 )}
 
-                {/* Gráfico 2: Zonas (VAM o FC) */}
+                {/* Gráfico 2: Perfil Altimétrico & Ritmo */}
+                {activeChart === "elevation_pace" && (
+                  <div>
+                    <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                      Perfil topográfico continuo (m de altitud) combinado con ritmo de carrera.
+                    </div>
+                    <div style={{ width: "100%", height: 280 }}>
+                      <ResponsiveContainer>
+                        <AreaChart data={continuousChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="altitudeGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
+                          <XAxis dataKey="label" stroke="#9aa3b2" fontSize={11} minTickGap={25} />
+                          <YAxis yAxisId="alt" stroke="#10b981" fontSize={11} unit="m" domain={["dataMin - 10", "dataMax + 10"]} />
+                          <YAxis
+                            yAxisId="pace"
+                            orientation="right"
+                            stroke="#38bdf8"
+                            fontSize={11}
+                            reversed={!isCycling}
+                            tickFormatter={(v) => (!isCycling && typeof v === "number" ? `${Math.floor(v)}:${Math.round((v % 1) * 60).toString().padStart(2, "0")}` : `${v}`)}
+                          />
+                          <Tooltip
+                            contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }}
+                            formatter={(value: any, name: any) => {
+                              if (name === "Altitud") return [`${value} m`, name];
+                              if (name === "Ritmo" && typeof value === "number") {
+                                const m = Math.floor(value);
+                                const s = Math.round((value - m) * 60);
+                                return [`${m}:${s.toString().padStart(2, "0")} min/km`, name];
+                              }
+                              return [value, name];
+                            }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Area yAxisId="alt" type="monotone" dataKey="Altitud" stroke="#10b981" fillOpacity={1} fill="url(#altitudeGradient)" strokeWidth={2} />
+                          <Line yAxisId="pace" type="monotone" dataKey={isCycling ? "Velocidad" : "Ritmo"} stroke="#38bdf8" strokeWidth={1.8} dot={false} connectNulls />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gráfico 3: Cadencia & Zancada */}
+                {activeChart === "cadence_stride" && (
+                  <div>
+                    <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                      Evolución continua de cadencia ({isCycling ? "rpm" : "ppm"}) y longitud de zancada (metros).
+                    </div>
+                    <div style={{ width: "100%", height: 280 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={continuousChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
+                          <XAxis dataKey="label" stroke="#9aa3b2" fontSize={11} minTickGap={25} />
+                          <YAxis yAxisId="cad" stroke="#10b981" fontSize={11} domain={isCycling ? [50, 120] : [140, 205]} unit={isCycling ? " rpm" : " ppm"} />
+                          {continuousChartData.some((p: any) => p.Zancada != null) && (
+                            <YAxis yAxisId="stride" orientation="right" stroke="#f59e0b" fontSize={11} domain={[0.6, 2.2]} unit=" m" />
+                          )}
+                          <Tooltip
+                            contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }}
+                            formatter={(value: any, name: any) => {
+                              if (name === "Cadencia") return [`${value} ${isCycling ? "rpm" : "ppm"}`, name];
+                              if (name === "Zancada") return [`${value} m`, name];
+                              return [value, name];
+                            }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Line yAxisId="cad" type="monotone" dataKey="Cadencia" stroke="#10b981" strokeWidth={2} dot={timeSeries.length > 50 ? false : { r: 3 }} connectNulls />
+                          {continuousChartData.some((p: any) => p.Zancada != null) && (
+                            <Line yAxisId="stride" type="monotone" dataKey="Zancada" stroke="#f59e0b" strokeWidth={2} dot={timeSeries.length > 50 ? false : { r: 3 }} connectNulls />
+                          )}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gráfico 4: Zonas (VAM o FC) */}
                 {activeChart === "zones" && (zoneDist || hrZoneDist) && (
                   <div>
                     <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
@@ -1486,27 +2044,6 @@ function DetalleContent() {
                             ))}
                           </Bar>
                         </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-
-                {/* Gráfico 3: Cadencia */}
-                {activeChart === "cadence" && (
-                  <div>
-                    <div className="text-xs text-muted" style={{ marginBottom: "var(--space-2)" }}>
-                      Evolución de la cadencia ({isCycling ? "rpm" : "ppm"}) a lo largo de las vueltas.
-                    </div>
-                    <div style={{ width: "100%", height: 260 }}>
-                      <ResponsiveContainer>
-                        <LineChart data={laps.map((l: any) => ({ vuelta: `#${l.index}`, Cadencia: l.avgCadence }))}>
-                          <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
-                          <XAxis dataKey="vuelta" stroke="#9aa3b2" fontSize={11} />
-                          <YAxis stroke="#9aa3b2" fontSize={11} domain={isCycling ? [50, 120] : [140, 200]} unit={isCycling ? " rpm" : " ppm"} />
-                          <Tooltip contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }} />
-                          <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line type="monotone" dataKey="Cadencia" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
-                        </LineChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
