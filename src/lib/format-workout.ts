@@ -11,12 +11,12 @@ export interface WorkoutCopyData {
 }
 
 const DISCIPLINE_EMOJI: Record<string, string> = {
-  carrera: "🏃 Carrera",
-  gimnasio: "🏋️ Gimnasio",
-  natacion: "🏊 Natación",
-  crossfit: "🔥 CrossFit",
-  otro: "⚡ Otro",
-  descanso: "🛌 Descanso",
+  carrera: "Carrera",
+  gimnasio: "Gimnasio",
+  natacion: "Natación",
+  crossfit: "CrossFit",
+  otro: "Otro",
+  descanso: "Descanso",
 };
 
 const STATUS_TEXT: Record<string, string> = {

@@ -345,7 +345,7 @@ export default function ConfiguracionPage() {
               borderLeft: "3px solid var(--color-brand)",
             }}
           >
-            🛡️ <strong>Privacidad</strong>: Las claves se almacenan exclusivamente en la base de datos de tu servidor y nunca
+            <ShieldCheck size={14} className="inline mr-1 text-brand" /> <strong>Privacidad</strong>: Las claves se almacenan exclusivamente en la base de datos de tu servidor y nunca
             se comparten con terceros. Sin ninguna clave, el <strong>Motor Fisiológico Experto</strong> sigue activo respondiendo
             con tus métricas de RPE, sueño y carga.
           </div>

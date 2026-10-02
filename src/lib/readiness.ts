@@ -104,7 +104,7 @@ function getSportSpecificReadinessAdvice(
 
   if (overallScore >= 82) {
     const verdictType: VerdictType = "push";
-    const verdictBadgeLabel = "🟢 PUEDES APRETAR MÁS";
+    const verdictBadgeLabel = "PUEDES APRETAR MÁS";
     const verdictTitle = "Luz Verde Total · Máxima Capacidad";
     const verdictDesc = "Recuperación plena y sistema nervioso fresco. Tienes luz verde para dar el 100% en tu sesión programada.";
     const activeRecPace = "Zona alta / Ritmo rápido / Cargas al 100%";
@@ -150,7 +150,7 @@ function getSportSpecificReadinessAdvice(
     return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
   } else if (overallScore >= 66) {
     const verdictType: VerdictType = "maintain";
-    const verdictBadgeLabel = "🟡 MANTÉN EL RITMO";
+    const verdictBadgeLabel = "MANTÉN EL RITMO";
     const verdictTitle = "Buen Tono · Ritmo Crucero";
     const verdictDesc = "Nivel de energía y recuperación equilibrado. Cumple el entrenamiento programado según lo planeado.";
     const activeRecPace = "Ritmo planificado / RPE 6-7";
@@ -196,7 +196,7 @@ function getSportSpecificReadinessAdvice(
     return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
   } else if (overallScore >= 48) {
     const verdictType: VerdictType = "reduce";
-    const verdictBadgeLabel = "🟠 BAJA LA INTENSIDAD";
+    const verdictBadgeLabel = "BAJA LA INTENSIDAD";
     const verdictTitle = "Precaución · Modula la Carga";
     const verdictDesc = "Existe fatiga muscular residual o descanso incompleto. Conviene adaptar la sesión para no sobrecargar el organismo.";
     const activeRecPace = "Ritmo regenerativo / RPE 4-5";
@@ -242,7 +242,7 @@ function getSportSpecificReadinessAdvice(
     return { verdictType, verdictBadgeLabel, verdictTitle, verdictDesc, actionGuidance, coachAdvice, activeRecPace };
   } else {
     const verdictType: VerdictType = "rest";
-    const verdictBadgeLabel = "🔴 PRIORIZA DESCANSO";
+    const verdictBadgeLabel = "PRIORIZA DESCANSO";
     const verdictTitle = "Descanso / Descarga Necesaria";
     const verdictDesc = "Déficit agudo de sueño o saturación de carga. El entrenamiento duro hoy sería contraproducente para el rendimiento.";
     const activeRecPace = "Descanso total o movilidad suave";

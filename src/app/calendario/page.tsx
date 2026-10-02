@@ -199,7 +199,7 @@ export default function CalendarioPage() {
     const d = new Date(selectedDate + "T00:00:00Z");
     const dayName = DAY_NAMES_FULL[isoDayOfWeek(selectedDate) - 1];
     const lines: string[] = [`${dayName} ${selectedDate}`];
-    if (selectedIsRace) lines.push("🏁 Día del maratón");
+    if (selectedIsRace) lines.push("Día del maratón");
     if (selectedGoals.length) {
       lines.push("");
       lines.push("Objetivos:");
@@ -345,7 +345,12 @@ export default function CalendarioPage() {
           }
         >
           <div className="grid gap-4">
-            {selectedIsRace && <div className="badge badge-danger">🏁 Día del maratón</div>}
+            {selectedIsRace && (
+              <div className="badge badge-danger flex items-center gap-1">
+                <Flag size={12} />
+                <span>Día del maratón</span>
+              </div>
+            )}
 
             {selectedGoals.length > 0 && (
               <div>

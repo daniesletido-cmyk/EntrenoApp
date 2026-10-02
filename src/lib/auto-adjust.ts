@@ -19,7 +19,7 @@ import { addDays, weekStartOf } from "@/lib/dates";
  * 2) Si se registra un entreno muy intenso (RPE >= 8 / CrossFit / Piernas) o descanso deficiente,
  *    se modulan las sesiones inmediatas (48-72h) de carrera a R0/R1 regenerativo (>5:23 min/km)
  *    o descanso activo para evitar sobreentrenamiento.
- * 3) Si el readiness es óptimo (🟢 Luz Verde), se recomienda apretar en la parte alta de las zonas VAM.
+ * 3) Si el readiness es óptimo (Luz Verde), se recomienda apretar en la parte alta de las zonas VAM.
  * 4) Cada ajuste queda explícitamente anotado con [Ajuste inteligente] para total trazabilidad.
  * 5) Se preservan siempre las sesiones históricas ya realizadas.
  */

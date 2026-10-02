@@ -504,9 +504,9 @@ export default function HoyPage() {
                     <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
                       Pauta CrossFit:
                     </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🔥 WOD + Skill</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>⚡ Intensidad: RPE 8.5–9</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🎯 Control Postural & Ritmo</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>WOD + Skill</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Intensidad: RPE 8.5–9</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Control Postural & Ritmo</span>
                   </div>
                 );
               }
@@ -519,9 +519,9 @@ export default function HoyPage() {
                     <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
                       Pauta Fuerza:
                     </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🏋️ Básicos & Accesorios</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>💪 Cargas al 100% Objetivo</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🎯 RIR 1–2 (Sin fallo)</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Básicos & Accesorios</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Cargas al 100% Objetivo</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>RIR 1–2 (Sin fallo)</span>
                   </div>
                 );
               }
@@ -534,8 +534,8 @@ export default function HoyPage() {
                     <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
                       Pauta Natación:
                     </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🏊‍♂️ Eficiencia & Deslizamiento</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🌊 SWOLF Eficiente</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Eficiencia & Deslizamiento</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>SWOLF Eficiente</span>
                   </div>
                 );
               }
@@ -548,8 +548,8 @@ export default function HoyPage() {
                     <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
                       Pauta Ciclismo:
                     </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🚴‍♂️ Cadencia Ágil: 85–95 rpm</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>⚡ Zona Z2 / Z3</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Cadencia Ágil: 85–95 rpm</span>
+                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Zona Z2 / Z3</span>
                   </div>
                 );
               }
@@ -561,8 +561,8 @@ export default function HoyPage() {
                   <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
                     Pauta del Día:
                   </span>
-                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>🌙 Supercompensación & Descanso</span>
-                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>💧 Hidratación & Nutrición</span>
+                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Supercompensación & Descanso</span>
+                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Hidratación & Nutrición</span>
                 </div>
               );
             })()}
@@ -623,8 +623,9 @@ export default function HoyPage() {
                           {adj.discipline}
                         </span>
                         {adj.isApplied ? (
-                          <span className="badge badge-success" style={{ fontSize: "0.7rem" }}>
-                            ✓ Adaptado
+                          <span className="badge badge-success flex items-center gap-1" style={{ fontSize: "0.7rem" }}>
+                            <Check size={11} />
+                            <span>Adaptado</span>
                           </span>
                         ) : (
                           <span className="badge badge-warning" style={{ fontSize: "0.7rem" }}>
@@ -713,9 +714,15 @@ export default function HoyPage() {
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-xs uppercase text-muted">
-                        {f.id === "sleep" ? "💤 " : f.id === "acute_fatigue" ? "⚡ " : "📈 "}
-                        {f.title}
+                      <span className="font-semibold text-xs uppercase text-muted flex items-center gap-1.5">
+                        {f.id === "sleep" ? (
+                          <Moon size={12} className="text-brand" />
+                        ) : f.id === "acute_fatigue" ? (
+                          <Zap size={12} className="text-warning" />
+                        ) : (
+                          <TrendingUp size={12} className="text-accent" />
+                        )}
+                        <span>{f.title}</span>
                       </span>
                       <span
                         className={`badge ${

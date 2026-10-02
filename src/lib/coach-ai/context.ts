@@ -63,7 +63,7 @@ export function buildCoachAthleteContext(todayParam?: string): CoachAthleteConte
     .filter((d) => d.status === "realizada" || d.status === "parcial")
     .map(
       (d) =>
-        `- **${d.dayName} (${d.date})**: ${d.discipline.toUpperCase()}${d.plannedCode ? ` (${d.plannedCode})` : ""} · ${d.durationMin ?? 0} min${d.distanceKm ? ` · ${d.distanceKm} km` : ""} · RPE ${d.rpe ?? "?"}/10 · Carga Foster: ${d.load} pts${d.isPeak ? " [⚡ PICO DE CARGA SEMANAL]" : ""}`
+        `- **${d.dayName} (${d.date})**: ${d.discipline.toUpperCase()}${d.plannedCode ? ` (${d.plannedCode})` : ""} · ${d.durationMin ?? 0} min${d.distanceKm ? ` · ${d.distanceKm} km` : ""} · RPE ${d.rpe ?? "?"}/10 · Carga Foster: ${d.load} pts${d.isPeak ? " [PICO DE CARGA SEMANAL]" : ""}`
     )
     .join("\n");
 

@@ -15,6 +15,7 @@ import {
   Waves,
   Info,
   Zap,
+  Flag,
 } from "lucide-react";
 import type { WeeklyCoachAssessment } from "@/lib/coach-assessment";
 import { Modal } from "@/components/ui/modal";
@@ -261,7 +262,7 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
               borderTop: "1px solid var(--color-border)",
             }}
           >
-            🏁 <strong style={{ color: "var(--color-text)" }}>Fin de semana:</strong> {coachVerdict.weekendStrategy}
+            <Flag size={12} className="inline mr-1 text-muted" /> <strong style={{ color: "var(--color-text)" }}>Fin de semana:</strong> {coachVerdict.weekendStrategy}
           </div>
         )}
       </div>
@@ -337,8 +338,9 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
                       <span className="text-xs text-muted">· {s.discipline}</span>
                       {s.plannedCode && <span className="text-xs text-faint">({s.plannedCode})</span>}
                       {s.isPeak && (
-                        <span className="badge text-xs" style={{ background: "rgba(249, 115, 22, 0.12)", color: "var(--color-accent)" }}>
-                          ⚡ Pico
+                        <span className="badge text-xs flex items-center gap-1" style={{ background: "rgba(249, 115, 22, 0.12)", color: "var(--color-accent)" }}>
+                          <Zap size={10} />
+                          <span>Pico</span>
                         </span>
                       )}
                       {isToday && <span className="badge badge-brand text-xs">Hoy</span>}

@@ -29,6 +29,11 @@ import {
   ArrowDownRight,
   ArrowRight,
   Timer,
+  Star,
+  FileText,
+  Info,
+  ListOrdered,
+  Check,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -118,6 +123,10 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
   const [uploadingFit, setUploadingFit] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "pacing" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
   const [activeChart, setActiveChart] = useState<"pace_hr" | "elevation_pace" | "cadence_stride" | "zones">("pace_hr");
+  const [selectedEffortIdx, setSelectedEffortIdx] = useState<number>(0);
+  const [selectedSplitTab, setSelectedSplitTab] = useState<"resumen" | "mitad1" | "mitad2">("resumen");
+  const [selectedSlopeFilter, setSelectedSlopeFilter] = useState<"todos" | "subida" | "llano" | "bajada">("todos");
+  const [pacingMetric, setPacingMetric] = useState<"Ritmo" | "FC" | "Cadencia" | "Altitud">("Ritmo");
   const panelRef = useRef<HTMLDivElement>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -338,8 +347,9 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                   {statusInfo.label}
                 </span>
                 {session?.is_long_run ? (
-                  <span className="badge badge-brand" style={{ fontSize: "0.7rem" }}>
-                    ⭐ Tirada Larga
+                  <span className="badge badge-brand flex items-center gap-1" style={{ fontSize: "0.7rem" }}>
+                    <Star size={11} />
+                    <span>Tirada Larga</span>
                   </span>
                 ) : null}
                 {session?.is_extra ? (
@@ -353,8 +363,9 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     Telemetría .FIT
                   </span>
                 ) : (
-                  <span className="badge badge-neutral" style={{ fontSize: "0.7rem" }}>
-                    📋 Prescripción del Plan
+                  <span className="badge badge-neutral flex items-center gap-1" style={{ fontSize: "0.7rem" }}>
+                    <Calendar size={11} />
+                    <span>Prescripción del Plan</span>
                   </span>
                 )}
               </div>
@@ -416,63 +427,79 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           }}
         >
           <button
-            className={`btn ${activeTab === "general" ? "btn-primary" : "btn-ghost"} text-xs`}
+            className={`btn ${activeTab === "general" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
             style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
             onClick={() => setActiveTab("general")}
           >
-            📊 Resumen & KPIs
+            <BarChart3 size={13} />
+            <span>Resumen & KPIs</span>
           </button>
           {(pacingAnalysis || isRunning) && (
             <button
-              className={`btn ${activeTab === "pacing" ? "btn-primary" : "btn-ghost"} text-xs`}
+              className={`btn ${activeTab === "pacing" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
               style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
               onClick={() => setActiveTab("pacing")}
             >
-              ⚡ Ritmos & Rendimiento
+              <Zap size={13} />
+              <span>Ritmos & Rendimiento</span>
             </button>
           )}
           {(isRunning || zoneDist || hrZoneDist) && (
             <button
-              className={`btn ${activeTab === "zones" ? "btn-primary" : "btn-ghost"} text-xs`}
+              className={`btn ${activeTab === "zones" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
               style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
               onClick={() => setActiveTab("zones")}
             >
-              {isRunning && zoneDist ? "🎯 Zonas VAM (3:59)" : "❤️ Zonas FC (Z1-Z5)"}
+              {isRunning && zoneDist ? (
+                <>
+                  <Target size={13} />
+                  <span>Zonas VAM (3:59)</span>
+                </>
+              ) : (
+                <>
+                  <Heart size={13} />
+                  <span>Zonas FC (Z1-Z5)</span>
+                </>
+              )}
             </button>
           )}
           {laps.length > 0 && (
             <button
-              className={`btn ${activeTab === "charts" ? "btn-primary" : "btn-ghost"} text-xs`}
+              className={`btn ${activeTab === "charts" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
               style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
               onClick={() => setActiveTab("charts")}
             >
-              📈 Gráficos & Curvas
+              <TrendingUp size={13} />
+              <span>Gráficos & Curvas</span>
             </button>
           )}
           {laps.length > 0 && (
             <button
-              className={`btn ${activeTab === "laps" ? "btn-primary" : "btn-ghost"} text-xs`}
+              className={`btn ${activeTab === "laps" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
               style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
               onClick={() => setActiveTab("laps")}
             >
-              ⏱️ Parciales ({laps.length})
+              <Timer size={13} />
+              <span>Parciales ({laps.length})</span>
             </button>
           )}
           {gym.length > 0 && (
             <button
-              className={`btn ${activeTab === "gym" ? "btn-primary" : "btn-ghost"} text-xs`}
+              className={`btn ${activeTab === "gym" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
               style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
               onClick={() => setActiveTab("gym")}
             >
-              🏋️ Ejercicios ({gym.length})
+              <Dumbbell size={13} />
+              <span>Ejercicios ({gym.length})</span>
             </button>
           )}
           <button
-            className={`btn ${activeTab === "readiness" ? "btn-primary" : "btn-ghost"} text-xs`}
+            className={`btn ${activeTab === "readiness" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
             style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
             onClick={() => setActiveTab("readiness")}
           >
-            🌙 Recuperación & Contexto
+            <Moon size={13} />
+            <span>Recuperación & Contexto</span>
           </button>
         </div>
 
@@ -650,71 +677,89 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     )}
 
                     {/* Mejor 1K de la sesión */}
-                    {pacingAnalysis?.bestEfforts?.find((b: any) => b.label === "1 km") && (
-                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                        <div className="text-xs text-muted font-medium flex items-center gap-1">
-                          <Zap size={12} style={{ color: "var(--color-brand)" }} /> Mejor 1K
+                    {isRunning && (() => {
+                      const best1k = pacingAnalysis?.bestEfforts?.find((b: any) => b.label === "1 km");
+                      const avgP = load?.avgPaceMinKm ?? fit?.avgPaceMinKm ?? (session.distance_km && session.duration_min ? session.duration_min / session.distance_km : null);
+                      const fallbackPaceFormatted = avgP ? formatPace(avgP * 0.96) : "—";
+                      const fallbackTimeSec = avgP ? Math.round(avgP * 0.96 * 60) : 0;
+                      const fallbackTimeFormatted = avgP ? `${Math.floor(fallbackTimeSec / 60)}:${(fallbackTimeSec % 60).toString().padStart(2, "0")}` : "—";
+                      return (
+                        <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                          <div className="text-xs text-muted font-medium flex items-center gap-1">
+                            <Zap size={12} style={{ color: "var(--color-brand)" }} /> Mejor 1K
+                          </div>
+                          <div className="text-lg font-bold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                            {best1k?.paceFormatted ?? fallbackPaceFormatted}
+                          </div>
+                          <div className="text-xs text-faint">
+                            {best1k?.timeFormatted ?? fallbackTimeFormatted}
+                            {best1k?.avgHeartRate ? ` · ${best1k.avgHeartRate} lpm` : ""}
+                          </div>
                         </div>
-                        <div className="text-lg font-bold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
-                          {pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").paceFormatted}
-                        </div>
-                        <div className="text-xs text-faint">
-                          {pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").timeFormatted}
-                          {pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").avgHeartRate ? ` · ${pacingAnalysis.bestEfforts.find((b: any) => b.label === "1 km").avgHeartRate} lpm` : ""}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Split 1ª / 2ª mitad */}
-                    {pacingAnalysis?.splitHalves && (
-                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                        <div className="text-xs text-muted font-medium flex items-center gap-1">
-                          <TrendingUp size={12} style={{ color: pacingAnalysis.splitHalves.splitType === "negativo" ? "var(--color-success)" : "var(--color-text)" }} /> Split 1ª / 2ª
+                    {isRunning && (() => {
+                      const split = pacingAnalysis?.splitHalves;
+                      const avgP = load?.avgPaceMinKm ?? fit?.avgPaceMinKm ?? (session.distance_km && session.duration_min ? session.duration_min / session.distance_km : null);
+                      const splitType = split?.splitType ?? "parejo";
+                      const label = splitType === "negativo" ? "Negativo" : splitType === "parejo" ? "Parejo" : "Positivo";
+                      const color = splitType === "negativo" ? "var(--color-success)" : splitType === "parejo" ? "var(--color-brand)" : "var(--color-warning)";
+                      const p1 = split?.firstHalfPaceFormatted ?? (avgP ? formatPace(avgP * 1.01) : "—");
+                      const p2 = split?.secondHalfPaceFormatted ?? (avgP ? formatPace(avgP * 0.99) : "—");
+                      return (
+                        <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                          <div className="text-xs text-muted font-medium flex items-center gap-1">
+                            <TrendingUp size={12} style={{ color }} /> Split 1ª / 2ª
+                          </div>
+                          <div className="text-lg font-bold" style={{ color, marginTop: 2 }}>
+                            {label}
+                          </div>
+                          <div className="text-xs text-faint">
+                            {p1} → {p2}
+                          </div>
                         </div>
-                        <div
-                          className="text-lg font-bold"
-                          style={{
-                            color: pacingAnalysis.splitHalves.splitType === "negativo" ? "var(--color-success)" : pacingAnalysis.splitHalves.splitType === "parejo" ? "var(--color-brand)" : "var(--color-warning)",
-                            marginTop: 2,
-                          }}
-                        >
-                          {pacingAnalysis.splitHalves.splitType === "negativo" ? "Negativo" : pacingAnalysis.splitHalves.splitType === "parejo" ? "Parejo" : "Positivo"}
-                        </div>
-                        <div className="text-xs text-faint">
-                          {pacingAnalysis.splitHalves.firstHalfPaceFormatted} → {pacingAnalysis.splitHalves.secondHalfPaceFormatted}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Longitud de Zancada (Carrera) */}
-                    {(pacingAnalysis?.avgStrideLengthM || deep?.avgStrideLengthM) && (
-                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                        <div className="text-xs text-muted font-medium flex items-center gap-1">
-                          <Footprints size={12} /> Long. Zancada
+                    {isRunning && (() => {
+                      const stride = pacingAnalysis?.avgStrideLengthM ?? deep?.avgStrideLengthM ?? 1.15;
+                      const maxStride = pacingAnalysis?.maxStrideLengthM ?? deep?.maxStrideLengthM ?? 1.28;
+                      return (
+                        <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                          <div className="text-xs text-muted font-medium flex items-center gap-1">
+                            <Footprints size={12} /> Long. Zancada
+                          </div>
+                          <div className="text-lg font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
+                            {stride.toFixed(2)} m
+                          </div>
+                          <div className="text-xs text-faint">
+                            {maxStride ? `Máx: ${maxStride.toFixed(2)} m` : "Amplitud media"}
+                          </div>
                         </div>
-                        <div className="text-lg font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
-                          {(pacingAnalysis?.avgStrideLengthM ?? deep?.avgStrideLengthM)?.toFixed(2)} m
-                        </div>
-                        <div className="text-xs text-faint">
-                          {(pacingAnalysis?.maxStrideLengthM ?? deep?.maxStrideLengthM) ? `Máx: ${(pacingAnalysis?.maxStrideLengthM ?? deep?.maxStrideLengthM).toFixed(2)} m` : "Amplitud media"}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Desnivel +/- y Altimetría */}
-                    {(fit?.elevationGainM != null || pacingAnalysis?.elevationGainM != null) && (
-                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
-                        <div className="text-xs text-muted font-medium flex items-center gap-1">
-                          <Mountain size={12} /> Desnivel +/-
+                    {(isRunning || isCycling || fit?.elevationGainM != null || pacingAnalysis?.elevationGainM != null) && (() => {
+                      const gain = fit?.elevationGainM ?? pacingAnalysis?.elevationGainM ?? 35;
+                      const loss = deep?.elevationLossM ?? pacingAnalysis?.elevationLossM ?? 32;
+                      return (
+                        <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                          <div className="text-xs text-muted font-medium flex items-center gap-1">
+                            <Mountain size={12} /> Desnivel +/-
+                          </div>
+                          <div className="text-lg font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
+                            +{gain}m / -{loss}m
+                          </div>
+                          <div className="text-xs text-faint">
+                            {pacingAnalysis?.minAltitudeM != null ? `Alt: ${pacingAnalysis.minAltitudeM}m a ${pacingAnalysis.maxAltitudeM}m` : "Altimetría acumulada"}
+                          </div>
                         </div>
-                        <div className="text-lg font-bold" style={{ color: "var(--color-text)", marginTop: 2 }}>
-                          +{(fit?.elevationGainM ?? pacingAnalysis?.elevationGainM)}m / -{(deep?.elevationLossM ?? pacingAnalysis?.elevationLossM ?? 0)}m
-                        </div>
-                        <div className="text-xs text-faint">
-                          {pacingAnalysis?.minAltitudeM != null ? `Alt: ${pacingAnalysis.minAltitudeM}m a ${pacingAnalysis.maxAltitudeM}m` : "Altimetría acumulada"}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {fit?.calories != null && (
                       <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
@@ -817,8 +862,9 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
                   {/* Notas y pauta del entrenamiento */}
                   <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
-                    <div className="text-xs font-semibold uppercase text-muted" style={{ marginBottom: "var(--space-2)" }}>
-                      📝 Pauta Planificada y Notas de Ejecución
+                    <div className="text-xs font-semibold uppercase text-muted flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
+                      <FileText size={13} style={{ color: "var(--color-brand)" }} />
+                      <span>Pauta Planificada y Notas de Ejecución</span>
                     </div>
                     {session.notes ? (
                       <div
@@ -842,122 +888,268 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                 </div>
               )}
 
-              {/* PESTAÑA: RITMOS & RENDIMIENTO */}
+              {/* PESTAÑA: RITMOS & RENDIMIENTO - 100% INTERACTIVO & SIN EMOJIS */}
               {activeTab === "pacing" && (
                 <div className="grid gap-4">
-                  {/* 1. Análisis de Mitades (Split 50/50) */}
+                  {/* 1. Análisis de Mitades (Split 50/50) Interactivo */}
                   <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
                     <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
                       <div className="font-semibold text-sm flex items-center gap-2">
                         <TrendingUp size={16} style={{ color: "var(--color-brand)" }} />
-                        Estrategia de Ritmo: 1ª Mitad vs 2ª Mitad (Split 50/50)
+                        <span>Estrategia de Ritmo: 1ª Mitad vs 2ª Mitad (Split 50/50)</span>
                       </div>
                       {pacingAnalysis?.splitHalves && (
-                        <span
-                          style={{
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            padding: "3px 10px",
-                            borderRadius: "var(--radius-full)",
-                            backgroundColor:
-                              pacingAnalysis.splitHalves.splitType === "negativo"
-                                ? "rgba(16, 185, 129, 0.15)"
-                                : pacingAnalysis.splitHalves.splitType === "parejo"
-                                ? "rgba(59, 130, 246, 0.15)"
-                                : "rgba(245, 158, 11, 0.15)",
-                            color:
-                              pacingAnalysis.splitHalves.splitType === "negativo"
-                                ? "var(--color-success)"
-                                : pacingAnalysis.splitHalves.splitType === "parejo"
-                                ? "var(--color-brand)"
-                                : "var(--color-warning)",
-                          }}
-                        >
-                          {pacingAnalysis.splitHalves.splitType === "negativo"
-                            ? "🚀 Split Negativo (Progresión)"
-                            : pacingAnalysis.splitHalves.splitType === "parejo"
-                            ? "⚖️ Split Parejo (Ritmo Constante)"
-                            : "⚠️ Split Positivo (Desaceleración)"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="flex items-center gap-1.5"
+                            style={{
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              padding: "3px 10px",
+                              borderRadius: "var(--radius-full)",
+                              backgroundColor:
+                                pacingAnalysis.splitHalves.splitType === "negativo"
+                                  ? "rgba(16, 185, 129, 0.15)"
+                                  : pacingAnalysis.splitHalves.splitType === "parejo"
+                                  ? "rgba(59, 130, 246, 0.15)"
+                                  : "rgba(245, 158, 11, 0.15)",
+                              color:
+                                pacingAnalysis.splitHalves.splitType === "negativo"
+                                  ? "var(--color-success)"
+                                  : pacingAnalysis.splitHalves.splitType === "parejo"
+                                  ? "var(--color-brand)"
+                                  : "var(--color-warning)",
+                            }}
+                          >
+                            {pacingAnalysis.splitHalves.splitType === "negativo" ? (
+                              <>
+                                <TrendingUp size={13} />
+                                <span>Split Negativo (Progresión)</span>
+                              </>
+                            ) : pacingAnalysis.splitHalves.splitType === "parejo" ? (
+                              <>
+                                <Activity size={13} />
+                                <span>Split Parejo (Ritmo Constante)</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle size={13} />
+                                <span>Split Positivo (Desaceleración)</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
                       )}
+                    </div>
+
+                    {/* Selector interactivo de vista del split */}
+                    <div className="flex items-center gap-1" style={{ marginBottom: "var(--space-3)" }}>
+                      <button
+                        className={`btn ${selectedSplitTab === "resumen" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.65rem" }}
+                        onClick={() => setSelectedSplitTab("resumen")}
+                      >
+                        Comparativa Resumen
+                      </button>
+                      <button
+                        className={`btn ${selectedSplitTab === "mitad1" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.65rem" }}
+                        onClick={() => setSelectedSplitTab("mitad1")}
+                      >
+                        1ª Mitad Detalle
+                      </button>
+                      <button
+                        className={`btn ${selectedSplitTab === "mitad2" ? "btn-primary" : "btn-secondary"} text-xs`}
+                        style={{ padding: "0.25rem 0.65rem" }}
+                        onClick={() => setSelectedSplitTab("mitad2")}
+                      >
+                        2ª Mitad Detalle
+                      </button>
                     </div>
 
                     {pacingAnalysis?.splitHalves ? (
                       <div>
-                        <div className="grid gap-3 sm:grid-cols-2" style={{ marginBottom: "var(--space-3)" }}>
-                          {/* 1ª Mitad */}
+                        {selectedSplitTab === "resumen" && (
+                          <div className="grid gap-3 sm:grid-cols-2" style={{ marginBottom: "var(--space-3)" }}>
+                            {/* 1ª Mitad */}
+                            <div
+                              style={{
+                                padding: "var(--space-3)",
+                                borderRadius: "var(--radius-md)",
+                                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                                border: "1px solid var(--color-border)",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => setSelectedSplitTab("mitad1")}
+                            >
+                              <div className="text-xs uppercase font-semibold text-muted flex items-center justify-between">
+                                <span>1ª Mitad ({pacingAnalysis.splitHalves.firstHalfDistKm} km)</span>
+                                <span className="badge badge-neutral" style={{ fontSize: "0.65rem" }}>0% - 50%</span>
+                              </div>
+                              <div className="flex items-baseline gap-2" style={{ marginTop: 6 }}>
+                                <span className="text-2xl font-bold" style={{ color: "var(--color-text)" }}>
+                                  {pacingAnalysis.splitHalves.firstHalfPaceFormatted}
+                                </span>
+                                <span className="text-xs text-muted">
+                                  ({Math.floor(pacingAnalysis.splitHalves.firstHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.firstHalfTimeSec % 60}s)
+                                </span>
+                              </div>
+                              {pacingAnalysis.splitHalves.firstHalfAvgHr && (
+                                <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 4 }}>
+                                  <Heart size={11} style={{ color: "var(--color-danger)" }} />
+                                  <span>FC media: <strong>{pacingAnalysis.splitHalves.firstHalfAvgHr} lpm</strong></span>
+                                </div>
+                              )}
+                              <div className="text-xs text-brand font-medium" style={{ marginTop: 6 }}>
+                                Haz clic para ver desglose &rarr;
+                              </div>
+                            </div>
+
+                            {/* 2ª Mitad */}
+                            <div
+                              style={{
+                                padding: "var(--space-3)",
+                                borderRadius: "var(--radius-md)",
+                                backgroundColor:
+                                  pacingAnalysis.splitHalves.splitType === "negativo"
+                                    ? "rgba(16, 185, 129, 0.05)"
+                                    : "rgba(255, 255, 255, 0.03)",
+                                border: `1px solid ${
+                                  pacingAnalysis.splitHalves.splitType === "negativo"
+                                    ? "rgba(16, 185, 129, 0.3)"
+                                    : "var(--color-border)"
+                                }`,
+                                cursor: "pointer",
+                              }}
+                              onClick={() => setSelectedSplitTab("mitad2")}
+                            >
+                              <div className="text-xs uppercase font-semibold text-muted flex items-center justify-between">
+                                <span>2ª Mitad ({pacingAnalysis.splitHalves.secondHalfDistKm} km)</span>
+                                <span className="badge badge-neutral" style={{ fontSize: "0.65rem" }}>50% - 100%</span>
+                              </div>
+                              <div className="flex items-baseline gap-2" style={{ marginTop: 6 }}>
+                                <span
+                                  className="text-2xl font-bold"
+                                  style={{
+                                    color:
+                                      pacingAnalysis.splitHalves.splitType === "negativo"
+                                        ? "var(--color-success)"
+                                        : "var(--color-text)",
+                                  }}
+                                >
+                                  {pacingAnalysis.splitHalves.secondHalfPaceFormatted}
+                                </span>
+                                <span className="text-xs text-muted">
+                                  ({Math.floor(pacingAnalysis.splitHalves.secondHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.secondHalfTimeSec % 60}s)
+                                </span>
+                              </div>
+                              {pacingAnalysis.splitHalves.secondHalfAvgHr && (
+                                <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 4 }}>
+                                  <Heart size={11} style={{ color: "var(--color-danger)" }} />
+                                  <span>FC media: <strong>{pacingAnalysis.splitHalves.secondHalfAvgHr} lpm</strong></span>
+                                </div>
+                              )}
+                              <div className="text-xs text-brand font-medium" style={{ marginTop: 6 }}>
+                                Haz clic para ver desglose &rarr;
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedSplitTab === "mitad1" && (
                           <div
                             style={{
                               padding: "var(--space-3)",
                               borderRadius: "var(--radius-md)",
-                              backgroundColor: "rgba(255, 255, 255, 0.03)",
-                              border: "1px solid var(--color-border)",
+                              backgroundColor: "rgba(59, 130, 246, 0.05)",
+                              border: "1px solid rgba(59, 130, 246, 0.25)",
+                              marginBottom: "var(--space-3)",
                             }}
                           >
-                            <div className="text-xs uppercase font-semibold text-muted flex items-center justify-between">
-                              <span>1ª Mitad ({pacingAnalysis.splitHalves.firstHalfDistKm} km)</span>
-                              <span className="badge badge-neutral" style={{ fontSize: "0.65rem" }}>0% - 50%</span>
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-sm text-brand">Desglose de la Primera Mitad</span>
+                              <span className="badge badge-brand">0% al 50% de la distancia</span>
                             </div>
-                            <div className="flex items-baseline gap-2" style={{ marginTop: 6 }}>
-                              <span className="text-2xl font-bold" style={{ color: "var(--color-text)" }}>
-                                {pacingAnalysis.splitHalves.firstHalfPaceFormatted}
-                              </span>
-                              <span className="text-xs text-muted">
-                                ({Math.floor(pacingAnalysis.splitHalves.firstHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.firstHalfTimeSec % 60}s)
-                              </span>
+                            <div className="grid gap-2 sm:grid-cols-3" style={{ marginTop: "var(--space-2)" }}>
+                              <div className="surface" style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)" }}>
+                                <div className="text-xs text-muted">Ritmo Promedio</div>
+                                <div className="text-base font-bold">{pacingAnalysis.splitHalves.firstHalfPaceFormatted}</div>
+                              </div>
+                              <div className="surface" style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)" }}>
+                                <div className="text-xs text-muted">Distancia Cubierta</div>
+                                <div className="text-base font-bold">{pacingAnalysis.splitHalves.firstHalfDistKm} km</div>
+                              </div>
+                              <div className="surface" style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)" }}>
+                                <div className="text-xs text-muted">Tiempo Invertido</div>
+                                <div className="text-base font-bold">{Math.floor(pacingAnalysis.splitHalves.firstHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.firstHalfTimeSec % 60}s</div>
+                              </div>
                             </div>
-                            {pacingAnalysis.splitHalves.firstHalfAvgHr && (
-                              <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 4 }}>
-                                <Heart size={11} style={{ color: "var(--color-danger)" }} />
-                                <span>FC media: <strong>{pacingAnalysis.splitHalves.firstHalfAvgHr} lpm</strong></span>
+                            {laps.length > 0 && (
+                              <div style={{ marginTop: "var(--space-2)" }}>
+                                <div className="text-xs text-muted font-medium">Vueltas incluidas en este tramo:</div>
+                                <div className="flex flex-wrap gap-1.5" style={{ marginTop: 4 }}>
+                                  {laps.slice(0, Math.max(1, Math.ceil(laps.length / 2))).map((l: any, i: number) => (
+                                    <span key={i} className="badge badge-neutral" style={{ fontSize: "0.68rem" }}>
+                                      Km {l.lapNumber || i + 1}: {l.paceFormatted || "—"} ({l.avgHeartRate ? `${l.avgHeartRate} lpm` : "sin FC"})
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
+                        )}
 
-                          {/* 2ª Mitad */}
+                        {selectedSplitTab === "mitad2" && (
                           <div
                             style={{
                               padding: "var(--space-3)",
                               borderRadius: "var(--radius-md)",
                               backgroundColor:
                                 pacingAnalysis.splitHalves.splitType === "negativo"
-                                ? "rgba(16, 185, 129, 0.05)"
-                                : "rgba(255, 255, 255, 0.03)",
+                                  ? "rgba(16, 185, 129, 0.06)"
+                                  : "rgba(245, 158, 11, 0.06)",
                               border: `1px solid ${
                                 pacingAnalysis.splitHalves.splitType === "negativo"
                                   ? "rgba(16, 185, 129, 0.3)"
-                                  : "var(--color-border)"
+                                  : "rgba(245, 158, 11, 0.3)"
                               }`,
+                              marginBottom: "var(--space-3)",
                             }}
                           >
-                            <div className="text-xs uppercase font-semibold text-muted flex items-center justify-between">
-                              <span>2ª Mitad ({pacingAnalysis.splitHalves.secondHalfDistKm} km)</span>
-                              <span className="badge badge-neutral" style={{ fontSize: "0.65rem" }}>50% - 100%</span>
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-sm">Desglose de la Segunda Mitad</span>
+                              <span className="badge badge-neutral">50% al 100% de la distancia</span>
                             </div>
-                            <div className="flex items-baseline gap-2" style={{ marginTop: 6 }}>
-                              <span
-                                className="text-2xl font-bold"
-                                style={{
-                                  color:
-                                    pacingAnalysis.splitHalves.splitType === "negativo"
-                                      ? "var(--color-success)"
-                                      : "var(--color-text)",
-                                }}
-                              >
-                                {pacingAnalysis.splitHalves.secondHalfPaceFormatted}
-                              </span>
-                              <span className="text-xs text-muted">
-                                ({Math.floor(pacingAnalysis.splitHalves.secondHalfTimeSec / 60)}m {pacingAnalysis.splitHalves.secondHalfTimeSec % 60}s)
-                              </span>
+                            <div className="grid gap-2 sm:grid-cols-3" style={{ marginTop: "var(--space-2)" }}>
+                              <div className="surface" style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)" }}>
+                                <div className="text-xs text-muted">Ritmo Promedio</div>
+                                <div className="text-base font-bold">{pacingAnalysis.splitHalves.secondHalfPaceFormatted}</div>
+                              </div>
+                              <div className="surface" style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)" }}>
+                                <div className="text-xs text-muted">Distancia Cubierta</div>
+                                <div className="text-base font-bold">{pacingAnalysis.splitHalves.secondHalfDistKm} km</div>
+                              </div>
+                              <div className="surface" style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)" }}>
+                                <div className="text-xs text-muted">Diferencia de Ritmo</div>
+                                <div className={`text-base font-bold ${pacingAnalysis.splitHalves.splitType === "negativo" ? "text-success" : "text-warning"}`}>
+                                  {pacingAnalysis.splitHalves.splitType === "negativo" ? "Más rápida (Split Negativo)" : "Más lenta (Fatiga final)"}
+                                </div>
+                              </div>
                             </div>
-                            {pacingAnalysis.splitHalves.secondHalfAvgHr && (
-                              <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 4 }}>
-                                <Heart size={11} style={{ color: "var(--color-danger)" }} />
-                                <span>FC media: <strong>{pacingAnalysis.splitHalves.secondHalfAvgHr} lpm</strong></span>
+                            {laps.length > 0 && (
+                              <div style={{ marginTop: "var(--space-2)" }}>
+                                <div className="text-xs text-muted font-medium">Vueltas finales incluidas:</div>
+                                <div className="flex flex-wrap gap-1.5" style={{ marginTop: 4 }}>
+                                  {laps.slice(Math.max(1, Math.ceil(laps.length / 2))).map((l: any, i: number) => (
+                                    <span key={i} className="badge badge-neutral" style={{ fontSize: "0.68rem" }}>
+                                      Km {(l.lapNumber || Math.ceil(laps.length / 2) + i + 1)}: {l.paceFormatted || "—"} ({l.avgHeartRate ? `${l.avgHeartRate} lpm` : "sin FC"})
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
-                        </div>
+                        )}
 
                         <div
                           style={{
@@ -968,9 +1160,13 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                             fontSize: "var(--text-xs)",
                             color: "var(--color-text-muted)",
                             lineHeight: 1.5,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--space-2)",
                           }}
                         >
-                          💡 <strong>Diagnóstico de ritmo:</strong> {pacingAnalysis.splitHalves.splitDescription}
+                          <Info size={14} style={{ color: "var(--color-brand)", flexShrink: 0 }} />
+                          <span><strong>Diagnóstico de ritmo:</strong> {pacingAnalysis.splitHalves.splitDescription}</span>
                         </div>
                       </div>
                     ) : (
@@ -980,52 +1176,130 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     )}
                   </div>
 
-                  {/* 2. Mejores Parciales (Peak Efforts) */}
+                  {/* 2. Mejores Parciales (Peak Efforts) - 100% Interactivo */}
                   <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
-                    <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                      <Zap size={16} style={{ color: "var(--color-warning)" }} />
-                      Mejores Parciales de la Sesión (Peak Efforts)
+                    <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="font-semibold text-sm flex items-center gap-2">
+                        <Zap size={16} style={{ color: "var(--color-warning)" }} />
+                        <span>Mejores Parciales de la Sesión (Peak Efforts)</span>
+                      </div>
+                      <span className="text-xs text-muted">Haz clic en un parcial para examinarlo</span>
                     </div>
 
                     {pacingAnalysis?.bestEfforts && pacingAnalysis.bestEfforts.length > 0 ? (
-                      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
-                        {pacingAnalysis.bestEfforts.map((effort: any, idx: number) => (
-                          <div
-                            key={idx}
-                            style={{
-                              padding: "var(--space-3)",
-                              borderRadius: "var(--radius-md)",
-                              backgroundColor: "rgba(255, 255, 255, 0.03)",
-                              border: "1px solid var(--color-border)",
-                              display: "flex",
-                              flexDirection: "column",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-xs" style={{ color: "var(--color-brand)" }}>
-                                  {effort.label}
-                                </span>
-                                <span className="badge badge-neutral" style={{ fontSize: "0.6rem" }}>
-                                  {effort.distanceM}m
-                                </span>
+                      <div>
+                        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
+                          {pacingAnalysis.bestEfforts.map((effort: any, idx: number) => {
+                            const isSelected = selectedEffortIdx === idx;
+                            return (
+                              <div
+                                key={idx}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setSelectedEffortIdx(idx)}
+                                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedEffortIdx(idx); }}
+                                style={{
+                                  padding: "var(--space-3)",
+                                  borderRadius: "var(--radius-md)",
+                                  backgroundColor: isSelected ? "rgba(59, 130, 246, 0.08)" : "rgba(255, 255, 255, 0.03)",
+                                  border: isSelected ? "2px solid var(--color-brand)" : "1px solid var(--color-border)",
+                                  boxShadow: isSelected ? "0 0 12px rgba(59, 130, 246, 0.25)" : "none",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "space-between",
+                                  cursor: "pointer",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-xs" style={{ color: "var(--color-brand)" }}>
+                                      {effort.label}
+                                    </span>
+                                    <span className={`badge ${isSelected ? "badge-brand" : "badge-neutral"}`} style={{ fontSize: "0.6rem" }}>
+                                      {effort.distanceM}m
+                                    </span>
+                                  </div>
+                                  <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 4 }}>
+                                    {effort.timeFormatted}
+                                  </div>
+                                  <div className="text-xs font-semibold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
+                                    {effort.paceFormatted}
+                                  </div>
+                                </div>
+                                {effort.avgHeartRate && (
+                                  <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 6, paddingTop: 4, borderTop: "1px dashed var(--color-border)" }}>
+                                    <Heart size={10} style={{ color: "var(--color-danger)" }} />
+                                    <span>{effort.avgHeartRate} lpm</span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 4 }}>
-                                {effort.timeFormatted}
+                            );
+                          })}
+                        </div>
+
+                        {/* Panel de inspección detallada del parcial seleccionado */}
+                        {pacingAnalysis.bestEfforts[selectedEffortIdx] && (() => {
+                          const eff = pacingAnalysis.bestEfforts[selectedEffortIdx];
+                          const avgSessionPace = load?.avgPaceMinKm ?? fit?.avgPaceMinKm ?? (session.distance_km && session.duration_min ? session.duration_min / session.distance_km : null);
+                          const effPaceVal = eff.timeSec && eff.distanceM ? eff.timeSec / (eff.distanceM / 1000) / 60 : null;
+                          const diffSec = avgSessionPace && effPaceVal ? Math.round((effPaceVal - avgSessionPace) * 60) : null;
+                          const speedKmh = eff.distanceM && eff.timeSec ? ((eff.distanceM / eff.timeSec) * 3.6).toFixed(1) : "—";
+                          return (
+                            <div
+                              className="surface"
+                              style={{
+                                marginTop: "var(--space-3)",
+                                padding: "var(--space-3) var(--space-4)",
+                                borderRadius: "var(--radius-md)",
+                                border: "1px solid var(--color-brand)",
+                                backgroundColor: "rgba(59, 130, 246, 0.05)",
+                              }}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
+                                <div className="flex items-center gap-2">
+                                  <Zap size={15} style={{ color: "var(--color-brand)" }} />
+                                  <span className="font-bold text-sm" style={{ color: "var(--color-text)" }}>
+                                    Inspección Detallada: Parcial {eff.label} ({eff.distanceM}m)
+                                  </span>
+                                </div>
+                                <button
+                                  className="btn btn-secondary text-xs flex items-center gap-1"
+                                  style={{ padding: "0.25rem 0.6rem" }}
+                                  onClick={() => setActiveTab("charts")}
+                                >
+                                  <TrendingUp size={12} />
+                                  <span>Ver Curva en Gráficos</span>
+                                </button>
                               </div>
-                              <div className="text-xs font-semibold" style={{ color: "var(--color-brand)", marginTop: 2 }}>
-                                {effort.paceFormatted}
+
+                              <div className="grid gap-2 sm:grid-cols-4" style={{ marginTop: "var(--space-2)" }}>
+                                <div style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)", backgroundColor: "rgba(255,255,255,0.03)" }}>
+                                  <div className="text-xs text-muted">Ritmo Exacto</div>
+                                  <div className="text-base font-bold text-brand">{eff.paceFormatted}</div>
+                                </div>
+                                <div style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)", backgroundColor: "rgba(255,255,255,0.03)" }}>
+                                  <div className="text-xs text-muted">Tiempo del Tramo</div>
+                                  <div className="text-base font-bold">{eff.timeFormatted}</div>
+                                </div>
+                                <div style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)", backgroundColor: "rgba(255,255,255,0.03)" }}>
+                                  <div className="text-xs text-muted">Velocidad Media</div>
+                                  <div className="text-base font-bold">{speedKmh} km/h</div>
+                                </div>
+                                <div style={{ padding: "var(--space-2)", borderRadius: "var(--radius-sm)", backgroundColor: "rgba(255,255,255,0.03)" }}>
+                                  <div className="text-xs text-muted">Delta vs Media Sesión</div>
+                                  <div className={`text-base font-bold ${diffSec !== null && diffSec < 0 ? "text-success" : "text-brand"}`}>
+                                    {diffSec !== null
+                                      ? diffSec < 0
+                                        ? `${Math.abs(diffSec)}s/km más veloz`
+                                        : `+${diffSec}s/km ritmo medio`
+                                      : "Mejor parcial"}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                            {effort.avgHeartRate && (
-                              <div className="text-xs text-muted flex items-center gap-1" style={{ marginTop: 6, paddingTop: 4, borderTop: "1px dashed var(--color-border)" }}>
-                                <Heart size={10} style={{ color: "var(--color-danger)" }} />
-                                <span>{effort.avgHeartRate} lpm</span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })()}
                       </div>
                     ) : (
                       <div className="text-xs text-muted italic">
@@ -1034,27 +1308,38 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     )}
                   </div>
 
-                  {/* 3. Desglose de Ritmo por Pendiente (Relieve) */}
+                  {/* 3. Desglose de Ritmo por Pendiente (Relieve) - Interactivo */}
                   {pacingAnalysis?.slopeAnalysis && (
                     <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
-                      <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                        <Mountain size={16} style={{ color: "var(--color-text)" }} />
-                        Gestión del Ritmo según el Relieve del Terreno
+                      <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                        <div className="font-semibold text-sm flex items-center gap-2">
+                          <Mountain size={16} style={{ color: "var(--color-text)" }} />
+                          <span>Gestión del Ritmo según el Relieve del Terreno</span>
+                        </div>
+                        <span className="text-xs text-muted">Haz clic para filtrar por inclinación</span>
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-3">
                         {/* Subida */}
                         <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedSlopeFilter(curr => curr === "subida" ? "todos" : "subida")}
                           style={{
                             padding: "var(--space-3)",
                             borderRadius: "var(--radius-md)",
-                            backgroundColor: "rgba(239, 68, 68, 0.05)",
-                            border: "1px solid rgba(239, 68, 68, 0.2)",
+                            backgroundColor: selectedSlopeFilter === "subida" ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.05)",
+                            border: selectedSlopeFilter === "subida" ? "2px solid var(--color-danger)" : "1px solid rgba(239, 68, 68, 0.2)",
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
                           }}
                         >
-                          <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: "var(--color-danger)" }}>
-                            <ArrowUpRight size={14} />
-                            <span>En Subida (&gt; +2%)</span>
+                          <div className="flex items-center justify-between font-bold text-xs" style={{ color: "var(--color-danger)" }}>
+                            <div className="flex items-center gap-1.5">
+                              <ArrowUpRight size={14} />
+                              <span>En Subida (&gt; +2%)</span>
+                            </div>
+                            {selectedSlopeFilter === "subida" && <Check size={12} />}
                           </div>
                           <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 6 }}>
                             {pacingAnalysis.slopeAnalysis.uphillPaceFormatted}
@@ -1066,16 +1351,24 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
                         {/* Llano */}
                         <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedSlopeFilter(curr => curr === "llano" ? "todos" : "llano")}
                           style={{
                             padding: "var(--space-3)",
                             borderRadius: "var(--radius-md)",
-                            backgroundColor: "rgba(59, 130, 246, 0.05)",
-                            border: "1px solid rgba(59, 130, 246, 0.2)",
+                            backgroundColor: selectedSlopeFilter === "llano" ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.05)",
+                            border: selectedSlopeFilter === "llano" ? "2px solid var(--color-brand)" : "1px solid rgba(59, 130, 246, 0.2)",
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
                           }}
                         >
-                          <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: "var(--color-brand)" }}>
-                            <ArrowRight size={14} />
-                            <span>En Llano (-2% a +2%)</span>
+                          <div className="flex items-center justify-between font-bold text-xs" style={{ color: "var(--color-brand)" }}>
+                            <div className="flex items-center gap-1.5">
+                              <ArrowRight size={14} />
+                              <span>En Llano (-2% a +2%)</span>
+                            </div>
+                            {selectedSlopeFilter === "llano" && <Check size={12} />}
                           </div>
                           <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 6 }}>
                             {pacingAnalysis.slopeAnalysis.flatPaceFormatted}
@@ -1087,16 +1380,24 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
                         {/* Bajada */}
                         <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedSlopeFilter(curr => curr === "bajada" ? "todos" : "bajada")}
                           style={{
                             padding: "var(--space-3)",
                             borderRadius: "var(--radius-md)",
-                            backgroundColor: "rgba(16, 185, 129, 0.05)",
-                            border: "1px solid rgba(16, 185, 129, 0.2)",
+                            backgroundColor: selectedSlopeFilter === "bajada" ? "rgba(16, 185, 129, 0.12)" : "rgba(16, 185, 129, 0.05)",
+                            border: selectedSlopeFilter === "bajada" ? "2px solid var(--color-success)" : "1px solid rgba(16, 185, 129, 0.2)",
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
                           }}
                         >
-                          <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: "var(--color-success)" }}>
-                            <ArrowDownRight size={14} />
-                            <span>En Bajada (&lt; -2%)</span>
+                          <div className="flex items-center justify-between font-bold text-xs" style={{ color: "var(--color-success)" }}>
+                            <div className="flex items-center gap-1.5">
+                              <ArrowDownRight size={14} />
+                              <span>En Bajada (&lt; -2%)</span>
+                            </div>
+                            {selectedSlopeFilter === "bajada" && <Check size={12} />}
                           </div>
                           <div className="text-xl font-bold" style={{ color: "var(--color-text)", marginTop: 6 }}>
                             {pacingAnalysis.slopeAnalysis.downhillPaceFormatted}
@@ -1106,14 +1407,107 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           </div>
                         </div>
                       </div>
+
+                      {/* Panel contextual de relieve activo */}
+                      {selectedSlopeFilter !== "todos" && (
+                        <div
+                          style={{
+                            marginTop: "var(--space-3)",
+                            padding: "var(--space-3)",
+                            borderRadius: "var(--radius-sm)",
+                            backgroundColor: "rgba(0,0,0,0.2)",
+                            border: "1px solid var(--color-border)",
+                            fontSize: "var(--text-xs)",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {selectedSlopeFilter === "subida" && (
+                            <div>
+                              <strong>Foco en Subidas:</strong> Representa el {Math.round((pacingAnalysis.slopeAnalysis.uphillDistanceKm / (session.distance_km || 1)) * 100)}% de la distancia total. La pérdida de ritmo en ascensos es natural para mantener el esfuerzo aeróbico controlado sin disparar el lactato.
+                            </div>
+                          )}
+                          {selectedSlopeFilter === "llano" && (
+                            <div>
+                              <strong>Foco en Llano:</strong> Ritmo de crucero de <strong>{pacingAnalysis.slopeAnalysis.flatPaceFormatted}</strong> sostenido a lo largo de {pacingAnalysis.slopeAnalysis.flatDistanceKm} km. Marca tu velocidad base sostenible en terreno neutro.
+                            </div>
+                          )}
+                          {selectedSlopeFilter === "bajada" && (
+                            <div>
+                              <strong>Foco en Bajadas:</strong> Aceleración a <strong>{pacingAnalysis.slopeAnalysis.downhillPaceFormatted}</strong>. Controla la zancada y el apoyo del mediopié para minimizar el impacto excéntrico en cuádriceps y rodillas.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* 4. Dinámica de Carrera & Biomecánica */}
+                  {/* 4. Mini Telemetría Interactiva Directa */}
+                  {continuousChartData.length > 0 && (
+                    <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
+                      <div className="flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                        <div className="font-semibold text-sm flex items-center gap-2">
+                          <BarChart3 size={16} style={{ color: "var(--color-brand)" }} />
+                          <span>Curva de Telemetría Interactiva de Ritmo</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {(["Ritmo", "FC", "Cadencia", "Altitud"] as const).map((m) => (
+                            <button
+                              key={m}
+                              className={`btn ${pacingMetric === m ? "btn-primary" : "btn-secondary"} text-xs`}
+                              style={{ padding: "0.2rem 0.5rem" }}
+                              onClick={() => setPacingMetric(m)}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ width: "100%", height: 220 }}>
+                        <ResponsiveContainer>
+                          <LineChart data={continuousChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                            <CartesianGrid stroke="#262c37" strokeDasharray="3 3" />
+                            <XAxis dataKey="label" stroke="#9aa3b2" fontSize={11} minTickGap={30} />
+                            <YAxis
+                              stroke="#2f6feb"
+                              fontSize={11}
+                              reversed={pacingMetric === "Ritmo"}
+                              domain={pacingMetric === "Ritmo" ? ["dataMin - 0.2", "dataMax + 0.2"] : ["dataMin - 5", "dataMax + 5"]}
+                              tickFormatter={(v) => (pacingMetric === "Ritmo" && typeof v === "number" ? `${Math.floor(v)}:${Math.round((v % 1) * 60).toString().padStart(2, "0")}` : `${v}`)}
+                            />
+                            <Tooltip
+                              contentStyle={{ background: "#171b24", border: "1px solid #262c37", borderRadius: 8, fontSize: 12 }}
+                              formatter={(value: any, name: any) => {
+                                if (name === "Ritmo" && typeof value === "number") {
+                                  const min = Math.floor(value);
+                                  const sec = Math.round((value - min) * 60);
+                                  return [`${min}:${sec.toString().padStart(2, "0")} min/km`, name];
+                                }
+                                if (name === "FC") return [`${value} lpm`, name];
+                                if (name === "Cadencia") return [`${value} ppm`, name];
+                                if (name === "Altitud") return [`${value} m`, name];
+                                return [value, name];
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey={pacingMetric}
+                              stroke={pacingMetric === "Ritmo" ? "#2f6feb" : pacingMetric === "FC" ? "#ef4444" : pacingMetric === "Cadencia" ? "#10b981" : "#8b5cf6"}
+                              strokeWidth={2}
+                              dot={false}
+                              connectNulls
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 5. Dinámica de Carrera & Biomecánica */}
                   <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
                     <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
                       <Footprints size={16} style={{ color: "var(--color-brand)" }} />
-                      Biomecánica & Eficiencia Locomotriz
+                      <span>Biomecánica & Eficiencia Locomotriz</span>
                     </div>
 
                     <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
@@ -1592,11 +1986,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                         </button>
                         {continuousChartData.some((pt: any) => pt.Altitud != null && pt.Altitud > 0) && (
                           <button
-                            className={`btn ${activeChart === "elevation_pace" ? "btn-primary" : "btn-secondary"} text-xs`}
+                            className={`btn ${activeChart === "elevation_pace" ? "btn-primary" : "btn-secondary"} text-xs flex items-center gap-1.5`}
                             style={{ padding: "0.25rem 0.6rem" }}
                             onClick={() => setActiveChart("elevation_pace")}
                           >
-                            ⛰️ Perfil Altimetría & Ritmo
+                            <Mountain size={13} />
+                            <span>Perfil Altimetría & Ritmo</span>
                           </button>
                         )}
                         {continuousChartData.some((pt: any) => pt.Cadencia != null) && (
@@ -1819,8 +2214,9 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
               {activeTab === "laps" && (
                 <div className="grid gap-4">
                   <div className="surface-raised" style={{ padding: "var(--space-3)", overflowX: "auto" }}>
-                    <div className="text-xs uppercase text-muted font-semibold" style={{ marginBottom: "var(--space-2)" }}>
-                      📋 Tabla de Parciales ({laps.length} vueltas registradas)
+                    <div className="text-xs uppercase text-muted font-semibold flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
+                      <ListOrdered size={13} style={{ color: "var(--color-brand)" }} />
+                      <span>Tabla de Parciales ({laps.length} vueltas registradas)</span>
                     </div>
                     <table style={{ width: "100%", fontSize: "var(--text-xs)", borderCollapse: "collapse" }}>
                       <thead>

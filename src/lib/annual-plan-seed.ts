@@ -13,6 +13,98 @@ function addDays(d: Date, days: number) {
   return res;
 }
 
+export interface SwimmingWorkoutDef {
+  planned_code: string;
+  distance_km: number;
+  duration_min: number;
+  rpe: number;
+  notes: string;
+}
+
+export function getSwimmingWorkoutForWeek(semNum: number, phase: number): SwimmingWorkoutDef {
+  const cycleIndex = (semNum - 1) % 4;
+
+  if (phase === 1) {
+    if (cycleIndex === 0) {
+      return {
+        planned_code: "NAT-A (Técnica & SWOLF)",
+        distance_km: 1.7,
+        duration_min: 42,
+        rpe: 4,
+        notes: `NATACIÓN · Ciclo A (Eficiencia & SWOLF · ~1.700m · RPE 4-5):\n- Calentamiento: 300m continuo suave (200m crol + 100m espalda suave para descomprimir hombros).\n- Técnica y drills: 4x50m ejercicios de punto muerto (catch-up) y recobro con pulgar rozando el costado desc. 20s.\n- Bloque SWOLF (Eficiencia): 6x100m crol aeróbico contando brazadas por largo; el objetivo es mantener el mismo ritmo reduciendo el número de brazadas (descanso 25s).\n- Activación suave: 4x50m progresivos (25m suave / 25m vivos con patada ágil) desc. 20s.\n- Vuelta a la calma: 200m suaves alternando estilos (espalda doble relajada). Cero impacto articular.`,
+      };
+    } else if (cycleIndex === 1) {
+      return {
+        planned_code: "NAT-B (Base Aeróbica Fraccionada)",
+        distance_km: 2.1,
+        duration_min: 48,
+        rpe: 5,
+        notes: `NATACIÓN · Ciclo B (Base Aeróbica & Volumen · ~2.100m · RPE 5):\n- Calentamiento: 400m variado continuo suave.\n- Preparación técnica: 4x50m con pull-buoy focalizando en agarre alto y tracción dorsal sin sobrecargar hombros (desc. 15s).\n- Bloque Principal (Ritmo Crucero): 4x250m crol a ritmo constante y sostenido (R1 aeróbico cómodo, desc. 30s). *Recomendación*: Si vienes de CrossFit con hombros fatigados, realiza las 2 primeras con pull-buoy para flotabilidad pélvica.\n- Descarga de piernas: 200m nado continuo muy suave.\n- Vuelta a la calma: 150m espalda suave + respiración bilateral para equilibrar cintura escapular.`,
+      };
+    } else if (cycleIndex === 2) {
+      return {
+        planned_code: "NAT-C (Umbral Fraccionado & Pull)",
+        distance_km: 1.9,
+        duration_min: 45,
+        rpe: 6,
+        notes: `NATACIÓN · Ciclo C (Resistencia a la Fatiga & Protección Articular · ~1.900m · RPE 6):\n- Calentamiento: 350m suave alternando estilos.\n- Pre-activación: 4x50m cambios de ritmo (1º suave, 2º alegre, 3º firme, 4º suave) desc. 20s.\n- Bloque Umbral Protegido: 3x (300m a ritmo tempo medio RPE 6 con pull-buoy + 100m crol suave regenerativo sin material) desc. 30s tras cada bloque. *Objetivo biomecánico*: El pull-buoy neutraliza la fatiga de sóleos/isquios del running y previene el hiperextendido lumbar.\n- Vuelta a la calma: 200m espalda doble y braza relajada para estirar la cadena anterior y manguito rotador.`,
+      };
+    } else {
+      return {
+        planned_code: "NAT-D (Regeneración Activa & Aletas)",
+        distance_km: 1.5,
+        duration_min: 36,
+        rpe: 3,
+        notes: `NATACIÓN · Ciclo D (Regeneración Activa, Descompresión & Aletas · ~1.500m · RPE 3-4):\n- Calentamiento: 300m muy suave sin reloj.\n- Descompresión articular y fascia plantar: 6x75m con aletas cortas suaves (25m batido suave + 25m crol deslizante + 25m espalda). Las aletas descargan tendones de Aquiles y gemelos cargados por el asfalto.\n- Trabajo respiratorio y relajación: 4x50m respiración hipóxica suave 3-5-3-5 alternada desc. 25s.\n- Nado libre relajante: 250m crol largo y fluido con deslizamiento prolongado.\n- Vuelta a la calma: 100m nado muerto y estiramientos suaves de hombros en el bordillo.`,
+      };
+    }
+  }
+
+  if (phase === 2) {
+    if (cycleIndex === 0) {
+      return {
+        planned_code: "NAT-A (Técnica & Descarga)",
+        distance_km: 1.5,
+        duration_min: 35,
+        rpe: 4,
+        notes: `NATACIÓN FASE 2 · Técnica y Deslizamiento (~1.500m · RPE 4):\n- 300m suave calentamiento.\n- 6x50m técnica de rolido y recobro amplio sin tensión desc. 20s.\n- 5x100m aeróbico suave constante con pull-buoy desc. 20s.\n- 200m espalda y vuelta a la calma. Protege hombros y acelera la recuperación de piernas.`,
+      };
+    } else if (cycleIndex === 1) {
+      return {
+        planned_code: "NAT-B (Crucero Ligero)",
+        distance_km: 1.7,
+        duration_min: 40,
+        rpe: 5,
+        notes: `NATACIÓN FASE 2 · Ritmo Crucero Ligero (~1.700m · RPE 5):\n- 300m suave variado.\n- 4x50m progresivos desc. 20s.\n- 3x300m ritmo constante con pull-buoy opcional desc. 30s.\n- 200m espalda doble y relajación. Excelente lavado de lactato sin impacto.`,
+      };
+    } else if (cycleIndex === 2) {
+      return {
+        planned_code: "NAT-C (Aeróbico Controlado)",
+        distance_km: 1.6,
+        duration_min: 38,
+        rpe: 5,
+        notes: `NATACIÓN FASE 2 · Aeróbico Controlado (~1.600m · RPE 5):\n- 300m crol/espalda suave.\n- 4x100m con pull-buoy ritmo medio desc. 20s.\n- 6x50m buscando máxima distancia por brazada (DPS) desc. 20s.\n- 200m regenerativo. Enfoque en economía de esfuerzo.`,
+      };
+    } else {
+      return {
+        planned_code: "NAT-D (Hidroterapia & Movilidad)",
+        distance_km: 1.3,
+        duration_min: 32,
+        rpe: 3,
+        notes: `NATACIÓN FASE 2 · Descarga Activa & Hidroterapia (~1.300m · RPE 3-4):\n- 250m suave.\n- 6x75m con aletas cortas suaves alternando estilos (25 crol / 25 espalda / 25 crol).\n- 200m nado suave continuo.\n- 150m espalda y movilidad de cintura escapular. Descanso articular total.`,
+      };
+    }
+  }
+
+  return {
+    planned_code: "NAT-R (Regenerativo Ligero)",
+    distance_km: 1.2,
+    duration_min: 30,
+    rpe: 3,
+    notes: `NATACIÓN · Nado regenerativo suave (~1.200m · RPE 3):\n- 300m crol suave.\n- 4x100m con pull-buoy muy relajado desc. 25s.\n- 200m espalda doble.\n- 100m soltar en flotación. Cero fatiga acumulada.`,
+  };
+}
+
 export function ensureAnnualPlanPopulated(db: AppDb) {
   try {
     const countRow = db.prepare<{ c: number }>("SELECT count(*) as c FROM sessions WHERE date >= '2026-10-05'").get();
@@ -61,14 +153,15 @@ export function ensureAnnualPlanPopulated(db: AppDb) {
         notes: `RUNNING suave en zona R1 (5:23 - 4:59 min/km, RPE 4-5):\n- Calentamiento: 5 min trote muy suave (>5:25/km)\n- Rodaje continuo: 35-40 min a ritmo R1\n- Técnica: 4x80m progresiones con alta cadencia\n- Vuelta a la calma: 5 min andando`
       });
 
+      const swim1 = getSwimmingWorkoutForWeek(semNum, 1);
       sessions.push({
         date: formatDate(addDays(monday, 2)),
         week_start: weekStart,
         discipline: "natacion",
-        planned_code: "N1 (Aeróbica + Técnica)",
-        distance_km: 2.0,
-        duration_min: 45,
-        notes: `NATACIÓN técnica + aeróbica (~2.000-2.200m):\n- Calentamiento: 400m suave crol\n- Técnica: 4x50m ejercicios (catch-up, recobro alto) desc. 20s\n- Principal: 8x100m crol aeróbico continuo (RPE 5-6) desc. 15-20s\n- Vuelta a la calma: 200m suave`
+        planned_code: swim1.planned_code,
+        distance_km: swim1.distance_km,
+        duration_min: swim1.duration_min,
+        notes: swim1.notes,
       });
 
       sessions.push({
@@ -141,14 +234,15 @@ export function ensureAnnualPlanPopulated(db: AppDb) {
         notes: `RUNNING Series en Zona R3 (Umbral Anaeróbico · 4:23 - 4:11 min/km):\n- Calentamiento: 15 min suave + técnica + 4x80m progresiones\n- Bloque Principal: ${seriesType} (recuperación 90s - 2min al trote suave)\n- Vuelta a la calma: 10 min muy suave`
       });
 
+      const swim2 = getSwimmingWorkoutForWeek(semNum, 2);
       sessions.push({
         date: formatDate(addDays(monday, 2)),
         week_start: weekStart,
         discipline: "natacion",
-        planned_code: "N2 (Recuperación / Descarga)",
-        distance_km: 1.5,
-        duration_min: 35,
-        notes: `NATACIÓN de recuperación activa (~1.500m):\n- 300m suave + 6x100m crol suave (RPE 4-5) desc. 20s + 200m espalda/suave. Cero impacto.`
+        planned_code: swim2.planned_code,
+        distance_km: swim2.distance_km,
+        duration_min: swim2.duration_min,
+        notes: swim2.notes,
       });
 
       sessions.push({
@@ -415,7 +509,7 @@ export function ensureAnnualPlanPopulated(db: AppDb) {
       is_long_run: 1,
       distance_km: 42.195,
       duration_min: 215,
-      notes: "🏁 ¡DÍA DE LA MARATÓN! (42.195 km)\n- Objetivo de Ritmo: 5:00 - 5:15 min/km (Meta estimada: 3h30 - 3h41)\n- Estrategia: Salir conservador a 5:15/km los primeros 5K. Estabilizar a 5:05-5:10/km hasta el km 32. Si hay fuerzas, mantener o apretar a 5:00/km los últimos 10K.\n- Nutrición: 1 gel cada 40-45 min + agua/sales en cada avituallamiento (cada 20-25 min).\n- ¡A por todas y a disfrutar de cada kilómetro!"
+      notes: "¡DÍA DE LA MARATÓN! (42.195 km)\n- Objetivo de Ritmo: 5:00 - 5:15 min/km (Meta estimada: 3h30 - 3h41)\n- Estrategia: Salir conservador a 5:15/km los primeros 5K. Estabilizar a 5:05-5:10/km hasta el km 32. Si hay fuerzas, mantener o apretar a 5:00/km los últimos 10K.\n- Nutrición: 1 gel cada 40-45 min + agua/sales en cada avituallamiento (cada 20-25 min).\n- ¡A por todas y a disfrutar de cada kilómetro!"
     });
 
     sessions.push({
@@ -561,14 +655,15 @@ export function ensureAnnualPlanPopulated(db: AppDb) {
           duration_min: 42,
           notes: `RUNNING Base en zona R1 (5:23 - 4:59 min/km, RPE 4-5) + 4 progresiones de 80m.`
         });
+        const swim5 = getSwimmingWorkoutForWeek(semNum, 1);
         sessions.push({
           date: formatDate(addDays(monday, 2)),
           week_start: weekStart,
           discipline: "natacion",
-          planned_code: "N1 (Aeróbica + Técnica 2k)",
-          distance_km: 2.0,
-          duration_min: 45,
-          notes: `NATACIÓN técnica + aeróbica: 400m calentamiento + 4x50m técnica + 8x100m crol moderado + 200m vuelta.`
+          planned_code: swim5.planned_code,
+          distance_km: swim5.distance_km,
+          duration_min: swim5.duration_min,
+          notes: swim5.notes,
         });
         sessions.push({
           date: formatDate(addDays(monday, 3)),

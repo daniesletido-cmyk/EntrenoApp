@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getSwimmingWorkoutForWeek } from "@/lib/annual-plan-seed";
 
 function formatDate(d: Date) {
   const year = d.getFullYear();
@@ -56,14 +57,15 @@ export async function GET() {
       notes: `RUNNING suave en zona R1 (5:23 - 4:59 min/km, RPE 4-5):\n- Calentamiento: 5 min trote muy suave (>5:25/km)\n- Rodaje continuo: 35-40 min a ritmo R1\n- Técnica: 4x80m progresiones con alta cadencia\n- Vuelta a la calma: 5 min andando`
     });
 
+    const swim1 = getSwimmingWorkoutForWeek(semNum, 1);
     sessions.push({
       date: formatDate(addDays(monday, 2)),
       week_start: weekStart,
       discipline: "natacion",
-      planned_code: "N1 (Aeróbica + Técnica)",
-      distance_km: 2.0,
-      duration_min: 45,
-      notes: `NATACIÓN técnica + aeróbica (~2.000-2.200m):\n- Calentamiento: 400m suave crol\n- Técnica: 4x50m ejercicios (catch-up, recobro alto) desc. 20s\n- Principal: 8x100m crol aeróbico continuo (RPE 5-6) desc. 15-20s\n- Vuelta a la calma: 200m suave`
+      planned_code: swim1.planned_code,
+      distance_km: swim1.distance_km,
+      duration_min: swim1.duration_min,
+      notes: swim1.notes,
     });
 
     sessions.push({
@@ -136,14 +138,15 @@ export async function GET() {
       notes: `RUNNING Series en Zona R3 (Umbral Anaeróbico · 4:23 - 4:11 min/km):\n- Calentamiento: 15 min suave + técnica + 4x80m progresiones\n- Bloque Principal: ${seriesType} (recuperación 90s - 2min al trote suave)\n- Vuelta a la calma: 10 min muy suave`
     });
 
+    const swim2 = getSwimmingWorkoutForWeek(semNum, 2);
     sessions.push({
       date: formatDate(addDays(monday, 2)),
       week_start: weekStart,
       discipline: "natacion",
-      planned_code: "N2 (Recuperación / Descarga)",
-      distance_km: 1.5,
-      duration_min: 35,
-      notes: `NATACIÓN de recuperación activa (~1.500m):\n- 300m suave + 6x100m crol suave (RPE 4-5) desc. 20s + 200m espalda/suave. Cero impacto.`
+      planned_code: swim2.planned_code,
+      distance_km: swim2.distance_km,
+      duration_min: swim2.duration_min,
+      notes: swim2.notes,
     });
 
     sessions.push({
@@ -410,7 +413,7 @@ export async function GET() {
     is_long_run: 1,
     distance_km: 42.195,
     duration_min: 215,
-    notes: "🏁 ¡DÍA DE LA MARATÓN! (42.195 km)\n- Objetivo de Ritmo: 5:00 - 5:15 min/km (Meta estimada: 3h30 - 3h41)\n- Estrategia: Salir conservador a 5:15/km los primeros 5K. Estabilizar a 5:05-5:10/km hasta el km 32. Si hay fuerzas, mantener o apretar a 5:00/km los últimos 10K.\n- Nutrición: 1 gel cada 40-45 min + agua/sales en cada avituallamiento (cada 20-25 min).\n- ¡A por todas y a disfrutar de cada kilómetro!"
+    notes: "¡DÍA DE LA MARATÓN! (42.195 km)\n- Objetivo de Ritmo: 5:00 - 5:15 min/km (Meta estimada: 3h30 - 3h41)\n- Estrategia: Salir conservador a 5:15/km los primeros 5K. Estabilizar a 5:05-5:10/km hasta el km 32. Si hay fuerzas, mantener o apretar a 5:00/km los últimos 10K.\n- Nutrición: 1 gel cada 40-45 min + agua/sales en cada avituallamiento (cada 20-25 min).\n- ¡A por todas y a disfrutar de cada kilómetro!"
   });
 
   sessions.push({
@@ -556,14 +559,15 @@ export async function GET() {
         duration_min: 42,
         notes: `RUNNING Base en zona R1 (5:23 - 4:59 min/km, RPE 4-5) + 4 progresiones de 80m.`
       });
+      const swim5 = getSwimmingWorkoutForWeek(semNum, 1);
       sessions.push({
         date: formatDate(addDays(monday, 2)),
         week_start: weekStart,
         discipline: "natacion",
-        planned_code: "N1 (Aeróbica + Técnica 2k)",
-        distance_km: 2.0,
-        duration_min: 45,
-        notes: `NATACIÓN técnica + aeróbica: 400m calentamiento + 4x50m técnica + 8x100m crol moderado + 200m vuelta.`
+        planned_code: swim5.planned_code,
+        distance_km: swim5.distance_km,
+        duration_min: swim5.duration_min,
+        notes: swim5.notes,
       });
       sessions.push({
         date: formatDate(addDays(monday, 3)),

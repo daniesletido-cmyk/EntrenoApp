@@ -379,7 +379,7 @@ En cuanto metas el archivo \`.fit\` en la app:
 1. **Especificidad Maratón**: Para correr los 42 km a 5:00-5:15 min/km necesitas acumular adaptaciones tendinosas y eficiencia neuromuscular en bipedestación. La natación es fantástica para recuperar entre semana, pero no sustituye la tirada clave del fin de semana.
 2. **Evaluemos la respuesta día a día**:
    - Completamos los entrenos de jueves y viernes.
-   - Si al despertar el sábado tu Readiness está alto (🟢 Luz Verde) y las piernas no están sobrecargadas, saldremos a rodar.
+   - Si al despertar el sábado tu Readiness está alto (Luz Verde) y las piernas no están sobrecargadas, saldremos a rodar.
    - Solo si arrastras pesadez articular alta el sábado modificaremos a **Natación N1 (40 min)**.`;
     } else {
       actionCandidate = {
@@ -437,8 +437,8 @@ Si deseas que lo configure en la app, tienes el botón directo aquí abajo.`;
     reply = `### Pautas Nutricionales Adaptadas a tu Perfil:
 
 * **Tus requerimientos y exclusiones**:
-  - ⚠️ **Alergia estricta**: Cero frutos secos (nuez, avellana, almendra, etc.).
-  - ⚠️ **Sin pescado**: Aporte de ácidos grasos Omega-3 mediante suplementación diaria pautada.
+  - **Alergia estricta**: Cero frutos secos (nuez, avellana, almendra, etc.).
+  - **Sin pescado**: Aporte de ácidos grasos Omega-3 mediante suplementación diaria pautada.
 * **Cena previa a tirada larga o entreno exigente**:
   - Carbohidratos complejos de fácil digestión: arroz blanco o pasta con aceite de oliva virgen extra, pechuga de pollo/pavo o huevos.
   - Evitar exceso de fibra cruda o legumbres la noche anterior para prevenir molestias gastrointestinales durante la carrera.

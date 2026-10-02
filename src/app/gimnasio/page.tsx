@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy, Calendar, Activity, ArrowDown } from "lucide-react";
+import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy, Calendar, Activity, ArrowDown, ArrowLeftRight, Scale, Mic, TrendingUp, Sparkles, AlertTriangle, ShieldAlert } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -12,6 +12,12 @@ import { Loading } from "@/components/ui/loading";
 import { useToast } from "@/components/ui/toast";
 import { todayISO } from "@/lib/dates";
 import { copyTextToClipboard } from "@/lib/format-workout";
+import { SmartSwapModal } from "@/components/gym/smart-swap-modal";
+import { PlateCalculatorModal } from "@/components/gym/plate-calculator-modal";
+import { MuscleHeatmap, computeMuscleFatigueFromLogs } from "@/components/gym/muscle-heatmap";
+import { SmartRestTimer } from "@/components/gym/rest-timer";
+import { VoiceLoggerModal } from "@/components/gym/voice-logger";
+import { OverloadRulesModal } from "@/components/gym/overload-rules-modal";
 
 interface GymDay {
   id: number;
@@ -129,6 +135,18 @@ export default function GimnasioPage() {
   const [manageOpen, setManageOpen] = useState(false);
   const [savingId, setSavingId] = useState<number | null>(null);
 
+  // Estados de Innovaciones Gym
+  const [activeToolExercise, setActiveToolExercise] = useState<GymExercise | null>(null);
+  const [activeToolWeight, setActiveToolWeight] = useState<number | null>(null);
+  const [activeToolReps, setActiveToolReps] = useState<string>("8-10");
+  const [swapModalOpen, setSwapModalOpen] = useState(false);
+  const [plateModalOpen, setPlateModalOpen] = useState(false);
+  const [overloadModalOpen, setOverloadModalOpen] = useState(false);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [restTimerOpen, setRestTimerOpen] = useState(false);
+  const [showMuscleHeatmap, setShowMuscleHeatmap] = useState(false);
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
+
   // Histórico de TODOS los ejercicios del día seleccionado, para pintar un
   // gráfico de cada uno a la vez (en vez de tener que abrir uno por uno).
   const [dayHistory, setDayHistory] = useState<{ exerciseId: number; name: string; logs: GymLog[] }[]>([]);
@@ -143,17 +161,23 @@ export default function GimnasioPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [daysRes, exRes, sessionsRes, logsRes, prsRes] = await Promise.all([
+      const dNow = new Date(date + "T12:00:00Z");
+      const pastStr = new Date(dNow.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+      const futureStr = new Date(dNow.getTime() + 3 * 86400000).toISOString().slice(0, 10);
+
+      const [daysRes, exRes, sessionsRes, logsRes, prsRes, multiSessionsRes] = await Promise.all([
         fetch("/api/gym/days").then((r) => r.json()),
         fetch("/api/gym/exercises").then((r) => r.json()),
         fetch(`/api/sessions?from=${date}&to=${date}`).then((r) => r.json()),
         fetch(`/api/gym/logs?date=${date}`).then((r) => r.json()),
         fetch("/api/gym/logs?prs=true").then((r) => r.json()),
+        fetch(`/api/sessions?from=${pastStr}&to=${futureStr}`).then((r) => r.json()).catch(() => ({ sessions: [] })),
       ]);
       const loadedDays: GymDay[] = daysRes.days ?? [];
       setDays(loadedDays);
       setExercises(exRes.exercises ?? []);
       setLogsToday(logsRes.logs ?? []);
+      setRecentSessions(multiSessionsRes.sessions ?? []);
 
       const prMap: Record<number, GymPR> = {};
       for (const p of (prsRes.prs ?? []) as GymPR[]) {
@@ -239,7 +263,7 @@ export default function GimnasioPage() {
     if (!currentDay) return;
     const exs = exercises.filter((e) => e.gym_day_id === currentDay.id).sort((a, b) => a.sort_order - b.sort_order);
     const lines: string[] = [
-      `🏋️ Gimnasio · ${currentDay.name}`,
+      `Gimnasio · ${currentDay.name}`,
       `Fecha: ${todayISO()}`,
       "",
       "Ejercicios:",
@@ -419,13 +443,158 @@ export default function GimnasioPage() {
 
   function toggleSetCompleted(exerciseId: number, setIdx: number) {
     const currentSets = drafts[exerciseId] ?? [];
+    const targetSet = currentSets[setIdx];
+    const willComplete = !targetSet?.completed;
     const updated = currentSets.map((s, i) =>
       i === setIdx ? { ...s, completed: !s.completed } : s
     );
     setDrafts((prev) => ({ ...prev, [exerciseId]: updated }));
     const allDone = updated.length > 0 && updated.every((s) => s.completed);
     saveSets(exerciseId, updated, allDone ? true : undefined);
+
+    // Si se marcó como completada la serie, activar temporizador inteligente de descanso
+    if (willComplete) {
+      setRestTimerOpen(true);
+    }
   }
+
+  function handleOpenSwap(exercise: GymExercise, currentWeight: number | null) {
+    setActiveToolExercise(exercise);
+    setActiveToolWeight(currentWeight);
+    setSwapModalOpen(true);
+  }
+
+  function handleOpenPlateCalc(exercise: GymExercise, currentWeight: number | null) {
+    setActiveToolExercise(exercise);
+    setActiveToolWeight(currentWeight);
+    setPlateModalOpen(true);
+  }
+
+  function handleOpenOverload(exercise: GymExercise, currentWeight: number | null, repsTarget: string) {
+    setActiveToolExercise(exercise);
+    setActiveToolWeight(currentWeight);
+    setActiveToolReps(repsTarget);
+    setOverloadModalOpen(true);
+  }
+
+  function handleOpenVoice(exercise: GymExercise) {
+    setActiveToolExercise(exercise);
+    setVoiceModalOpen(true);
+  }
+
+  async function handleApplySwap(newExerciseName: string, newWeightKg: number | null) {
+    if (!activeToolExercise) return;
+    try {
+      await fetch(`/api/gym/exercises`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeToolExercise.id, name: newExerciseName }),
+      });
+      if (newWeightKg !== null) {
+        const currentSets = drafts[activeToolExercise.id] ?? [];
+        const updatedSets = currentSets.map((s) => ({
+          ...s,
+          weight: String(newWeightKg),
+        }));
+        setDrafts((prev) => ({ ...prev, [activeToolExercise.id]: updatedSets }));
+        saveSets(activeToolExercise.id, updatedSets);
+      }
+      push("success", `Sustituido por "${newExerciseName}"${newWeightKg !== null ? ` con carga adaptada a ${newWeightKg} kg` : ""}`);
+      await loadAll();
+    } catch {
+      push("error", "Error al aplicar la sustitución");
+    }
+  }
+
+  function handleApplyPlateWeight(weightKg: number) {
+    if (!activeToolExercise) return;
+    const currentSets = drafts[activeToolExercise.id] ?? [];
+    const updatedSets = currentSets.map((s) => (s.completed ? s : { ...s, weight: String(weightKg) }));
+    setDrafts((prev) => ({ ...prev, [activeToolExercise.id]: updatedSets }));
+    saveSets(activeToolExercise.id, updatedSets);
+    push("success", `Peso fijado a ${weightKg} kg en las series`);
+  }
+
+  function handleApplyOverload(recommendedWeightKg: number) {
+    if (!activeToolExercise) return;
+    const currentSets = drafts[activeToolExercise.id] ?? [];
+    const updatedSets = currentSets.map((s) => ({ ...s, weight: String(recommendedWeightKg) }));
+    setDrafts((prev) => ({ ...prev, [activeToolExercise.id]: updatedSets }));
+    saveSets(activeToolExercise.id, updatedSets);
+    push("success", `Sobrecarga aplicada: carga sugerida ${recommendedWeightKg} kg`);
+  }
+
+  function handleApplyVoiceData(parsed: { weightKg?: number; reps?: number; sets?: number }) {
+    if (!activeToolExercise) return;
+    const currentSets = drafts[activeToolExercise.id] ?? [];
+    let updatedSets = [...currentSets];
+
+    if (parsed.sets && parsed.sets > 0) {
+      updatedSets = Array.from({ length: parsed.sets }, (_, i) => ({
+        id: `set-${activeToolExercise.id}-${i}-${Date.now()}`,
+        weight: parsed.weightKg ? String(parsed.weightKg) : (currentSets[0]?.weight ?? ""),
+        reps: parsed.reps ? String(parsed.reps) : (currentSets[0]?.reps ?? "10"),
+        completed: false,
+      }));
+    } else {
+      updatedSets = updatedSets.map((s) => ({
+        ...s,
+        weight: parsed.weightKg !== undefined ? String(parsed.weightKg) : s.weight,
+        reps: parsed.reps !== undefined ? String(parsed.reps) : s.reps,
+      }));
+    }
+
+    setDrafts((prev) => ({ ...prev, [activeToolExercise.id]: updatedSets }));
+    saveSets(activeToolExercise.id, updatedSets);
+    push("success", `Datos dictados por voz aplicados a ${activeToolExercise.name}`);
+  }
+
+  const muscleFatigueData = useMemo(() => {
+    const gymLogsList = dayHistory.flatMap((h) =>
+      h.logs.map((l) => ({ exerciseName: h.name, date: l.date }))
+    );
+    return computeMuscleFatigueFromLogs(gymLogsList, recentSessions);
+  }, [dayHistory, recentSessions]);
+
+  const hybridInterference = useMemo(() => {
+    const nextLongRun = recentSessions.find((s) => {
+      if (s.date <= date) return false;
+      return s.discipline === "carrera" && (s.is_long_run || (s.distance_km && s.distance_km >= 12));
+    });
+
+    const isLegDay = dayExercises.some((e) => {
+      const n = e.name.toLowerCase();
+      return n.includes("sentadilla") || n.includes("squat") || n.includes("pierna") || n.includes("prensa") || n.includes("extension") || n.includes("femoral") || n.includes("zancada") || n.includes("lunge");
+    });
+
+    if (nextLongRun && isLegDay) {
+      return {
+        title: "Alerta de Interferencia Concurrente: Carrera / Pierna",
+        message: `Detectada sesión de carrera (${nextLongRun.distance_km ? `${nextLongRun.distance_km} km` : "Tirada Larga"}) programada para el ${nextLongRun.date}. Te sugerimos mantener un RIR ≥ 2 en sentadillas y tren inferior hoy para preservar la integridad de los tendones rotulianos y maximizar la recuperación de glucógeno.`,
+        severity: "warning" as const,
+      };
+    }
+
+    const yesterdayCrossfit = recentSessions.find((s) => {
+      if (s.date >= date) return false;
+      return s.discipline === "crossfit";
+    });
+
+    const isShoulderChestDay = dayExercises.some((e) => {
+      const n = e.name.toLowerCase();
+      return n.includes("militar") || n.includes("press") || n.includes("hombro") || n.includes("overhead");
+    });
+
+    if (yesterdayCrossfit && isShoulderChestDay) {
+      return {
+        title: "Alerta de Sobrecarga en Cintura Escapular",
+        message: `Realizaste CrossFit recientemente (${yesterdayCrossfit.date}). Tus deltoides y manguito rotador presentan fatiga residual. Calienta adecuadamente antes de presses pesados.`,
+        severity: "info" as const,
+      };
+    }
+
+    return null;
+  }, [recentSessions, date, dayExercises]);
 
   function addSet(exerciseId: number) {
     const currentSets = drafts[exerciseId] ?? [];
@@ -551,6 +720,14 @@ export default function GimnasioPage() {
               onChange={handleImportFile}
               style={{ display: "none" }}
             />
+            <Button
+              variant={showMuscleHeatmap ? "primary" : "secondary"}
+              onClick={() => setShowMuscleHeatmap(!showMuscleHeatmap)}
+              title="Visualizar mapa de calor y fatiga muscular multi-deporte"
+            >
+              <Activity size={15} />
+              <span>{showMuscleHeatmap ? "Ocultar Músculos" : "Mapa Muscular"}</span>
+            </Button>
             <Button variant="secondary" loading={importLoading} onClick={() => importFileRef.current?.click()}>
               <FileUp size={15} />
               Importar ejercicios
@@ -562,6 +739,50 @@ export default function GimnasioPage() {
           </>
         }
       />
+
+      {/* Alerta de Interferencia Concurrente (Modo Híbrido) */}
+      {hybridInterference && (
+        <div
+          className="surface animate-in"
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderRadius: "var(--radius-md)",
+            backgroundColor: hybridInterference.severity === "warning" ? "rgba(245, 158, 11, 0.08)" : "rgba(59, 130, 246, 0.08)",
+            border: `1px solid ${hybridInterference.severity === "warning" ? "rgba(245, 158, 11, 0.35)" : "rgba(59, 130, 246, 0.35)"}`,
+            marginBottom: "var(--space-4)",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "var(--space-3)",
+          }}
+        >
+          <div
+            style={{
+              padding: 6,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: hybridInterference.severity === "warning" ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.15)",
+              color: hybridInterference.severity === "warning" ? "var(--color-warning)" : "var(--color-brand)",
+              flexShrink: 0,
+            }}
+          >
+            <ShieldAlert size={20} />
+          </div>
+          <div>
+            <div className="font-bold text-sm" style={{ color: hybridInterference.severity === "warning" ? "var(--color-warning)" : "var(--color-brand)" }}>
+              {hybridInterference.title}
+            </div>
+            <p className="text-xs text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
+              {hybridInterference.message}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Mapa de Calor Muscular Interactivo (Anatomía y Recuperación Multi-deporte) */}
+      {showMuscleHeatmap && (
+        <div style={{ marginBottom: "var(--space-5)" }} className="animate-in">
+          <MuscleHeatmap fatigueData={muscleFatigueData} />
+        </div>
+      )}
 
       {importPreview && (
         <div
@@ -687,7 +908,7 @@ export default function GimnasioPage() {
                           fontSize: "0.72rem",
                         }}
                       >
-                        {completionPct === 100 ? "✓ Sesión Completada" : "⚡ ¡Hoy te toca Gimnasio!"}
+                        {completionPct === 100 ? "Sesión Completada" : "¡Hoy te toca Gimnasio!"}
                       </span>
                       <span className="font-bold text-base" style={{ letterSpacing: "-0.01em" }}>
                         {scheduledGymDay.name}
@@ -801,7 +1022,7 @@ export default function GimnasioPage() {
                           fontSize: "0.72rem",
                         }}
                       >
-                        📅 Hoy no tienes Gimnasio programado
+                        Hoy no tienes Gimnasio programado
                       </span>
                       {scheduledSession && (
                         <span className="text-xs text-muted">
@@ -912,6 +1133,10 @@ export default function GimnasioPage() {
                       onSaveSets={saveSets}
                       onToggleComplete={toggleExerciseComplete}
                       saving={savingId === ex.id}
+                      onOpenSwap={handleOpenSwap}
+                      onOpenPlateCalc={handleOpenPlateCalc}
+                      onOpenOverload={handleOpenOverload}
+                      onOpenVoice={handleOpenVoice}
                     />
                   );
                 })}
@@ -942,6 +1167,56 @@ export default function GimnasioPage() {
       {manageOpen && (
         <ManageModal days={days} exercises={exercises} onClose={() => setManageOpen(false)} onChanged={loadAll} />
       )}
+
+      {/* Modal Smart Swap (Sustitución Biomecánica Inteligente) */}
+      {swapModalOpen && activeToolExercise && (
+        <SmartSwapModal
+          open={swapModalOpen}
+          onClose={() => setSwapModalOpen(false)}
+          originalExerciseName={activeToolExercise.name}
+          currentWeightKg={activeToolWeight}
+          onApplySwap={handleApplySwap}
+        />
+      )}
+
+      {/* Modal Calculadora de Discos & Barra Olímpica */}
+      {plateModalOpen && (
+        <PlateCalculatorModal
+          open={plateModalOpen}
+          onClose={() => setPlateModalOpen(false)}
+          initialWeightKg={activeToolWeight}
+          onApplyWeight={handleApplyPlateWeight}
+        />
+      )}
+
+      {/* Modal Motor de Sobrecarga Progresiva */}
+      {overloadModalOpen && activeToolExercise && (
+        <OverloadRulesModal
+          open={overloadModalOpen}
+          onClose={() => setOverloadModalOpen(false)}
+          exerciseName={activeToolExercise.name}
+          currentWeightKg={activeToolWeight}
+          targetReps={activeToolReps}
+          onApplyRecommendation={handleApplyOverload}
+        />
+      )}
+
+      {/* Modal Registro por Voz "Manos Libres" */}
+      {voiceModalOpen && activeToolExercise && (
+        <VoiceLoggerModal
+          open={voiceModalOpen}
+          onClose={() => setVoiceModalOpen(false)}
+          exerciseName={activeToolExercise.name}
+          onApplyParsedData={handleApplyVoiceData}
+        />
+      )}
+
+      {/* Temporizador Inteligente Flotante */}
+      <SmartRestTimer
+        isOpen={restTimerOpen}
+        onClose={() => setRestTimerOpen(false)}
+        initialSeconds={90}
+      />
     </div>
   );
 }
@@ -968,6 +1243,10 @@ function ExerciseCard({
   onSaveSets,
   onToggleComplete,
   saving,
+  onOpenSwap,
+  onOpenPlateCalc,
+  onOpenOverload,
+  onOpenVoice,
 }: {
   exercise: GymExercise;
   index: number;
@@ -982,6 +1261,10 @@ function ExerciseCard({
   onSaveSets: (exerciseId: number) => void;
   onToggleComplete: (exerciseId: number) => void;
   saving: boolean;
+  onOpenSwap: (exercise: GymExercise, currentWeight: number | null) => void;
+  onOpenPlateCalc: (exercise: GymExercise, currentWeight: number | null) => void;
+  onOpenOverload: (exercise: GymExercise, currentWeight: number | null, repsTarget: string) => void;
+  onOpenVoice: (exercise: GymExercise) => void;
 }) {
   const parsed = parseExerciseName(exercise.name);
 
@@ -1138,7 +1421,8 @@ function ExerciseCard({
               border: "1px solid var(--color-border)",
             }}
           >
-            <span>⏱️ Última vez: <strong>{previousLog.weight_kg} kg</strong></span>
+            <History size={11} />
+            <span>Última vez: <strong>{previousLog.weight_kg} kg</strong></span>
             {previousLog.reps ? <span style={{ opacity: 0.8 }}>({previousLog.reps} reps)</span> : null}
           </span>
         )}
@@ -1161,6 +1445,62 @@ function ExerciseCard({
             <Flame size={11} /> ¡Nuevo récord! ({currentMaxWeight} kg)
           </span>
         )}
+      </div>
+
+      {/* Barra de Herramientas de Innovación Gym */}
+      <div
+        className="flex flex-wrap items-center gap-1.5"
+        style={{
+          marginBottom: "var(--space-3)",
+          padding: "5px 8px",
+          borderRadius: "var(--radius-sm)",
+          backgroundColor: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid var(--color-border)",
+        }}
+      >
+        <button
+          type="button"
+          className="btn btn-ghost text-xs flex items-center gap-1"
+          style={{ padding: "0.2rem 0.5rem" }}
+          onClick={() => onOpenSwap(exercise, currentMaxWeight)}
+          title="Sustituir por máquina o variante si está ocupada (Smart Swap)"
+        >
+          <ArrowLeftRight size={12} style={{ color: "var(--color-brand)" }} />
+          <span>Smart Swap</span>
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-ghost text-xs flex items-center gap-1"
+          style={{ padding: "0.2rem 0.5rem" }}
+          onClick={() => onOpenPlateCalc(exercise, currentMaxWeight)}
+          title="Calculadora visual de discos en barra olímpica"
+        >
+          <Scale size={12} style={{ color: "var(--color-warning)" }} />
+          <span>Discos</span>
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-ghost text-xs flex items-center gap-1"
+          style={{ padding: "0.2rem 0.5rem" }}
+          onClick={() => onOpenOverload(exercise, currentMaxWeight, parsed.detail || "8-10")}
+          title="Reglas automáticas de sobrecarga progresiva"
+        >
+          <TrendingUp size={12} style={{ color: "var(--color-success)" }} />
+          <span>Sobrecarga</span>
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-ghost text-xs flex items-center gap-1"
+          style={{ padding: "0.2rem 0.5rem" }}
+          onClick={() => onOpenVoice(exercise)}
+          title="Dictar series por voz manos libres (Web Speech API)"
+        >
+          <Mic size={12} style={{ color: "#ec4899" }} />
+          <span>Voz</span>
+        </button>
       </div>
 
       {/* Contenedor de Series (Diseño compacto y adaptable a móvil sin barra de scroll) */}

@@ -1055,7 +1055,7 @@ export default function RegistroPage() {
                 </div>
                 {fitResult.summary.deepAnalysis.zoneDistribution.targetZoneName && (
                   <span className="badge badge-brand" style={{ fontSize: "0.72rem", padding: "2px 8px" }}>
-                    🎯 Objetivo: {fitResult.summary.deepAnalysis.zoneDistribution.targetZoneName} ({fitResult.summary.deepAnalysis.zoneDistribution.targetCompliancePct ?? 0}%)
+                    Objetivo: {fitResult.summary.deepAnalysis.zoneDistribution.targetZoneName} ({fitResult.summary.deepAnalysis.zoneDistribution.targetCompliancePct ?? 0}%)
                   </span>
                 )}
               </div>
@@ -1203,7 +1203,7 @@ export default function RegistroPage() {
                 const label = matched
                   ? `${DISCIPLINE_LABEL[matched.discipline] ?? matched.discipline}${matched.planned_code ? ` — ${matched.planned_code}` : ""} (${matched.status})`
                   : "Sesión planificada ese día";
-                return <option value={fitResult.matchedSessionId}>★ [Recomendado] {label}</option>;
+                return <option value={fitResult.matchedSessionId}>[Recomendado] {label}</option>;
               })()}
               {fitResult.otherSessionsThatDay
                 .filter((s) => s.id !== fitResult.matchedSessionId)
@@ -1313,7 +1313,7 @@ export default function RegistroPage() {
                               border: "1px solid rgba(59, 130, 246, 0.3)",
                             }}
                           >
-                            ✨ Adaptado
+                            Adaptado
                           </span>
                         )}
                       </div>
