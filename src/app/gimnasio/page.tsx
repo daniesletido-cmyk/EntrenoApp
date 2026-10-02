@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy, Calendar, Activity, ArrowDown, ArrowLeftRight, Scale, Mic, TrendingUp, Sparkles, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Dumbbell, Plus, Trash2, Save, History, Settings2, FileUp, X, Check, CheckCircle2, Trophy, Flame, Copy, Calendar, Activity, ArrowDown, ArrowLeftRight, Scale, Mic, TrendingUp, Sparkles, AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -163,7 +163,7 @@ export default function GimnasioPage() {
     try {
       const dNow = new Date(date + "T12:00:00Z");
       const pastStr = new Date(dNow.getTime() - 7 * 86400000).toISOString().slice(0, 10);
-      const futureStr = new Date(dNow.getTime() + 3 * 86400000).toISOString().slice(0, 10);
+      const futureStr = new Date(dNow.getTime() + 6 * 86400000).toISOString().slice(0, 10);
 
       const [daysRes, exRes, sessionsRes, logsRes, prsRes, multiSessionsRes] = await Promise.all([
         fetch("/api/gym/days").then((r) => r.json()),
@@ -557,6 +557,7 @@ export default function GimnasioPage() {
   }, [dayHistory, recentSessions]);
 
   const hybridInterference = useMemo(() => {
+    // 1. Detección de Carrera Larga en los próximos días vs Día de Pierna
     const nextLongRun = recentSessions.find((s) => {
       if (s.date <= date) return false;
       return s.discipline === "carrera" && (s.is_long_run || (s.distance_km && s.distance_km >= 12));
@@ -564,7 +565,7 @@ export default function GimnasioPage() {
 
     const isLegDay = dayExercises.some((e) => {
       const n = e.name.toLowerCase();
-      return n.includes("sentadilla") || n.includes("squat") || n.includes("pierna") || n.includes("prensa") || n.includes("extension") || n.includes("femoral") || n.includes("zancada") || n.includes("lunge");
+      return n.includes("sentadilla") || n.includes("squat") || n.includes("pierna") || n.includes("prensa") || n.includes("extension") || n.includes("femoral") || n.includes("zancada") || n.includes("lunge") || n.includes("gemelo");
     });
 
     if (nextLongRun && isLegDay) {
@@ -575,20 +576,40 @@ export default function GimnasioPage() {
       };
     }
 
-    const yesterdayCrossfit = recentSessions.find((s) => {
+    // 2. Detección de CrossFit en las últimas 48h vs Torso / Hombro
+    const recentCrossfit = recentSessions.find((s) => {
       if (s.date >= date) return false;
       return s.discipline === "crossfit";
     });
 
     const isShoulderChestDay = dayExercises.some((e) => {
       const n = e.name.toLowerCase();
-      return n.includes("militar") || n.includes("press") || n.includes("hombro") || n.includes("overhead");
+      return n.includes("militar") || n.includes("press") || n.includes("hombro") || n.includes("overhead") || n.includes("banca");
     });
 
-    if (yesterdayCrossfit && isShoulderChestDay) {
+    if (recentCrossfit && isShoulderChestDay) {
       return {
-        title: "Alerta de Sobrecarga en Cintura Escapular",
-        message: `Realizaste CrossFit recientemente (${yesterdayCrossfit.date}). Tus deltoides y manguito rotador presentan fatiga residual. Calienta adecuadamente antes de presses pesados.`,
+        title: "Alerta de Sobrecarga en Cintura Escapular (CrossFit previo)",
+        message: `Realizaste CrossFit recientemente (${recentCrossfit.date}). Tus deltoides y manguito rotador presentan fatiga residual. Calienta adecuadamente antes de presses pesados y no vayas al fallo muscular.`,
+        severity: "info" as const,
+      };
+    }
+
+    // 3. Detección de Natación reciente vs Dorsal / Hombro
+    const recentSwim = recentSessions.find((s) => {
+      if (s.date >= date) return false;
+      return s.discipline === "natacion";
+    });
+
+    const isBackShoulderDay = dayExercises.some((e) => {
+      const n = e.name.toLowerCase();
+      return n.includes("dominada") || n.includes("jalon") || n.includes("remo") || n.includes("hombro");
+    });
+
+    if (recentSwim && isBackShoulderDay) {
+      return {
+        title: "Alerta de Fatiga Dorsal y Escapular (Natación previa)",
+        message: `Sesión de natación registrada recientemente (${recentSwim.date}). La musculatura dorsal y rotadores de hombro presentan carga. Modera la intensidad en ejercicios de tracción.`,
         severity: "info" as const,
       };
     }
@@ -740,42 +761,93 @@ export default function GimnasioPage() {
         }
       />
 
-      {/* Alerta de Interferencia Concurrente (Modo Híbrido) */}
-      {hybridInterference && (
-        <div
-          className="surface animate-in"
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            backgroundColor: hybridInterference.severity === "warning" ? "rgba(245, 158, 11, 0.08)" : "rgba(59, 130, 246, 0.08)",
-            border: `1px solid ${hybridInterference.severity === "warning" ? "rgba(245, 158, 11, 0.35)" : "rgba(59, 130, 246, 0.35)"}`,
-            marginBottom: "var(--space-4)",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "var(--space-3)",
-          }}
-        >
+      {/* Panel de Control de Modo Híbrido Concurrente */}
+      <div
+        className="surface animate-in"
+        style={{
+          padding: "var(--space-3) var(--space-4)",
+          borderRadius: "var(--radius-md)",
+          backgroundColor: hybridInterference
+            ? hybridInterference.severity === "warning"
+              ? "rgba(245, 158, 11, 0.08)"
+              : "rgba(59, 130, 246, 0.08)"
+            : "rgba(16, 185, 129, 0.06)",
+          border: `1px solid ${
+            hybridInterference
+              ? hybridInterference.severity === "warning"
+                ? "rgba(245, 158, 11, 0.35)"
+                : "rgba(59, 130, 246, 0.35)"
+              : "rgba(16, 185, 129, 0.25)"
+          }`,
+          marginBottom: "var(--space-4)",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "var(--space-3)",
+        }}
+      >
+        <div className="flex items-start gap-3">
           <div
             style={{
               padding: 6,
               borderRadius: "var(--radius-sm)",
-              backgroundColor: hybridInterference.severity === "warning" ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.15)",
-              color: hybridInterference.severity === "warning" ? "var(--color-warning)" : "var(--color-brand)",
+              backgroundColor: hybridInterference
+                ? hybridInterference.severity === "warning"
+                  ? "rgba(245, 158, 11, 0.15)"
+                  : "rgba(59, 130, 246, 0.15)"
+                : "rgba(16, 185, 129, 0.15)",
+              color: hybridInterference
+                ? hybridInterference.severity === "warning"
+                  ? "var(--color-warning)"
+                  : "var(--color-brand)"
+                : "var(--color-success)",
               flexShrink: 0,
             }}
           >
-            <ShieldAlert size={20} />
+            {hybridInterference ? <ShieldAlert size={20} /> : <ShieldCheck size={20} />}
           </div>
           <div>
-            <div className="font-bold text-sm" style={{ color: hybridInterference.severity === "warning" ? "var(--color-warning)" : "var(--color-brand)" }}>
-              {hybridInterference.title}
+            <div
+              className="font-bold text-sm"
+              style={{
+                color: hybridInterference
+                  ? hybridInterference.severity === "warning"
+                    ? "var(--color-warning)"
+                    : "var(--color-brand)"
+                  : "var(--color-success)",
+              }}
+            >
+              {hybridInterference
+                ? hybridInterference.title
+                : "Modo Híbrido Concurrente · Estado Óptimo"}
             </div>
             <p className="text-xs text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
-              {hybridInterference.message}
+              {hybridInterference
+                ? hybridInterference.message
+                : "Compatibilidad neuromuscular verificada: No se detectan interferencias de fatiga entre el gimnasio de hoy y tus sesiones de carrera, natación o CrossFit de los próximos días."}
             </p>
           </div>
         </div>
-      )}
+
+        <button
+          type="button"
+          onClick={() => setShowMuscleHeatmap(!showMuscleHeatmap)}
+          className="badge badge-neutral"
+          style={{
+            cursor: "pointer",
+            flexShrink: 0,
+            fontSize: "0.72rem",
+            padding: "4px 8px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+          title="Ver mapa de calor muscular multi-deporte"
+        >
+          <Activity size={12} />
+          <span>{showMuscleHeatmap ? "Ocultar Mapa" : "Ver Mapa Muscular"}</span>
+        </button>
+      </div>
 
       {/* Mapa de Calor Muscular Interactivo (Anatomía y Recuperación Multi-deporte) */}
       {showMuscleHeatmap && (
