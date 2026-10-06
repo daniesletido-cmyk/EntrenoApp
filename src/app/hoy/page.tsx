@@ -505,10 +505,13 @@ export default function HoyPage() {
                   />
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl font-bold tracking-tight text-white tabular-nums">
-                    {readiness.score}%
-                  </span>
-                  <span className="text-[11px] text-muted -mt-0.5 font-medium">Puntuación</span>
+                  <div className="flex items-baseline justify-center">
+                    <span className="text-xl font-bold tracking-tight text-white tabular-nums">
+                      {readiness.score}
+                    </span>
+                    <span className="text-xs font-semibold text-white/70 ml-0.5">%</span>
+                  </div>
+                  <span className="text-[10px] text-muted font-medium mt-0.5">Puntuación</span>
                 </div>
               </div>
 
