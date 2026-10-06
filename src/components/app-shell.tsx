@@ -219,20 +219,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <div className="relative flex-shrink-0">
-              <Image src="/brand/logo-mark.png" alt="" width={24} height={24} className="rounded-md ring-1 ring-[#c3f400]/40" />
-              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#c3f400] rounded-full ring-1 ring-black animate-laser-pulse" />
+              <Image src="/brand/logo-mark.png" alt="" width={26} height={26} className="rounded-md" />
             </div>
             <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 leading-tight">
-                <span className="font-bold text-xs tracking-wider uppercase text-white" style={{ letterSpacing: "0.04em" }}>
-                  ENTRENO // APEX
-                </span>
-                <span className="text-[9px] px-1 py-0.2 rounded font-mono font-bold bg-[#c3f400]/15 text-[#c3f400] border border-[#c3f400]/30">
-                  {current?.label ?? "LIVE"}
-                </span>
-              </div>
-              <span className="text-[10px] text-muted font-mono leading-tight truncate">
-                SYS ONLINE · D. ESPINOSA
+              <span className="font-bold text-sm leading-tight truncate text-white" style={{ letterSpacing: "-0.01em" }}>
+                {current?.label ?? "Hoy"}
+              </span>
+              <span className="text-[11px] text-muted leading-tight truncate">
+                Daniel Espinosa · Maratón {raceDate}
               </span>
             </div>
           </div>
@@ -330,12 +324,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             pointerEvents: "auto",
             margin: "0 auto",
             maxWidth: 460,
-            background: "rgba(10, 13, 20, 0.88)",
+            background: "rgba(18, 20, 26, 0.92)",
             backdropFilter: "blur(24px)",
             WebkitBackdropFilter: "blur(24px)",
-            border: "1px solid rgba(195, 244, 0, 0.28)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
             borderRadius: "var(--radius-full)",
-            boxShadow: "0 12px 36px -4px rgba(0, 0, 0, 0.85), 0 0 16px rgba(195, 244, 0, 0.15)",
+            boxShadow: "0 16px 36px -4px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
             display: "grid",
             gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
             padding: "4px 4px",
@@ -359,19 +353,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   padding: "4px 2px",
                   borderRadius: "var(--radius-full)",
                   background: active ? "var(--color-brand)" : "transparent",
-                  color: active ? "#050507" : "var(--color-text-muted)",
-                  boxShadow: active ? "0 0 18px rgba(195, 244, 0, 0.55)" : "none",
+                  color: active ? "#090a0f" : "var(--color-text-muted)",
+                  boxShadow: active ? "0 4px 16px rgba(16, 185, 129, 0.35)" : "none",
                   transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
                   textDecoration: "none",
                   position: "relative",
                   overflow: "hidden",
                 }}
               >
-                <Icon size={16} strokeWidth={active ? 2.5 : 1.9} />
+                <Icon size={16} strokeWidth={active ? 2.4 : 1.8} />
                 <span
                   style={{
                     fontSize: "0.62rem",
-                    fontWeight: active ? 800 : 500,
+                    fontWeight: active ? 700 : 500,
                     letterSpacing: "-0.01em",
                     lineHeight: 1,
                     whiteSpace: "nowrap",
@@ -408,7 +402,7 @@ function Brand() {
         alignItems: "center",
         gap: "var(--space-3)",
         padding: "var(--space-4) var(--space-4)",
-        borderBottom: "1px solid rgba(195, 244, 0, 0.15)",
+        borderBottom: "1px solid var(--color-border)",
         position: "relative",
       }}
     >
@@ -416,28 +410,33 @@ function Brand() {
         <Image
           src="/brand/logo-mark.png"
           alt=""
-          width={34}
-          height={34}
-          className="rounded-lg ring-1 ring-[#c3f400]/50"
+          width={32}
+          height={32}
+          className="rounded-lg"
         />
-        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#c3f400] rounded-full ring-2 ring-black animate-laser-pulse" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span style={{ fontWeight: 800, fontSize: "1.02rem", lineHeight: 1.1, letterSpacing: "0.02em", color: "#ffffff" }}>
+          <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "#ffffff" }}>
             ENTRENO
           </span>
           <span
-            className="hud-pill hud-pill-emerald"
-            style={{ fontSize: "0.6rem", padding: "1px 5px", lineHeight: 1.2, fontWeight: 700 }}
+            style={{
+              fontSize: "0.62rem",
+              padding: "1px 6px",
+              borderRadius: "9999px",
+              background: "rgba(16, 185, 129, 0.15)",
+              color: "#10b981",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              fontWeight: 700,
+              lineHeight: 1.2,
+            }}
           >
-            APEX
+            PRO
           </span>
         </div>
-        <div className="flex items-center gap-1 text-xs text-muted" style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", marginTop: 2 }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#c3f400] inline-block animate-ping" />
-          <span style={{ color: "#c3f400" }}>SYS ONLINE</span>
-          <span>// V4.8</span>
+        <div className="text-xs text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+          Daniel Espinosa
         </div>
       </div>
     </div>

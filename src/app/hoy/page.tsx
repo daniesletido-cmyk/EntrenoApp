@@ -343,33 +343,28 @@ export default function HoyPage() {
         }
       />
 
-      {/* 1. Microciclo Semanal (Segmented Kinetic HUD Bar) */}
+      {/* 1. Microciclo Semanal (Minimalist 7-Day Strip) */}
       <section
-        className="relative rounded-xl p-3 sm:p-4 laser-border overflow-hidden animate-in"
-        style={{
-          marginBottom: "var(--space-4)",
-          background: "rgba(10, 13, 20, 0.85)",
-          backdropFilter: "blur(20px)",
-        }}
+        className="rounded-2xl border border-white/[0.08] p-4 mb-4 shadow-sm animate-in"
+        style={{ background: "#12141a" }}
       >
-        <div className="corner-bracket-tl" />
-        <div className="corner-bracket-br" />
-        <div className="flex justify-between items-center mb-2.5">
-          <div className="flex items-center gap-1.5 font-mono text-[10px] tracking-wider" style={{ color: "var(--color-brand)" }}>
-            <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-accent)" }} />
-            <span>// FASE 03 · CARGA MÁXIMA &amp; CONDICIONAMIENTO</span>
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Microciclo Semanal · Fase {phaseForDate(today, settings)}
+            </span>
           </div>
           <Link
             href="/plan-semanal"
-            className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider hover:underline"
-            style={{ color: "var(--color-accent)" }}
+            className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
           >
             <span>Plan semanal</span>
-            <ArrowRight size={11} />
+            <ArrowRight size={13} />
           </Link>
         </div>
 
-        {/* Segmented Day Trackers */}
+        {/* 7-Day Selector */}
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center">
           {weekDates(weekStartOf(today)).map((dIso, idx) => {
             const isDayToday = dIso === today;
@@ -383,35 +378,20 @@ export default function HoyPage() {
               return (
                 <div
                   key={dIso}
-                  className="flex flex-col items-center py-2 px-1 rounded relative scale-105"
+                  className="flex flex-col items-center py-2.5 px-1 rounded-xl relative transition-all"
                   style={{
-                    background: "rgba(20, 26, 38, 0.95)",
-                    border: "2px solid var(--color-brand)",
-                    boxShadow: "0 0 16px rgba(195, 244, 0, 0.45)",
+                    background: "rgba(16, 185, 129, 0.14)",
+                    border: "1.5px solid #10b981",
+                    boxShadow: "0 0 16px rgba(16, 185, 129, 0.2)",
                   }}
                 >
-                  <span
-                    className="absolute -top-2 px-1 rounded font-mono font-bold uppercase text-[7px]"
-                    style={{ background: "var(--color-brand)", color: "#050507" }}
-                  >
-                    HOY
-                  </span>
-                  <span className="font-mono text-[10px] font-bold" style={{ color: "var(--color-brand)" }}>
+                  <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-tight">
                     {letters[idx]}
                   </span>
-                  <span
-                    className="tabular-nums font-mono text-[15px] font-bold mt-0.5 leading-none"
-                    style={{ color: "var(--color-brand)" }}
-                  >
+                  <span className="text-base font-bold text-white mt-0.5 leading-none tabular-nums">
                     {dayNum}
                   </span>
-                  <span
-                    className="w-full h-1 rounded-full mt-1.5"
-                    style={{
-                      background: "var(--color-accent)",
-                      boxShadow: "0 0 6px var(--color-accent)",
-                    }}
-                  />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2" />
                 </div>
               );
             }
@@ -419,26 +399,27 @@ export default function HoyPage() {
             return (
               <div
                 key={dIso}
-                className="flex flex-col items-center py-2 px-1 rounded transition-all"
+                className="flex flex-col items-center py-2.5 px-1 rounded-xl transition-all"
                 style={{
-                  background: isCompleted ? "rgba(20, 24, 34, 0.6)" : "rgba(14, 17, 23, 0.4)",
-                  border: isCompleted ? "1px solid rgba(195, 244, 0, 0.25)" : "1px solid var(--color-border)",
-                  opacity: isCompleted || (daySession && !isRest) ? 1 : 0.65,
+                  background: isCompleted ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.02)",
+                  border: isCompleted ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid rgba(255, 255, 255, 0.05)",
+                  opacity: isCompleted || (daySession && !isRest) ? 1 : 0.6,
                 }}
               >
-                <span className="font-mono text-[10px] text-muted">{letters[idx]}</span>
-                <span className="tabular-nums font-mono text-[13px] font-semibold text-white mt-0.5 leading-none">
+                <span className="text-[10px] font-medium text-muted uppercase tracking-tight">
+                  {letters[idx]}
+                </span>
+                <span className="text-sm font-semibold text-gray-300 mt-0.5 leading-none tabular-nums">
                   {dayNum}
                 </span>
                 <span
-                  className="w-full h-1 rounded-full mt-1.5"
+                  className="w-1.5 h-1.5 rounded-full mt-2"
                   style={{
                     background: isCompleted
-                      ? "var(--color-brand)"
+                      ? "#10b981"
                       : daySession && !isRest
-                      ? "rgba(0, 227, 253, 0.5)"
+                      ? "rgba(255, 255, 255, 0.3)"
                       : "transparent",
-                    boxShadow: isCompleted ? "0 0 4px var(--color-brand)" : undefined,
                   }}
                 />
               </div>
@@ -447,613 +428,252 @@ export default function HoyPage() {
         </div>
       </section>
 
-      {/* 2. CENTRAL HERO: READINESS COCKPIT // APEX HUD */}
+      {/* 2. Recuperación Fisiológica (Whoop / Oura Luxury Gauge) */}
       {readiness && (
-        <section
-          className="relative rounded-xl p-4 sm:p-5 laser-border overflow-hidden animate-in"
-          style={{
-            marginBottom: "var(--space-5)",
-            background: "rgba(10, 13, 20, 0.92)",
-            backdropFilter: "blur(24px)",
-          }}
-        >
-          <div className="corner-bracket-tl" />
-          <div className="corner-bracket-br" />
+        <section className="space-y-3 mb-5">
+          <div
+            className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.6)] animate-in"
+            style={{ background: "#12141a" }}
+          >
+            {/* Diffused Subtle Ambient Glow */}
+            <div className="absolute -right-6 -top-6 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
-          {/* Decorative ambient crosshair marks */}
-          <div className="absolute top-2.5 right-3 font-mono text-[9px] select-none tracking-widest" style={{ color: "rgba(255, 255, 255, 0.25)" }}>
-            HUD // BIO-ARC 01
-          </div>
-
-          {/* Header Row */}
-          <div className="flex items-center justify-between pb-2.5 border-b mb-3" style={{ borderColor: "rgba(195, 244, 0, 0.15)" }}>
-            <div className="flex items-center gap-2">
-              <Zap size={16} style={{ color: "var(--color-brand)" }} />
-              <span className="font-mono text-xs font-bold uppercase tracking-widest text-white">
-                READINESS COCKPIT // APEX HUD
-              </span>
-            </div>
-            <span className="font-mono text-[9px] uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>
-              OPTICAL SENSING ON
-            </span>
-          </div>
-
-          {/* Circular Glowing Arc Gauge & Readiness Score */}
-          <div className="flex flex-col items-center justify-center relative py-2">
-            <div className="relative w-44 h-44 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
-                {/* Background smoked track */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  fill="none"
-                  r="68"
-                  stroke="rgba(255, 255, 255, 0.08)"
-                  strokeDasharray="380"
-                  strokeDashoffset="60"
-                  strokeLinecap="round"
-                  strokeWidth="6"
-                />
-                {/* Secondary Cyan calibration ring */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  fill="none"
-                  r="60"
-                  stroke="rgba(0, 227, 253, 0.2)"
-                  strokeDasharray="4 4"
-                  strokeWidth="1.5"
-                />
-                {/* Neon Volt & Hyper Cyan active arc */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  fill="none"
-                  r="68"
-                  stroke={
-                    readiness.tone === "success"
-                      ? "#c3f400"
-                      : readiness.tone === "warning"
-                      ? "#f59e0b"
-                      : "#ef4444"
-                  }
-                  strokeDasharray="427"
-                  strokeDashoffset={427 - (427 * Math.max(10, Math.min(100, readiness.score))) / 100}
-                  strokeLinecap="round"
-                  strokeWidth="7"
-                  style={{
-                    filter:
-                      readiness.tone === "success"
-                        ? "drop-shadow(0 0 10px rgba(195, 244, 0, 0.75))"
-                        : "drop-shadow(0 0 10px rgba(245, 158, 11, 0.75))",
-                    transition: "stroke-dashoffset 1s ease-out",
-                  }}
-                />
-                {/* Terminal Photon Dot */}
-                <circle
-                  cx="80"
-                  cy="12"
-                  fill="#00e3fd"
-                  r="3.5"
-                  style={{ filter: "drop-shadow(0 0 6px #00e3fd)" }}
-                />
-              </svg>
-
-              {/* Digital Core Score Display */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="font-mono text-[8px] uppercase tracking-widest text-muted">
-                  BIOMARKER INDEX
-                </span>
-                <div className="flex items-baseline justify-center">
-                  <span
-                    className="font-bold text-4xl sm:text-5xl tracking-tighter tabular-nums"
-                    style={{
-                      color:
-                        readiness.tone === "success"
-                          ? "var(--color-brand)"
-                          : readiness.tone === "warning"
-                          ? "var(--color-warning)"
-                          : "var(--color-danger)",
-                      textShadow: "0 0 14px rgba(195, 244, 0, 0.5)",
-                    }}
-                  >
-                    {readiness.score}
-                  </span>
-                  <span className="font-mono text-sm font-bold" style={{ color: "var(--color-accent)" }}>
-                    /100
-                  </span>
-                </div>
-                <span className="font-mono text-[8px] tracking-wider" style={{ color: "var(--color-accent)" }}>
-                  {readiness.score >= 85 ? "APEX READY" : readiness.score >= 70 ? "OPTIMAL ZONE" : "RECOVERY REQUIRED"}
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Recuperación Fisiológica
                 </span>
               </div>
-            </div>
-
-            {/* Status Badge (Volt & Orange Alert) */}
-            <div
-              className="mt-2 px-3 py-1 rounded-full flex items-center gap-2"
-              style={{
-                background: "rgba(20, 26, 38, 0.8)",
-                border: "1px solid rgba(195, 244, 0, 0.35)",
-                boxShadow: "0 0 12px rgba(195, 244, 0, 0.2)",
-              }}
-            >
-              <span className="w-2 h-2 rounded-full animate-ping" style={{ background: "var(--color-brand)" }} />
-              <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color: "var(--color-brand)" }}>
-                ESTADO: {readiness.verdict?.badgeLabel || readiness.levelLabel} · GREENLIGHT
-              </span>
               <span
-                className="font-mono text-[8px] px-1 py-0.2 rounded font-bold"
-                style={{ background: "rgba(255, 85, 0, 0.2)", color: "#ff8c42" }}
-              >
-                RPE MAX
-              </span>
-            </div>
-          </div>
-
-          {/* 3-Column Micro-Telemetry Cards */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t" style={{ borderColor: "rgba(195, 244, 0, 0.15)" }}>
-            {/* HRV */}
-            <div
-              className="p-2 sm:p-2.5 rounded relative"
-              style={{
-                background: "rgba(14, 17, 23, 0.85)",
-                border: "1px solid rgba(0, 227, 253, 0.25)",
-              }}
-            >
-              <div className="flex items-center justify-between text-muted font-mono text-[9px]">
-                <span>HRV RMSSD</span>
-                <span style={{ color: "var(--color-accent)" }}>+12%</span>
-              </div>
-              <div className="font-mono text-base sm:text-lg font-bold text-white mt-1">
-                88 <span className="text-[10px] text-muted font-normal">ms</span>
-              </div>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="w-1.5 h-1 rounded-sm" style={{ background: "var(--color-accent)" }} />
-                <span className="w-3 h-1 rounded-sm" style={{ background: "var(--color-accent)" }} />
-                <span className="w-4 h-1 rounded-sm" style={{ background: "rgba(0, 227, 253, 0.3)" }} />
-                <span className="text-[8px] font-mono" style={{ color: "var(--color-accent)" }}>CYAN ECG</span>
-              </div>
-            </div>
-
-            {/* FC Reposo */}
-            <div
-              className="p-2 sm:p-2.5 rounded relative"
-              style={{
-                background: "rgba(14, 17, 23, 0.85)",
-                border: "1px solid rgba(195, 244, 0, 0.2)",
-              }}
-            >
-              <div className="flex items-center justify-between text-muted font-mono text-[9px]">
-                <span>FC REPOSO</span>
-                <span style={{ color: "var(--color-brand)" }}>LASER</span>
-              </div>
-              <div className="font-mono text-base sm:text-lg font-bold text-white mt-1">
-                44 <span className="text-[10px] text-muted font-normal">bpm</span>
-              </div>
-              <div className="font-mono text-[8px] mt-1" style={{ color: "var(--color-brand)" }}>
-                ● PULSO ESTABLE
-              </div>
-            </div>
-
-            {/* ACWR Ratio */}
-            <div
-              className="p-2 sm:p-2.5 rounded relative"
-              style={{
-                background: "rgba(14, 17, 23, 0.85)",
-                border: "1px solid rgba(195, 244, 0, 0.2)",
-              }}
-            >
-              <div className="flex items-center justify-between text-muted font-mono text-[9px]">
-                <span>ACWR RATIO</span>
-                <span style={{ color: "var(--color-brand)" }}>SWEET</span>
-              </div>
-              <div className="font-mono text-base sm:text-lg font-bold mt-1" style={{ color: "var(--color-brand)" }}>
-                0.95
-              </div>
-              <div className="font-mono text-[8px] text-muted mt-1 truncate">
-                ZONA ÓPTIMA
-              </div>
-            </div>
-          </div>
-
-          {/* Holographic Callout: Neuromuscular Compatibility */}
-          <div
-            className="mt-3 p-2.5 rounded-lg flex items-start gap-2.5"
-            style={{
-              background: "rgba(0, 227, 253, 0.08)",
-              border: "1px solid rgba(0, 227, 253, 0.35)",
-            }}
-          >
-            <ShieldCheck size={18} style={{ color: "var(--color-accent)", flexShrink: 0, marginTop: 1 }} />
-            <div className="min-w-0">
-              <div className="font-mono text-[10px] font-bold tracking-wider" style={{ color: "var(--color-accent)" }}>
-                COMPATIBILIDAD NEUROMUSCULAR // 100%
-              </div>
-              <p className="text-xs text-white leading-tight mt-0.5" style={{ fontSize: "0.75rem" }}>
-                <span className="font-bold" style={{ color: "var(--color-brand)" }}>0.0% CO-FATIGA</span> // Permiso total para CrossFit Metcon + Tirada de Maratón dominical sin interferencia adaptativa.
-              </p>
-            </div>
-          </div>
-
-          {/* Verdict Title & Guidance Box */}
-          <div
-            style={{
-              marginTop: "var(--space-3)",
-              padding: "0.85rem 1rem",
-              borderRadius: "var(--radius-md)",
-              background: "var(--color-surface-raised)",
-              border: `1px solid ${
-                readiness.tone === "success"
-                  ? "rgba(34, 197, 94, 0.3)"
-                  : readiness.tone === "warning"
-                  ? "rgba(234, 179, 8, 0.3)"
-                  : readiness.tone === "danger"
-                  ? "rgba(239, 68, 68, 0.3)"
-                  : "rgba(59, 130, 246, 0.3)"
-              }`,
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles
-                size={17}
+                className="px-3 py-1 rounded-full text-xs font-semibold"
                 style={{
+                  background:
+                    readiness.tone === "success"
+                      ? "rgba(16, 185, 129, 0.15)"
+                      : readiness.tone === "warning"
+                      ? "rgba(245, 158, 11, 0.15)"
+                      : "rgba(239, 68, 68, 0.15)",
                   color:
                     readiness.tone === "success"
-                      ? "var(--color-success)"
+                      ? "#10b981"
                       : readiness.tone === "warning"
-                      ? "var(--color-warning)"
-                      : readiness.tone === "danger"
-                      ? "var(--color-danger)"
-                      : "var(--color-brand)",
-                  flexShrink: 0,
+                      ? "#f59e0b"
+                      : "#ef4444",
+                  border: `1px solid ${
+                    readiness.tone === "success"
+                      ? "rgba(16, 185, 129, 0.3)"
+                      : "rgba(245, 158, 11, 0.3)"
+                  }`,
+                }}
+              >
+                {readiness.verdict?.badgeLabel || readiness.levelLabel}
+              </span>
+            </div>
+
+            {/* Circular Gauge + Metrics Grid */}
+            <div className="grid grid-cols-12 items-center gap-4">
+              {/* Circular Minimal Gauge */}
+              <div className="col-span-5 relative flex items-center justify-center">
+                <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    fill="none"
+                    r="40"
+                    stroke="rgba(255, 255, 255, 0.07)"
+                    strokeWidth="7"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    fill="none"
+                    r="40"
+                    stroke={
+                      readiness.tone === "success"
+                        ? "#10b981"
+                        : readiness.tone === "warning"
+                        ? "#f59e0b"
+                        : "#ef4444"
+                    }
+                    strokeDasharray="251.2"
+                    strokeDashoffset={251.2 - (251.2 * Math.max(10, Math.min(100, readiness.score))) / 100}
+                    strokeLinecap="round"
+                    strokeWidth="7"
+                    style={{ transition: "stroke-dashoffset 1s ease-out" }}
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <span className="text-3xl font-bold tracking-tight text-white tabular-nums">
+                    {readiness.score}%
+                  </span>
+                  <span className="text-[11px] text-muted -mt-0.5 font-medium">Puntuación</span>
+                </div>
+              </div>
+
+              {/* Key Autonomic Breakdown */}
+              <div className="col-span-7 flex flex-col justify-between space-y-3 pl-3 border-l border-white/[0.08]">
+                <div>
+                  <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
+                    HRV Basal (RMSSD)
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="text-xl font-bold text-white tabular-nums">
+                      {readiness.factors[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value ?? "74"}
+                    </span>
+                    <span className="text-xs text-muted">ms</span>
+                    <span className="text-xs font-semibold text-emerald-400 ml-auto">
+                      +8% Óptimo
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2.5 border-t border-white/[0.06]">
+                  <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
+                    Tiempo en Cama
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="text-xl font-bold text-white tabular-nums">
+                      {((sleep?.hours ?? 7.5) + (sleep?.nap_min ? sleep.nap_min / 60 : 0)).toFixed(1)}
+                    </span>
+                    <span className="text-xs text-muted">horas</span>
+                    <span className="text-xs font-medium text-muted ml-auto">
+                      {sleep?.score ? `${sleep.score} desc.` : "Descanso óptimo"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sleep Detailed Pills */}
+            <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-xs text-muted">
+              <div className="flex items-center gap-1.5">
+                <Moon size={14} className="text-emerald-400" />
+                <span>{sleep?.hours ?? 7.5}h Sueño nocturno</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Sun size={14} className="text-amber-400" />
+                <span>{sleep?.nap_min && sleep.nap_min > 0 ? `+${sleep.nap_min}m Siesta reparadora` : "Calidad 4.8 / 5"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Strain & Carga Cardiovascular */}
+          <div
+            className="rounded-2xl border border-white/[0.08] p-4 space-y-2.5"
+            style={{ background: "#12141a" }}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Flame size={16} className="text-amber-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Carga Cardiovascular (Strain)
+                </span>
+              </div>
+              <div className="text-xs font-medium">
+                <span className="text-amber-400 font-bold">
+                  {readiness.stats.last48hLoad > 0 ? (readiness.stats.last48hLoad / 25).toFixed(1) : "11.2"}
+                </span>
+                <span className="text-muted"> / 16.5 Objetivo</span>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-2 rounded-full overflow-hidden p-[1px]" style={{ background: "rgba(255, 255, 255, 0.08)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.min(100, Math.max(20, readiness.stats.last48hLoad > 0 ? (readiness.stats.last48hLoad / 25 / 16.5) * 100 : 68))}%`,
+                  background: "linear-gradient(90deg, #f59e0b 0%, #10b981 100%)",
                 }}
               />
-              <div className="font-bold text-sm">
-                {readiness.verdict?.title || readiness.headline}
-              </div>
             </div>
-            <p className="text-sm text-muted" style={{ marginTop: 4, lineHeight: 1.45 }}>
-              {readiness.verdict?.actionGuidance || readiness.coachAdvice}
-            </p>
-
-            {/* Target Sport-Specific Focus Badges */}
-            {(() => {
-              const activeDiscipline = readiness.stats?.todayDiscipline ?? sessions.find((s) => s.discipline !== "descanso")?.discipline ?? "descanso";
-              if (activeDiscipline === "carrera") {
-                return (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5"
-                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                      Zonas VAM:
-                    </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R0: &gt;5:23</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R1: 5:23–4:59</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>RMC: 5:00–5:15</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R2: 4:59–4:35</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R3: 4:23–4:11</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>R3+: 3:59</span>
-                  </div>
-                );
-              }
-              if (activeDiscipline === "crossfit") {
-                return (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5"
-                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                      Pauta CrossFit:
-                    </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>WOD + Skill</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Intensidad: RPE 8.5–9</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Control Postural & Ritmo</span>
-                  </div>
-                );
-              }
-              if (activeDiscipline === "gimnasio") {
-                return (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5"
-                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                      Pauta Fuerza:
-                    </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Básicos & Accesorios</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Cargas al 100% Objetivo</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>RIR 1–2 (Sin fallo)</span>
-                  </div>
-                );
-              }
-              if (activeDiscipline === "natacion") {
-                return (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5"
-                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                      Pauta Natación:
-                    </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Eficiencia & Deslizamiento</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>SWOLF Eficiente</span>
-                  </div>
-                );
-              }
-              if (activeDiscipline === "ciclismo") {
-                return (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5"
-                    style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                      Pauta Ciclismo:
-                    </span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Cadencia Ágil: 85–95 rpm</span>
-                    <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Zona Z2 / Z3</span>
-                  </div>
-                );
-              }
-              return (
-                <div
-                  className="flex flex-wrap items-center gap-1.5"
-                  style={{ marginTop: "var(--space-2)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                >
-                  <span className="text-xs font-semibold text-muted" style={{ marginRight: 4 }}>
-                    Pauta del Día:
-                  </span>
-                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Supercompensación & Descanso</span>
-                  <span className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>Hidratación & Nutrición</span>
-                </div>
-              );
-            })()}
+            <div className="flex justify-between items-center text-[11px] text-muted pt-0.5">
+              <span>Capacidad cardiovascular disponible</span>
+              <span className="text-gray-200 font-medium">Zona Óptima</span>
+            </div>
           </div>
-
-          {/* Proposed Micro-Adjustments for next 48-72h */}
-          {readiness.proposedMicroAdjustments && readiness.proposedMicroAdjustments.length > 0 && (
-            <div
-              className="animate-in"
-              style={{
-                marginTop: "var(--space-3)",
-                padding: "0.85rem 1rem",
-                borderRadius: "var(--radius-md)",
-                background: "rgba(59, 130, 246, 0.08)",
-                border: "1px solid rgba(59, 130, 246, 0.25)",
-              }}
-            >
-              <div className="flex items-center justify-between gap-2" style={{ flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
-                <div className="flex items-center gap-1.5">
-                  <Sliders size={15} style={{ color: "var(--color-brand)" }} />
-                  <span className="font-semibold text-xs uppercase" style={{ color: "var(--color-brand)", letterSpacing: "0.03em" }}>
-                    Modulación Adaptativa de Próximos Entrenos ({readiness.proposedMicroAdjustments.length})
-                  </span>
-                </div>
-                {readiness.proposedMicroAdjustments.some((a) => !a.isApplied) && (
-                  <Button
-                    variant="primary"
-                    loading={applyingAdjustment}
-                    onClick={() => handleApplyAdjustment()}
-                    style={{ fontSize: "var(--text-xs)", height: 32, padding: "0 12px" }}
-                  >
-                    <Sparkles size={13} />
-                    Aplicar adaptaciones automáticas
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                {readiness.proposedMicroAdjustments.map((adj) => (
-                  <div
-                    key={adj.sessionId}
-                    className="surface"
-                    style={{
-                      padding: "0.6rem 0.8rem",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--color-border)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 220 }}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs">{adj.date}</span>
-                        <span className="badge badge-info" style={{ fontSize: "0.7rem" }}>
-                          {adj.discipline}
-                        </span>
-                        {adj.isApplied ? (
-                          <span className="badge badge-success flex items-center gap-1" style={{ fontSize: "0.7rem" }}>
-                            <Check size={11} />
-                            <span>Adaptado</span>
-                          </span>
-                        ) : (
-                          <span className="badge badge-warning" style={{ fontSize: "0.7rem" }}>
-                            Propuesta
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs" style={{ marginTop: 2 }}>
-                        {adj.suggestedPlannedCode ? (
-                          <span>
-                            Sugerido: <strong>{adj.suggestedPlannedCode}</strong>{" "}
-                            {adj.originalPlannedCode && <span className="text-muted">(antes: {adj.originalPlannedCode})</span>}
-                          </span>
-                        ) : (
-                          <span>
-                            Sugerido: <strong>Descanso / Regenerativo</strong>
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted" style={{ marginTop: 2, lineHeight: 1.3 }}>
-                        {adj.reason}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {!adj.isApplied ? (
-                        <button
-                          className="btn btn-secondary text-xs"
-                          disabled={applyingAdjustment}
-                          onClick={() => handleApplyAdjustment(adj.sessionId)}
-                          style={{ height: 28, padding: "0 10px", fontSize: "0.75rem" }}
-                        >
-                          Aplicar a esta sesión
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-ghost text-xs text-muted inline-flex items-center gap-1"
-                          disabled={applyingAdjustment}
-                          onClick={() => handleRevertAdjustment(adj.sessionId)}
-                          style={{ height: 28, padding: "0 8px", fontSize: "0.75rem" }}
-                        >
-                          <RotateCcw size={12} />
-                          Revertir
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Toggle breakdown button */}
-          <div className="flex items-center justify-between" style={{ marginTop: "var(--space-3)" }}>
-            <button
-              onClick={() => setShowReadinessDetail((prev) => !prev)}
-              className="btn btn-ghost inline-flex items-center gap-1.5"
-              style={{ fontSize: "var(--text-xs)", padding: "0.3rem 0.6rem" }}
-            >
-              {showReadinessDetail ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              {showReadinessDetail ? "Ocultar desglose biométrico" : "Ver qué influye en tu estado (sueño, fatiga 48h y carga)"}
-            </button>
-          </div>
-
-          {/* Factors Breakdown */}
-          {showReadinessDetail && (
-            <div
-              className="grid gap-3 sm:grid-cols-3 animate-in"
-              style={{
-                marginTop: "var(--space-3)",
-                paddingTop: "var(--space-3)",
-                borderTop: "1px solid var(--color-border)",
-              }}
-            >
-              {readiness.factors.map((f) => (
-                <div
-                  key={f.id}
-                  className="surface-raised"
-                  style={{
-                    padding: "var(--space-3)",
-                    borderRadius: "var(--radius-md)",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-xs uppercase text-muted flex items-center gap-1.5">
-                        {f.id === "sleep" ? (
-                          <Moon size={12} className="text-brand" />
-                        ) : f.id === "acute_fatigue" ? (
-                          <Zap size={12} className="text-warning" />
-                        ) : (
-                          <TrendingUp size={12} className="text-accent" />
-                        )}
-                        <span>{f.title}</span>
-                      </span>
-                      <span
-                        className={`badge ${
-                          f.status === "optimo"
-                            ? "badge-success"
-                            : f.status === "bueno"
-                            ? "badge-brand"
-                            : f.status === "moderado"
-                            ? "badge-warning"
-                            : "badge-danger"
-                        }`}
-                        style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }}
-                      >
-                        {f.badge}
-                      </span>
-                    </div>
-                    <div className="font-semibold text-sm" style={{ marginTop: "var(--space-2)" }}>
-                      {f.headline}
-                    </div>
-                    <p className="text-xs text-muted" style={{ marginTop: 4, lineHeight: 1.4 }}>
-                      {f.detail}
-                    </p>
-                  </div>
-                  {f.metrics.length > 0 && (
-                    <div
-                      className="flex flex-wrap gap-1.5"
-                      style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-2)", borderTop: "1px solid var(--color-border)" }}
-                    >
-                      {f.metrics.map((m, idx) => (
-                        <span
-                          key={idx}
-                          className="badge badge-neutral"
-                          style={{ fontSize: "0.68rem", padding: "0.15rem 0.4rem" }}
-                        >
-                          {m.label}: <strong>{m.value}</strong>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </section>
       )}
 
-      {rec && rec.action !== "mantener" && (
+      {/* 3. Nota del Entrenador (AI & Performance Staff) */}
+      <section className="mb-5">
         <div
-          className="surface flex items-start gap-3.5 animate-in"
-          style={{
-            padding: "var(--space-4)",
-            borderLeft: `3px solid ${TONE_STYLE[ACTION_META[rec.action].tone].color}`,
-            marginBottom: "var(--space-5)",
-          }}
+          className="rounded-2xl border border-white/[0.08] p-4.5 relative overflow-hidden animate-in"
+          style={{ background: "#161922" }}
         >
-          <span style={{ color: TONE_STYLE[ACTION_META[rec.action].tone].color, flexShrink: 0, marginTop: 2 }}>
-            {ACTION_META[rec.action].icon}
-          </span>
-          <div style={{ flex: 1 }}>
-            <div className="font-semibold text-sm" style={{ color: TONE_STYLE[ACTION_META[rec.action].tone].color }}>
-              {ACTION_META[rec.action].label}
+          <div className="flex items-start gap-3">
+            <div
+              className="p-2.5 rounded-xl text-emerald-400 shrink-0"
+              style={{ background: "rgba(16, 185, 129, 0.12)" }}
+            >
+              <Sparkles size={20} />
             </div>
-            <p className="text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
-              {rec.summary}
-            </p>
-          </div>
-          <Link href="/recomendaciones" className="btn btn-secondary text-xs" style={{ flexShrink: 0, height: 36 }}>
-            Ver detalle
-            <ArrowRight size={13} />
-          </Link>
-        </div>
-      )}
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">
+                  Nota del Entrenador
+                </h3>
+                <span className="text-[11px] font-medium text-emerald-400">
+                  Actualizado hoy
+                </span>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                {readiness?.verdict?.actionGuidance || readiness?.coachAdvice ||
+                  "Tus niveles de HRV y descanso nocturno están en su punto más alto del mes (+12%). En las series principales mantén el ritmo controlado sin exceder zona 4 temprana para proteger la sobrecarga muscular de cara a la tirada del domingo."}
+              </p>
 
+              {/* Adaptaciones propuestas si las hay */}
+              {readiness?.proposedMicroAdjustments && readiness.proposedMicroAdjustments.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/[0.08] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-amber-400">
+                      Adaptación inteligente disponible ({readiness.proposedMicroAdjustments.length})
+                    </span>
+                    {readiness.proposedMicroAdjustments.some((a) => !a.isApplied) && (
+                      <button
+                        className="btn btn-primary btn-sm text-xs"
+                        disabled={applyingAdjustment}
+                        onClick={() => handleApplyAdjustment()}
+                      >
+                        Aplicar ahora
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Sesión Principal de Hoy & Menú de Hoy */}
       <div className="grid gap-5 lg:grid-cols-2">
+        {/* Columna Izquierda: Entrenamiento de Hoy */}
         <div>
-          <div className="flex items-center gap-2 font-semibold" style={{ fontSize: "var(--text-base)", marginBottom: "var(--space-3)" }}>
-            <Sun size={18} />
-            Entrenamiento de hoy
+          <div className="flex justify-between items-baseline mb-3 px-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Sesión Principal
+            </span>
+            <span className="text-xs font-semibold text-emerald-400">
+              Fase Clave
+            </span>
           </div>
 
           {trainingSessions.length === 0 ? (
-            <EmptyState
-              icon={<BedDouble size={22} />}
-              title="Día de descanso"
-              description="No hay ninguna sesión planificada para hoy en Plan semanal."
-            />
+            <div
+              className="rounded-2xl border border-white/[0.08] p-6 text-center"
+              style={{ background: "#12141a" }}
+            >
+              <BedDouble size={28} className="mx-auto text-muted mb-2 opacity-60" />
+              <h3 className="text-base font-semibold text-white">Día de descanso programado</h3>
+              <p className="text-xs text-muted mt-1 max-w-sm mx-auto leading-relaxed">
+                No hay sesiones intensivas asignadas para hoy. Día destinado a supercompensación, recarga de glucógeno y descanso activo.
+              </p>
+            </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="space-y-3">
               {trainingSessions.map((s) => {
                 const meta = DISCIPLINE_META[s.discipline] ?? DISCIPLINE_META.otro;
                 const Icon = meta.Icon;
@@ -1068,25 +688,16 @@ export default function HoyPage() {
                   : "";
 
                 const durationEst = s.duration_min ?? 55;
-                const rpeEst = s.rpe ? `RPE ${s.rpe}` : "RPE 8.5";
-                const kcalEst = Math.round(durationEst * 10.5);
+                const rpeEst = s.rpe ? `RPE ${s.rpe}` : "RPE 8.0";
+                const distEst = s.distance_km ? `${s.distance_km} km` : `${durationEst} min`;
 
                 return (
                   <section
                     key={s.id}
-                    className="relative rounded-xl p-4 sm:p-5 laser-border overflow-hidden animate-in"
-                    style={{
-                      background: "rgba(10, 13, 20, 0.92)",
-                      backdropFilter: "blur(20px)",
-                      border: modInfo && modInfo.isModified
-                        ? "1.5px solid rgba(245, 158, 11, 0.55)"
-                        : undefined,
-                    }}
+                    className="rounded-2xl border border-white/[0.08] p-5 shadow-sm space-y-4 animate-in"
+                    style={{ background: "#12141a" }}
                   >
-                    <div className="corner-bracket-tl" />
-                    <div className="corner-bracket-br" />
-
-                    {/* Banner ultra-visual si hay adaptación por carga o fatiga */}
+                    {/* Banner si hay adaptación */}
                     {modInfo && modInfo.isModified && (
                       <WorkoutModificationBanner
                         info={modInfo}
@@ -1095,128 +706,101 @@ export default function HoyPage() {
                       />
                     )}
 
-                    {/* Header */}
-                    <div className="flex justify-between items-start pb-2.5 border-b" style={{ borderColor: "rgba(195, 244, 0, 0.15)" }}>
+                    {/* Title & Category Header */}
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <span className="font-mono text-[9px] uppercase tracking-wider block" style={{ color: "var(--color-brand)" }}>
-                          // OBJETIVO DIARIO ACTIVADO
-                        </span>
-                        <h3 className="font-bold text-base sm:text-lg text-white tracking-tight mt-0.5">
+                        <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
                           {s.planned_code ? `${s.planned_code} · ` : ""}{meta.label}
-                        </h3>
-                        <span className="font-mono text-[10px] uppercase text-muted tracking-wide">
-                          SESIÓN DEL DÍA // {meta.label.toUpperCase()}
-                        </span>
+                        </h2>
+                        <p className="text-xs text-muted mt-0.5">
+                          Bloque Pre-Competición · Semana {phaseForDate(today, settings)}
+                        </p>
                       </div>
                       <div
-                        className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0"
-                        style={{
-                          background: "rgba(20, 26, 38, 0.9)",
-                          border: "1px solid rgba(195, 244, 0, 0.3)",
-                          color: "var(--color-brand)",
-                        }}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: meta.bg, color: meta.color }}
                       >
-                        <Icon size={19} />
+                        <Icon size={20} />
                       </div>
                     </div>
 
-                    {/* Tactical Metrics Chips */}
-                    <div className="grid grid-cols-3 gap-2 my-3">
-                      <div className="p-2 rounded text-center" style={{ background: "rgba(14, 17, 23, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                        <span className="font-mono text-[8px] uppercase tracking-wider text-muted block">DURACIÓN</span>
-                        <span className="font-mono text-sm sm:text-base font-bold text-white">
-                          {durationEst} <span className="text-[9px] text-muted font-normal">MIN</span>
-                        </span>
+                    {/* Metric Pill Chips */}
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div
+                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
+                        style={{ background: "#181b23" }}
+                      >
+                        <div className="text-[11px] font-medium text-muted">Distancia</div>
+                        <div className="text-sm font-bold text-white mt-0.5">{distEst}</div>
                       </div>
-                      <div className="p-2 rounded text-center" style={{ background: "rgba(14, 17, 23, 0.8)", border: "1px solid rgba(255, 85, 0, 0.3)" }}>
-                        <span className="font-mono text-[8px] uppercase tracking-wider block" style={{ color: "#ff8c42" }}>INTENSIDAD</span>
-                        <span className="font-mono text-sm sm:text-base font-bold" style={{ color: "#ff8c42" }}>
-                          {rpeEst}
-                        </span>
+                      <div
+                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
+                        style={{ background: "#181b23" }}
+                      >
+                        <div className="text-[11px] font-medium text-muted">Duración</div>
+                        <div className="text-sm font-bold text-white mt-0.5">{durationEst} min</div>
                       </div>
-                      <div className="p-2 rounded text-center" style={{ background: "rgba(14, 17, 23, 0.8)", border: "1px solid rgba(0, 227, 253, 0.3)" }}>
-                        <span className="font-mono text-[8px] uppercase tracking-wider text-muted block">CALORÍAS</span>
-                        <span className="font-mono text-sm sm:text-base font-bold" style={{ color: "var(--color-accent)" }}>
-                          {kcalEst} <span className="text-[9px] text-muted font-normal">KCAL</span>
-                        </span>
+                      <div
+                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
+                        style={{ background: "#181b23" }}
+                      >
+                        <div className="text-[11px] font-medium text-muted">Intensidad</div>
+                        <div className="text-sm font-bold text-emerald-400 mt-0.5">{rpeEst}</div>
+                      </div>
+                      <div
+                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
+                        style={{ background: "#181b23" }}
+                      >
+                        <div className="text-[11px] font-medium text-muted">Carga</div>
+                        <div className="text-sm font-bold text-amber-400 mt-0.5">
+                          {Math.round(durationEst * 2.2)} AU
+                        </div>
                       </div>
                     </div>
 
-                    {/* Split Breakdown Phases */}
-                    <div className="space-y-2 mb-4">
-                      {/* FASE A */}
-                      <div className="p-2.5 rounded" style={{ background: "rgba(14, 17, 23, 0.6)", borderLeft: "2px solid var(--color-accent)" }}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[8px] uppercase font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0, 227, 253, 0.15)", color: "var(--color-accent)" }}>
-                            FASE A · ACTIVACIÓN &amp; FUERZA
-                          </span>
-                          <span className="font-mono text-[9px] text-muted">REST: 90-120s</span>
+                    {/* Structure / Notes */}
+                    {cleanNotes && (
+                      <div className="pt-2 border-t border-white/[0.06]">
+                        <div className="text-[11px] font-semibold text-muted uppercase tracking-wide mb-1.5">
+                          Estructura de la sesión
                         </div>
-                        <div className="text-xs font-semibold text-white mt-1">Calentamiento Neuromuscular &amp; Series de Carga</div>
+                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-sans">
+                          {cleanNotes}
+                        </div>
                       </div>
+                    )}
 
-                      {/* FASE B */}
-                      <div className="p-2.5 rounded" style={{ background: "rgba(14, 17, 23, 0.6)", borderLeft: "2px solid var(--color-brand)" }}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[8px] uppercase font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(195, 244, 0, 0.2)", color: "var(--color-brand)" }}>
-                            FASE B · NÚCLEO PRINCIPAL
-                          </span>
-                          <span className="font-mono text-[9px] font-bold" style={{ color: "var(--color-brand)" }}>BLOQUE OBJETIVO</span>
-                        </div>
-                        <div className="text-xs font-semibold text-white mt-1">
-                          {s.planned_code ?? meta.label} {s.distance_km ? `(${s.distance_km} km)` : ""}
-                        </div>
-                        {cleanNotes && (
-                          <div className="text-xs text-muted mt-1 leading-relaxed whitespace-pre-wrap font-mono text-[11px]">
-                            {cleanNotes}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* FASE C */}
-                      <div className="p-2.5 rounded" style={{ background: "rgba(14, 17, 23, 0.6)", borderLeft: "2px solid rgba(255, 255, 255, 0.2)" }}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[8px] uppercase text-muted px-1.5 py-0.5 rounded" style={{ background: "rgba(255, 255, 255, 0.08)" }}>
-                            FASE C · REGENERACIÓN
-                          </span>
-                          <span className="font-mono text-[9px] text-muted">10 MIN</span>
-                        </div>
-                        <div className="text-xs text-muted mt-1">Vuelta a la calma, descarga miofascial y movilidad profiláctica</div>
-                      </div>
-                    </div>
-
-                    {/* Primary Tactile Action CTA Button */}
-                    <div className="space-y-2">
+                    {/* Action Buttons */}
+                    <div className="space-y-2 pt-1">
                       <Link
                         href="/registro"
-                        className="w-full font-mono text-xs uppercase py-3 px-4 rounded font-bold tracking-wider flex items-center justify-center gap-2 transition-all"
+                        className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-full font-semibold text-sm transition-all shadow-[0_12px_24px_-4px_rgba(16,185,129,0.25)] hover:brightness-110 active:scale-[0.98]"
                         style={{
-                          background: "var(--color-brand)",
-                          color: "#050507",
-                          boxShadow: "0 0 20px rgba(195, 244, 0, 0.45)",
+                          background: "#10b981",
+                          color: "#090a0f",
                           textDecoration: "none",
                         }}
                       >
-                        <Zap size={15} />
-                        <span>INICIAR SESIÓN // APEX LIVE TRACKING</span>
+                        <Zap size={16} />
+                        <span>Iniciar Sesión / Registrar</span>
                       </Link>
 
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2">
                         <button
                           className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5"
                           onClick={() => setDetailSessionId(s.id)}
-                          style={{ height: 32 }}
+                          style={{ height: 34, borderRadius: "9999px" }}
                         >
                           <Activity size={13} />
-                          <span>Detalle</span>
+                          <span>Detalle completo</span>
                         </button>
                         <button
                           className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5"
                           onClick={() => copySession(s)}
-                          style={{ height: 32 }}
+                          style={{ height: 34, borderRadius: "9999px" }}
                         >
                           {copiedId === s.id ? (
-                            <Check size={13} style={{ color: "var(--color-success)" }} />
+                            <Check size={13} className="text-emerald-400" />
                           ) : (
                             <Copy size={13} />
                           )}
@@ -1229,141 +813,143 @@ export default function HoyPage() {
               })}
             </div>
           )}
-
-          {sleep && (sleep.hours != null || (sleep.nap_min != null && sleep.nap_min > 0)) && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted font-mono" style={{ marginTop: "var(--space-3)" }}>
-              <Moon size={14} style={{ color: "var(--color-accent)" }} />
-              {sleep.hours != null ? (
-                <span>
-                  Sueño nocturno: <strong className="text-white">{sleep.hours}h</strong>
-                  {sleep.nap_min != null && sleep.nap_min > 0 ? (
-                    <> + <strong style={{ color: "#c084fc" }}>{sleep.nap_min}m siesta</strong> (total: {((sleep.hours + sleep.nap_min / 60)).toFixed(1)}h)</>
-                  ) : null}
-                </span>
-              ) : (
-                <span>
-                  Siesta registrada: <strong style={{ color: "#c084fc" }}>{sleep.nap_min}m</strong>
-                </span>
-              )}
-              {sleep.quality ? <span>· calidad {sleep.quality}/5</span> : null}
-              {sleep.score != null ? <span>· puntuación {sleep.score}/100</span> : null}
-            </div>
-          )}
         </div>
 
+        {/* Columna Derecha: Nutrición & Menú de Hoy */}
         <div>
-          {/* Energy & Recovery Telemetry Bar (Stitch Kinetic Apex) */}
+          <div className="flex justify-between items-baseline mb-3 px-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Nutrición &amp; Hidratación
+            </span>
+            <span className="text-xs text-muted">
+              Objetivo Día Activo
+            </span>
+          </div>
+
+          {/* Calorie & Macro Target Card */}
           <section
-            className="relative rounded-xl p-4 laser-border overflow-hidden mb-4 animate-in"
-            style={{
-              background: "rgba(10, 13, 20, 0.88)",
-              backdropFilter: "blur(20px)",
-            }}
+            className="rounded-2xl border border-white/[0.08] p-4.5 space-y-3.5 mb-4 animate-in"
+            style={{ background: "#12141a" }}
           >
-            <div className="corner-bracket-tl" />
-            <div className="corner-bracket-br" />
-            <div className="flex items-center justify-between pb-2 border-b mb-3" style={{ borderColor: "rgba(195, 244, 0, 0.15)" }}>
-              <div className="flex items-center gap-2">
-                <Flame size={15} style={{ color: "var(--color-accent)" }} />
-                <span className="font-mono text-xs font-bold uppercase text-white tracking-wider">
-                  COMBUSTIBLE &amp; NUTRICIÓN METABÓLICA
-                </span>
+            <div className="flex justify-between items-baseline">
+              <div>
+                <div className="text-[11px] font-medium text-muted">Ingesta Planificada</div>
+                <div className="text-xl font-bold text-white mt-0.5">
+                  2.850 <span className="text-xs font-normal text-muted">/ 3.400 kcal</span>
+                </div>
               </div>
-              <span className="font-mono text-[9px] font-bold" style={{ color: "var(--color-brand)" }}>
-                72% CONSUMIDO
-              </span>
-            </div>
-
-            {/* Progress bar with Neon Gradient */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-baseline font-mono text-xs">
-                <span className="text-white font-bold">2.850 <span className="text-muted font-normal text-[10px]">KCAL</span></span>
-                <span className="text-muted text-[11px]">OBJETIVO: <strong style={{ color: "var(--color-accent)" }}>3.400 KCAL</strong></span>
-              </div>
-              <div className="w-full h-2.5 rounded-full overflow-hidden p-0.5" style={{ background: "rgba(20, 26, 38, 0.9)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: "72%",
-                    background: "linear-gradient(90deg, #00e3fd 0%, #c3f400 60%, #abd600 100%)",
-                    boxShadow: "0 0 10px #00e3fd",
-                  }}
-                />
+              <div className="flex items-center gap-1 text-xs font-semibold text-blue-400">
+                <Waves size={15} />
+                <span>2.6L Agua</span>
               </div>
             </div>
 
-            {/* Macro Pills & Hydration */}
-            <div className="grid grid-cols-2 gap-2 mt-3.5">
-              <div className="p-2 rounded" style={{ background: "rgba(14, 17, 23, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <span className="font-mono text-[8px] uppercase text-muted block mb-1">MACRONUTRIENTES</span>
-                <div className="flex items-center gap-1 font-mono text-[10px] text-white">
-                  <span className="font-bold" style={{ color: "var(--color-brand)" }}>180g</span> P
-                  <span className="text-muted">·</span>
-                  <span className="font-bold" style={{ color: "var(--color-accent)" }}>360g</span> C
-                  <span className="text-muted">·</span>
-                  <span className="font-bold" style={{ color: "#ff8c42" }}>75g</span> G
-                </div>
+            {/* Macro Breakdown */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/[0.06] text-center">
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                <div className="text-[10px] font-medium text-muted uppercase">Carbohidratos</div>
+                <div className="text-base font-bold text-amber-400 mt-0.5">410g</div>
+                <div className="text-[10px] text-muted">82% cubierto</div>
               </div>
-              <div className="p-2 rounded flex items-center justify-between" style={{ background: "rgba(14, 17, 23, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <div>
-                  <span className="font-mono text-[8px] uppercase text-muted block mb-1">HIDRATACIÓN</span>
-                  <div className="font-mono text-[10px] text-white">
-                    <span className="font-bold" style={{ color: "var(--color-accent)" }}>2.8L</span> / 3.5L <span className="text-[8px]" style={{ color: "var(--color-brand)" }}>ÓPTIMO</span>
-                  </div>
-                </div>
-                <Waves size={16} style={{ color: "var(--color-accent)" }} />
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                <div className="text-[10px] font-medium text-muted uppercase">Proteína</div>
+                <div className="text-base font-bold text-emerald-400 mt-0.5">175g</div>
+                <div className="text-[10px] text-muted">95% cubierto</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                <div className="text-[10px] font-medium text-muted uppercase">Grasas</div>
+                <div className="text-base font-bold text-gray-200 mt-0.5">68g</div>
+                <div className="text-[10px] text-muted">Equilibrado</div>
               </div>
             </div>
           </section>
 
-          <div className="flex items-center gap-2 font-semibold" style={{ fontSize: "var(--text-base)", marginBottom: "var(--space-3)" }}>
-            <UtensilsCrossed size={18} />
-            Menú de hoy
-          </div>
+          {/* Menú Timeline Cards */}
+          <div className="space-y-2.5">
+            {menu.length === 0 ? (
+              <EmptyState
+                icon={<UtensilsCrossed size={22} />}
+                title="Sin menú para hoy"
+                description="Importa o añade el menú de esta fase en la pestaña Menú."
+                action={
+                  <Link href="/menu" className="btn btn-primary">
+                    Ir a Menú
+                  </Link>
+                }
+              />
+            ) : (
+              <>
+                {menu.map((m) => {
+                  const isBreakfast = m.meal.toLowerCase().includes("desayuno");
+                  const isLunch = m.meal.toLowerCase().includes("almuerzo") || m.meal.toLowerCase().includes("comida");
+                  const isSnack = m.meal.toLowerCase().includes("merienda") || m.meal.toLowerCase().includes("snack");
 
-          {menu.length === 0 ? (
-            <EmptyState
-              icon={<UtensilsCrossed size={22} />}
-              title="Sin menú para hoy"
-              description="Importa o añade el menú de esta fase en la pestaña Menú."
-              action={
-                <Link href="/menu" className="btn btn-primary">
-                  Ir a Menú
-                </Link>
-              }
-            />
-          ) : (
-            <div className="grid gap-3">
-              {menu.map((m) => (
-                <div
-                  key={m.id}
-                  className="relative rounded-xl p-3.5 laser-border"
-                  style={{ background: "rgba(10, 13, 20, 0.85)" }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold text-sm text-white">
-                      {m.meal}
-                      {m.option_label ? ` · ${m.option_label}` : ""}
+                  return (
+                    <div
+                      key={m.id}
+                      className="rounded-2xl border border-white/[0.06] p-4 flex items-start gap-3 transition-all"
+                      style={{ background: "#141720" }}
+                    >
+                      <div
+                        className="p-2.5 rounded-full shrink-0 mt-0.5"
+                        style={{
+                          background: isBreakfast
+                            ? "rgba(245, 158, 11, 0.15)"
+                            : isLunch
+                            ? "rgba(16, 185, 129, 0.15)"
+                            : isSnack
+                            ? "rgba(59, 130, 246, 0.15)"
+                            : "rgba(168, 85, 247, 0.15)",
+                          color: isBreakfast
+                            ? "#f59e0b"
+                            : isLunch
+                            ? "#10b981"
+                            : isSnack
+                            ? "#3b82f6"
+                            : "#c084fc",
+                        }}
+                      >
+                        {isBreakfast ? (
+                          <Sun size={17} />
+                        ) : isLunch ? (
+                          <UtensilsCrossed size={17} />
+                        ) : isSnack ? (
+                          <Flame size={17} />
+                        ) : (
+                          <Moon size={17} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline gap-2">
+                          <span className="text-sm font-semibold text-white truncate">
+                            {m.meal}
+                            {m.option_label ? ` · ${m.option_label}` : ""}
+                          </span>
+                          {m.kcal != null && (
+                            <span className="text-xs font-semibold text-emerald-400 shrink-0">
+                              {m.kcal} kcal
+                            </span>
+                          )}
+                        </div>
+                        {m.foods_text && (
+                          <p className="text-xs text-muted mt-1 leading-relaxed whitespace-pre-wrap">
+                            {m.foods_text}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {m.kcal != null && (
-                      <span className="font-mono text-[10px] px-2 py-0.5 rounded font-bold" style={{ background: "rgba(195, 244, 0, 0.15)", color: "var(--color-brand)" }}>
-                        {m.kcal} kcal
-                      </span>
-                    )}
-                  </div>
-                  {m.foods_text && (
-                    <p className="text-xs text-muted mt-2 leading-relaxed whitespace-pre-wrap font-mono text-[11px]">
-                      {m.foods_text}
-                    </p>
-                  )}
-                </div>
-              ))}
-              <Link href="/menu" className="btn btn-ghost" style={{ justifySelf: "start" }}>
-                Ver menú completo de la fase
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-          )}
+                  );
+                })}
+                <Link
+                  href="/menu"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 pt-1"
+                >
+                  <span>Ver menú completo de la fase</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

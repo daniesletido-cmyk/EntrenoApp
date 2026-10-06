@@ -7,52 +7,47 @@
 
 :root {
   /* ==========================================================
-     TEMA POR DEFECTO: MODO OSCURO (Kinetic Apex Performance HUD)
-     Diseñado y calibrado con Google Stitch
-     Inspirado en Nike Alphafly Olympic Innovation Lab x Porsche Motorsport
+     TEMA POR DEFECTO: MODO OSCURO (Obsidian Kinetic — Luxury Sports Minimalism)
+     Inspirado en Apple Fitness+, Whoop 4.0 y Oura Ring Gen 3
      ========================================================== */
-  --color-bg: #050507;
-  --color-surface: #0e1117;
-  --color-surface-raised: #141824;
-  --color-surface-hover: #1c2233;
-  --color-surface-translucent: rgba(14, 17, 23, 0.9);
-  --color-border: rgba(195, 244, 0, 0.22);
-  --color-border-strong: rgba(0, 227, 253, 0.4);
+  --color-bg: #090a0f;
+  --color-surface: #12141a;
+  --color-surface-raised: #181b23;
+  --color-surface-hover: #1f232e;
+  --color-surface-translucent: rgba(18, 20, 26, 0.88);
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.13);
 
   /* Tipografía y Textos */
-  --color-text: #fafafa;
-  --color-text-muted: #9ba3af;
-  --color-text-faint: #656d7a;
+  --color-text: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-faint: #6b7280;
 
-  /* Acento de Marca — Electric Volt Lime & Hyper Cyan (Stitch Apex HUD) */
-  --color-brand: #c3f400;
-  --color-brand-hover: #d4ff1a;
-  --color-brand-contrast: #050507;
-  --color-brand-subtle: rgba(195, 244, 0, 0.16);
-  --color-accent: #00e3fd;
-  --gradient-brand: linear-gradient(135deg, #c3f400 0%, #00e3fd 100%);
-  --gradient-brand-hover: linear-gradient(135deg, #d4ff1a 0%, #38edff 100%);
-  --gradient-accent: linear-gradient(135deg, #00e3fd 0%, #0099cc 100%);
+  /* Acento de Marca — Esmeralda Puro & Ámbar Cálido */
+  --color-brand: #10b981;
+  --color-brand-hover: #059669;
+  --color-brand-contrast: #090a0f;
+  --color-brand-subtle: rgba(16, 185, 129, 0.12);
+  --color-accent: #f59e0b;
+  --gradient-brand: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 
-  /* Estados semánticos de alto impacto */
-  --color-success: #c3f400;
-  --color-success-bg: rgba(195, 244, 0, 0.14);
-  --color-warning: #ff5500;
-  --color-warning-bg: rgba(255, 85, 0, 0.14);
+  /* Estados semánticos */
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
   --color-danger: #ef4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.14);
-  --color-info: #00e3fd;
-  --color-info-bg: rgba(0, 227, 253, 0.14);
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
 
-  /* HUD Glows & Sombras Telemetricas */
-  --hud-glow-volt: 0 0 24px rgba(195, 244, 0, 0.55);
-  --hud-glow-emerald: 0 0 24px -4px rgba(195, 244, 0, 0.35);
-  --hud-glow-cyan: 0 0 24px -4px rgba(0, 227, 253, 0.35);
-  --hud-glow-amber: 0 0 24px -4px rgba(255, 85, 0, 0.35);
-  --shadow-sm: 0 2px 6px -1px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 8px 28px -4px rgba(0, 0, 0, 0.7);
-  --shadow-glow-brand: 0 0 24px -2px rgba(195, 244, 0, 0.45);
-  --shadow-glow-success: 0 0 24px -2px rgba(195, 244, 0, 0.45);
+  /* Sombras suaves y resplandores discretos */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow-brand: 0 0 32px rgba(16, 185, 129, 0.15);
+  --shadow-glow-success: 0 0 32px rgba(16, 185, 129, 0.15);
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-brand);
 
   /* Tipografía */
@@ -178,10 +173,6 @@
 html,
 body {
   background-color: var(--color-bg);
-  background-image: 
-    linear-gradient(rgba(195, 244, 0, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(195, 244, 0, 0.025) 1px, transparent 1px);
-  background-size: 28px 28px;
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--text-base);
