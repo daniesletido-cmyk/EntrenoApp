@@ -351,8 +351,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   padding: "4px 2px",
                   borderRadius: "var(--radius-full)",
                   background: active ? "var(--color-brand)" : "transparent",
-                  color: active ? "#ffffff" : "var(--color-text-muted)",
-                  boxShadow: active ? "0 2px 10px rgba(59, 130, 246, 0.35)" : "none",
+                  color: active ? "#09090b" : "var(--color-text-muted)",
+                  boxShadow: active ? "0 0 16px rgba(16, 185, 129, 0.4)" : "none",
                   transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
                   textDecoration: "none",
                   position: "relative",
@@ -406,16 +406,24 @@ function Brand() {
       <Image
         src="/brand/logo-mark.png"
         alt=""
-        width={30}
-        height={30}
+        width={32}
+        height={32}
         className="rounded-lg"
         style={{ flexShrink: 0 }}
       />
-      <div>
-        <div style={{ fontWeight: 700, fontSize: "var(--text-base)", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
-          EntrenoApp
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
+            ENTRENO
+          </span>
+          <span
+            className="hud-pill hud-pill-emerald"
+            style={{ fontSize: "0.62rem", padding: "1px 6px", lineHeight: 1.2 }}
+          >
+            PRO
+          </span>
         </div>
-        <div className="text-xs text-faint">Por Daniel Espinosa</div>
+        <div className="text-xs text-muted" style={{ fontSize: "0.72rem" }}>Daniel Espinosa</div>
       </div>
     </div>
   );

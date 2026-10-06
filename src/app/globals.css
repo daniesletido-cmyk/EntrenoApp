@@ -7,31 +7,31 @@
 
 :root {
   /* ==========================================================
-     TEMA POR DEFECTO: MODO OSCURO (Obsidian Athletic Night)
-     Inspirado en Apple Fitness+, Whoop y Strava
+     TEMA POR DEFECTO: MODO OSCURO (Kinetic Obsidian Athletic HUD)
+     Diseño generado y calibrado con Google Stitch
      ========================================================== */
-  --color-bg: #06080e;
-  --color-surface: #0d121e;
-  --color-surface-raised: #131b2c;
-  --color-surface-hover: #1a243a;
-  --color-surface-translucent: rgba(13, 18, 30, 0.88);
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.14);
+  --color-bg: #09090b;
+  --color-surface: #121215;
+  --color-surface-raised: #18181b;
+  --color-surface-hover: #222227;
+  --color-surface-translucent: rgba(18, 18, 21, 0.88);
+  --color-border: rgba(39, 39, 42, 0.85);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
 
   /* Tipografía y Textos */
-  --color-text: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-text-faint: #64748b;
+  --color-text: #fafafa;
+  --color-text-muted: #a1a1aa;
+  --color-text-faint: #71717a;
 
-  /* Acento de Marca — Hyper Electric Blue & Emerald Vitality */
-  --color-brand: #3b82f6;
-  --color-brand-hover: #60a5fa;
-  --color-brand-contrast: #ffffff;
-  --color-brand-subtle: rgba(59, 130, 246, 0.15);
-  --color-accent: #10b981;
-  --gradient-brand: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  --gradient-brand-hover: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
-  --gradient-accent: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  /* Acento de Marca — Kinetic Emerald & Clinical Cyan (Stitch System) */
+  --color-brand: #10b981;
+  --color-brand-hover: #059669;
+  --color-brand-contrast: #09090b;
+  --color-brand-subtle: rgba(16, 185, 129, 0.14);
+  --color-accent: #06b6d4;
+  --gradient-brand: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
 
   /* Estados semánticos de alto impacto */
   --color-success: #10b981;
@@ -40,13 +40,16 @@
   --color-warning-bg: rgba(245, 158, 11, 0.14);
   --color-danger: #ef4444;
   --color-danger-bg: rgba(239, 68, 68, 0.14);
-  --color-info: #0ea5e9;
-  --color-info-bg: rgba(14, 165, 233, 0.14);
+  --color-info: #06b6d4;
+  --color-info-bg: rgba(6, 182, 212, 0.14);
 
-  /* Sombras y reflejos premium */
+  /* HUD Glows & Sombras Telemetricas */
+  --hud-glow-emerald: 0 0 24px -4px rgba(16, 185, 129, 0.22);
+  --hud-glow-cyan: 0 0 24px -4px rgba(6, 182, 212, 0.18);
+  --hud-glow-amber: 0 0 24px -4px rgba(245, 158, 11, 0.2);
   --shadow-sm: 0 2px 6px -1px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
-  --shadow-glow-brand: 0 0 24px -2px rgba(59, 130, 246, 0.35);
+  --shadow-glow-brand: 0 0 24px -2px rgba(16, 185, 129, 0.35);
   --shadow-glow-success: 0 0 24px -2px rgba(16, 185, 129, 0.35);
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-brand);
 
@@ -251,6 +254,54 @@ button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   STITCH KINETIC OBSIDIAN HUD UTILITIES
+   ============================================================ */
+.hud-glow-emerald {
+  box-shadow: 0 0 24px -4px rgba(16, 185, 129, 0.22);
+}
+
+.hud-glow-cyan {
+  box-shadow: 0 0 24px -4px rgba(6, 182, 212, 0.18);
+}
+
+.hud-glow-amber {
+  box-shadow: 0 0 24px -4px rgba(245, 158, 11, 0.2);
+}
+
+.hud-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hud-pill-emerald {
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.hud-pill-cyan {
+  background: rgba(6, 182, 212, 0.14);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: #06b6d4;
 }
 
 /* ============================================================

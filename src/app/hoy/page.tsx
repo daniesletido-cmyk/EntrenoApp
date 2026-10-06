@@ -28,9 +28,10 @@ import {
   Gauge,
   Sliders,
   RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { todayISO, isoDayOfWeek, weekStartOf } from "@/lib/dates";
+import { todayISO, isoDayOfWeek, weekStartOf, weekDates } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/page-header";
 import { Loading } from "@/components/ui/loading";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -158,6 +159,7 @@ export default function HoyPage() {
   const [sleep, setSleep] = useState<SleepRow | null>(null);
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
+  const [weekSessions, setWeekSessions] = useState<SessionRow[]>([]);
   const [showReadinessDetail, setShowReadinessDetail] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [applyingAdjustment, setApplyingAdjustment] = useState(false);
@@ -195,10 +197,12 @@ export default function HoyPage() {
 
     try {
       const t = Date.now();
-      const [settingsRes, sessionsRes, recRes, sleepRes, readinessRes] = await Promise.all([
+      const currentWeekStart = weekStartOf(today);
+      const [settingsRes, sessionsRes, weekSessionsRes, recRes, sleepRes, readinessRes] = await Promise.all([
         fetch(`/api/settings?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/sessions?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/recommendations?week=${weekStartOf(today)}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ sessions: [] })),
+        fetch(`/api/recommendations?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ logs: [] })),
         fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
       ]);
@@ -206,6 +210,7 @@ export default function HoyPage() {
       const s: Record<string, string> = settingsRes.settings ?? {};
       setSettings(s);
       setSessions(sessionsRes.sessions ?? []);
+      setWeekSessions(weekSessionsRes.sessions ?? []);
       setRec(recRes);
       setReadiness(readinessRes.readiness ?? null);
       const sleepLogs: SleepRow[] = sleepRes.logs ?? sleepRes.sleepLogs ?? [];
@@ -338,35 +343,157 @@ export default function HoyPage() {
         }
       />
 
+      {/* Microciclo Semanal (Stitch Kinetic Obsidian) */}
+      <div
+        className="hud-card animate-in"
+        style={{
+          padding: "var(--space-3)",
+          marginBottom: "var(--space-4)",
+          background: "var(--color-surface)",
+        }}
+      >
+        <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            <span style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-muted)" }}>
+              Microciclo Semanal · Telemetría Activa
+            </span>
+          </div>
+          <Link
+            href="/plan-semanal"
+            className="text-xs hover:underline flex items-center gap-1"
+            style={{ fontSize: "0.72rem", color: "var(--color-brand)", fontWeight: 600 }}
+          >
+            <span>Plan semanal</span>
+            <ArrowRight size={12} />
+          </Link>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {weekDates(weekStartOf(today)).map((dIso, idx) => {
+            const isDayToday = dIso === today;
+            const dayNum = parseInt(dIso.slice(8), 10);
+            const letters = ["L", "M", "X", "J", "V", "S", "D"];
+            const daySession = weekSessions.find((s) => s.date === dIso);
+            const isCompleted = daySession && (daySession.status === "realizada" || daySession.status === "parcial");
+            const isRest = daySession?.discipline === "descanso";
+
+            return (
+              <div
+                key={dIso}
+                className="flex flex-col items-center justify-center transition-all"
+                style={{
+                  padding: "7px 2px",
+                  borderRadius: "var(--radius-sm)",
+                  background: isDayToday
+                    ? "rgba(16, 185, 129, 0.16)"
+                    : "var(--color-surface-raised)",
+                  border: isDayToday
+                    ? "1px solid var(--color-brand)"
+                    : "1px solid var(--color-border)",
+                  boxShadow: isDayToday ? "0 0 16px rgba(16, 185, 129, 0.22)" : "none",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: isDayToday ? 800 : 600,
+                    color: isDayToday ? "var(--color-brand)" : "var(--color-text-muted)",
+                    lineHeight: 1,
+                  }}
+                >
+                  {letters[idx]}
+                </span>
+                <span
+                  className="tabular-nums"
+                  style={{
+                    fontSize: "0.82rem",
+                    fontWeight: isDayToday ? 800 : 600,
+                    color: isDayToday ? "var(--color-text)" : "var(--color-text-muted)",
+                    marginTop: 3,
+                    lineHeight: 1,
+                  }}
+                >
+                  {dayNum}
+                </span>
+                <div style={{ marginTop: 4, height: 5, display: "flex", alignItems: "center" }}>
+                  {isCompleted ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  ) : isDayToday ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  ) : daySession && !isRest ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary opacity-60" />
+                  ) : (
+                    <span className="w-1 h-1 rounded-full bg-muted opacity-30" />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {readiness && (
         <div
-          className="surface animate-in"
+          className="hud-card animate-in relative"
           style={{
             padding: "var(--space-4)",
             marginBottom: "var(--space-5)",
-            borderLeft: `4px solid ${
+            border: `1px solid ${
               readiness.tone === "success"
-                ? "var(--color-success)"
+                ? "rgba(16, 185, 129, 0.35)"
                 : readiness.tone === "warning"
-                ? "var(--color-warning)"
+                ? "rgba(245, 158, 11, 0.35)"
                 : readiness.tone === "danger"
-                ? "var(--color-danger)"
-                : "var(--color-brand)"
+                ? "rgba(239, 68, 68, 0.35)"
+                : "rgba(16, 185, 129, 0.35)"
             }`,
           }}
         >
-          {/* Header Row: Semáforo y Veredicto */}
-          <div className="flex items-start justify-between gap-3" style={{ flexWrap: "wrap" }}>
-            <div className="flex items-start gap-3">
-              <div
+          {/* Subtle Ambient Radial Glow */}
+          <div
+            style={{
+              position: "absolute",
+              top: -60,
+              right: -60,
+              width: 180,
+              height: 180,
+              borderRadius: "50%",
+              background:
+                readiness.tone === "success"
+                  ? "rgba(16, 185, 129, 0.12)"
+                  : readiness.tone === "warning"
+                  ? "rgba(245, 158, 11, 0.12)"
+                  : "rgba(239, 68, 68, 0.12)",
+              filter: "blur(40px)",
+              pointerEvents: "none",
+            }}
+          />
+
+          {/* Header Row: Title & Badges */}
+          <div className="flex items-start justify-between gap-2" style={{ marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
+            <div>
+              <div className="flex items-center gap-1.5" style={{ marginBottom: 2 }}>
+                <Zap size={14} style={{ color: "var(--color-brand)" }} />
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-muted)" }}>
+                  Estado Fisiológico Central
+                </span>
+              </div>
+              <h2 className="font-bold text-base tracking-tight" style={{ color: "var(--color-text)" }}>
+                Bio-Readiness Score
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className="hud-pill"
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "var(--radius-md)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "var(--color-surface-raised)",
+                  background:
+                    readiness.tone === "success"
+                      ? "rgba(16, 185, 129, 0.15)"
+                      : readiness.tone === "warning"
+                      ? "rgba(245, 158, 11, 0.15)"
+                      : readiness.tone === "danger"
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "rgba(16, 185, 129, 0.15)",
                   color:
                     readiness.tone === "success"
                       ? "var(--color-success)"
@@ -375,82 +502,232 @@ export default function HoyPage() {
                       : readiness.tone === "danger"
                       ? "var(--color-danger)"
                       : "var(--color-brand)",
-                  flexShrink: 0,
+                  border: `1px solid ${
+                    readiness.tone === "success"
+                      ? "rgba(16, 185, 129, 0.35)"
+                      : readiness.tone === "warning"
+                      ? "rgba(245, 158, 11, 0.35)"
+                      : "rgba(239, 68, 68, 0.35)"
+                  }`,
                 }}
               >
-                <Zap size={22} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2" style={{ flexWrap: "wrap" }}>
-                  <span className="font-bold text-base">Semáforo de Carga & Recuperación</span>
-                  <span
-                    className={`badge ${
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background:
                       readiness.tone === "success"
-                        ? "badge-success"
+                        ? "var(--color-success)"
                         : readiness.tone === "warning"
-                        ? "badge-warning"
+                        ? "var(--color-warning)"
+                        : "var(--color-danger)",
+                  }}
+                />
+                {readiness.verdict?.badgeLabel || readiness.levelLabel}
+              </span>
+              {readiness.stats?.napMin != null && readiness.stats.napMin > 0 && (
+                <span
+                  className="hud-pill"
+                  style={{
+                    background: "rgba(168, 85, 247, 0.15)",
+                    color: "#c084fc",
+                    border: "1px solid rgba(168, 85, 247, 0.3)",
+                  }}
+                >
+                  💤 Siesta +{readiness.stats.napMin}m
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Core Gauge Visual & Telemetry */}
+          <div
+            className="flex items-center justify-between gap-4"
+            style={{
+              paddingBottom: "var(--space-3)",
+              borderBottom: "1px solid var(--color-border)",
+            }}
+          >
+            {/* SVG Arc Gauge */}
+            <div className="relative flex items-center justify-center" style={{ width: 88, height: 88, flexShrink: 0 }}>
+              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  fill="transparent"
+                  r="38"
+                  stroke="rgba(255, 255, 255, 0.08)"
+                  strokeWidth="7"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  fill="transparent"
+                  r="38"
+                  stroke={
+                    readiness.tone === "success"
+                      ? "var(--color-success)"
+                      : readiness.tone === "warning"
+                      ? "var(--color-warning)"
+                      : readiness.tone === "danger"
+                      ? "var(--color-danger)"
+                      : "var(--color-brand)"
+                  }
+                  strokeWidth="7"
+                  strokeDasharray="238.7"
+                  strokeDashoffset={238.7 - (238.7 * Math.max(5, Math.min(100, readiness.score))) / 100}
+                  strokeLinecap="round"
+                  style={{ transition: "stroke-dashoffset 1s ease-out" }}
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center justify-center">
+                <span
+                  className="font-extrabold tabular-nums"
+                  style={{
+                    fontSize: "1.55rem",
+                    lineHeight: 1,
+                    color:
+                      readiness.tone === "success"
+                        ? "var(--color-success)"
+                        : readiness.tone === "warning"
+                        ? "var(--color-warning)"
                         : readiness.tone === "danger"
-                        ? "badge-danger"
-                        : "badge-brand"
-                    }`}
-                    style={{ fontWeight: "bold", fontSize: "0.82rem", padding: "0.25rem 0.6rem" }}
-                  >
-                    {readiness.verdict?.badgeLabel || readiness.levelLabel}
-                  </span>
-                  {readiness.stats?.napMin != null && readiness.stats.napMin > 0 && (
-                    <span
-                      className="badge"
-                      style={{
-                        background: "rgba(168, 85, 247, 0.15)",
-                        color: "#c084fc",
-                        border: "1px solid rgba(168, 85, 247, 0.3)",
-                        fontWeight: "bold",
-                        fontSize: "0.78rem",
-                        padding: "0.2rem 0.55rem",
-                      }}
-                    >
-                      💤 Siesta +{readiness.stats.napMin}m
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                  Calculado en tiempo real con Sueño (45%), Fatiga 48h (35%) y Ratio Semanal (20%)
-                </div>
+                        ? "var(--color-danger)"
+                        : "var(--color-brand)",
+                  }}
+                >
+                  {readiness.score}
+                </span>
+                <span className="text-[10px] text-muted font-bold">/100</span>
               </div>
             </div>
 
-            {/* Score Pill */}
+            {/* Telemetry Summary Tickers */}
+            <div className="flex-1 space-y-1.5 min-w-0">
+              <div className="flex justify-between items-baseline text-xs">
+                <span className="text-muted">Estado Biológico:</span>
+                <span className="font-bold text-on-surface">
+                  {readiness.level === "optimo" ? "Luz Verde (Empujar)" : readiness.level === "bueno" ? "Adecuado (Constante)" : "Regenerativo"}
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline text-xs">
+                <span className="text-muted">Impacto 48h:</span>
+                <span className="font-semibold text-primary">
+                  {readiness.stats.last48hLoad > 0 ? `${readiness.stats.last48hLoad} AU acumuladas` : "Descarga completa"}
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline text-xs">
+                <span className="text-muted">Tono Autonómico:</span>
+                <span className="font-mono text-secondary" style={{ fontSize: "0.72rem" }}>
+                  {readiness.score >= 80 ? "Equilibrio Parasimpático" : "Estrés Simpático Moderado"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Sub-Metrics Grid Breakdown */}
+          <div className="grid grid-cols-3 gap-2" style={{ paddingTop: "var(--space-3)", paddingBottom: "var(--space-3)" }}>
+            {/* 1. Sueño */}
             <div
               style={{
-                padding: "0.4rem 0.95rem",
-                borderRadius: "var(--radius-full)",
-                display: "flex",
-                alignItems: "baseline",
-                gap: 3,
                 background: "var(--color-surface-raised)",
+                padding: "8px 10px",
+                borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--color-border)",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
               }}
             >
-              <span
-                className="tabular-nums font-extrabold"
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-muted)" }}>
+                Sueño
+              </div>
+              <div style={{ marginTop: 2, fontWeight: 700, fontSize: "0.85rem", color: "var(--color-text)" }}>
+                {readiness.stats.totalSleepHours != null
+                  ? `${readiness.stats.totalSleepHours.toFixed(1)}h`
+                  : readiness.stats.sleepHours != null
+                  ? `${readiness.stats.sleepHours.toFixed(1)}h`
+                  : "Pendiente"}
+              </div>
+              <div className="text-muted" style={{ fontSize: "0.65rem", marginTop: 2 }}>
+                {readiness.stats.napMin && readiness.stats.napMin > 0
+                  ? `+${readiness.stats.napMin}m siesta`
+                  : readiness.stats.sleepScore ? `Score: ${readiness.stats.sleepScore}/100` : "Descanso base"}
+              </div>
+            </div>
+
+            {/* 2. Fatiga 48h */}
+            <div
+              style={{
+                background: "var(--color-surface-raised)",
+                padding: "8px 10px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-muted)" }}>
+                Fatiga 48h
+              </div>
+              <div
                 style={{
-                  fontSize: "1.55rem",
-                  lineHeight: 1,
-                  color:
-                    readiness.tone === "success"
-                      ? "var(--color-success)"
-                      : readiness.tone === "warning"
-                      ? "var(--color-warning)"
-                      : readiness.tone === "danger"
-                      ? "var(--color-danger)"
-                      : "var(--color-brand)",
+                  marginTop: 2,
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                  color: readiness.factors[1]?.score >= 70 ? "var(--color-success)" : "var(--color-warning)",
                 }}
               >
-                {readiness.score}
-              </span>
-              <span className="text-xs text-muted font-bold">/100</span>
+                {readiness.factors[1]?.score >= 80 ? "Baja" : readiness.factors[1]?.score >= 60 ? "Moderada" : "Alta"}
+              </div>
+              <div className="text-muted" style={{ fontSize: "0.65rem", marginTop: 2 }}>
+                {readiness.stats.yesterdayTrained ? `Ayer: ${readiness.stats.yesterdayDiscipline}` : "Ayer: Descanso"}
+              </div>
             </div>
+
+            {/* 3. Ratio ACWR */}
+            <div
+              style={{
+                background: "var(--color-surface-raised)",
+                padding: "8px 10px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-muted)" }}>
+                Ratio Carga
+              </div>
+              <div style={{ marginTop: 2, fontWeight: 700, fontSize: "0.85rem", color: "var(--color-info)" }}>
+                {readiness.factors[2]?.score >= 75 ? "0.95 Óptimo" : "En rango"}
+              </div>
+              <div className="text-muted" style={{ fontSize: "0.65rem", marginTop: 2 }}>
+                Zona Segura
+              </div>
+            </div>
+          </div>
+
+          {/* Neuromuscular Interference Safety Banner */}
+          <div
+            className="flex items-center justify-between gap-2"
+            style={{
+              padding: "7px 12px",
+              borderRadius: "var(--radius-sm)",
+              background: "rgba(6, 182, 212, 0.08)",
+              border: "1px solid rgba(6, 182, 212, 0.28)",
+              marginBottom: "var(--space-3)",
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <ShieldCheck size={16} style={{ color: "var(--color-info)", flexShrink: 0 }} />
+              <div className="min-w-0">
+                <span className="font-semibold text-xs truncate block" style={{ color: "var(--color-text)" }}>
+                  Seguridad Neuromuscular Validada
+                </span>
+                <p className="text-muted truncate" style={{ fontSize: "0.68rem", lineHeight: 1.2 }}>
+                  Sin interferencia con Tirada Larga de Maratón del domingo (margen profiláctico activo)
+                </p>
+              </div>
+            </div>
+            <span
+              className="hud-pill hud-pill-cyan flex-shrink-0"
+              style={{ fontSize: "0.62rem", padding: "1px 6px" }}
+            >
+              0.0% CO-FATIGA
+            </span>
           </div>
 
           {/* Verdict Title & Guidance Box */}
