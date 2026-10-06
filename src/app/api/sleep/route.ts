@@ -8,7 +8,20 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ logs: listSleepBetween(from, to) });
 }
 
-const OPTIONAL_FIELDS = ["hours", "quality", "notes", "score", "deep_min", "light_min", "rem_min", "awake_min", "source"] as const;
+const OPTIONAL_FIELDS = [
+  "hours",
+  "quality",
+  "notes",
+  "score",
+  "deep_min",
+  "light_min",
+  "rem_min",
+  "awake_min",
+  "source",
+  "nap_min",
+  "nap_count",
+  "nap_notes",
+] as const;
 
 export async function POST(req: NextRequest) {
   const body = await req.json();

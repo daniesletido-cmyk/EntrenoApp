@@ -15,15 +15,45 @@ export interface SleepRow {
   rem_min: number | null;
   awake_min: number | null;
   source: string | null; // 'manual' | 'zepp' | null (registros antiguos)
+  nap_min: number | null; // Duración de siesta en minutos
+  nap_count: number | null; // Número de siestas
+  nap_notes: string | null; // Detalle horario de la siesta (ej. '15:30 - 16:15')
   created_at: string;
   updated_at: string;
 }
 
 export type SleepLogInput = Partial<
-  Pick<SleepRow, "hours" | "quality" | "notes" | "score" | "deep_min" | "light_min" | "rem_min" | "awake_min" | "source">
+  Pick<
+    SleepRow,
+    | "hours"
+    | "quality"
+    | "notes"
+    | "score"
+    | "deep_min"
+    | "light_min"
+    | "rem_min"
+    | "awake_min"
+    | "source"
+    | "nap_min"
+    | "nap_count"
+    | "nap_notes"
+  >
 > & { date: string };
 
-const MERGE_FIELDS = ["hours", "quality", "notes", "score", "deep_min", "light_min", "rem_min", "awake_min", "source"] as const;
+const MERGE_FIELDS = [
+  "hours",
+  "quality",
+  "notes",
+  "score",
+  "deep_min",
+  "light_min",
+  "rem_min",
+  "awake_min",
+  "source",
+  "nap_min",
+  "nap_count",
+  "nap_notes",
+] as const;
 
 // Actualiza SOLO los campos presentes en `input` (aunque su valor sea null, p.ej.
 // al borrar un campo desde el formulario) y conserva los demás tal cual estaban.
@@ -41,7 +71,7 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
 
   if (existing) {
     db.prepare(
-      `UPDATE sleep_logs SET hours = ?, quality = ?, notes = ?, score = ?, deep_min = ?, light_min = ?, rem_min = ?, awake_min = ?, source = ?, updated_at = ? WHERE date = ?`
+      `UPDATE sleep_logs SET hours = ?, quality = ?, notes = ?, score = ?, deep_min = ?, light_min = ?, rem_min = ?, awake_min = ?, source = ?, nap_min = ?, nap_count = ?, nap_notes = ?, updated_at = ? WHERE date = ?`
     ).run(
       merged.hours,
       merged.quality,
@@ -52,12 +82,15 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
       merged.rem_min,
       merged.awake_min,
       merged.source,
+      merged.nap_min,
+      merged.nap_count,
+      merged.nap_notes,
       now,
       input.date
     );
   } else {
     db.prepare(
-      `INSERT INTO sleep_logs (date, hours, quality, notes, score, deep_min, light_min, rem_min, awake_min, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO sleep_logs (date, hours, quality, notes, score, deep_min, light_min, rem_min, awake_min, source, nap_min, nap_count, nap_notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       input.date,
       merged.hours,
@@ -69,6 +102,9 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
       merged.rem_min,
       merged.awake_min,
       merged.source,
+      merged.nap_min,
+      merged.nap_count,
+      merged.nap_notes,
       now,
       now
     );

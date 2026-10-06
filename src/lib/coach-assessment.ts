@@ -246,7 +246,13 @@ export function computeCoachWeeklyAssessment(weekStartParam?: string): WeeklyCoa
 
   // 4. VEREDICTO NARRATIVO DINÁMICO DEL ENTRENADOR PERSONAL
   const lastNightHours = readiness.stats.sleepHours;
-  const sleepText = lastNightHours ? `${lastNightHours.toFixed(1)}h de sueño` : "sueño pendiente de registro";
+  const napMin = readiness.stats.napMin;
+  const napText = napMin && napMin > 0 ? ` + ${napMin}m de siesta reparadora` : "";
+  const sleepText = lastNightHours
+    ? `${lastNightHours.toFixed(1)}h de sueño nocturno${napText}`
+    : napMin && napMin > 0
+    ? `${napMin}m de siesta registrada`
+    : "sueño pendiente de registro";
 
   // Identificar qué pasó ayer y qué toca hoy dinámicamente
   const yesterdayDate = addDays(today, -1);

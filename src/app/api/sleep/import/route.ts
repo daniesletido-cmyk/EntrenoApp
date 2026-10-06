@@ -56,16 +56,18 @@ export async function POST(req: NextRequest) {
       const deepMatch = (existing.deep_min ?? null) === (row.deep_min ?? null);
       const remMatch = (existing.rem_min ?? null) === (row.rem_min ?? null);
       const lightMatch = (existing.light_min ?? null) === (row.light_min ?? null);
+      const napMatch = (existing.nap_min ?? null) === (row.nap_min ?? null);
 
-      // Si las horas, score y fases ya son idénticos, es un duplicado innecesario
-      const isExactDuplicate = hoursMatch && scoreMatch && deepMatch && remMatch;
+      // Si las horas, score, fases y siestas ya son idénticos, es un duplicado innecesario
+      const isExactDuplicate = hoursMatch && scoreMatch && deepMatch && remMatch && napMatch;
 
-      // Si existe pero el archivo aporta nueva información (score o fases que antes eran null, o duración diferente)
+      // Si existe pero el archivo aporta nueva información (score, fases, siesta nueva o duración diferente)
       const bringsNewScore = row.score != null && existing.score == null;
       const bringsNewPhases = (row.deep_min != null && existing.deep_min == null) || (row.rem_min != null && existing.rem_min == null);
+      const bringsNewNap = (row.nap_min != null && existing.nap_min == null) || (row.nap_min != null && existing.nap_min !== row.nap_min);
       const hoursDifferent = !hoursMatch && row.hours != null;
 
-      const isUpdate = !isExactDuplicate && (bringsNewScore || bringsNewPhases || hoursDifferent);
+      const isUpdate = !isExactDuplicate && (bringsNewScore || bringsNewPhases || bringsNewNap || hoursDifferent);
       const status = isUpdate ? ("update" as const) : ("duplicate" as const);
       const isDuplicate = status === "duplicate";
       const isNecessary = !isDuplicate;
@@ -81,6 +83,7 @@ export async function POST(req: NextRequest) {
           score: existing.score,
           deep_min: existing.deep_min,
           rem_min: existing.rem_min,
+          nap_min: existing.nap_min,
         },
       };
     });
@@ -91,6 +94,7 @@ export async function POST(req: NextRequest) {
       updateCount: rows.filter((r) => r.status === "update").length,
       duplicateCount: rows.filter((r) => r.status === "duplicate").length,
       necessaryCount: rows.filter((r) => r.isNecessary).length,
+      napCount: rows.filter((r) => r.nap_min != null && r.nap_min > 0).length,
     };
 
     return NextResponse.json({ rows, summary });

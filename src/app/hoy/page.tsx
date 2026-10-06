@@ -70,6 +70,9 @@ interface SleepRow {
   hours: number | null;
   quality: number | null;
   score: number | null;
+  nap_min?: number | null;
+  nap_count?: number | null;
+  nap_notes?: string | null;
 }
 
 interface Recommendation {
@@ -394,6 +397,21 @@ export default function HoyPage() {
                   >
                     {readiness.verdict?.badgeLabel || readiness.levelLabel}
                   </span>
+                  {readiness.stats?.napMin != null && readiness.stats.napMin > 0 && (
+                    <span
+                      className="badge"
+                      style={{
+                        background: "rgba(168, 85, 247, 0.15)",
+                        color: "#c084fc",
+                        border: "1px solid rgba(168, 85, 247, 0.3)",
+                        fontWeight: "bold",
+                        fontSize: "0.78rem",
+                        padding: "0.2rem 0.55rem",
+                      }}
+                    >
+                      💤 Siesta +{readiness.stats.napMin}m
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                   Calculado en tiempo real con Sueño (45%), Fatiga 48h (35%) y Ratio Semanal (20%)
@@ -928,12 +946,23 @@ export default function HoyPage() {
             </div>
           )}
 
-          {sleep && sleep.hours != null && (
-            <div className="flex items-center gap-2 text-sm text-muted" style={{ marginTop: "var(--space-3)" }}>
+          {sleep && (sleep.hours != null || (sleep.nap_min != null && sleep.nap_min > 0)) && (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted" style={{ marginTop: "var(--space-3)" }}>
               <Moon size={15} />
-              Dormiste {sleep.hours}h anoche
-              {sleep.quality ? ` · calidad ${sleep.quality}/5` : ""}
-              {sleep.score != null ? ` · puntuación ${sleep.score}/100` : ""}
+              {sleep.hours != null ? (
+                <span>
+                  Dormiste <strong>{sleep.hours}h</strong> anoche
+                  {sleep.nap_min != null && sleep.nap_min > 0 ? (
+                    <> + <strong style={{ color: "#c084fc" }}>{sleep.nap_min}m de siesta</strong> (total: {((sleep.hours + sleep.nap_min / 60)).toFixed(1)}h)</>
+                  ) : null}
+                </span>
+              ) : (
+                <span>
+                  Siesta registrada: <strong style={{ color: "#c084fc" }}>{sleep.nap_min}m</strong>
+                </span>
+              )}
+              {sleep.quality ? <span>· calidad {sleep.quality}/5</span> : null}
+              {sleep.score != null ? <span>· puntuación {sleep.score}/100</span> : null}
             </div>
           )}
         </div>

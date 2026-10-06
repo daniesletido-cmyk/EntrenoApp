@@ -64,6 +64,8 @@ export interface DailyReadiness {
     sleepScore: number | null;
     sleepQuality: number | null;
     sleepTrend3dAvg: number | null;
+    napMin: number | null;
+    totalSleepHours: number | null;
     yesterdayTrained: boolean;
     yesterdayDiscipline: string | null;
     yesterdayRpe: number | null;
@@ -350,17 +352,21 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
   let sleepStatus: ReadinessFactor["status"] = "bueno";
   const sleepMetrics: { label: string; value: string }[] = [];
 
-  if (lastNightSleep && lastNightSleep.hours != null) {
-    const hrs = lastNightSleep.hours;
+  if (lastNightSleep && (lastNightSleep.hours != null || (lastNightSleep.nap_min != null && lastNightSleep.nap_min > 0))) {
+    const hrs = lastNightSleep.hours ?? 0;
+    const napMin = lastNightSleep.nap_min ?? 0;
+    const napHours = napMin / 60;
+    const totalEffectiveHours = hrs + napHours;
     const score = lastNightSleep.score;
     const quality = lastNightSleep.quality ?? 3;
 
-    // Horas dormidas (base 60 pts)
+    // Horas dormidas efectivas (base 60 pts)
     let hoursPts = 0;
-    if (hrs >= 8.5) hoursPts = 60;
-    else if (hrs >= 7.8) hoursPts = 58;
-    else if (hrs >= 7.0) hoursPts = 48;
-    else if (hrs >= 6.0) hoursPts = 32;
+    if (totalEffectiveHours >= 8.5) hoursPts = 60;
+    else if (totalEffectiveHours >= 7.8) hoursPts = 58;
+    else if (totalEffectiveHours >= 7.0) hoursPts = 48;
+    else if (totalEffectiveHours >= 6.0) hoursPts = 34;
+    else if (totalEffectiveHours >= 5.0) hoursPts = 22;
     else hoursPts = 15;
 
     // Calidad / Score Zepp (base 40 pts)
@@ -374,34 +380,71 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
       qualityPts = quality >= 5 ? 40 : quality >= 4 ? 32 : quality >= 3 ? 24 : 12;
     }
 
-    sleepScoreVal = Math.min(100, Math.max(10, hoursPts + qualityPts));
+    // BONUS CIENTÍFICO POR SIESTA REPARADORA (Medicina del Deporte y Fatiga Central):
+    // La siesta reduce adenosina diurna, estimula hormona de crecimiento (GH) y alivia el SNC
+    let napBonus = 0;
+    if (napMin >= 60) {
+      napBonus = 12; // Ciclo completo / sueño profundo diurno
+    } else if (napMin >= 30) {
+      napBonus = 8; // Siesta reparadora estándar
+    } else if (napMin >= 15) {
+      napBonus = 5; // Power nap
+    }
+
+    sleepScoreVal = Math.min(100, Math.max(10, hoursPts + qualityPts + napBonus));
 
     // Ajuste por tendencia 3 días (si hubo déficit previo)
     if (sleepTrend3dAvg !== null && sleepTrend3dAvg < 6.5) {
-      sleepScoreVal = Math.max(20, sleepScoreVal - 10);
+      // Una siesta reparadora (>= 30 min) amortigua a la mitad la penalización del déficit acumulado
+      const deficitPenalty = napMin >= 30 ? 5 : 10;
+      sleepScoreVal = Math.max(20, sleepScoreVal - deficitPenalty);
     }
 
-    sleepMetrics.push({ label: "Duración", value: `${hrs.toFixed(1)} h` });
+    if (hrs > 0) {
+      sleepMetrics.push({ label: "Noche", value: `${hrs.toFixed(1)} h` });
+    }
+    if (napMin > 0) {
+      sleepMetrics.push({ label: "💤 Siesta", value: `${Math.round(napMin)} min (+${napBonus} pts)` });
+      sleepMetrics.push({ label: "Total descanso", value: `${totalEffectiveHours.toFixed(1)} h` });
+    } else {
+      sleepMetrics.push({ label: "Duración", value: `${hrs.toFixed(1)} h` });
+    }
     if (score != null) sleepMetrics.push({ label: "Puntuación Zepp", value: `${score}/100` });
     else sleepMetrics.push({ label: "Calidad", value: `${quality}/5` });
     if (lastNightSleep.deep_min != null) sleepMetrics.push({ label: "Sueño profundo", value: `${lastNightSleep.deep_min} min` });
 
-    if (sleepScoreVal >= 85) {
-      sleepStatus = "optimo";
-      sleepHeadline = `Excelente descanso (${hrs.toFixed(1)}h dormidas)`;
-      sleepDetail = `Has dormido ${hrs.toFixed(1)} horas con gran calidad y descanso reparador. Tu sistema nervioso y muscular están completamente recargados.`;
-    } else if (sleepScoreVal >= 70) {
-      sleepStatus = "bueno";
-      sleepHeadline = `Buen descanso (${hrs.toFixed(1)}h)`;
-      sleepDetail = `Sueño dentro del rango objetivo. Recuperación adecuada para afrontar las demandas del día con normalidad.`;
-    } else if (sleepScoreVal >= 50) {
-      sleepStatus = "moderado";
-      sleepHeadline = `Sueño justo o algo interrumpido (${hrs.toFixed(1)}h)`;
-      sleepDetail = `Menos descanso del óptimo. Puedes entrenar, pero conviene calentar con calma y vigilar si notas pesadez o falta de reflejos.`;
+    if (napMin > 0) {
+      if (sleepScoreVal >= 85) {
+        sleepStatus = "optimo";
+        sleepHeadline = `Recuperación excelente con siesta (${hrs > 0 ? `${hrs.toFixed(1)}h noche + ` : ""}${Math.round(napMin)}m siesta)`;
+        sleepDetail = `Has acumulado ${totalEffectiveHours.toFixed(1)} horas de descanso total gracias a una siesta de ${Math.round(napMin)} minutos. El descanso diurno ha optimizado tu sistema nervioso, acelerando la regeneración muscular y bajando la fatiga central.`;
+      } else if (sleepScoreVal >= 70) {
+        sleepStatus = "bueno";
+        sleepHeadline = `Buen descanso impulsado por siesta (${Math.round(napMin)}m siesta)`;
+        sleepDetail = `La siesta de ${Math.round(napMin)} minutos complementa tu descanso (total ${totalEffectiveHours.toFixed(1)}h), aportando un impulso directo a tu recuperación para afrontar el entreno con garantías.`;
+      } else {
+        sleepStatus = "moderado";
+        sleepHeadline = `Sueño justo, aliviado por siesta (${Math.round(napMin)}m)`;
+        sleepDetail = `El descanso nocturno fue ajustado (${hrs.toFixed(1)}h), pero la siesta de ${Math.round(napMin)} min ha frenado el déficit agudo y elevado tu energía.`;
+      }
     } else {
-      sleepStatus = "bajo";
-      sleepHeadline = `Déficit de sueño notable (${hrs.toFixed(1)}h)`;
-      sleepDetail = `Menos de 6 horas o descanso muy fragmentado. La coordinación y recuperación muscular están mermadas.`;
+      if (sleepScoreVal >= 85) {
+        sleepStatus = "optimo";
+        sleepHeadline = `Excelente descanso (${hrs.toFixed(1)}h dormidas)`;
+        sleepDetail = `Has dormido ${hrs.toFixed(1)} horas con gran calidad y descanso reparador. Tu sistema nervioso y muscular están completamente recargados.`;
+      } else if (sleepScoreVal >= 70) {
+        sleepStatus = "bueno";
+        sleepHeadline = `Buen descanso (${hrs.toFixed(1)}h)`;
+        sleepDetail = `Sueño dentro del rango objetivo. Recuperación adecuada para afrontar las demandas del día con normalidad.`;
+      } else if (sleepScoreVal >= 50) {
+        sleepStatus = "moderado";
+        sleepHeadline = `Sueño justo o algo interrumpido (${hrs.toFixed(1)}h)`;
+        sleepDetail = `Menos descanso del óptimo. Puedes entrenar, pero conviene calentar con calma y vigilar si notas pesadez o falta de reflejos.`;
+      } else {
+        sleepStatus = "bajo";
+        sleepHeadline = `Déficit de sueño notable (${hrs.toFixed(1)}h)`;
+        sleepDetail = `Menos de 6 horas o descanso muy fragmentado. La coordinación y recuperación muscular están mermadas.`;
+      }
     }
   }
 
@@ -446,6 +489,12 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
     if (twoDaysAgoSessions.length > 0 && (twoDaysAgoSessions[0]?.rpe ?? 0) >= 8) {
       fatigueScoreVal = Math.max(30, fatigueScoreVal - 15);
       fatigueDetail += " Además, sumas la intensidad acumulada de hace dos días.";
+    }
+
+    // La siesta diurna (>= 25 min) reduce la fatiga aguda al activar el tono parasimpático y acelerar síntesis de glucógeno
+    if (lastNightSleep && lastNightSleep.nap_min && lastNightSleep.nap_min >= 25) {
+      fatigueScoreVal = Math.min(100, fatigueScoreVal + 6);
+      fatigueDetail += ` (La siesta de ${Math.round(lastNightSleep.nap_min)} min ha acelerado el vaciado de fatiga residual y la reparación muscular).`;
     }
   }
 
@@ -658,6 +707,11 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
       sleepScore: lastNightSleep?.score ?? null,
       sleepQuality: lastNightSleep?.quality ?? null,
       sleepTrend3dAvg,
+      napMin: lastNightSleep?.nap_min ?? null,
+      totalSleepHours:
+        lastNightSleep && (lastNightSleep.hours != null || lastNightSleep.nap_min != null)
+          ? (lastNightSleep.hours ?? 0) + ((lastNightSleep.nap_min ?? 0) / 60)
+          : null,
       yesterdayTrained,
       yesterdayDiscipline,
       yesterdayRpe,

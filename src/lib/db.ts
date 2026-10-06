@@ -234,6 +234,15 @@ function migrateSchema(d: AppDb) {
   if (!columnExists(d, "sleep_logs", "source")) {
     d.exec(`ALTER TABLE sleep_logs ADD COLUMN source TEXT;`);
   }
+  if (!columnExists(d, "sleep_logs", "nap_min")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN nap_min REAL;`);
+  }
+  if (!columnExists(d, "sleep_logs", "nap_count")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN nap_count INTEGER DEFAULT 0;`);
+  }
+  if (!columnExists(d, "sleep_logs", "nap_notes")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN nap_notes TEXT;`);
+  }
 
   if (!columnExists(d, "gym_logs", "completed")) {
     d.exec(`ALTER TABLE gym_logs ADD COLUMN completed INTEGER DEFAULT 0;`);

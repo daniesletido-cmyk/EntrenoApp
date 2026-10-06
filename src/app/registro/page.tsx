@@ -179,6 +179,9 @@ interface SleepRow {
   rem_min?: number | null;
   awake_min?: number | null;
   source?: string | null;
+  nap_min?: number | null;
+  nap_count?: number | null;
+  nap_notes?: string | null;
 }
 
 interface SleepImportPreviewItem extends ZeppSleepRow {
@@ -191,6 +194,7 @@ interface SleepImportPreviewItem extends ZeppSleepRow {
     score: number | null;
     deep_min: number | null;
     rem_min: number | null;
+    nap_min?: number | null;
   } | null;
 }
 
@@ -200,6 +204,7 @@ interface SleepImportSummary {
   updateCount: number;
   duplicateCount: number;
   necessaryCount: number;
+  napCount?: number;
 }
 
 const STATUS_OPTIONS = [
@@ -739,6 +744,11 @@ export default function RegistroPage() {
                     , {sleepSummary.updateCount} con datos actualizados
                   </span>
                 )}
+                {sleepSummary.napCount && sleepSummary.napCount > 0 ? (
+                  <span style={{ color: "#a855f7", fontWeight: 700 }}>
+                    {" "}· 💤 {sleepSummary.napCount} con siesta diferenciada
+                  </span>
+                ) : null}
                 {sleepSummary.duplicateCount > 0 && (
                   <span>
                     {" "}y <strong style={{ color: "var(--color-text-muted)" }}>{sleepSummary.duplicateCount} repetida(s)</strong> que ya tienes registradas (omitidas automáticamente)
@@ -919,6 +929,21 @@ export default function RegistroPage() {
                           )}
                           {row.rem_min != null && (
                             <span className="text-xs text-faint">REM: {row.rem_min}m</span>
+                          )}
+                          {row.nap_min != null && row.nap_min > 0 && (
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: "rgba(168, 85, 247, 0.18)",
+                                color: "#c084fc",
+                                border: "1px solid rgba(168, 85, 247, 0.35)",
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                              }}
+                              title={row.nap_notes || undefined}
+                            >
+                              💤 Siesta: {row.nap_min}m
+                            </span>
                           )}
                         </div>
 
@@ -1422,32 +1447,60 @@ export default function RegistroPage() {
                     <Moon size={14} />
                     Sueño de esa noche
                   </div>
-                  {sleep.score != null && (
-                    <span className="text-xs text-muted">
-                      Zepp: <strong>{sleep.score}/100</strong>
-                      {sleep.deep_min != null ? ` · Prof: ${sleep.deep_min}m` : ""}
-                      {sleep.rem_min != null ? ` · REM: ${sleep.rem_min}m` : ""}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {sleep.nap_min != null && sleep.nap_min > 0 && (
+                      <span
+                        className="badge"
+                        style={{
+                          background: "rgba(168, 85, 247, 0.12)",
+                          color: "#c084fc",
+                          border: "1px solid rgba(168, 85, 247, 0.25)",
+                          fontSize: "0.72rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        💤 Siesta: {sleep.nap_min}m
+                      </span>
+                    )}
+                    {sleep.score != null && (
+                      <span className="text-xs text-muted">
+                        Zepp: <strong>{sleep.score}/100</strong>
+                        {sleep.deep_min != null ? ` · Prof: ${sleep.deep_min}m` : ""}
+                        {sleep.rem_min != null ? ` · REM: ${sleep.rem_min}m` : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div
                   className="grid gap-3"
-                  style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}
-                  key={`sleep-${date}-${sleep.id || 'none'}-${sleep.hours ?? ''}-${sleep.quality ?? ''}`}
+                  style={{ gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))" }}
+                  key={`sleep-${date}-${sleep.id || 'none'}-${sleep.hours ?? ''}-${sleep.quality ?? ''}-${sleep.nap_min ?? ''}`}
                 >
                   <Input
-                    label="Horas"
+                    label="Horas noche"
                     type="number"
                     step="0.1"
                     defaultValue={sleep.hours ?? ""}
                     onBlur={(e) =>
-                      saveSleep(date, { hours: e.target.value === "" ? null : Number(e.target.value), quality: sleep.quality })
+                      saveSleep(date, {
+                        hours: e.target.value === "" ? null : Number(e.target.value),
+                        quality: sleep.quality,
+                        nap_min: sleep.nap_min,
+                        nap_count: sleep.nap_count,
+                      })
                     }
                   />
                   <Select
                     label="Calidad"
                     defaultValue={sleep.quality ?? ""}
-                    onChange={(e) => saveSleep(date, { hours: sleep.hours, quality: e.target.value === "" ? null : Number(e.target.value) })}
+                    onChange={(e) =>
+                      saveSleep(date, {
+                        hours: sleep.hours,
+                        quality: e.target.value === "" ? null : Number(e.target.value),
+                        nap_min: sleep.nap_min,
+                        nap_count: sleep.nap_count,
+                      })
+                    }
                   >
                     <option value="">Sin registrar</option>
                     {[1, 2, 3, 4, 5].map((q) => (
@@ -1456,10 +1509,32 @@ export default function RegistroPage() {
                       </option>
                     ))}
                   </Select>
+                  <Input
+                    label="Siesta (min)"
+                    type="number"
+                    step="5"
+                    placeholder="Ej: 30"
+                    defaultValue={sleep.nap_min ?? ""}
+                    onBlur={(e) => {
+                      const val = e.target.value === "" ? null : Number(e.target.value);
+                      saveSleep(date, {
+                        hours: sleep.hours,
+                        quality: sleep.quality,
+                        nap_min: val,
+                        nap_count: val && val > 0 ? (sleep.nap_count || 1) : 0,
+                      });
+                    }}
+                  />
                 </div>
-                {sleep.notes && (
-                  <div className="text-xs text-muted" style={{ marginTop: "var(--space-2)" }}>
-                    {sleep.notes}
+                {(sleep.notes || sleep.nap_notes) && (
+                  <div className="text-xs text-muted flex flex-col gap-1" style={{ marginTop: "var(--space-2)" }}>
+                    {sleep.notes && <div>{sleep.notes}</div>}
+                    {sleep.nap_notes && <div style={{ color: "#c084fc" }}>💤 {sleep.nap_notes}</div>}
+                  </div>
+                )}
+                {sleep.hours != null && sleep.nap_min != null && sleep.nap_min > 0 && (
+                  <div className="text-xs text-muted" style={{ marginTop: "var(--space-1)" }}>
+                    Total descanso del día: <strong>{(sleep.hours + sleep.nap_min / 60).toFixed(1)}h</strong> (noche + siesta)
                   </div>
                 )}
               </div>
