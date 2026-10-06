@@ -19,6 +19,9 @@ import {
   Check,
   RefreshCw,
   Zap,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -149,6 +152,70 @@ export default function PlanSemanalPage() {
   }, [load]);
 
   const days = weekDates(weekStart);
+
+  // Modo de visualización: por defecto 'horizontal' (un día enfocado con navegación)
+  const [viewMode, setViewMode] = useState<"horizontal" | "all">("horizontal");
+
+  // Fecha seleccionada: por defecto hoy si está en la semana actual, o el primer día
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const t = todayISO();
+    const currentWeekDays = weekDates(weekStartOf(t));
+    return currentWeekDays.includes(t) ? t : currentWeekDays[0];
+  });
+
+  // Al cambiar la semana, si hoy está en ella se abre hoy automáticamente; si no, el primer día
+  useEffect(() => {
+    const wDays = weekDates(weekStart);
+    const t = todayISO();
+    if (wDays.includes(t)) {
+      setSelectedDate(t);
+    } else {
+      setSelectedDate(wDays[0]);
+    }
+  }, [weekStart]);
+
+  const currentIndex = Math.max(0, days.indexOf(selectedDate));
+  const prevDate = currentIndex > 0 ? days[currentIndex - 1] : null;
+  const nextDate = currentIndex < days.length - 1 ? days[currentIndex + 1] : null;
+
+  const goToPrevDay = useCallback(() => {
+    if (prevDate) setSelectedDate(prevDate);
+  }, [prevDate]);
+
+  const goToNextDay = useCallback(() => {
+    if (nextDate) setSelectedDate(nextDate);
+  }, [nextDate]);
+
+  // Soporte de navegación táctil swipe
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchStartX(e.touches[0].clientX);
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX === null) return;
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 45) {
+      if (diff > 0 && nextDate) {
+        goToNextDay();
+      } else if (diff < 0 && prevDate) {
+        goToPrevDay();
+      }
+    }
+    setTouchStartX(null);
+  }
+
+  // Soporte de flechas del teclado (izquierda / derecha)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.key === "ArrowLeft") goToPrevDay();
+      if (e.key === "ArrowRight") goToNextDay();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [goToPrevDay, goToNextDay]);
 
   function dayNameForDate(date: string): string {
     const idx = days.indexOf(date);
@@ -435,8 +502,150 @@ export default function PlanSemanalPage() {
         </div>
       )}
 
-      <div className="grid gap-2.5 w-full">
-        {days.map((date, i) => {
+      {/* Cabecera del selector de días y conmutador de vista */}
+      <div className="flex items-center justify-between gap-2 mb-2 px-1">
+        <span className="text-xs font-semibold text-muted tracking-wider uppercase">Días de la semana</span>
+        <div className="inline-flex items-center bg-surface-raised rounded-lg p-0.5 border border-border/60 text-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode("horizontal")}
+            className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+              viewMode === "horizontal"
+                ? "bg-brand text-white shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            Día a día
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("all")}
+            className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+              viewMode === "all"
+                ? "bg-brand text-white shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            Ver semana
+          </button>
+        </div>
+      </div>
+
+      {/* Selector Horizontal de los 7 Días */}
+      <div className="w-full mb-3">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+          {days.map((date, idx) => {
+            const isSelected = viewMode === "horizontal" && date === selectedDate;
+            const isToday = date === today();
+            const daySessions = sessions.filter((s) => s.date === date && s.discipline !== "descanso");
+            const hasCompleted = daySessions.some((s) => s.status === "realizada");
+            const dayNum = parseInt(date.split("-")[2] || "1", 10);
+            const dayLetter = DAY_NAMES_ES[idx].substring(0, 3).toUpperCase();
+
+            return (
+              <button
+                key={date}
+                type="button"
+                onClick={() => {
+                  setSelectedDate(date);
+                  if (viewMode === "all") setViewMode("horizontal");
+                }}
+                className={`group relative flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 select-none border text-center ${
+                  isSelected
+                    ? "bg-brand text-white border-brand shadow-md shadow-brand/25 scale-[1.02]"
+                    : isToday
+                    ? "bg-brand/10 text-brand border-brand/40 hover:bg-brand/15"
+                    : "bg-surface-raised/70 text-muted hover:text-foreground hover:bg-surface-raised border-border/60"
+                }`}
+                style={{
+                  minHeight: "56px",
+                }}
+                title={`${DAY_NAMES_ES[idx]} ${dayNum} (${daySessions.length} sesiones)`}
+              >
+                {isToday && (
+                  <span
+                    className={`absolute -top-1.5 px-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                      isSelected ? "bg-white text-brand" : "bg-brand text-white"
+                    }`}
+                    style={{ lineHeight: "12px" }}
+                  >
+                    Hoy
+                  </span>
+                )}
+                <span className={`text-[10px] sm:text-xs font-semibold tracking-wide uppercase ${isSelected ? "opacity-90" : "opacity-75"}`}>
+                  {dayLetter}
+                </span>
+                <span className="text-sm sm:text-base font-extrabold leading-none mt-0.5">
+                  {dayNum}
+                </span>
+                <div className="flex items-center gap-0.5 mt-1 h-1.5">
+                  {daySessions.length > 0 ? (
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isSelected
+                          ? "bg-white"
+                          : hasCompleted
+                          ? "bg-emerald-500"
+                          : "bg-brand"
+                      }`}
+                    />
+                  ) : (
+                    <span className="w-1 h-1 rounded-full opacity-0" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Controles de Navegación Horizontal (solo en modo horizontal) */}
+      {viewMode === "horizontal" && (
+        <div className="flex items-center justify-between gap-2 mb-3 bg-surface border border-border/70 rounded-xl px-3 py-2 shadow-xs">
+          <button
+            type="button"
+            onClick={goToPrevDay}
+            disabled={!prevDate}
+            className="btn btn-ghost btn-icon-sm disabled:opacity-25 disabled:pointer-events-none"
+            aria-label="Día anterior"
+            title="Día anterior (← Flecha izquierda)"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="text-center min-w-0 flex-1 px-1">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <span className="font-bold text-sm sm:text-base text-foreground capitalize">
+                {DAY_NAMES_ES[currentIndex]}, {parseInt(selectedDate.split("-")[2] || "1", 10)} de{" "}
+                {new Date(selectedDate + "T12:00:00").toLocaleDateString("es-ES", { month: "long" })}
+              </span>
+              {selectedDate === today() && (
+                <span className="badge badge-brand text-[10px] px-1.5 py-0.5">
+                  Hoy
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-muted truncate mt-0.5">
+              Usa las flechas, botones o desliza para navegar
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={goToNextDay}
+            disabled={!nextDate}
+            className="btn btn-ghost btn-icon-sm disabled:opacity-25 disabled:pointer-events-none"
+            aria-label="Día siguiente"
+            title="Día siguiente (Flecha derecha →)"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Renderizado de Día(s) */}
+      {(() => {
+        function renderDayCard(date: string, i: number) {
           const daySessions = sessions.filter((s) => s.date === date);
           const f = form[date] ?? { discipline: "", planned_code: "", is_long_run: false, notes: "" };
           const isToday = date === today();
@@ -788,8 +997,26 @@ export default function PlanSemanalPage() {
               )}
             </div>
           );
-        })}
-      </div>
+        }
+
+        if (viewMode === "horizontal") {
+          return (
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="w-full transition-opacity duration-150"
+            >
+              {renderDayCard(selectedDate, currentIndex)}
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid gap-2.5 w-full">
+            {days.map((date, i) => renderDayCard(date, i))}
+          </div>
+        );
+      })()}
 
       <ConfirmDialog
         open={sessionToDelete !== null}
