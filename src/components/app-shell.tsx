@@ -218,13 +218,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <Image src="/brand/logo-mark.png" alt="" width={24} height={24} className="rounded-md flex-shrink-0" />
+            <div className="relative flex-shrink-0">
+              <Image src="/brand/logo-mark.png" alt="" width={24} height={24} className="rounded-md ring-1 ring-[#c3f400]/40" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#c3f400] rounded-full ring-1 ring-black animate-laser-pulse" />
+            </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm leading-tight truncate" style={{ letterSpacing: "-0.01em" }}>
-                {current?.label ?? "EntrenoApp"}
-              </span>
-              <span className="text-[10px] text-muted leading-tight truncate">
-                Daniel Espinosa · {raceDate}
+              <div className="flex items-center gap-1.5 leading-tight">
+                <span className="font-bold text-xs tracking-wider uppercase text-white" style={{ letterSpacing: "0.04em" }}>
+                  ENTRENO // APEX
+                </span>
+                <span className="text-[9px] px-1 py-0.2 rounded font-mono font-bold bg-[#c3f400]/15 text-[#c3f400] border border-[#c3f400]/30">
+                  {current?.label ?? "LIVE"}
+                </span>
+              </div>
+              <span className="text-[10px] text-muted font-mono leading-tight truncate">
+                SYS ONLINE · D. ESPINOSA
               </span>
             </div>
           </div>
@@ -322,12 +330,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             pointerEvents: "auto",
             margin: "0 auto",
             maxWidth: 460,
-            background: "var(--color-surface-translucent)",
+            background: "rgba(10, 13, 20, 0.88)",
             backdropFilter: "blur(24px)",
             WebkitBackdropFilter: "blur(24px)",
-            border: "1px solid var(--color-border-strong)",
+            border: "1px solid rgba(195, 244, 0, 0.28)",
             borderRadius: "var(--radius-full)",
-            boxShadow: "0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+            boxShadow: "0 12px 36px -4px rgba(0, 0, 0, 0.85), 0 0 16px rgba(195, 244, 0, 0.15)",
             display: "grid",
             gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
             padding: "4px 4px",
@@ -351,19 +359,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   padding: "4px 2px",
                   borderRadius: "var(--radius-full)",
                   background: active ? "var(--color-brand)" : "transparent",
-                  color: active ? "#09090b" : "var(--color-text-muted)",
-                  boxShadow: active ? "0 0 16px rgba(16, 185, 129, 0.4)" : "none",
+                  color: active ? "#050507" : "var(--color-text-muted)",
+                  boxShadow: active ? "0 0 18px rgba(195, 244, 0, 0.55)" : "none",
                   transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
                   textDecoration: "none",
                   position: "relative",
                   overflow: "hidden",
                 }}
               >
-                <Icon size={16} strokeWidth={active ? 2.4 : 1.9} />
+                <Icon size={16} strokeWidth={active ? 2.5 : 1.9} />
                 <span
                   style={{
                     fontSize: "0.62rem",
-                    fontWeight: active ? 700 : 500,
+                    fontWeight: active ? 800 : 500,
                     letterSpacing: "-0.01em",
                     lineHeight: 1,
                     whiteSpace: "nowrap",
@@ -400,30 +408,37 @@ function Brand() {
         alignItems: "center",
         gap: "var(--space-3)",
         padding: "var(--space-4) var(--space-4)",
-        borderBottom: "1px solid var(--color-border)",
+        borderBottom: "1px solid rgba(195, 244, 0, 0.15)",
+        position: "relative",
       }}
     >
-      <Image
-        src="/brand/logo-mark.png"
-        alt=""
-        width={32}
-        height={32}
-        className="rounded-lg"
-        style={{ flexShrink: 0 }}
-      />
+      <div className="relative flex-shrink-0">
+        <Image
+          src="/brand/logo-mark.png"
+          alt=""
+          width={34}
+          height={34}
+          className="rounded-lg ring-1 ring-[#c3f400]/50"
+        />
+        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#c3f400] rounded-full ring-2 ring-black animate-laser-pulse" />
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
+          <span style={{ fontWeight: 800, fontSize: "1.02rem", lineHeight: 1.1, letterSpacing: "0.02em", color: "#ffffff" }}>
             ENTRENO
           </span>
           <span
             className="hud-pill hud-pill-emerald"
-            style={{ fontSize: "0.62rem", padding: "1px 6px", lineHeight: 1.2 }}
+            style={{ fontSize: "0.6rem", padding: "1px 5px", lineHeight: 1.2, fontWeight: 700 }}
           >
-            PRO
+            APEX
           </span>
         </div>
-        <div className="text-xs text-muted" style={{ fontSize: "0.72rem" }}>Daniel Espinosa</div>
+        <div className="flex items-center gap-1 text-xs text-muted" style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", marginTop: 2 }}>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#c3f400] inline-block animate-ping" />
+          <span style={{ color: "#c3f400" }}>SYS ONLINE</span>
+          <span>// V4.8</span>
+        </div>
       </div>
     </div>
   );
@@ -454,10 +469,12 @@ function NavItem({
         padding: "0.5rem 0.75rem",
         borderRadius: "var(--radius-md)",
         fontSize: "var(--text-sm)",
-        fontWeight: active ? 600 : 500,
+        fontWeight: active ? 700 : 500,
         color: active ? "var(--color-brand)" : "var(--color-text-muted)",
-        background: active ? "var(--color-brand-subtle)" : "transparent",
-        transition: "background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease)",
+        background: active ? "rgba(195, 244, 0, 0.08)" : "transparent",
+        borderLeft: active ? "3px solid var(--color-brand)" : "3px solid transparent",
+        boxShadow: active ? "inset 0 0 12px rgba(195, 244, 0, 0.05)" : "none",
+        transition: "all var(--duration-fast) var(--ease)",
         minHeight: 40,
         textDecoration: "none",
       }}
