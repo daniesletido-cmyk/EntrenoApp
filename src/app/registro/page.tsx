@@ -39,6 +39,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ZeppSleepRow } from "@/lib/import/zepp-sleep";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
+import { parseWorkoutModification } from "@/lib/workout-modifications";
+import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 
 interface FitLap {
   index: number;
@@ -1586,25 +1588,41 @@ export default function RegistroPage() {
               {daySessions.map((s) => {
                 const Icon = DISCIPLINE_ICON[s.discipline] ?? MoreHorizontal;
                 const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
+                const mod = parseWorkoutModification(s);
                 const hasInjuryNote = s.notes && INJURY_KEYWORDS.some((k) => s.notes!.toLowerCase().includes(k));
+                const cleanNotes = s.notes
+                  ? s.notes
+                      .split("\n")
+                      .filter((l) => !l.includes("[Ajuste inteligente]"))
+                      .join("\n")
+                      .trim()
+                  : "";
+
                 return (
                   <div
                     key={s.id}
                     className="surface-raised w-full overflow-hidden"
                     style={{
-                      padding: "var(--space-3) var(--space-4)",
-                      borderRadius: "var(--radius-lg)",
-                      marginBottom: "var(--space-3)",
-                      border: "1px solid var(--color-border)",
-                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                      padding: "var(--space-4)",
+                      borderRadius: "var(--radius-xl)",
+                      marginBottom: "var(--space-4)",
+                      border: mod && mod.isModified ? "1.5px solid rgba(245, 158, 11, 0.55)" : "1px solid var(--color-border)",
+                      boxShadow: "0 4px 14px rgba(0, 0, 0, 0.08)",
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3" style={{ marginBottom: "var(--space-3)" }}>
+                    {/* Banner visual si la sesión está adaptada */}
+                    {mod && mod.isModified && (
+                      <div style={{ marginBottom: "var(--space-3)" }}>
+                        <WorkoutModificationBanner info={mod} />
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-3 w-full" style={{ marginBottom: "var(--space-3)" }}>
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
                           style={{
-                            width: 44,
-                            height: 44,
+                            width: 48,
+                            height: 48,
                             borderRadius: "var(--radius-md)",
                             background: discTheme.bg,
                             display: "flex",
@@ -1614,10 +1632,10 @@ export default function RegistroPage() {
                             color: discTheme.color,
                           }}
                         >
-                          <Icon size={22} />
+                          <Icon size={24} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-extrabold text-base sm:text-lg tracking-tight truncate" style={{ color: "var(--color-text)" }}>
+                          <div className="font-black text-lg sm:text-xl tracking-tight truncate" style={{ color: "var(--color-text)" }}>
                             {s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}
                             {s.planned_code && (
                               <span className="text-xs sm:text-sm font-semibold text-muted ml-2 font-normal">
@@ -1626,6 +1644,12 @@ export default function RegistroPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: 4 }}>
+                            {mod && mod.isModified && (
+                              <span className="badge badge-warning flex items-center gap-1 font-bold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>
+                                <Zap size={11} />
+                                <span>{mod.badgeLabel}</span>
+                              </span>
+                            )}
                             {!!s.is_long_run && <span className="badge badge-info font-semibold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>Tirada larga</span>}
                             {!!s.is_extra && (
                               <span
@@ -1642,36 +1666,28 @@ export default function RegistroPage() {
                               </span>
                             )}
                             {hasFitImport(s) && <span className="badge badge-success font-semibold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>.FIT</span>}
-                            {s.notes && s.notes.includes("[Ajuste inteligente]") && (
-                              <span
-                                className="badge font-semibold"
-                                style={{
-                                  fontSize: "0.72rem",
-                                  padding: "0.12rem 0.5rem",
-                                  background: "rgba(59, 130, 246, 0.15)",
-                                  color: "var(--color-brand)",
-                                  border: "1px solid rgba(59, 130, 246, 0.3)",
-                                }}
-                              >
-                                Adaptado
-                              </span>
-                            )}
+                            <span
+                              className={`badge font-semibold ${s.status === "realizada" ? "badge-success" : "badge-neutral"}`}
+                              style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}
+                            >
+                              {s.status === "realizada" ? "Completada" : s.status === "pendiente" ? "Por hacer" : s.status}
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button
-                          className="btn btn-secondary text-xs sm:text-sm flex items-center gap-1.5 font-medium"
-                          style={{ height: 34, minHeight: 34, padding: "0 12px", borderRadius: "var(--radius-sm)" }}
+                          className="btn btn-secondary text-xs sm:text-sm flex items-center gap-1.5 font-semibold"
+                          style={{ height: 36, minHeight: 36, padding: "0 13px", borderRadius: "var(--radius-sm)" }}
                           onClick={() => setDetailSessionId(s.id)}
                         >
                           <Activity size={15} />
                           <span>Detalle</span>
                         </button>
                         <button
-                          className="btn btn-ghost text-xs sm:text-sm flex items-center gap-1.5 font-medium"
-                          style={{ height: 34, minHeight: 34, padding: "0 10px", borderRadius: "var(--radius-sm)" }}
+                          className="btn btn-ghost text-xs sm:text-sm flex items-center gap-1.5 font-semibold"
+                          style={{ height: 36, minHeight: 36, padding: "0 11px", borderRadius: "var(--radius-sm)" }}
                           onClick={() => setEditingSession({ ...s })}
                         >
                           <Pencil size={15} />
@@ -1680,6 +1696,31 @@ export default function RegistroPage() {
                       </div>
                     </div>
 
+                    {/* Prescripción / Instrucciones del plan bien visibles */}
+                    {cleanNotes && (
+                      <div
+                        className="w-full text-sm sm:text-base"
+                        style={{
+                          marginBottom: "var(--space-3)",
+                          padding: "var(--space-3) var(--space-4)",
+                          background: "var(--color-surface)",
+                          borderRadius: "var(--radius-md)",
+                          borderLeft: `4px solid ${discTheme.color}`,
+                          whiteSpace: "pre-wrap",
+                          lineHeight: 1.55,
+                          wordBreak: "break-word",
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-muted flex items-center gap-1.5" style={{ marginBottom: 4 }}>
+                          <Target size={13} style={{ color: discTheme.color }} />
+                          <span>Prescripción planificada</span>
+                        </div>
+                        {cleanNotes}
+                      </div>
+                    )}
+
+                    {/* Formulario de registro con mayor visibilidad */}
                     <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
                       <Select
                         label="Estado"
@@ -1723,9 +1764,9 @@ export default function RegistroPage() {
 
                     <div style={{ marginTop: "var(--space-3)" }}>
                       <Textarea
-                        label="Notas / molestias"
-                        hint="Si notas dolor articular o algo raro, anótalo aquí sin falta."
-                        rows={3}
+                        label="Notas / molestias reales"
+                        hint="Si notas dolor articular, molestia o sensaciones, anótalo aquí."
+                        rows={2}
                         value={s.notes ?? ""}
                         onChange={(e) => updateLocalSession(s.id, { notes: e.target.value })}
                       />
@@ -1737,12 +1778,12 @@ export default function RegistroPage() {
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-3)" }}>
+                    <div className="flex flex-wrap items-center gap-2.5" style={{ marginTop: "var(--space-3)" }}>
                       <Button
                         variant="primary"
                         loading={savingId === s.id}
                         onClick={() => saveSession(s)}
-                        style={{ height: 36, minHeight: 36, fontSize: "0.84rem", padding: "0 16px" }}
+                        style={{ height: 38, minHeight: 38, fontSize: "0.88rem", padding: "0 18px" }}
                       >
                         <Save size={16} />
                         Guardar registro
@@ -1752,7 +1793,7 @@ export default function RegistroPage() {
                           variant="ghost"
                           loading={undoingFitId === s.id}
                           onClick={() => undoFitImport(s.id, !!s.fit_backup)}
-                          style={{ height: 36, minHeight: 36, fontSize: "0.84rem" }}
+                          style={{ height: 38, minHeight: 38, fontSize: "0.84rem" }}
                         >
                           <RotateCcw size={15} />
                           {s.fit_backup ? "Deshacer importación .fit" : "Quitar datos del .fit"}
@@ -1763,7 +1804,7 @@ export default function RegistroPage() {
                           variant="ghost"
                           onClick={() => handleRevertAdjustment(s.id, s.date)}
                           title="Revertir este ajuste inteligente y volver al plan base"
-                          style={{ height: 36, minHeight: 36, fontSize: "0.84rem" }}
+                          style={{ height: 38, minHeight: 38, fontSize: "0.84rem" }}
                         >
                           <RotateCcw size={14} />
                           Revertir adaptación
