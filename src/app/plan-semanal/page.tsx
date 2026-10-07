@@ -661,13 +661,13 @@ export default function PlanSemanalPage() {
               }}
             >
               {/* Day Header */}
-              <div className="flex items-center justify-between gap-2 w-full" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-2)" : 0 }}>
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-3 w-full" style={{ marginBottom: daySessions.length > 0 || isAdding ? "var(--space-3)" : 0 }}>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
                     style={{
-                      width: 38,
-                      height: 42,
-                      borderRadius: "var(--radius-sm)",
+                      width: 46,
+                      height: 50,
+                      borderRadius: "var(--radius-md)",
                       background: isToday ? "var(--color-brand)" : "var(--color-surface-raised)",
                       color: isToday ? "#ffffff" : "var(--color-text)",
                       display: "flex",
@@ -675,28 +675,28 @@ export default function PlanSemanalPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       border: isToday ? "none" : "1px solid var(--color-border)",
-                      boxShadow: isToday ? "0 4px 12px rgba(59, 130, 246, 0.35)" : "none",
+                      boxShadow: isToday ? "0 4px 14px rgba(59, 130, 246, 0.35)" : "none",
                       flexShrink: 0,
                     }}
                   >
-                    <span style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.05em", opacity: isToday ? 0.95 : 0.65 }}>
+                    <span style={{ fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.06em", opacity: isToday ? 0.95 : 0.7 }}>
                       {DAY_NAMES_ES[i].substring(0, 3).toUpperCase()}
                     </span>
-                    <span style={{ fontSize: "1rem", fontWeight: 800, lineHeight: 1 }}>
+                    <span style={{ fontSize: "1.25rem", fontWeight: 900, lineHeight: 1, marginTop: 1 }}>
                       {parseInt(date.split("-")[2] || "1", 10)}
                     </span>
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-sm truncate">{DAY_NAMES_ES[i]}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-extrabold text-base sm:text-lg truncate">{DAY_NAMES_ES[i]}</span>
                       {isToday && (
-                        <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "0.08rem 0.35rem" }}>
+                        <span className="badge badge-brand text-xs px-2 py-0.5 font-bold">
                           Hoy
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-muted truncate" style={{ marginTop: 1 }}>
+                    <div className="text-xs sm:text-sm text-muted truncate" style={{ marginTop: 2 }}>
                       {daySessions.length === 0
                         ? "Descanso / Sin programar"
                         : `${daySessions.length} entreno${daySessions.length > 1 ? "s" : ""}`}
@@ -706,22 +706,22 @@ export default function PlanSemanalPage() {
 
                 {!isAdding && daySessions.length === 0 && (
                   <button
-                    className="btn btn-secondary text-xs flex-shrink-0"
+                    className="btn btn-secondary text-xs sm:text-sm flex-shrink-0 font-medium"
                     onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
-                    style={{ height: 32, minHeight: 32, padding: "0 10px", borderRadius: "var(--radius-full)", fontSize: "0.72rem" }}
+                    style={{ height: 36, minHeight: 36, padding: "0 14px", borderRadius: "var(--radius-full)" }}
                   >
-                    <Plus size={13} />
+                    <Plus size={15} />
                     <span>Planificar</span>
                   </button>
                 )}
 
                 {!isAdding && daySessions.length > 0 && (
                   <button
-                    className="btn btn-ghost text-xs flex-shrink-0"
+                    className="btn btn-ghost text-xs sm:text-sm flex-shrink-0 font-medium"
                     onClick={() => setForm((p) => ({ ...p, [date]: { discipline: "carrera", planned_code: "", is_long_run: false, notes: "" } }))}
-                    style={{ height: 30, minHeight: 30, padding: "0 8px", borderRadius: "var(--radius-full)", fontSize: "0.72rem" }}
+                    style={{ height: 34, minHeight: 34, padding: "0 12px", borderRadius: "var(--radius-full)" }}
                   >
-                    <Plus size={12} />
+                    <Plus size={14} />
                     <span>Añadir</span>
                   </button>
                 )}
@@ -729,7 +729,7 @@ export default function PlanSemanalPage() {
 
               {/* Day Sessions List */}
               {daySessions.length > 0 && (
-                <ul className="grid gap-2 w-full" style={{ marginBottom: isAdding ? "var(--space-2)" : 0 }}>
+                <ul className="grid gap-3 w-full" style={{ marginBottom: isAdding ? "var(--space-3)" : 0 }}>
                   {daySessions.map((s) => {
                     const meta = DISCIPLINE_MAP[s.discipline] ?? DISCIPLINES[4];
                     const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
@@ -750,25 +750,26 @@ export default function PlanSemanalPage() {
                         key={s.id}
                         className="surface-raised w-full overflow-hidden"
                         style={{
-                          padding: "var(--space-2) var(--space-3)",
-                          borderRadius: "var(--radius-md)",
-                          border: mod && mod.isModified ? "1px solid rgba(245, 158, 11, 0.45)" : undefined,
+                          padding: "var(--space-3) var(--space-4)",
+                          borderRadius: "var(--radius-lg)",
+                          border: mod && mod.isModified ? "1.5px solid rgba(245, 158, 11, 0.55)" : "1px solid var(--color-border)",
+                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
                         }}
                       >
                         {/* Banner visual si la sesión está adaptada */}
                         {mod && mod.isModified && (
-                          <div style={{ marginBottom: 6 }}>
+                          <div style={{ marginBottom: 8 }}>
                             <WorkoutModificationBanner info={mod} />
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-2 w-full">
-                          <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div
                               style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "var(--radius-sm)",
+                                width: 44,
+                                height: 44,
+                                borderRadius: "var(--radius-md)",
                                 background: discTheme.bg,
                                 display: "flex",
                                 alignItems: "center",
@@ -777,27 +778,27 @@ export default function PlanSemanalPage() {
                                 color: discTheme.color,
                               }}
                             >
-                              <Icon size={16} />
+                              <Icon size={22} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="font-bold text-xs sm:text-sm truncate" style={{ color: "var(--color-text)" }}>
+                              <div className="font-extrabold text-base sm:text-lg tracking-tight truncate" style={{ color: "var(--color-text)" }}>
                                 {meta.label} {s.planned_code ? `· ${s.planned_code}` : ""}
                               </div>
-                              <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 2 }}>
+                              <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: 4 }}>
                                 {mod && mod.isModified && (
-                                  <span className="badge badge-warning flex items-center gap-1 font-bold" style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}>
-                                    <Zap size={9} />
+                                  <span className="badge badge-warning flex items-center gap-1 font-bold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>
+                                    <Zap size={11} />
                                     <span>{mod.badgeLabel}</span>
                                   </span>
                                 )}
                                 {!!s.is_long_run && (
-                                  <span className="badge badge-info" style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}>
+                                  <span className="badge badge-info font-semibold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>
                                     Tirada larga
                                   </span>
                                 )}
                                 <span
-                                  className={`badge ${s.status === "realizada" ? "badge-success" : "badge-neutral"}`}
-                                  style={{ fontSize: "0.62rem", padding: "0.05rem 0.35rem" }}
+                                  className={`badge font-semibold ${s.status === "realizada" ? "badge-success" : "badge-neutral"}`}
+                                  style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}
                                 >
                                   {STATUS_LABEL[s.status] ?? s.status}
                                 </span>
@@ -805,58 +806,63 @@ export default function PlanSemanalPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <div className="flex items-center gap-1 flex-shrink-0">
                             <button
-                              className="btn btn-ghost btn-icon-sm"
+                              className="btn btn-ghost"
+                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Intercambiar con otra sesión de la semana"
                               title="Intercambiar día"
                               onClick={() => (isSwapping ? cancelSwap() : startSwap(s.id))}
                             >
-                              <ArrowLeftRight size={14} />
+                              <ArrowLeftRight size={16} />
                             </button>
                             <button
-                              className="btn btn-ghost btn-icon-sm"
+                              className="btn btn-ghost"
+                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Escribir o editar el detalle del entreno"
                               title="Editar notas del entreno"
                               onClick={() => (isEditing ? setEditingId(null) : startEditingNotes(s))}
                             >
-                              <NotebookPen size={14} />
+                              <NotebookPen size={16} />
                             </button>
                             <button
-                              className="btn btn-ghost btn-icon-sm"
+                              className="btn btn-ghost"
+                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Copiar entreno para Notas"
                               title="Copiar entreno para Notas"
                               onClick={() => copySession(s)}
                             >
                               {copiedId === s.id ? (
-                                <Check size={14} style={{ color: "var(--color-success)" }} />
+                                <Check size={16} style={{ color: "var(--color-success)" }} />
                               ) : (
-                                <Copy size={14} />
+                                <Copy size={16} />
                               )}
                             </button>
                             <button
-                              className="btn btn-ghost btn-icon-sm"
+                              className="btn btn-ghost"
+                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Quitar sesión"
                               title="Eliminar sesión"
                               onClick={() => requestRemoveSession(s.id)}
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>
 
                         {!isEditing && cleanNotes && (
                           <div
-                            className="text-xs text-muted w-full"
+                            className="w-full text-sm sm:text-base"
                             style={{
-                              marginTop: "var(--space-2)",
-                              padding: "var(--space-2) var(--space-3)",
+                              marginTop: "var(--space-3)",
+                              padding: "var(--space-3) var(--space-4)",
                               background: "var(--color-surface)",
-                              borderRadius: "var(--radius-sm)",
-                              borderLeft: `3px solid ${discTheme.color}`,
+                              borderRadius: "var(--radius-md)",
+                              borderLeft: `4px solid ${discTheme.color}`,
                               whiteSpace: "pre-wrap",
-                              lineHeight: 1.45,
+                              lineHeight: 1.55,
                               wordBreak: "break-word",
+                              color: "var(--color-text)",
                             }}
                           >
                             {s.notes}

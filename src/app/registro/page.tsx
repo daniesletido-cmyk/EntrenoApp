@@ -224,6 +224,15 @@ const DISCIPLINE_ICON: Record<string, React.ComponentType<{ size?: number; class
   otro: MoreHorizontal,
 };
 
+const DISCIPLINE_COLORS: Record<string, { color: string; bg: string }> = {
+  carrera: { color: "var(--color-success)", bg: "var(--color-success-bg)" },
+  gimnasio: { color: "#a855f7", bg: "rgba(168, 85, 247, 0.14)" },
+  natacion: { color: "var(--color-info)", bg: "var(--color-info-bg)" },
+  crossfit: { color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
+  descanso: { color: "var(--color-text-muted)", bg: "var(--color-surface-raised)" },
+  otro: { color: "var(--color-brand)", bg: "var(--color-brand-subtle)" },
+};
+
 const INJURY_KEYWORDS = ["dolor", "molestia", "tirón", "tiron", "pinchazo", "rodilla", "tobillo"];
 
 export default function RegistroPage() {
@@ -1520,13 +1529,14 @@ export default function RegistroPage() {
                 borderLeft: isToday ? "3px solid var(--color-brand)" : undefined,
               }}
             >
-              <div className="flex items-center justify-between gap-2 w-full" style={{ marginBottom: "var(--space-3)" }}>
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {/* Day Header - consistente con plan-semanal */}
+              <div className="flex items-center justify-between gap-3 w-full" style={{ marginBottom: "var(--space-3)" }}>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
                     style={{
-                      width: 38,
-                      height: 42,
-                      borderRadius: "var(--radius-sm)",
+                      width: 46,
+                      height: 50,
+                      borderRadius: "var(--radius-md)",
                       background: isToday ? "var(--color-brand)" : "var(--color-surface-raised)",
                       color: isToday ? "#ffffff" : "var(--color-text)",
                       display: "flex",
@@ -1534,28 +1544,28 @@ export default function RegistroPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       border: isToday ? "none" : "1px solid var(--color-border)",
-                      boxShadow: isToday ? "0 4px 12px rgba(59, 130, 246, 0.35)" : "none",
+                      boxShadow: isToday ? "0 4px 14px rgba(59, 130, 246, 0.35)" : "none",
                       flexShrink: 0,
                     }}
                   >
-                    <span style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.05em", opacity: isToday ? 0.95 : 0.65 }}>
+                    <span style={{ fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.06em", opacity: isToday ? 0.95 : 0.7 }}>
                       {DAY_NAMES_ES[i].substring(0, 3).toUpperCase()}
                     </span>
-                    <span style={{ fontSize: "1rem", fontWeight: 800, lineHeight: 1 }}>
+                    <span style={{ fontSize: "1.25rem", fontWeight: 900, lineHeight: 1, marginTop: 1 }}>
                       {parseInt(date.split("-")[2] || "1", 10)}
                     </span>
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-sm truncate">{DAY_NAMES_ES[i]}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-extrabold text-base sm:text-lg truncate">{DAY_NAMES_ES[i]}</span>
                       {isToday && (
-                        <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "0.08rem 0.35rem" }}>
+                        <span className="badge badge-brand text-xs px-2 py-0.5 font-bold">
                           Hoy
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-muted truncate" style={{ marginTop: 1 }}>
+                    <div className="text-xs sm:text-sm text-muted truncate" style={{ marginTop: 2 }}>
                       {daySessions.length === 0
                         ? "Sin entrenamientos planificados"
                         : `${daySessions.length} entreno${daySessions.length > 1 ? "s" : ""}`}
@@ -1566,7 +1576,7 @@ export default function RegistroPage() {
 
               {daySessions.length === 0 && (
                 <div
-                  className="text-xs text-muted py-2.5 px-3 rounded-lg bg-surface-raised/40 border border-border/40"
+                  className="text-xs sm:text-sm text-muted py-3 px-3.5 rounded-lg bg-surface-raised/40 border border-border/40"
                   style={{ marginBottom: "var(--space-3)" }}
                 >
                   Día de descanso o sin entrenamientos planificados. Puedes registrar el descanso y sueño abajo.
@@ -1575,60 +1585,102 @@ export default function RegistroPage() {
 
               {daySessions.map((s) => {
                 const Icon = DISCIPLINE_ICON[s.discipline] ?? MoreHorizontal;
+                const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
                 const hasInjuryNote = s.notes && INJURY_KEYWORDS.some((k) => s.notes!.toLowerCase().includes(k));
                 return (
                   <div
                     key={s.id}
-                    className="surface-raised"
-                    style={{ padding: "var(--space-3)", marginBottom: "var(--space-3)" }}
+                    className="surface-raised w-full overflow-hidden"
+                    style={{
+                      padding: "var(--space-3) var(--space-4)",
+                      borderRadius: "var(--radius-lg)",
+                      marginBottom: "var(--space-3)",
+                      border: "1px solid var(--color-border)",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                    }}
                   >
-                    <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                      <div className="flex items-center gap-2 text-sm font-medium" style={{ flexWrap: "wrap" }}>
-                        <Icon size={16} className="text-muted" />
-                        <span className="font-semibold">{s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}</span>
-                        {s.planned_code && <span className="text-xs text-muted">({DISCIPLINE_LABEL[s.discipline] ?? s.discipline})</span>}
-                        {!!s.is_long_run && <span className="badge badge-info">Tirada larga</span>}
-                        {!!s.is_extra && (
-                          <span
-                            className="badge"
-                            style={{
-                              fontSize: 10,
-                              background: "rgba(234, 179, 8, 0.15)",
-                              color: "var(--color-warning)",
-                              border: "1px solid rgba(234, 179, 8, 0.3)",
-                            }}
-                          >
-                            Extra
-                          </span>
-                        )}
-                        {hasFitImport(s) && <span className="badge badge-success" style={{ fontSize: 10 }}>.FIT</span>}
-                        {s.notes && s.notes.includes("[Ajuste inteligente]") && (
-                          <span
-                            className="badge"
-                            style={{
-                              fontSize: 10,
-                              background: "rgba(59, 130, 246, 0.15)",
-                              color: "var(--color-brand)",
-                              border: "1px solid rgba(59, 130, 246, 0.3)",
-                            }}
-                          >
-                            Adaptado
-                          </span>
-                        )}
+                    <div className="flex items-center justify-between gap-3" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: "var(--radius-md)",
+                            background: discTheme.bg,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                            color: discTheme.color,
+                          }}
+                        >
+                          <Icon size={22} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-extrabold text-base sm:text-lg tracking-tight truncate" style={{ color: "var(--color-text)" }}>
+                            {s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}
+                            {s.planned_code && (
+                              <span className="text-xs sm:text-sm font-semibold text-muted ml-2 font-normal">
+                                ({DISCIPLINE_LABEL[s.discipline] ?? s.discipline})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: 4 }}>
+                            {!!s.is_long_run && <span className="badge badge-info font-semibold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>Tirada larga</span>}
+                            {!!s.is_extra && (
+                              <span
+                                className="badge font-semibold"
+                                style={{
+                                  fontSize: "0.72rem",
+                                  padding: "0.12rem 0.5rem",
+                                  background: "rgba(234, 179, 8, 0.15)",
+                                  color: "var(--color-warning)",
+                                  border: "1px solid rgba(234, 179, 8, 0.3)",
+                                }}
+                              >
+                                Extra
+                              </span>
+                            )}
+                            {hasFitImport(s) && <span className="badge badge-success font-semibold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>.FIT</span>}
+                            {s.notes && s.notes.includes("[Ajuste inteligente]") && (
+                              <span
+                                className="badge font-semibold"
+                                style={{
+                                  fontSize: "0.72rem",
+                                  padding: "0.12rem 0.5rem",
+                                  background: "rgba(59, 130, 246, 0.15)",
+                                  color: "var(--color-brand)",
+                                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                                }}
+                              >
+                                Adaptado
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="secondary" onClick={() => setDetailSessionId(s.id)}>
-                          <Activity size={13} />
-                          Ver detalle
-                        </Button>
-                        <Button variant="ghost" onClick={() => setEditingSession({ ...s })}>
-                          <Pencil size={13} />
-                          Editar
-                        </Button>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          className="btn btn-secondary text-xs sm:text-sm flex items-center gap-1.5 font-medium"
+                          style={{ height: 34, minHeight: 34, padding: "0 12px", borderRadius: "var(--radius-sm)" }}
+                          onClick={() => setDetailSessionId(s.id)}
+                        >
+                          <Activity size={15} />
+                          <span>Detalle</span>
+                        </button>
+                        <button
+                          className="btn btn-ghost text-xs sm:text-sm flex items-center gap-1.5 font-medium"
+                          style={{ height: 34, minHeight: 34, padding: "0 10px", borderRadius: "var(--radius-sm)" }}
+                          onClick={() => setEditingSession({ ...s })}
+                        >
+                          <Pencil size={15} />
+                          <span>Editar</span>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
+                    <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
                       <Select
                         label="Estado"
                         value={s.status}
@@ -1673,28 +1725,34 @@ export default function RegistroPage() {
                       <Textarea
                         label="Notas / molestias"
                         hint="Si notas dolor articular o algo raro, anótalo aquí sin falta."
-                        rows={2}
+                        rows={3}
                         value={s.notes ?? ""}
                         onChange={(e) => updateLocalSession(s.id, { notes: e.target.value })}
                       />
                       {hasInjuryNote && (
-                        <div className="flex items-center gap-1 text-xs" style={{ color: "var(--color-warning)", marginTop: 4 }}>
-                          <AlertTriangle size={13} />
+                        <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--color-warning)", marginTop: 5 }}>
+                          <AlertTriangle size={14} />
                           Esta nota se revisará en Recomendaciones.
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2" style={{ marginTop: "var(--space-3)" }}>
-                      <Button variant="primary" loading={savingId === s.id} onClick={() => saveSession(s)}>
-                        <Save size={15} />
-                        Guardar
+                    <div className="flex flex-wrap items-center gap-2" style={{ marginTop: "var(--space-3)" }}>
+                      <Button
+                        variant="primary"
+                        loading={savingId === s.id}
+                        onClick={() => saveSession(s)}
+                        style={{ height: 36, minHeight: 36, fontSize: "0.84rem", padding: "0 16px" }}
+                      >
+                        <Save size={16} />
+                        Guardar registro
                       </Button>
                       {hasFitImport(s) && (
                         <Button
                           variant="ghost"
                           loading={undoingFitId === s.id}
                           onClick={() => undoFitImport(s.id, !!s.fit_backup)}
+                          style={{ height: 36, minHeight: 36, fontSize: "0.84rem" }}
                         >
                           <RotateCcw size={15} />
                           {s.fit_backup ? "Deshacer importación .fit" : "Quitar datos del .fit"}
@@ -1705,6 +1763,7 @@ export default function RegistroPage() {
                           variant="ghost"
                           onClick={() => handleRevertAdjustment(s.id, s.date)}
                           title="Revertir este ajuste inteligente y volver al plan base"
+                          style={{ height: 36, minHeight: 36, fontSize: "0.84rem" }}
                         >
                           <RotateCcw size={14} />
                           Revertir adaptación
