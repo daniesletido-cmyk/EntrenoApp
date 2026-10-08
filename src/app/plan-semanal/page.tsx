@@ -93,9 +93,6 @@ export default function PlanSemanalPage() {
   const [importInfo, setImportInfo] = useState<{ method: string; skipped: number } | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importCommitting, setImportCommitting] = useState(false);
-  const [swappingId, setSwappingId] = useState<number | null>(null);
-  const [swapTarget, setSwapTarget] = useState<string>("");
-  const [swapping, setSwapping] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -127,17 +124,12 @@ export default function PlanSemanalPage() {
       const res = await fetch(`/api/sessions?week=${weekStart}&t=${Date.now()}`, { cache: "no-store" });
       const d = await res.json();
       setSessions(d.sessions ?? []);
-      if (isManual) {
-        toast.push("success", "Plan semanal actualizado");
-      }
     } catch {
-      if (isManual) {
-        toast.push("error", "Error al actualizar el plan");
-      }
+      // silencioso al refrescar
     } finally {
       setRefreshing(false);
     }
-  }, [weekStart, toast]);
+  }, [weekStart]);
 
   useEffect(() => {
     load(false);
@@ -279,39 +271,6 @@ export default function PlanSemanalPage() {
       toast.push("success", "Detalle guardado");
     } finally {
       setSavingNotes(false);
-    }
-  }
-
-  function startSwap(id: number) {
-    setSwappingId(id);
-    setSwapTarget("");
-  }
-
-  function cancelSwap() {
-    setSwappingId(null);
-    setSwapTarget("");
-  }
-
-  async function confirmSwap(id: number) {
-    if (!swapTarget) return;
-    setSwapping(true);
-    try {
-      const res = await fetch("/api/sessions/swap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idA: id, idB: Number(swapTarget) }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.push("error", data.error ?? "No se pudo intercambiar");
-        return;
-      }
-      toast.push("success", "Sesiones intercambiadas");
-      setSwappingId(null);
-      setSwapTarget("");
-      load();
-    } finally {
-      setSwapping(false);
     }
   }
 
@@ -735,7 +694,6 @@ export default function PlanSemanalPage() {
                     const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
                     const Icon = meta.Icon;
                     const isEditing = editingId === s.id;
-                    const isSwapping = swappingId === s.id;
                     const mod = parseWorkoutModification(s);
                     const cleanNotes = s.notes
                       ? s.notes
@@ -810,15 +768,6 @@ export default function PlanSemanalPage() {
                             <button
                               className="btn btn-ghost"
                               style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
-                              aria-label="Intercambiar con otra sesión de la semana"
-                              title="Intercambiar día"
-                              onClick={() => (isSwapping ? cancelSwap() : startSwap(s.id))}
-                            >
-                              <ArrowLeftRight size={16} />
-                            </button>
-                            <button
-                              className="btn btn-ghost"
-                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Escribir o editar el detalle del entreno"
                               title="Editar notas del entreno"
                               onClick={() => (isEditing ? setEditingId(null) : startEditingNotes(s))}
@@ -884,38 +833,6 @@ export default function PlanSemanalPage() {
                                 Guardar
                               </Button>
                               <Button variant="ghost" onClick={() => setEditingId(null)} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
-                                Cancelar
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {isSwapping && (
-                          <div className="w-full" style={{ marginTop: "var(--space-2)" }}>
-                            <Select
-                              label="Intercambiar con"
-                              value={swapTarget}
-                              onChange={(e) => setSwapTarget(e.target.value)}
-                            >
-                              <option value="">Elige una sesión de esta semana…</option>
-                              {sessions
-                                .filter((other) => other.id !== s.id)
-                                .map((other) => {
-                                  const otherMeta = DISCIPLINE_MAP[other.discipline] ?? DISCIPLINES[4];
-                                  return (
-                                    <option key={other.id} value={other.id}>
-                                      {dayNameForDate(other.date)} — {otherMeta.label}
-                                      {other.planned_code ? ` (${other.planned_code})` : ""}
-                                    </option>
-                                  );
-                                })}
-                            </Select>
-                            <div className="flex gap-2" style={{ marginTop: "var(--space-2)" }}>
-                              <Button variant="primary" loading={swapping} disabled={!swapTarget} onClick={() => confirmSwap(s.id)} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
-                                <ArrowLeftRight size={14} />
-                                Intercambiar
-                              </Button>
-                              <Button variant="ghost" onClick={cancelSwap} style={{ height: 34, minHeight: 34, fontSize: "0.78rem" }}>
                                 Cancelar
                               </Button>
                             </div>

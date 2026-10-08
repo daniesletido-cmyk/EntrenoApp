@@ -118,19 +118,13 @@ export default function ResumenPage() {
       const activos: Goal[] = (g.goals ?? []).filter((x: Goal) => x.status === "activo" && x.target_date);
       setNextGoal(activos.length > 0 ? activos[0] : null);
       setCoachAssessment(ca?.assessment ?? null);
-
-      if (isManual) {
-        toast.push("success", "Resumen, consejos y carga actualizados");
-      }
     } catch {
-      if (isManual) {
-        toast.push("error", "Error al actualizar los datos");
-      }
+      // silencioso al refrescar
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [weekStart, toast]);
+  }, [weekStart]);
 
   useEffect(() => {
     loadData(false);

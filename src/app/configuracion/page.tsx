@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SecuritySettingsModal } from "@/components/auth/security-settings-modal";
-import { isAppLockEnabled, getAppLockType, lockSession } from "@/lib/security";
+import { isAppLockEnabled, getAppLockType } from "@/lib/security";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -391,23 +391,10 @@ export default function ConfiguracionPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             {lockEnabled ? (
-              <>
-                <Button variant="primary" onClick={() => setSecurityModalOpen(true)}>
-                  <KeyRound size={15} />
-                  <span>Modificar o Quitar Clave</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    lockSession();
-                    toast.push("info", "Aplicación bloqueada");
-                  }}
-                  title="Bloquear la app inmediatamente para probar el desbloqueo"
-                >
-                  <Lock size={15} />
-                  <span>Bloquear ahora</span>
-                </Button>
-              </>
+              <Button variant="primary" onClick={() => setSecurityModalOpen(true)}>
+                <KeyRound size={15} />
+                <span>Modificar o Quitar Clave</span>
+              </Button>
             ) : (
               <Button variant="primary" onClick={() => setSecurityModalOpen(true)}>
                 <Lock size={15} />

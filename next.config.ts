@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   },
   trailingSlash: isMobile,
   serverExternalPackages: ["pdf-parse"],
+  devIndicators: false,
 };
 
 export default nextConfig;

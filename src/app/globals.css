@@ -587,3 +587,15 @@ textarea.field {
     border-radius: var(--radius-md) !important;
   }
 }
+
+/* Ocultar banner/indicador inferior negro de desarrollo y sincronización de Next.js */
+#next-dev-indicator,
+[data-nextjs-dev-indicator],
+[data-nextjs-toast],
+nextjs-portal,
+#next-route-announcer {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

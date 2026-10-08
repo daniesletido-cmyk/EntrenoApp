@@ -20,9 +20,10 @@ import {
   Dumbbell,
   Bot,
   RefreshCw,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { useToast } from "@/components/ui/toast";
 
 const NAV_GROUPS = [
   {
@@ -74,18 +75,33 @@ const LINKS = NAV_GROUPS.flatMap((g) => g.links);
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const toast = useToast();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [raceDate, setRaceDate] = useState("26/04/2027");
   const current = LINKS.find((l) => l.href === pathname);
 
   const [isGlobalRefreshing, setIsGlobalRefreshing] = useState(false);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("entrenoapp_sidebar_collapsed");
+      if (saved !== null) {
+        setSidebarCollapsed(saved === "true");
+      }
+    } catch {}
+  }, []);
+
+  const toggleSidebar = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    try {
+      localStorage.setItem("entrenoapp_sidebar_collapsed", String(collapsed));
+    } catch {}
+  };
+
   const triggerGlobalRefresh = () => {
     setIsGlobalRefreshing(true);
     window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
     router.refresh();
-    toast.push("success", "Datos y métricas actualizados");
     setTimeout(() => setIsGlobalRefreshing(false), 900);
   };
 
@@ -112,23 +128,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={{ display: "flex", minHeight: "100vh", position: "relative" }}>
       {/* Sidebar — Escritorio */}
       <aside
         className="hidden md:flex"
         style={{
-          width: 240,
+          width: sidebarCollapsed ? 0 : 240,
           flexShrink: 0,
-          borderRight: "1px solid var(--color-border)",
+          borderRight: sidebarCollapsed ? "none" : "1px solid var(--color-border)",
           background: "var(--color-surface)",
           flexDirection: "column",
           position: "sticky",
           top: 0,
           height: "100vh",
-          transition: "background-color var(--duration-base) var(--ease), border-color var(--duration-base) var(--ease)",
+          overflow: "hidden",
+          transition: "width 0.22s var(--ease), border-color var(--duration-base) var(--ease), background-color var(--duration-base) var(--ease)",
+          visibility: sidebarCollapsed ? "hidden" : "visible",
         }}
       >
-        <Brand />
+        <div style={{ width: 240, height: "100%", display: "flex", flexDirection: "column" }}>
+          <Brand onCollapse={() => toggleSidebar(true)} />
         <nav
           style={{
             padding: "var(--space-3) var(--space-2)",
@@ -190,6 +209,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div>Maratón · {raceDate}</div>
             <div style={{ color: "var(--color-text-muted)", fontSize: "0.72rem" }}>Daniel Espinosa</div>
           </div>
+        </div>
         </div>
       </aside>
 
@@ -382,6 +402,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Área de contenido principal */}
       <main style={{ flex: 1, minWidth: 0 }}>
+        {sidebarCollapsed && (
+          <button
+            onClick={() => toggleSidebar(false)}
+            className="btn btn-ghost btn-icon hidden md:flex items-center justify-center animate-in"
+            title="Mostrar barra lateral"
+            aria-label="Mostrar barra lateral"
+            style={{
+              position: "fixed",
+              top: 14,
+              left: 14,
+              zIndex: 35,
+              width: 34,
+              height: 34,
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface-translucent)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              border: "1px solid var(--color-border)",
+              boxShadow: "var(--shadow-sm)",
+              color: "var(--color-text)",
+            }}
+          >
+            <PanelLeftOpen size={16} />
+          </button>
+        )}
         <div className="main-content-container">
           <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-top, 0px))" }} />
           {children}
@@ -394,51 +439,72 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Brand() {
+function Brand({ onCollapse }: { onCollapse?: () => void }) {
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "var(--space-3)",
-        padding: "var(--space-4) var(--space-4)",
+        justifyContent: "space-between",
+        gap: "var(--space-2)",
+        padding: "var(--space-4) var(--space-3) var(--space-4) var(--space-4)",
         borderBottom: "1px solid var(--color-border)",
         position: "relative",
       }}
     >
-      <div className="relative flex-shrink-0">
-        <Image
-          src="/brand/logo-mark.png"
-          alt=""
-          width={32}
-          height={32}
-          className="rounded-lg"
-        />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "var(--color-text)" }}>
-            ENTRENO
-          </span>
-          <span
-            style={{
-              fontSize: "0.62rem",
-              padding: "1px 6px",
-              borderRadius: "9999px",
-              background: "var(--color-brand-subtle)",
-              color: "var(--color-brand)",
-              border: "1px solid var(--color-brand)",
-              fontWeight: 700,
-              lineHeight: 1.2,
-            }}
-          >
-            PRO
-          </span>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="relative flex-shrink-0">
+          <Image
+            src="/brand/logo-mark.png"
+            alt=""
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
         </div>
-        <div className="text-xs text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-          Daniel Espinosa
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "var(--color-text)" }}>
+              ENTRENO
+            </span>
+            <span
+              style={{
+                fontSize: "0.62rem",
+                padding: "1px 6px",
+                borderRadius: "9999px",
+                background: "var(--color-brand-subtle)",
+                color: "var(--color-brand)",
+                border: "1px solid var(--color-brand)",
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }}
+            >
+              PRO
+            </span>
+          </div>
+          <div className="text-xs text-muted truncate" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+            Daniel Espinosa
+          </div>
         </div>
       </div>
+      {onCollapse && (
+        <button
+          onClick={onCollapse}
+          className="btn btn-ghost btn-icon"
+          title="Ocultar barra lateral"
+          aria-label="Ocultar barra lateral"
+          style={{
+            width: 30,
+            height: 30,
+            minWidth: 30,
+            borderRadius: "var(--radius-sm)",
+            color: "var(--color-text-muted)",
+            padding: 0,
+          }}
+        >
+          <PanelLeftClose size={16} />
+        </button>
+      )}
     </div>
   );
 }

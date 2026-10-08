@@ -1231,36 +1231,6 @@ export default function RegistroPage() {
             </div>
           )}
 
-          {fitResult.swapSuggestions.length > 0 && (
-            <div className="grid gap-2" style={{ marginBottom: "var(--space-4)" }}>
-              {fitResult.swapSuggestions.map((s) => (
-                <div
-                  key={s.matchId}
-                  className="surface-raised flex flex-wrap items-center justify-between gap-3 text-sm"
-                  style={{ padding: "var(--space-3)", borderColor: "var(--color-brand)" }}
-                >
-                  <span className="flex items-start gap-2">
-                    <ArrowLeftRight size={15} style={{ marginTop: 2, flexShrink: 0, color: "var(--color-brand)" }} />
-                    <span>
-                      Tenías <strong>{DISCIPLINE_LABEL[s.matchDiscipline] ?? s.matchDiscipline}</strong>
-                      {s.matchPlannedCode ? ` (${s.matchPlannedCode})` : ""} planificado para el {dayLabel(s.matchDate)} — parece que lo
-                      has hecho hoy.
-                      {s.todayId
-                        ? ` ¿Intercambio las fechas con ${DISCIPLINE_LABEL[s.todayDiscipline ?? ""] ?? s.todayDiscipline}${
-                            s.todayPlannedCode ? ` (${s.todayPlannedCode})` : ""
-                          }?`
-                        : " ¿Muevo esa sesión a hoy?"}
-                    </span>
-                  </span>
-                  <Button variant="secondary" loading={applyingSwapId === s.matchId} onClick={() => applySwapSuggestion(s)}>
-                    <ArrowLeftRight size={14} />
-                    {s.todayId ? "Intercambiar" : "Mover a hoy"}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
           {fitResult.feedback.length > 0 && (
             <div className="grid gap-2" style={{ marginBottom: "var(--space-4)" }}>
               {fitResult.feedback.map((f, i) => (

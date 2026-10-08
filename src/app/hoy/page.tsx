@@ -220,19 +220,13 @@ export default function HoyPage() {
       const menuRes = await fetch(`/api/menu?phase=${phase}&t=${t}`, { cache: "no-store" }).then((r) => r.json());
       const dow = isoDayOfWeek(today);
       setMenu((menuRes.items ?? []).filter((m: MenuItem) => m.day_of_week === dow));
-
-      if (isManual) {
-        toast.push("success", "Estado del día y entrenos actualizados");
-      }
     } catch {
-      if (isManual) {
-        toast.push("error", "Error al actualizar los datos");
-      }
+      // silencioso al refrescar
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [today, toast]);
+  }, [today]);
 
   useEffect(() => {
     load(false);
