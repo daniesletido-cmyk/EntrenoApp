@@ -7,13 +7,9 @@ import "@fontsource/inter/800.css";
 import "./globals.css";
 import AppShell from "@/components/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
-import { AppLockGuard } from "@/components/auth/app-lock-guard";
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#090a0f" },
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-  ],
+  themeColor: "#090a0f",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -71,23 +67,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   var theme = saved || (prefersDark ? 'dark' : 'light');
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch(e) {}
-
-                // Soporte nativo para enlaces en modo pantalla de inicio (Standalone iOS)
-                // Evita que Safari rompa la sesión en ventana externa
-                if (("standalone" in window.navigator) && window.navigator.standalone) {
-                  document.addEventListener("click", function(e) {
-                    var el = e.target;
-                    while (el && el.nodeName !== "A" && el.nodeName !== "BODY") {
-                      el = el.parentElement;
-                    }
-                    if (el && el.nodeName === "A" && el.getAttribute("href") && el.getAttribute("href").startsWith("/")) {
-                      if (!el.getAttribute("target") && !el.getAttribute("download")) {
-                        e.preventDefault();
-                        window.location.href = el.getAttribute("href");
-                      }
-                    }
-                  }, false);
-                }
               })();
             `,
           }}
@@ -95,9 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ToastProvider>
-          <AppLockGuard>
-            <AppShell>{children}</AppShell>
-          </AppLockGuard>
+          <AppShell>{children}</AppShell>
         </ToastProvider>
       </body>
     </html>
