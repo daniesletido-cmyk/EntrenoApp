@@ -46,6 +46,7 @@
     "@types/react-dom": "^19",
     "electron": "^35.7.5",
     "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.2",
     "postcss": "^8",
     "tailwindcss": "^4",
     "typescript": "^5"

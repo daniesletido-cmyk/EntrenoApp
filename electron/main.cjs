@@ -43,6 +43,7 @@ function createSplash() {
     frame: false,
     resizable: false,
     transparent: true,
+    icon: path.join(__dirname, "icon.ico"),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   splashWindow.loadFile(path.join(__dirname, "splash.html"));
@@ -55,6 +56,7 @@ function createMainWindow() {
     show: false,
     autoHideMenuBar: true,
     title: "EntrenoApp",
+    icon: path.join(__dirname, "icon.ico"),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   mainWindow.setMenuBarVisibility(false);
