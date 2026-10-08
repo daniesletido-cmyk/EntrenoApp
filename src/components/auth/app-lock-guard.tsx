@@ -59,7 +59,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
     window.addEventListener("entrenoapp:security_changed", handleSecChange);
     window.addEventListener("entrenoapp:lock", handleLock);
 
-    // Animación de entrada dinámica: dura 1.2s y luego se desvanece suavemente
+    // Animación de entrada dinámica: dura 1.1s y luego se desvanece suavemente
     const splashTimer = setTimeout(() => {
       setSplashFading(true);
       setTimeout(() => {
@@ -67,10 +67,17 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
       }, 450);
     }, 1100);
 
+    // Fallback de seguridad incondicional (especialmente útil en Safari standalone / iOS)
+    const safetyTimer = setTimeout(() => {
+      setShowSplash(false);
+      setSplashFading(false);
+    }, 2500);
+
     return () => {
       window.removeEventListener("entrenoapp:security_changed", handleSecChange);
       window.removeEventListener("entrenoapp:lock", handleLock);
       clearTimeout(splashTimer);
+      clearTimeout(safetyTimer);
     };
   }, [checkSecurityState]);
 
