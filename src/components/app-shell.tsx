@@ -222,7 +222,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Image src="/brand/logo-mark.png" alt="" width={26} height={26} className="rounded-md" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm leading-tight truncate text-white" style={{ letterSpacing: "-0.01em" }}>
+              <span className="font-bold text-sm leading-tight truncate text-foreground" style={{ letterSpacing: "-0.01em" }}>
                 {current?.label ?? "Hoy"}
               </span>
               <span className="text-[11px] text-muted leading-tight truncate">
@@ -324,12 +324,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             pointerEvents: "auto",
             margin: "0 auto",
             maxWidth: 460,
-            background: "rgba(18, 20, 26, 0.92)",
+            background: "var(--color-surface-translucent)",
             backdropFilter: "blur(24px)",
             WebkitBackdropFilter: "blur(24px)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--color-border-strong)",
             borderRadius: "var(--radius-full)",
-            boxShadow: "0 16px 36px -4px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+            boxShadow: "var(--shadow-md)",
             display: "grid",
             gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
             padding: "4px 4px",
@@ -353,8 +353,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   padding: "4px 2px",
                   borderRadius: "var(--radius-full)",
                   background: active ? "var(--color-brand)" : "transparent",
-                  color: active ? "#090a0f" : "var(--color-text-muted)",
-                  boxShadow: active ? "0 4px 16px rgba(16, 185, 129, 0.35)" : "none",
+                  color: active ? "var(--color-brand-contrast)" : "var(--color-text-muted)",
+                  boxShadow: active ? "var(--shadow-glow-brand)" : "none",
                   transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
                   textDecoration: "none",
                   position: "relative",
@@ -417,7 +417,7 @@ function Brand() {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "#ffffff" }}>
+          <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "var(--color-text)" }}>
             ENTRENO
           </span>
           <span
@@ -425,9 +425,9 @@ function Brand() {
               fontSize: "0.62rem",
               padding: "1px 6px",
               borderRadius: "9999px",
-              background: "rgba(16, 185, 129, 0.15)",
-              color: "#10b981",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
+              background: "var(--color-brand-subtle)",
+              color: "var(--color-brand)",
+              border: "1px solid var(--color-brand)",
               fontWeight: 700,
               lineHeight: 1.2,
             }}
@@ -470,9 +470,9 @@ function NavItem({
         fontSize: "var(--text-sm)",
         fontWeight: active ? 700 : 500,
         color: active ? "var(--color-brand)" : "var(--color-text-muted)",
-        background: active ? "rgba(195, 244, 0, 0.08)" : "transparent",
+        background: active ? "var(--color-brand-subtle)" : "transparent",
         borderLeft: active ? "3px solid var(--color-brand)" : "3px solid transparent",
-        boxShadow: active ? "inset 0 0 12px rgba(195, 244, 0, 0.05)" : "none",
+        boxShadow: active ? "inset 0 0 12px var(--color-brand-subtle)" : "none",
         transition: "all var(--duration-fast) var(--ease)",
         minHeight: 40,
         textDecoration: "none",

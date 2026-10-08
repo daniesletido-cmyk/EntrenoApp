@@ -345,8 +345,7 @@ export default function HoyPage() {
 
       {/* 1. Microciclo Semanal (Minimalist 7-Day Strip) */}
       <section
-        className="rounded-2xl border border-white/[0.08] p-4 mb-4 shadow-sm animate-in"
-        style={{ background: "#12141a" }}
+        className="surface p-4 mb-4 animate-in"
       >
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
@@ -357,7 +356,7 @@ export default function HoyPage() {
           </div>
           <Link
             href="/plan-semanal"
-            className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400 transition-colors"
           >
             <span>Plan semanal</span>
             <ArrowRight size={13} />
@@ -380,18 +379,18 @@ export default function HoyPage() {
                   key={dIso}
                   className="flex flex-col items-center py-2.5 px-1 rounded-xl relative transition-all"
                   style={{
-                    background: "rgba(16, 185, 129, 0.14)",
-                    border: "1.5px solid #10b981",
-                    boxShadow: "0 0 16px rgba(16, 185, 129, 0.2)",
+                    background: "var(--color-brand-subtle)",
+                    border: "1.5px solid var(--color-brand)",
+                    boxShadow: "var(--shadow-glow-brand)",
                   }}
                 >
-                  <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-tight">
+                  <span className="text-[10px] font-semibold text-brand uppercase tracking-tight">
                     {letters[idx]}
                   </span>
-                  <span className="text-base font-bold text-white mt-0.5 leading-none tabular-nums">
+                  <span className="text-base font-bold text-foreground mt-0.5 leading-none tabular-nums">
                     {dayNum}
                   </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand mt-2" />
                 </div>
               );
             }
@@ -401,24 +400,24 @@ export default function HoyPage() {
                 key={dIso}
                 className="flex flex-col items-center py-2.5 px-1 rounded-xl transition-all"
                 style={{
-                  background: isCompleted ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.02)",
-                  border: isCompleted ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid rgba(255, 255, 255, 0.05)",
-                  opacity: isCompleted || (daySession && !isRest) ? 1 : 0.6,
+                  background: isCompleted ? "var(--color-surface-hover)" : "var(--color-surface-raised)",
+                  border: isCompleted ? "1px solid var(--color-brand)" : "1px solid var(--color-border)",
+                  opacity: isCompleted || (daySession && !isRest) ? 1 : 0.65,
                 }}
               >
                 <span className="text-[10px] font-medium text-muted uppercase tracking-tight">
                   {letters[idx]}
                 </span>
-                <span className="text-sm font-semibold text-gray-300 mt-0.5 leading-none tabular-nums">
+                <span className="text-sm font-semibold text-foreground mt-0.5 leading-none tabular-nums">
                   {dayNum}
                 </span>
                 <span
                   className="w-1.5 h-1.5 rounded-full mt-2"
                   style={{
                     background: isCompleted
-                      ? "#10b981"
+                      ? "var(--color-brand)"
                       : daySession && !isRest
-                      ? "rgba(255, 255, 255, 0.3)"
+                      ? "var(--color-text-muted)"
                       : "transparent",
                   }}
                 />
@@ -432,8 +431,7 @@ export default function HoyPage() {
       {readiness && (
         <section className="space-y-3 mb-5">
           <div
-            className="relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.6)] animate-in"
-            style={{ background: "#12141a" }}
+            className="relative overflow-hidden surface p-5 animate-in"
           >
             {/* Diffused Subtle Ambient Glow */}
             <div className="absolute -right-6 -top-6 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
@@ -457,10 +455,10 @@ export default function HoyPage() {
                       : "rgba(239, 68, 68, 0.15)",
                   color:
                     readiness.tone === "success"
-                      ? "#10b981"
+                      ? "var(--color-brand)"
                       : readiness.tone === "warning"
-                      ? "#f59e0b"
-                      : "#ef4444",
+                      ? "var(--color-warning)"
+                      : "var(--color-danger)",
                   border: `1px solid ${
                     readiness.tone === "success"
                       ? "rgba(16, 185, 129, 0.3)"
@@ -482,7 +480,7 @@ export default function HoyPage() {
                     cy="50"
                     fill="none"
                     r="40"
-                    stroke="rgba(255, 255, 255, 0.07)"
+                    stroke="var(--color-border)"
                     strokeWidth="7"
                   />
                   <circle
@@ -492,10 +490,10 @@ export default function HoyPage() {
                     r="40"
                     stroke={
                       readiness.tone === "success"
-                        ? "#10b981"
+                        ? "var(--color-brand)"
                         : readiness.tone === "warning"
-                        ? "#f59e0b"
-                        : "#ef4444"
+                        ? "var(--color-warning)"
+                        : "var(--color-danger)"
                     }
                     strokeDasharray="251.2"
                     strokeDashoffset={251.2 - (251.2 * Math.max(10, Math.min(100, readiness.score))) / 100}
@@ -506,38 +504,38 @@ export default function HoyPage() {
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
                   <div className="flex items-baseline justify-center">
-                    <span className="text-xl font-bold tracking-tight text-white tabular-nums">
+                    <span className="text-xl font-bold tracking-tight text-foreground tabular-nums">
                       {readiness.score}
                     </span>
-                    <span className="text-xs font-semibold text-white/70 ml-0.5">%</span>
+                    <span className="text-xs font-semibold text-muted ml-0.5">%</span>
                   </div>
                   <span className="text-[10px] text-muted font-medium mt-0.5">Puntuación</span>
                 </div>
               </div>
 
               {/* Key Autonomic Breakdown */}
-              <div className="col-span-7 flex flex-col justify-between space-y-3 pl-3 border-l border-white/[0.08]">
+              <div className="col-span-7 flex flex-col justify-between space-y-3 pl-3 border-l border-border">
                 <div>
                   <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
                     HRV Basal (RMSSD)
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-xl font-bold text-white tabular-nums">
+                    <span className="text-xl font-bold text-foreground tabular-nums">
                       {readiness.factors[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value ?? "74"}
                     </span>
                     <span className="text-xs text-muted">ms</span>
-                    <span className="text-xs font-semibold text-emerald-400 ml-auto">
+                    <span className="text-xs font-semibold text-emerald-500 ml-auto">
                       +8% Óptimo
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2.5 border-t border-white/[0.06]">
+                <div className="pt-2.5 border-t border-border">
                   <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
                     Tiempo en Cama
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-xl font-bold text-white tabular-nums">
+                    <span className="text-xl font-bold text-foreground tabular-nums">
                       {((sleep?.hours ?? 7.5) + (sleep?.nap_min ? sleep.nap_min / 60 : 0)).toFixed(1)}
                     </span>
                     <span className="text-xs text-muted">horas</span>
@@ -550,13 +548,13 @@ export default function HoyPage() {
             </div>
 
             {/* Sleep Detailed Pills */}
-            <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-xs text-muted">
+            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-muted">
               <div className="flex items-center gap-1.5">
-                <Moon size={14} className="text-emerald-400" />
+                <Moon size={14} className="text-emerald-500" />
                 <span>{sleep?.hours ?? 7.5}h Sueño nocturno</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Sun size={14} className="text-amber-400" />
+                <Sun size={14} className="text-amber-500" />
                 <span>{sleep?.nap_min && sleep.nap_min > 0 ? `+${sleep.nap_min}m Siesta reparadora` : "Calidad 4.8 / 5"}</span>
               </div>
             </div>
@@ -564,18 +562,17 @@ export default function HoyPage() {
 
           {/* Strain & Carga Cardiovascular */}
           <div
-            className="rounded-2xl border border-white/[0.08] p-4 space-y-2.5"
-            style={{ background: "#12141a" }}
+            className="surface p-4 space-y-2.5"
           >
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <Flame size={16} className="text-amber-400" />
+                <Flame size={16} className="text-amber-500" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted">
                   Carga Cardiovascular (Strain)
                 </span>
               </div>
               <div className="text-xs font-medium">
-                <span className="text-amber-400 font-bold">
+                <span className="text-amber-500 font-bold">
                   {readiness.stats.last48hLoad > 0 ? (readiness.stats.last48hLoad / 25).toFixed(1) : "11.2"}
                 </span>
                 <span className="text-muted"> / 16.5 Objetivo</span>
@@ -583,7 +580,7 @@ export default function HoyPage() {
             </div>
 
             {/* Progress bar */}
-            <div className="w-full h-2 rounded-full overflow-hidden p-[1px]" style={{ background: "rgba(255, 255, 255, 0.08)" }}>
+            <div className="w-full h-2 rounded-full overflow-hidden p-[1px] bg-surface-raised border border-border">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -594,7 +591,7 @@ export default function HoyPage() {
             </div>
             <div className="flex justify-between items-center text-[11px] text-muted pt-0.5">
               <span>Capacidad cardiovascular disponible</span>
-              <span className="text-gray-200 font-medium">Zona Óptima</span>
+              <span className="text-foreground font-medium">Zona Óptima</span>
             </div>
           </div>
         </section>
@@ -603,35 +600,34 @@ export default function HoyPage() {
       {/* 3. Nota del Entrenador (AI & Performance Staff) */}
       <section className="mb-5">
         <div
-          className="rounded-2xl border border-white/[0.08] p-4.5 relative overflow-hidden animate-in"
-          style={{ background: "#161922" }}
+          className="surface p-4.5 relative overflow-hidden animate-in"
         >
           <div className="flex items-start gap-3">
             <div
-              className="p-2.5 rounded-xl text-emerald-400 shrink-0"
-              style={{ background: "rgba(16, 185, 129, 0.12)" }}
+              className="p-2.5 rounded-xl text-emerald-500 shrink-0"
+              style={{ background: "var(--color-brand-subtle)" }}
             >
               <Sparkles size={20} />
             </div>
             <div className="space-y-1 flex-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">
+                <h3 className="text-sm font-semibold text-foreground">
                   Nota del Entrenador
                 </h3>
-                <span className="text-[11px] font-medium text-emerald-400">
+                <span className="text-[11px] font-medium text-emerald-500">
                   Actualizado hoy
                 </span>
               </div>
-              <p className="text-xs text-gray-300 leading-relaxed">
+              <p className="text-xs text-muted leading-relaxed">
                 {readiness?.verdict?.actionGuidance || readiness?.coachAdvice ||
                   "Tus niveles de HRV y descanso nocturno están en su punto más alto del mes (+12%). En las series principales mantén el ritmo controlado sin exceder zona 4 temprana para proteger la sobrecarga muscular de cara a la tirada del domingo."}
               </p>
 
               {/* Adaptaciones propuestas si las hay */}
               {readiness?.proposedMicroAdjustments && readiness.proposedMicroAdjustments.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-white/[0.08] space-y-2">
+                <div className="mt-3 pt-3 border-t border-border space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-amber-400">
+                    <span className="font-semibold text-amber-500">
                       Adaptación inteligente disponible ({readiness.proposedMicroAdjustments.length})
                     </span>
                     {readiness.proposedMicroAdjustments.some((a) => !a.isApplied) && (
@@ -666,11 +662,10 @@ export default function HoyPage() {
 
           {trainingSessions.length === 0 ? (
             <div
-              className="rounded-2xl border border-white/[0.08] p-6 text-center"
-              style={{ background: "#12141a" }}
+              className="surface p-6 text-center"
             >
               <BedDouble size={28} className="mx-auto text-muted mb-2 opacity-60" />
-              <h3 className="text-base font-semibold text-white">Día de descanso programado</h3>
+              <h3 className="text-base font-semibold text-foreground">Día de descanso programado</h3>
               <p className="text-xs text-muted mt-1 max-w-sm mx-auto leading-relaxed">
                 No hay sesiones intensivas asignadas para hoy. Día destinado a supercompensación, recarga de glucógeno y descanso activo.
               </p>
@@ -697,8 +692,7 @@ export default function HoyPage() {
                 return (
                   <section
                     key={s.id}
-                    className="rounded-2xl border border-white/[0.08] p-5 shadow-sm space-y-4 animate-in"
-                    style={{ background: "#12141a" }}
+                    className="surface p-5 space-y-4 animate-in"
                   >
                     {/* Banner si hay adaptación */}
                     {modInfo && modInfo.isModified && (
@@ -712,7 +706,7 @@ export default function HoyPage() {
                     {/* Title & Category Header */}
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
+                        <h2 className="text-lg font-bold text-foreground tracking-tight leading-tight">
                           {s.planned_code ? `${s.planned_code} · ` : ""}{meta.label}
                         </h2>
                         <p className="text-xs text-muted mt-0.5">
@@ -730,32 +724,28 @@ export default function HoyPage() {
                     {/* Metric Pill Chips */}
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div
-                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
-                        style={{ background: "#181b23" }}
+                        className="surface-raised rounded-xl px-3 py-2 border border-border"
                       >
                         <div className="text-[11px] font-medium text-muted">Distancia</div>
-                        <div className="text-sm font-bold text-white mt-0.5">{distEst}</div>
+                        <div className="text-sm font-bold text-foreground mt-0.5">{distEst}</div>
                       </div>
                       <div
-                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
-                        style={{ background: "#181b23" }}
+                        className="surface-raised rounded-xl px-3 py-2 border border-border"
                       >
                         <div className="text-[11px] font-medium text-muted">Duración</div>
-                        <div className="text-sm font-bold text-white mt-0.5">{durationEst} min</div>
+                        <div className="text-sm font-bold text-foreground mt-0.5">{durationEst} min</div>
                       </div>
                       <div
-                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
-                        style={{ background: "#181b23" }}
+                        className="surface-raised rounded-xl px-3 py-2 border border-border"
                       >
                         <div className="text-[11px] font-medium text-muted">Intensidad</div>
-                        <div className="text-sm font-bold text-emerald-400 mt-0.5">{rpeEst}</div>
+                        <div className="text-sm font-bold text-emerald-500 mt-0.5">{rpeEst}</div>
                       </div>
                       <div
-                        className="rounded-xl px-3 py-2 border border-white/[0.06]"
-                        style={{ background: "#181b23" }}
+                        className="surface-raised rounded-xl px-3 py-2 border border-border"
                       >
                         <div className="text-[11px] font-medium text-muted">Carga</div>
-                        <div className="text-sm font-bold text-amber-400 mt-0.5">
+                        <div className="text-sm font-bold text-amber-500 mt-0.5">
                           {Math.round(durationEst * 2.2)} AU
                         </div>
                       </div>
@@ -763,11 +753,11 @@ export default function HoyPage() {
 
                     {/* Structure / Notes */}
                     {cleanNotes && (
-                      <div className="pt-2 border-t border-white/[0.06]">
+                      <div className="pt-2 border-t border-border">
                         <div className="text-[11px] font-semibold text-muted uppercase tracking-wide mb-1.5">
                           Estructura de la sesión
                         </div>
-                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-sans">
+                        <div className="p-3 rounded-xl surface-raised border border-border text-xs text-muted leading-relaxed whitespace-pre-wrap font-sans">
                           {cleanNotes}
                         </div>
                       </div>
@@ -777,12 +767,8 @@ export default function HoyPage() {
                     <div className="space-y-2 pt-1">
                       <Link
                         href="/registro"
-                        className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-full font-semibold text-sm transition-all shadow-[0_12px_24px_-4px_rgba(16,185,129,0.25)] hover:brightness-110 active:scale-[0.98]"
-                        style={{
-                          background: "#10b981",
-                          color: "#090a0f",
-                          textDecoration: "none",
-                        }}
+                        className="w-full btn btn-primary flex items-center justify-center gap-2 py-3 px-6 rounded-full font-semibold text-sm transition-all shadow-md"
+                        style={{ textDecoration: "none" }}
                       >
                         <Zap size={16} />
                         <span>Iniciar Sesión / Registrar</span>
@@ -831,37 +817,36 @@ export default function HoyPage() {
 
           {/* Calorie & Macro Target Card */}
           <section
-            className="rounded-2xl border border-white/[0.08] p-4.5 space-y-3.5 mb-4 animate-in"
-            style={{ background: "#12141a" }}
+            className="surface p-4.5 space-y-3.5 mb-4 animate-in"
           >
             <div className="flex justify-between items-baseline">
               <div>
                 <div className="text-[11px] font-medium text-muted">Ingesta Planificada</div>
-                <div className="text-xl font-bold text-white mt-0.5">
+                <div className="text-xl font-bold text-foreground mt-0.5">
                   2.850 <span className="text-xs font-normal text-muted">/ 3.400 kcal</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-xs font-semibold text-blue-400">
+              <div className="flex items-center gap-1 text-xs font-semibold text-blue-500">
                 <Waves size={15} />
                 <span>2.6L Agua</span>
               </div>
             </div>
 
             {/* Macro Breakdown */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/[0.06] text-center">
-              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border text-center">
+              <div className="p-2.5 rounded-xl surface-raised border border-border">
                 <div className="text-[10px] font-medium text-muted uppercase">Carbohidratos</div>
-                <div className="text-base font-bold text-amber-400 mt-0.5">410g</div>
+                <div className="text-base font-bold text-amber-500 mt-0.5">410g</div>
                 <div className="text-[10px] text-muted">82% cubierto</div>
               </div>
-              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+              <div className="p-2.5 rounded-xl surface-raised border border-border">
                 <div className="text-[10px] font-medium text-muted uppercase">Proteína</div>
-                <div className="text-base font-bold text-emerald-400 mt-0.5">175g</div>
+                <div className="text-base font-bold text-emerald-500 mt-0.5">175g</div>
                 <div className="text-[10px] text-muted">95% cubierto</div>
               </div>
-              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+              <div className="p-2.5 rounded-xl surface-raised border border-border">
                 <div className="text-[10px] font-medium text-muted uppercase">Grasas</div>
-                <div className="text-base font-bold text-gray-200 mt-0.5">68g</div>
+                <div className="text-base font-bold text-foreground mt-0.5">68g</div>
                 <div className="text-[10px] text-muted">Equilibrado</div>
               </div>
             </div>
@@ -890,8 +875,7 @@ export default function HoyPage() {
                   return (
                     <div
                       key={m.id}
-                      className="rounded-2xl border border-white/[0.06] p-4 flex items-start gap-3 transition-all"
-                      style={{ background: "#141720" }}
+                      className="surface p-4 flex items-start gap-3 transition-all"
                     >
                       <div
                         className="p-2.5 rounded-full shrink-0 mt-0.5"
@@ -924,12 +908,12 @@ export default function HoyPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline gap-2">
-                          <span className="text-sm font-semibold text-white truncate">
+                          <span className="text-sm font-semibold text-foreground truncate">
                             {m.meal}
                             {m.option_label ? ` · ${m.option_label}` : ""}
                           </span>
                           {m.kcal != null && (
-                            <span className="text-xs font-semibold text-emerald-400 shrink-0">
+                            <span className="text-xs font-semibold text-emerald-500 shrink-0">
                               {m.kcal} kcal
                             </span>
                           )}
@@ -945,7 +929,7 @@ export default function HoyPage() {
                 })}
                 <Link
                   href="/menu"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 pt-1"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 hover:text-emerald-600 pt-1"
                 >
                   <span>Ver menú completo de la fase</span>
                   <ArrowRight size={13} />
