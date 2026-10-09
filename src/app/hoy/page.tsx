@@ -771,8 +771,8 @@ export default function HoyPage() {
                     key={s.id}
                     className="surface p-5 space-y-4 animate-in"
                   >
-                    {/* Banner si hay adaptación aplicada o propuesta */}
-                    {modInfo && (modInfo.isModified || modInfo.isPendingProposal) && (
+                    {/* Estado de carga & Comparativa explícita solicitada por el usuario */}
+                    {modInfo && (modInfo.isModified || modInfo.isPendingProposal) ? (
                       <WorkoutModificationBanner
                         info={modInfo}
                         onRevert={() => handleRevertAdjustment(s.id)}
@@ -780,6 +780,58 @@ export default function HoyPage() {
                         reverting={applyingAdjustment}
                         applying={applyingAdjustment}
                       />
+                    ) : (
+                      <div
+                        className="rounded-xl p-3 mb-2 animate-in"
+                        style={{
+                          background: "rgba(16, 185, 129, 0.05)",
+                          border: "1px solid rgba(16, 185, 129, 0.2)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                          <span
+                            className="badge text-[11px] font-bold uppercase tracking-wider"
+                            style={{
+                              background: "rgba(16, 185, 129, 0.15)",
+                              color: "var(--color-success)",
+                              border: "1px solid rgba(16, 185, 129, 0.3)",
+                            }}
+                          >
+                            <CheckCircle2 size={12} />
+                            Plan Programado Activo al 100%
+                          </span>
+                          <button
+                            className="btn btn-ghost btn-sm text-xs font-semibold"
+                            disabled={applyingAdjustment}
+                            onClick={() => handleApplyAdjustment(s.id)}
+                            title="Modula este entrenamiento a regenerativo si hoy te notas fatigado o has descansado poco"
+                            style={{ height: 26, padding: "0 8px", color: "var(--color-text-muted)" }}
+                          >
+                            <Zap size={12} className="text-amber-500" />
+                            <span>Adaptar carga hoy por fatiga</span>
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                          <div className="p-2 rounded-lg" style={{ background: "rgba(0, 0, 0, 0.25)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                            <div className="text-[10px] uppercase font-bold text-muted mb-0.5 flex items-center gap-1">
+                              <Calendar size={11} />
+                              <span>ESTE ES EL PLAN PROGRAMADO</span>
+                            </div>
+                            <div className="font-semibold text-foreground">
+                              {s.planned_code || meta.label}
+                            </div>
+                          </div>
+                          <div className="p-2 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                            <div className="text-[10px] uppercase font-bold text-emerald-400 mb-0.5 flex items-center gap-1">
+                              <CheckCircle2 size={11} />
+                              <span>ESTADO DE CARGA</span>
+                            </div>
+                            <div className="font-semibold text-emerald-300">
+                              Sin fatiga limitante · Cumple el plan programado
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     {/* Title & Category Header */}

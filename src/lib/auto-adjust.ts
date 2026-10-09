@@ -6,6 +6,7 @@ import {
   updateSession,
   listSessionsBetween,
   SessionRow,
+  Discipline,
 } from "@/lib/repo/sessions";
 import { computeWeeklyRecommendation } from "@/lib/recommendations";
 import { computeDailyReadiness, ProposedMicroAdjustment } from "@/lib/readiness";
@@ -118,9 +119,47 @@ export function applyDailyMicroAdjustments(targetDate: string, specificSessionId
   const readiness = computeDailyReadiness(targetDate);
   const adjustments = readiness.proposedMicroAdjustments;
 
-  const toApply = specificSessionId
+  let toApply = specificSessionId
     ? adjustments.filter((a) => a.sessionId === specificSessionId)
     : adjustments;
+
+  // Si se solicita adaptar una sesión específica directamente por fatiga
+  if (specificSessionId && toApply.length === 0) {
+    const session = getSessionById(specificSessionId);
+    if (session && session.status === "pendiente") {
+      if (session.discipline === "carrera") {
+        toApply = [
+          {
+            sessionId: session.id,
+            date: session.date,
+            discipline: "carrera",
+            originalPlannedCode: session.planned_code,
+            suggestedDiscipline: "carrera",
+            suggestedPlannedCode: "R1 Regenerativo (suave 5:25-5:45 min/km)",
+            suggestedPaceGuidance: "5:25 - 5:50 min/km (R0/R1) a RPE ≤ 5",
+            action: "modulate_run",
+            reason: "Adaptación de carga aplicada para modular la intensidad, proteger tendones y asimilar la fatiga previa.",
+            isApplied: false,
+          },
+        ];
+      } else if (session.discipline === "crossfit" || session.discipline === "gimnasio") {
+        toApply = [
+          {
+            sessionId: session.id,
+            date: session.date,
+            discipline: session.discipline,
+            originalPlannedCode: session.planned_code,
+            suggestedDiscipline: "descanso",
+            suggestedPlannedCode: "Descanso Activo & Movilidad",
+            suggestedPaceGuidance: null,
+            action: "convert_rest",
+            reason: "Adaptación de carga para priorizar recuperación neuromuscular.",
+            isApplied: false,
+          },
+        ];
+      }
+    }
+  }
 
   const results: { sessionId: number; message: string }[] = [];
 
@@ -178,14 +217,28 @@ export function revertDailyMicroAdjustment(sessionId: number): boolean {
     return false;
   }
 
+  // Extraer el código original guardado en la nota
+  const lines = session.notes.split("\n");
+  const adjustLine = lines.find((l) => l.includes("[Ajuste inteligente]")) || "";
+  const originalMatch = adjustLine.match(/\(Original:\s*([^)]+)\)/i);
+  let originalCode = originalMatch ? originalMatch[1].trim() : null;
+
+  let restoredDiscipline: Discipline = session.discipline;
+  if (originalCode && (originalCode.startsWith("crossfit") || originalCode.startsWith("gimnasio") || originalCode.startsWith("carrera"))) {
+    const parts = originalCode.split(" ");
+    restoredDiscipline = parts[0] as Discipline;
+    originalCode = parts.slice(1).join(" ").trim() || null;
+  }
+
   // Quitar la línea de ajuste inteligente de las notas
-  const cleanedNotes = session.notes
-    .split("\n")
+  const cleanedNotes = lines
     .filter((line) => !line.includes("[Ajuste inteligente]"))
     .join("\n")
     .trim();
 
   updateSession(sessionId, {
+    planned_code: originalCode || session.planned_code,
+    discipline: restoredDiscipline,
     notes: cleanedNotes.length > 0 ? cleanedNotes : null,
   });
 
