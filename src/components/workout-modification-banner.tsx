@@ -190,6 +190,11 @@ export function WorkoutModificationBanner({
                 {info.originalWorkout?.rpe && (
                   <span>· RPE {info.originalWorkout.rpe}</span>
                 )}
+                {info.originalWorkout?.paceGuidance && (
+                  <span className="text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25">
+                    🎯 Ritmo: {info.originalWorkout.paceGuidance}
+                  </span>
+                )}
               </div>
             </div>
 

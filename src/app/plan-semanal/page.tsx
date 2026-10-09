@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  Gauge,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -33,6 +34,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
+import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 
 interface PlanPreviewRow {
@@ -749,6 +751,26 @@ export default function PlanSemanalPage() {
                                     <span>{mod.badgeLabel}</span>
                                   </span>
                                 )}
+                                {s.discipline === "carrera" && (() => {
+                                  const vz = detectVamZoneForSession(s);
+                                  if (!vz) return null;
+                                  return (
+                                    <span
+                                      className="badge flex items-center gap-1 font-bold"
+                                      style={{
+                                        fontSize: "0.72rem",
+                                        padding: "0.12rem 0.55rem",
+                                        backgroundColor: "rgba(16, 185, 129, 0.18)",
+                                        color: "var(--color-success, #10b981)",
+                                        border: "1px solid rgba(16, 185, 129, 0.35)",
+                                      }}
+                                      title={`Zona ${vz.code}: ${vz.name} (${vz.pctVam} · VAM 3:59)`}
+                                    >
+                                      <Gauge size={11} />
+                                      <span>Ritmo VAM: {vz.rangeLabel}</span>
+                                    </span>
+                                  );
+                                })()}
                                 {!!s.is_long_run && (
                                   <span className="badge badge-info font-semibold" style={{ fontSize: "0.72rem", padding: "0.12rem 0.5rem" }}>
                                     Tirada larga

@@ -43,6 +43,7 @@ import type { DailyReadiness } from "@/lib/readiness";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
+import { detectVamZoneForSession, VAM_TEST_PROFILE } from "@/lib/vam-zones";
 
 interface SessionRow {
   id: number;
@@ -851,6 +852,60 @@ export default function HoyPage() {
                         <Icon size={20} />
                       </div>
                     </div>
+
+                    {/* Tarjeta de Ritmo Objetivo basado en Test VAM 3:59 */}
+                    {s.discipline === "carrera" && (() => {
+                      const vamZone = detectVamZoneForSession(s);
+                      if (!vamZone) return null;
+                      return (
+                        <div
+                          className="p-3.5 rounded-xl border animate-in"
+                          style={{
+                            backgroundColor: "rgba(16, 185, 129, 0.08)",
+                            borderColor: "rgba(16, 185, 129, 0.35)",
+                            boxShadow: "0 2px 14px rgba(16, 185, 129, 0.08)",
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+                                style={{
+                                  backgroundColor: "rgba(16, 185, 129, 0.22)",
+                                  color: "var(--color-success, #10b981)",
+                                  border: "1px solid rgba(16, 185, 129, 0.45)",
+                                }}
+                              >
+                                🎯 RITMO OBJETIVO · TEST VAM {VAM_TEST_PROFILE.pace}
+                              </span>
+                              <span className="text-xs font-bold text-foreground">
+                                {vamZone.name}
+                              </span>
+                            </div>
+
+                            <span className="text-[11px] text-muted font-semibold">
+                              {vamZone.pctVam} · {vamZone.targetRpe}
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <span className="text-2xl font-black text-emerald-400 tracking-tight">
+                                {vamZone.rangeLabel}
+                              </span>
+                              {modInfo && modInfo.isModified && modInfo.suggestedPace && (
+                                <span className="text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/35 px-2 py-0.5 rounded-md">
+                                  Pauta adaptada: {modInfo.suggestedPace}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted max-w-sm leading-relaxed">
+                              {vamZone.description}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Metric Pill Chips */}
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

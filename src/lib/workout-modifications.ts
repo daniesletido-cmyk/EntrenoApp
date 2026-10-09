@@ -1,6 +1,7 @@
 "use client";
 
 import { ProposedMicroAdjustment } from "@/lib/readiness";
+import { detectVamZoneForSession } from "@/lib/vam-zones";
 
 export interface WorkoutDetailBlock {
   title: string;
@@ -155,13 +156,19 @@ export function parseWorkoutModification(
       .replace(/(?:Ritmo aconsejado|Indicación):[^.]+\.?/i, "")
       .trim();
 
+    const origVam = detectVamZoneForSession({
+      discipline: session.discipline || "carrera",
+      planned_code: originalPlan || session.planned_code,
+      notes: rawCleanNotes,
+    });
+
     const origWorkout: WorkoutDetailBlock = {
       title: originalPlan || session.planned_code || "Sesión programada en calendario",
       discipline: session.discipline || "carrera",
       distanceKm: session.distance_km,
       durationMin: session.duration_min,
       rpe: session.rpe,
-      paceGuidance: "Pauta y ritmos estándar fijados en el plan inicial",
+      paceGuidance: origVam ? `${origVam.rangeLabel} (${origVam.code} · VAM 3:59)` : "Pauta y ritmos estándar fijados en el plan inicial",
       structure: rawCleanNotes || "Estructura original programada en el calendario semanal.",
       isAdapted: false,
     };
