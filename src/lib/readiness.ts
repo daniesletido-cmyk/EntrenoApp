@@ -592,20 +592,22 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
   const coachAdvice = sportAdvice.coachAdvice;
 
   // ==========================================
-  // PROPUESTA DE AJUSTES MICRO (Próximos 3 días)
+  // PROPUESTA DE AJUSTES MICRO (Hoy y próximos 3 días)
   // ==========================================
   const proposedMicroAdjustments: ProposedMicroAdjustment[] = [];
   const upcomingSessions = allSessions.filter(
-    (s) => s.date > targetDate && s.date <= addDays(targetDate, 3) && s.discipline !== "descanso"
+    (s) => s.date >= targetDate && s.date <= addDays(targetDate, 3) && s.discipline !== "descanso" && s.status !== "realizada"
   );
 
   for (const s of upcomingSessions) {
     const isAlreadyApplied = !!s.notes && s.notes.includes("[Ajuste inteligente]");
+    const originalMatch = s.notes ? s.notes.match(/\(Original:\s*([^)]+)\)/i) : null;
+    const originalCode = originalMatch ? originalMatch[1].trim() : s.planned_code;
     
-    // Caso 1: Fatiga alta o déficit severo de sueño -> Modular carrera intensa o crossfit de mañana
+    // Caso 1: Fatiga alta o déficit severo de sueño -> Modular carrera intensa o crossfit
     if (overallScore < 55 || (yesterdayRpe !== null && yesterdayRpe >= 8 && last48hLoad > 350)) {
       if (s.discipline === "carrera") {
-        const code = (s.planned_code ?? "").toLowerCase();
+        const code = (originalCode ?? s.planned_code ?? "").toLowerCase();
         const isIntenseRun = code.includes("r2") || code.includes("r3") || code.includes("r4") || code.includes("serie") || code.includes("fartlek") || s.is_long_run === 1;
         
         if (isIntenseRun) {
@@ -613,7 +615,7 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
             sessionId: s.id,
             date: s.date,
             discipline: s.discipline,
-            originalPlannedCode: s.planned_code,
+            originalPlannedCode: originalCode,
             suggestedDiscipline: "carrera",
             suggestedPlannedCode: "R1 Regenerativo (suave 5:25-5:45 min/km)",
             suggestedPaceGuidance: "5:25 - 5:50 min/km (R0/R1) a RPE ≤ 5",
@@ -628,7 +630,7 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
             sessionId: s.id,
             date: s.date,
             discipline: s.discipline,
-            originalPlannedCode: s.planned_code,
+            originalPlannedCode: originalCode,
             suggestedDiscipline: "descanso",
             suggestedPlannedCode: null,
             suggestedPaceGuidance: null,

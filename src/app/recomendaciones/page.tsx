@@ -173,16 +173,36 @@ export default function RecomendacionesPage() {
                 <Wand2 size={16} />
                 Ajuste automático disponible para la semana que viene
               </div>
-              <div className="grid gap-2" style={{ marginBottom: "var(--space-3)" }}>
+              <div className="grid gap-3" style={{ marginBottom: "var(--space-3)" }}>
                 {adjustment.changes.map((c, i) => (
-                  <div key={i} className="surface-raised flex items-start gap-2 text-sm" style={{ padding: "var(--space-2) var(--space-3)" }}>
-                    {c.action === "quitar_tirada_larga" ? <Footprints size={15} className="text-muted" style={{ marginTop: 2, flexShrink: 0 }} /> : <Moon size={15} className="text-muted" style={{ marginTop: 2, flexShrink: 0 }} />}
-                    <div>
-                      <div className="font-medium">
-                        {c.date} · {DISCIPLINE_LABEL[c.discipline] ?? c.discipline}
-                        {c.plannedCode ? ` ${c.plannedCode}` : ""}
+                  <div
+                    key={i}
+                    className="surface-raised p-3.5 rounded-xl space-y-2.5 text-sm"
+                    style={{ border: "1px solid var(--color-border)" }}
+                  >
+                    <div className="font-semibold text-xs text-muted uppercase tracking-wider">
+                      Fecha: {c.date} · {DISCIPLINE_LABEL[c.discipline] ?? c.discipline}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="p-2.5 rounded-lg" style={{ background: "rgba(0, 0, 0, 0.25)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                        <div className="text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                          ESTE ES EL PLAN PROGRAMADO
+                        </div>
+                        <div className="font-medium text-foreground">
+                          {c.plannedCode || DISCIPLINE_LABEL[c.discipline] || c.discipline} {c.action === "quitar_tirada_larga" ? "(Tirada Larga)" : ""}
+                        </div>
                       </div>
-                      <div className="text-muted">{c.reason}</div>
+                      <div className="p-2.5 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.12)", border: "1.5px solid rgba(16, 185, 129, 0.4)" }}>
+                        <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1">
+                          ESTE ES EL QUE TIENES QUE HACER PARA ADAPTAR LA CARGA
+                        </div>
+                        <div className="font-bold text-emerald-300">
+                          {c.action === "quitar_tirada_larga" ? "Carrera regular (sin tirada larga / volumen contenido)" : "Descanso total para asimilar carga"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted">
+                      <strong>Motivo:</strong> {c.reason}
                     </div>
                   </div>
                 ))}

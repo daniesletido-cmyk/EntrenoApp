@@ -29,6 +29,7 @@ import {
   Sliders,
   RotateCcw,
   ShieldCheck,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { todayISO, isoDayOfWeek, weekStartOf, weekDates } from "@/lib/dates";
@@ -617,23 +618,105 @@ export default function HoyPage() {
                   "Tus niveles de HRV y descanso nocturno están en su punto más alto del mes (+12%). En las series principales mantén el ritmo controlado sin exceder zona 4 temprana para proteger la sobrecarga muscular de cara a la tirada del domingo."}
               </p>
 
-              {/* Adaptaciones propuestas si las hay */}
+              {/* Adaptaciones de carga: Comparación explícita Plan Programado vs Plan a Realizar */}
               {readiness?.proposedMicroAdjustments && readiness.proposedMicroAdjustments.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-amber-500">
-                      Adaptación inteligente disponible ({readiness.proposedMicroAdjustments.length})
-                    </span>
-                    {readiness.proposedMicroAdjustments.some((a) => !a.isApplied) && (
-                      <button
-                        className="btn btn-primary btn-sm text-xs"
-                        disabled={applyingAdjustment}
-                        onClick={() => handleApplyAdjustment()}
-                      >
-                        Aplicar ahora
-                      </button>
-                    )}
-                  </div>
+                <div className="mt-4 pt-3 border-t border-border space-y-3">
+                  {readiness.proposedMicroAdjustments.map((adj) => (
+                    <div
+                      key={adj.sessionId}
+                      className="rounded-xl p-3.5 space-y-3"
+                      style={{
+                        background: adj.isApplied ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
+                        border: adj.isApplied ? "1px solid rgba(16, 185, 129, 0.28)" : "1px solid rgba(245, 158, 11, 0.28)",
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span
+                          className="badge text-[11px] font-bold uppercase tracking-wider"
+                          style={{
+                            background: adj.isApplied ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)",
+                            color: adj.isApplied ? "var(--color-success)" : "var(--color-warning)",
+                            border: `1px solid ${adj.isApplied ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                          }}
+                        >
+                          {adj.isApplied ? "✅ Carga Adaptada en el Plan" : "⚡ Adaptación de Carga Sugerida"} · {adj.date}
+                        </span>
+                        {adj.isApplied ? (
+                          <button
+                            className="btn btn-ghost btn-sm text-xs"
+                            disabled={applyingAdjustment}
+                            onClick={() => handleRevertAdjustment(adj.sessionId)}
+                            style={{ height: 28, padding: "0 8px" }}
+                          >
+                            <RotateCcw size={12} />
+                            <span>Revertir al plan original</span>
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-primary btn-sm text-xs font-semibold"
+                            disabled={applyingAdjustment}
+                            onClick={() => handleApplyAdjustment(adj.sessionId)}
+                            style={{ height: 28, padding: "0 10px" }}
+                          >
+                            <Zap size={12} />
+                            <span>Aplicar esta adaptación</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Comparativa clara solicitada por el usuario */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        {/* 1. Plan Programado */}
+                        <div
+                          className="p-3 rounded-lg flex flex-col justify-between"
+                          style={{
+                            background: "rgba(0, 0, 0, 0.25)",
+                            border: "1px solid rgba(255, 255, 255, 0.08)",
+                          }}
+                        >
+                          <div className="text-[11px] uppercase tracking-wider font-bold text-muted flex items-center gap-1.5 mb-1.5">
+                            <Calendar size={13} className="text-muted" />
+                            <span>ESTE ES EL PLAN PROGRAMADO</span>
+                          </div>
+                          <div
+                            className="font-semibold text-sm text-foreground"
+                            style={{ textDecoration: adj.isApplied ? "line-through" : "none", opacity: adj.isApplied ? 0.75 : 1 }}
+                          >
+                            {adj.originalPlannedCode || adj.discipline}
+                          </div>
+                          <div className="text-xs text-muted mt-1">
+                            Planificación inicial prevista en el calendario.
+                          </div>
+                        </div>
+
+                        {/* 2. Plan a Realizar para Adaptar la Carga */}
+                        <div
+                          className="p-3 rounded-lg flex flex-col justify-between"
+                          style={{
+                            background: "rgba(16, 185, 129, 0.12)",
+                            border: "1.5px solid rgba(16, 185, 129, 0.4)",
+                          }}
+                        >
+                          <div className="text-[11px] uppercase tracking-wider font-bold text-emerald-400 flex items-center gap-1.5 mb-1.5">
+                            <Zap size={13} className="text-emerald-400" />
+                            <span>ESTE ES EL QUE TIENES QUE HACER PARA ADAPTAR LA CARGA</span>
+                          </div>
+                          <div className="font-bold text-sm text-emerald-300">
+                            {adj.suggestedPlannedCode || adj.suggestedDiscipline || "Descanso activo"}
+                          </div>
+                          {adj.suggestedPaceGuidance && (
+                            <div className="text-xs text-emerald-400 font-medium mt-1">
+                              Ritmo/Pauta: {adj.suggestedPaceGuidance}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted leading-relaxed">
+                        <strong>Motivo:</strong> {adj.reason}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -688,12 +771,14 @@ export default function HoyPage() {
                     key={s.id}
                     className="surface p-5 space-y-4 animate-in"
                   >
-                    {/* Banner si hay adaptación */}
-                    {modInfo && modInfo.isModified && (
+                    {/* Banner si hay adaptación aplicada o propuesta */}
+                    {modInfo && (modInfo.isModified || modInfo.isPendingProposal) && (
                       <WorkoutModificationBanner
                         info={modInfo}
                         onRevert={() => handleRevertAdjustment(s.id)}
+                        onApply={() => handleApplyAdjustment(s.id)}
                         reverting={applyingAdjustment}
+                        applying={applyingAdjustment}
                       />
                     )}
 
