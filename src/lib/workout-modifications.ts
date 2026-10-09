@@ -65,28 +65,62 @@ export function parseWorkoutModification(
   const notes = session.notes || "";
   if (!notes) return null;
 
-  // Caso A: Ajuste inteligente de Carga o Sueño
+  // Caso A: Ajuste inteligente de Carga, Sueño o Luz Verde
   if (notes.includes("[Ajuste inteligente]")) {
     const lines = notes.split("\n");
     const adjustLine = lines.find((l) => l.includes("[Ajuste inteligente]")) || "";
     const cleanReason = adjustLine.replace("[Ajuste inteligente]", "").trim();
 
     const isSleep = /sueño|dormir|descanso deficiente/i.test(cleanReason);
+    const isBoost = /luz verde|óptimo|apretar|ritmo alto/i.test(cleanReason);
+    const isRest = /descanso/i.test(cleanReason);
+
     const originalMatch = cleanReason.match(/\(Original:\s*([^)]+)\)/i);
-    const paceMatch = cleanReason.match(/Ritmo aconsejado:\s*([^.]+)\./i);
+    const paceMatch = cleanReason.match(/(?:Ritmo aconsejado|Indicación):\s*([^.]+)\.?/i);
+
+    let originalPlan = originalMatch ? originalMatch[1].trim() : undefined;
+    let adjustedPlan = session.planned_code || (session.discipline ? session.discipline.toUpperCase() : "Regenerativo");
+
+    if (isBoost) {
+      if (!originalPlan) {
+        originalPlan = session.planned_code || (session.discipline ? `${session.discipline.toUpperCase()} (Plan base)` : "Sesión programada");
+      }
+      adjustedPlan = `${originalPlan} (Ritmo ágil autorizado)`;
+    } else if (isRest) {
+      if (!originalPlan) {
+        originalPlan = session.planned_code || (session.discipline ? `${session.discipline.toUpperCase()}` : "Sesión programada");
+      }
+      adjustedPlan = "Descanso total / Recuperación activa";
+    } else {
+      if (!originalPlan) {
+        originalPlan = session.planned_code || (session.discipline ? `${session.discipline.toUpperCase()}` : "Sesión inicial en calendario");
+      }
+    }
+
+    const suggestedPace = paceMatch ? paceMatch[1].trim() : undefined;
+    const cleanReasonText = cleanReason
+      .split("(Original:")[0]
+      .replace(/(?:Ritmo aconsejado|Indicación):[^.]+\.?/i, "")
+      .trim();
 
     return {
       isModified: true,
       type: isSleep ? "sueno" : "carga",
-      badgeLabel: isSleep ? "Adaptado por Sueño / Fatiga" : "Adaptado por Carga",
-      badgeTone: "warning",
+      badgeLabel: isSleep
+        ? "Adaptado por Sueño / Fatiga"
+        : isBoost
+        ? "Optimizado por Buena Recuperación"
+        : "Adaptado por Carga",
+      badgeTone: isBoost ? "success" : "warning",
       headline: isSleep
         ? "Carga modulada por descanso deficiente"
+        : isBoost
+        ? "Ritmo optimizado por excelente recuperación (Luz Verde)"
         : "Entrenamiento adaptado para regular la carga semanal",
-      reason: cleanReason.split("(Original:")[0].replace(/Ritmo aconsejado:[^.]+\./i, "").trim(),
-      originalPlan: originalMatch ? originalMatch[1].trim() : undefined,
-      adjustedPlan: session.planned_code || "Regenerativo",
-      suggestedPace: paceMatch ? paceMatch[1].trim() : undefined,
+      reason: cleanReasonText,
+      originalPlan,
+      adjustedPlan,
+      suggestedPace,
       canRevert: true,
       rawNote: adjustLine,
     };

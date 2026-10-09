@@ -144,26 +144,26 @@ export function WorkoutModificationBanner({
         </div>
 
         {/* COMPARATIVA CLARA Y DIRECTA SOLICITADA POR EL USUARIO */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
           {/* Bloque 1: Plan Programado */}
           <div
             style={{
-              padding: "10px 14px",
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: "rgba(0, 0, 0, 0.28)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              padding: "12px 14px",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: "rgba(0, 0, 0, 0.35)",
+              border: "1.5px solid rgba(255, 255, 255, 0.12)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              gap: 4,
+              gap: 6,
             }}
           >
-            <div className="flex items-center gap-1.5 text-xs text-muted font-bold tracking-wider uppercase">
-              <Calendar size={13} className="text-muted" />
-              <span>ESTE ES EL PLAN PROGRAMADO</span>
+            <div className="flex items-center gap-1.5 text-xs text-slate-300 font-extrabold tracking-wider uppercase">
+              <Calendar size={14} className="text-slate-400" />
+              <span>📋 ESTE ES EL PLAN PROGRAMADO</span>
             </div>
             <div
-              className="font-semibold text-sm"
+              className="font-bold text-base"
               style={{
                 color: "var(--color-text)",
                 textDecoration: isApplied ? "line-through" : "none",
@@ -172,7 +172,7 @@ export function WorkoutModificationBanner({
             >
               {info.originalPlan || "Sesión inicial planificada"}
             </div>
-            <div className="text-[11px] text-faint">
+            <div className="text-[11px] text-muted">
               Sesión que tenías fijada inicialmente en tu calendario.
             </div>
           </div>
@@ -180,29 +180,42 @@ export function WorkoutModificationBanner({
           {/* Bloque 2: Plan a Realizar para Adaptar la Carga */}
           <div
             style={{
-              padding: "10px 14px",
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: "rgba(16, 185, 129, 0.12)",
-              border: "1.5px solid rgba(16, 185, 129, 0.45)",
+              padding: "12px 14px",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: isWarning ? "rgba(245, 158, 11, 0.12)" : "rgba(16, 185, 129, 0.12)",
+              border: `2px solid ${isWarning ? "rgba(245, 158, 11, 0.6)" : "rgba(16, 185, 129, 0.6)"}`,
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              gap: 4,
+              gap: 6,
             }}
           >
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-extrabold tracking-wider uppercase">
-              <Zap size={13} className="text-emerald-400" />
-              <span>ESTE ES EL QUE TIENES QUE HACER PARA ADAPTAR LA CARGA</span>
+            <div
+              className="flex items-center gap-1.5 text-xs font-black tracking-wider uppercase"
+              style={{ color: isWarning ? "#fbbf24" : "#34d399" }}
+            >
+              <Zap size={14} />
+              <span>⚡ ESTE ES EL QUE TIENES QUE HACER PARA ADAPTAR LA CARGA</span>
             </div>
-            <div className="font-bold text-sm text-emerald-300">
+            <div
+              className="font-extrabold text-base"
+              style={{ color: isWarning ? "#fde68a" : "#a7f3d0" }}
+            >
               {info.adjustedPlan || "Descanso activo / regenerativo"}
             </div>
             {info.suggestedPace && (
-              <div className="text-[11px] text-emerald-400 font-medium">
-                Ritmo/Zona: {info.suggestedPace}
+              <div
+                className="text-xs font-semibold px-2.5 py-1 rounded"
+                style={{
+                  backgroundColor: isWarning ? "rgba(245, 158, 11, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                  color: isWarning ? "#fef3c7" : "#ecfdf5",
+                  border: `1px solid ${isWarning ? "rgba(245, 158, 11, 0.3)" : "rgba(16, 185, 129, 0.3)"}`,
+                }}
+              >
+                Pauta / Ritmo aconsejado: <strong>{info.suggestedPace}</strong>
               </div>
             )}
-            <div className="text-[11px] text-emerald-300/80">
+            <div className="text-[11px] text-muted">
               {isApplied
                 ? "Entrenamiento activo ajustado a tu estado de fatiga y descanso actual."
                 : "Ajuste aconsejado para evitar sobreentrenamiento y asimilar la carga."}
