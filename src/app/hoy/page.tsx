@@ -883,16 +883,82 @@ export default function HoyPage() {
                     </div>
 
                     {/* Structure / Notes */}
-                    {cleanNotes && (
-                      <div className="pt-2 border-t border-border">
-                        <div className="text-[11px] font-semibold text-muted uppercase tracking-wide mb-1.5">
-                          Estructura de la sesión
+                    <div className="pt-2 border-t border-border">
+                      {/* Cabecera distintiva indicando inequívocamente si es el adaptado o el programado */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
+                            Estructura de la sesión
+                          </span>
+
+                          {modInfo && modInfo.isModified ? (
+                            <span
+                              className="badge text-[11px] font-extrabold uppercase tracking-wide inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md"
+                              style={{
+                                backgroundColor: "rgba(16, 185, 129, 0.2)",
+                                color: "var(--color-success, #10b981)",
+                                border: "1.5px solid rgba(16, 185, 129, 0.5)",
+                              }}
+                            >
+                              <Zap size={13} className="text-emerald-400" />
+                              ADAPTADA POR CARGA (A REALIZAR HOY)
+                            </span>
+                          ) : (
+                            <span
+                              className="badge text-[11px] font-extrabold uppercase tracking-wide inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md"
+                              style={{
+                                backgroundColor: "rgba(59, 130, 246, 0.15)",
+                                color: "var(--color-brand, #38bdf8)",
+                                border: "1.5px solid rgba(59, 130, 246, 0.4)",
+                              }}
+                            >
+                              <CheckCircle2 size={13} className="text-sky-400" />
+                              PLAN PROGRAMADO ORIGINAL (A REALIZAR HOY)
+                            </span>
+                          )}
                         </div>
-                        <div className="p-3 rounded-xl surface-raised border border-border text-xs text-muted leading-relaxed whitespace-pre-wrap font-sans">
-                          {cleanNotes}
-                        </div>
+
+                        {modInfo && modInfo.isModified ? (
+                          <span className="text-[11px] text-emerald-400 font-semibold">
+                            {modInfo.suggestedPace ? `⚡ Pauta activa: ${modInfo.suggestedPace}` : "⚡ Adaptada a tu recuperación"}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-sky-300 font-semibold">
+                            📋 Siguiendo el plan fijado
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      {/* Recuadro con la estructura exacta a realizar hoy */}
+                      <div
+                        className="p-3.5 rounded-xl border text-xs leading-relaxed whitespace-pre-wrap font-sans"
+                        style={{
+                          backgroundColor: modInfo && modInfo.isModified ? "rgba(16, 185, 129, 0.08)" : "var(--color-surface-raised)",
+                          borderColor: modInfo && modInfo.isModified ? "rgba(16, 185, 129, 0.35)" : "var(--color-border)",
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        {modInfo && modInfo.isModified && modInfo.adjustedWorkout?.structure
+                          ? modInfo.adjustedWorkout.structure
+                          : cleanNotes || "Estructura estándar de la sesión."}
+                      </div>
+
+                      {/* Si está adaptada, damos un desplegable para ver la que estaba programada originalmente */}
+                      {modInfo && modInfo.isModified && (
+                        <details className="mt-2 text-xs">
+                          <summary className="cursor-pointer text-muted hover:text-foreground font-semibold inline-flex items-center gap-1.5 select-none py-1">
+                            <Calendar size={13} />
+                            <span>Ver la estructura que estaba programada originalmente</span>
+                          </summary>
+                          <div className="mt-1.5 p-3 rounded-xl border border-white/10 bg-black/30 text-muted leading-relaxed whitespace-pre-wrap font-sans">
+                            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
+                              Estructura fijada inicialmente en el calendario:
+                            </div>
+                            {modInfo.originalWorkout?.structure || cleanNotes || "Estructura estándar del calendario."}
+                          </div>
+                        </details>
+                      )}
+                    </div>
 
                     {/* Action Buttons */}
                     <div className="space-y-2 pt-1">

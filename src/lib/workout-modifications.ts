@@ -2,6 +2,17 @@
 
 import { ProposedMicroAdjustment } from "@/lib/readiness";
 
+export interface WorkoutDetailBlock {
+  title: string;
+  discipline: string;
+  distanceKm?: number | null;
+  durationMin?: number | null;
+  rpe?: number | null;
+  paceGuidance?: string | null;
+  structure: string;
+  isAdapted: boolean;
+}
+
 export interface WorkoutModificationInfo {
   isModified: boolean;
   isPendingProposal?: boolean;
@@ -15,6 +26,8 @@ export interface WorkoutModificationInfo {
   suggestedPace?: string;
   canRevert?: boolean;
   rawNote?: string;
+  originalWorkout?: WorkoutDetailBlock;
+  adjustedWorkout?: WorkoutDetailBlock;
 }
 
 /**
@@ -27,10 +40,19 @@ export function parseWorkoutModification(
     notes?: string | null;
     planned_code?: string | null;
     discipline?: string;
+    distance_km?: number | null;
+    duration_min?: number | null;
+    rpe?: number | null;
   } | null,
   microAdjustments?: ProposedMicroAdjustment[]
 ): WorkoutModificationInfo | null {
   if (!session) return null;
+
+  const rawCleanNotes = (session.notes || "")
+    .split("\n")
+    .filter((l) => !l.startsWith("["))
+    .join("\n")
+    .trim();
 
   // 1. Verificar si hay un microajuste directo de Readiness para esta sesión
   if (microAdjustments && session.id) {
@@ -38,6 +60,34 @@ export function parseWorkoutModification(
     if (matchedAdj) {
       const isSleep = /sueño|dormir|descanso/i.test(matchedAdj.reason);
       const isApplied = matchedAdj.isApplied;
+      const isRest = matchedAdj.suggestedDiscipline === "descanso" || matchedAdj.action === "convert_rest";
+
+      const origPlan = matchedAdj.originalPlannedCode ?? session.discipline ?? "Sesión programada";
+      const adjPlan = matchedAdj.suggestedPlannedCode ?? "Descanso / Regenerativo";
+
+      const origWorkout: WorkoutDetailBlock = {
+        title: origPlan,
+        discipline: session.discipline ?? "carrera",
+        distanceKm: session.distance_km,
+        durationMin: session.duration_min,
+        rpe: session.rpe,
+        paceGuidance: "Ritmo y series según programación estándar",
+        structure: rawCleanNotes || "Estructura original programada en el calendario semanal.",
+        isAdapted: false,
+      };
+
+      const adjWorkout: WorkoutDetailBlock = {
+        title: adjPlan,
+        discipline: isRest ? "descanso" : (matchedAdj.suggestedDiscipline ?? session.discipline ?? "carrera"),
+        distanceKm: isRest ? 0 : session.distance_km,
+        durationMin: isRest ? 0 : session.duration_min,
+        rpe: isRest ? 1 : 4,
+        paceGuidance: matchedAdj.suggestedPaceGuidance ?? (isRest ? "Sin impacto aeróbico" : "Ritmo regenerativo suave"),
+        structure: isRest
+          ? "🛑 SESIÓN ADAPTADA A DESCANSO:\n- Prioridad absoluta a la recuperación neuromuscular y hormonal.\n- 0 km de impacto en carrera. Movilidad articular opcional."
+          : `⚠️ SESIÓN ADAPTADA POR REGULACIÓN DE CARGA:\n- Pauta activa: ${matchedAdj.suggestedPaceGuidance ?? "Ritmo suave regenerativo (>5:25 min/km)"}\n- Objetivo: Asimilar el estímulo semanal sin sobreentrenamiento.\n\n${rawCleanNotes}`,
+        isAdapted: true,
+      };
 
       return {
         isModified: isApplied,
@@ -53,10 +103,12 @@ export function parseWorkoutModification(
           ? "Entrenamiento adaptado para proteger tu recuperación"
           : "Sugerencia de adaptación por fatiga",
         reason: matchedAdj.reason,
-        originalPlan: matchedAdj.originalPlannedCode ?? session.discipline,
-        adjustedPlan: matchedAdj.suggestedPlannedCode ?? "Descanso / Regenerativo",
+        originalPlan: origPlan,
+        adjustedPlan: adjPlan,
         suggestedPace: matchedAdj.suggestedPaceGuidance ?? undefined,
         canRevert: isApplied,
+        originalWorkout: origWorkout,
+        adjustedWorkout: adjWorkout,
       };
     }
   }
@@ -103,6 +155,45 @@ export function parseWorkoutModification(
       .replace(/(?:Ritmo aconsejado|Indicación):[^.]+\.?/i, "")
       .trim();
 
+    const origWorkout: WorkoutDetailBlock = {
+      title: originalPlan || session.planned_code || "Sesión programada en calendario",
+      discipline: session.discipline || "carrera",
+      distanceKm: session.distance_km,
+      durationMin: session.duration_min,
+      rpe: session.rpe,
+      paceGuidance: "Pauta y ritmos estándar fijados en el plan inicial",
+      structure: rawCleanNotes || "Estructura original programada en el calendario semanal.",
+      isAdapted: false,
+    };
+
+    let adjStructure = "";
+    if (isBoost) {
+      if (rawCleanNotes) {
+        const extraDetails = rawCleanNotes
+          .split("\n")
+          .filter((l) => !l.toLowerCase().includes("ritmo de seguridad"))
+          .join("\n");
+        adjStructure = `⚡ PAUTA ADAPTADA POR LUZ VERDE:\n- Ritmo optimizado: ${suggestedPace || "Buscar el ritmo alto de la zona (ej. R1 a 5:00/km o R2 a 4:35/km)"}\n\n${extraDetails}`;
+      } else {
+        adjStructure = `⚡ ESTRUCTURA ADAPTADA POR LUZ VERDE (Ritmo ágil autorizado):\n- Pauta activa: ${suggestedPace || "Buscar el ritmo alto de la zona"}\n- Calentamiento: 5 min caminando rápido + movilidad de cadera.\n- Bloque Principal: ${session.distance_km ? `${session.distance_km} km` : `${session.duration_min ?? 40} min`} rodando fluido en la franja más ágil de la zona.\n- Vuelta a la calma: 5 min andando suave + estiramientos.`;
+      }
+    } else if (isRest) {
+      adjStructure = `🛑 ESTRUCTURA ADAPTADA A DESCANSO REGENERATIVO:\n- 0 km de impacto en carrera.\n- Objetivo: Supercompensación y descarga de fatiga aguda.\n- Pauta opcional: 15-20 min de paseo suave o movilidad articular sin carga.`;
+    } else {
+      adjStructure = `⚠️ ESTRUCTURA ADAPTADA DE DESCARGA (Control de fatiga/carga):\n- Pauta activa: ${suggestedPace || "R0/R1 suave (>5:25 min/km) sin forzar."}\n- Objetivo: Asimilación del entrenamiento y drenaje muscular.\n\n${rawCleanNotes || "- Rodaje suave regenerativo a pulsaciones bajas."}`;
+    }
+
+    const adjWorkout: WorkoutDetailBlock = {
+      title: adjustedPlan,
+      discipline: isRest ? "descanso" : (session.discipline || "carrera"),
+      distanceKm: isRest ? 0 : session.distance_km,
+      durationMin: isRest ? 0 : session.duration_min,
+      rpe: isBoost ? (session.rpe ? Math.min(session.rpe + 0.5, 6) : 5) : isRest ? 1 : Math.max((session.rpe || 5) - 1, 3.5),
+      paceGuidance: suggestedPace || (isBoost ? "Ritmo ágil autorizado" : "Ritmo regenerativo de descarga"),
+      structure: adjStructure,
+      isAdapted: true,
+    };
+
     return {
       isModified: true,
       type: isSleep ? "sueno" : "carga",
@@ -123,6 +214,8 @@ export function parseWorkoutModification(
       suggestedPace,
       canRevert: true,
       rawNote: adjustLine,
+      originalWorkout: origWorkout,
+      adjustedWorkout: adjWorkout,
     };
   }
 
