@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
   ResponsiveContainer,
   LineChart,
@@ -31,6 +32,7 @@ import {
   Info,
   Sparkles,
   AlertTriangle,
+  Target,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/field";
@@ -270,9 +272,24 @@ export default function ProgresoPage() {
   return (
     <div>
       <PageHeader
-        title="Progreso"
-        description="Tendencias analíticas a lo largo del tiempo: carga de entreno, calidad de sueño y peso corporal."
+        title="Progreso & Rendimiento"
+        description="Tendencias analíticas, evolución de carga (ACWR), descanso y objetivos a largo plazo."
       />
+
+      {/* Conmutador de Vistas: Progreso vs Objetivos */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-raised rounded-xl border border-border/70 w-fit mb-4">
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-brand text-white shadow-xs">
+          <TrendingUp size={14} />
+          <span>Métricas & Cargas</span>
+        </span>
+        <Link
+          href="/objetivos"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground hover:bg-surface transition-all"
+        >
+          <Target size={14} />
+          <span>Objetivos & Metas</span>
+        </Link>
+      </div>
 
       {/* KPI Cards de resumen rápido */}
       <div

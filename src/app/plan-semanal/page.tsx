@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
   Plus,
   Trash2,
@@ -22,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  CalendarRange,
   Gauge,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
@@ -372,6 +374,22 @@ export default function PlanSemanalPage() {
           </div>
         }
       />
+
+      {/* Conmutador de Vistas: Plan Semanal vs Calendario Mes */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-raised rounded-xl border border-border/70 w-fit mb-4">
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-brand text-white shadow-xs">
+          <CalendarRange size={14} />
+          <span>Vista Semanal</span>
+        </span>
+        <Link
+          href="/calendario"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground hover:bg-surface transition-all"
+        >
+          <Calendar size={14} />
+          <span>Vista Mensual</span>
+        </Link>
+      </div>
+
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
       <AdaptiveWeekCard currentViewWeekStart={weekStart} onPlanApplied={() => load(true)} />
 

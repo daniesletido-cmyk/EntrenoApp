@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CheckCircle2, AlertTriangle, ShieldAlert, Info, Wand2, Moon, Footprints } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, AlertTriangle, ShieldAlert, Info, Wand2, Moon, Footprints, Bot } from "lucide-react";
 import { weekStartOf, todayISO, addDays } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
 import { PageHeader } from "@/components/ui/page-header";
@@ -121,6 +122,16 @@ export default function RecomendacionesPage() {
       <PageHeader
         title="Recomendaciones"
         description="Ajuste automático de la semana según carga, sueño y notas de molestias — nunca sustituye a un médico."
+        actions={
+          <Link
+            href="/entrenador"
+            className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+            style={{ height: 36, minHeight: 36, borderRadius: "var(--radius-full)", padding: "0 14px" }}
+          >
+            <Bot size={14} className="text-brand" />
+            <span>Consultar al Entrenador IA</span>
+          </Link>
+        }
       />
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 

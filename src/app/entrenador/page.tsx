@@ -220,10 +220,22 @@ export default function EntrenadorPage() {
           title="Entrenador"
           description="Tu preparador personal y fisiólogo deportivo con acceso a tus datos en vivo."
         />
-        <Button variant="ghost" onClick={resetChat} title="Reiniciar conversación" style={{ fontSize: "var(--text-xs)", height: 32, minHeight: 32 }}>
-          <RotateCcw size={13} />
-          <span>Reiniciar chat</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/recomendaciones"
+            className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+            style={{ height: 32, minHeight: 32 }}
+            title="Ver diagnóstico semanal y alertas del sistema"
+          >
+            <Sparkles size={13} className="text-brand" />
+            <span className="hidden sm:inline">Alertas y Recomendaciones</span>
+            <span className="sm:hidden">Alertas</span>
+          </Link>
+          <Button variant="ghost" onClick={resetChat} title="Reiniciar conversación" style={{ fontSize: "var(--text-xs)", height: 32, minHeight: 32 }}>
+            <RotateCcw size={13} />
+            <span className="hidden sm:inline">Reiniciar chat</span>
+          </Button>
+        </div>
       </div>
 
       {/* Barra de Contexto Biométrico en Vivo */}

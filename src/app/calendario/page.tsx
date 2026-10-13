@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Flag, Target, Copy, Check, Activity, Zap } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Flag, Target, Copy, Check, Activity, Zap, Calendar, CalendarRange } from "lucide-react";
 import { toISODate, todayISO, isoDayOfWeek } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal } from "@/components/ui/modal";
@@ -252,7 +253,22 @@ export default function CalendarioPage() {
 
   return (
     <div>
-      <PageHeader title="Calendario" description="Pulsa un día para ver todos los detalles y copiarlos a tus notas." />
+      <PageHeader title="Calendario" description="Vista mensual de tus entrenamientos, fases y objetivos." />
+
+      {/* Conmutador de Vistas: Plan Semanal vs Calendario Mes */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-raised rounded-xl border border-border/70 w-fit mb-4">
+        <Link
+          href="/plan-semanal"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground hover:bg-surface transition-all"
+        >
+          <CalendarRange size={14} />
+          <span>Vista Semanal</span>
+        </Link>
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-brand text-white shadow-xs">
+          <Calendar size={14} />
+          <span>Vista Mensual</span>
+        </span>
+      </div>
 
       <div className="flex items-center gap-3" style={{ marginBottom: "var(--space-4)" }}>
         <button className="btn btn-secondary btn-icon" aria-label="Mes anterior" onClick={prevMonth}>

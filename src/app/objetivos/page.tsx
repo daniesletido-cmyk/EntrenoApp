@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Target, Trash2, Plus, Timer, Scale, Dumbbell, Ruler, MoreHorizontal, Flag, Save } from "lucide-react";
+import Link from "next/link";
+import { Target, Trash2, Plus, Timer, Scale, Dumbbell, Ruler, MoreHorizontal, Flag, Save, TrendingUp } from "lucide-react";
 import { todayISO } from "@/lib/dates";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -155,6 +156,21 @@ export default function ObjetivosPage() {
           )
         }
       />
+
+      {/* Conmutador de Vistas: Progreso vs Objetivos */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-raised rounded-xl border border-border/70 w-fit mb-4">
+        <Link
+          href="/progreso"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground hover:bg-surface transition-all"
+        >
+          <TrendingUp size={14} />
+          <span>Métricas & Cargas</span>
+        </Link>
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-brand text-white shadow-xs">
+          <Target size={14} />
+          <span>Objetivos & Metas</span>
+        </span>
+      </div>
 
       <div className="surface" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)" }}>
         <div className="flex items-center gap-2 font-semibold text-sm" style={{ marginBottom: "var(--space-1)" }}>

@@ -25,49 +25,46 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
-const NAV_GROUPS = [
+interface NavItemDef {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  aliases?: string[];
+}
+
+const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
   {
-    title: "Panel",
+    title: "Principal",
     links: [
-      { href: "/", label: "Resumen", icon: LayoutDashboard },
       { href: "/hoy", label: "Hoy", icon: Sun },
-      { href: "/entrenador", label: "Entrenador", icon: Bot },
+      { href: "/plan-semanal", label: "Planificación", icon: CalendarRange, aliases: ["/calendario"] },
+      { href: "/gimnasio", label: "Gimnasio & Box", icon: Dumbbell },
+      { href: "/registro", label: "Registrar entreno", icon: ClipboardList },
     ],
   },
   {
-    title: "Entrenamiento",
+    title: "Rendimiento",
     links: [
-      { href: "/registro", label: "Registro", icon: ClipboardList },
-      { href: "/detalle", label: "Detalle Entreno", icon: Activity },
-      { href: "/plan-semanal", label: "Plan semanal", icon: CalendarRange },
-      { href: "/gimnasio", label: "Gimnasio", icon: Dumbbell },
-      { href: "/calendario", label: "Calendario", icon: Calendar },
-      { href: "/recomendaciones", label: "Recomendaciones", icon: Activity },
+      { href: "/progreso", label: "Progreso & Objetivos", icon: TrendingUp, aliases: ["/objetivos"] },
+      { href: "/entrenador", label: "Entrenador IA", icon: Bot, aliases: ["/recomendaciones"] },
+      { href: "/", label: "Resumen Semanal", icon: LayoutDashboard },
     ],
   },
   {
-    title: "Seguimiento",
+    title: "Más",
     links: [
-      { href: "/progreso", label: "Progreso", icon: TrendingUp },
-      { href: "/objetivos", label: "Objetivos", icon: Target },
-    ],
-  },
-  {
-    title: "Ajustes",
-    links: [
-      { href: "/menu", label: "Menú", icon: UtensilsCrossed },
+      { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
       { href: "/configuracion", label: "Configuración", icon: Settings },
     ],
   },
 ];
 
-const BOTTOM_NAV = [
-  { href: "/", label: "Resumen", icon: LayoutDashboard },
+const BOTTOM_NAV: NavItemDef[] = [
   { href: "/hoy", label: "Hoy", icon: Sun },
+  { href: "/plan-semanal", label: "Plan", icon: CalendarRange, aliases: ["/calendario"] },
   { href: "/gimnasio", label: "Gimnasio", icon: Dumbbell },
-  { href: "/plan-semanal", label: "Plan", icon: CalendarRange },
-  { href: "/entrenador", label: "Entrenador", icon: Bot },
-  { href: "/registro", label: "Registro", icon: ClipboardList },
+  { href: "/progreso", label: "Progreso", icon: TrendingUp, aliases: ["/objetivos"] },
+  { href: "/entrenador", label: "Entrenador", icon: Bot, aliases: ["/recomendaciones"] },
 ];
 
 const LINKS = NAV_GROUPS.flatMap((g) => g.links);
@@ -78,7 +75,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [raceDate, setRaceDate] = useState("26/04/2027");
-  const current = LINKS.find((l) => l.href === pathname);
+  const current =
+    LINKS.find((l) => l.href === pathname) ??
+    LINKS.find((l) => l.aliases?.includes(pathname)) ??
+    (pathname === "/calendario"
+      ? { label: "Calendario" }
+      : pathname === "/objetivos"
+      ? { label: "Objetivos" }
+      : pathname === "/detalle"
+      ? { label: "Detalle Entreno" }
+      : pathname === "/recomendaciones"
+      ? { label: "Recomendaciones" }
+      : undefined);
 
   const [isGlobalRefreshing, setIsGlobalRefreshing] = useState(false);
 
@@ -175,7 +183,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {group.links.map((l) => (
-                  <NavItem key={l.href} href={l.href} label={l.label} Icon={l.icon} active={pathname === l.href} />
+                  <NavItem
+                    key={l.href}
+                    href={l.href}
+                    label={l.label}
+                    Icon={l.icon}
+                    active={pathname === l.href || (l.aliases?.includes(pathname) ?? false)}
+                  />
                 ))}
               </div>
             </div>
@@ -238,9 +252,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <div className="relative flex-shrink-0">
+            <Link href="/hoy" className="relative flex-shrink-0" title="Ir a Hoy">
               <Image src="/brand/logo-mark.png" alt="" width={26} height={26} className="rounded-md" />
-            </div>
+            </Link>
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-sm leading-tight truncate text-foreground" style={{ letterSpacing: "-0.01em" }}>
                 {current?.label ?? "Hoy"}
@@ -284,24 +298,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               style={{
                 background: "var(--color-surface)",
                 borderBottom: "1px solid var(--color-border)",
-                padding: "var(--space-2)",
+                padding: "var(--space-3) var(--space-2)",
                 display: "flex",
                 flexDirection: "column",
-                gap: 2,
+                gap: "var(--space-3)",
                 maxHeight: "calc(100vh - 120px)",
                 overflowY: "auto",
                 boxShadow: "var(--shadow-md)",
               }}
             >
-              {LINKS.map((l) => (
-                <NavItem
-                  key={l.href}
-                  href={l.href}
-                  label={l.label}
-                  Icon={l.icon}
-                  active={pathname === l.href}
-                  onClick={() => setMobileOpen(false)}
-                />
+              {NAV_GROUPS.map((group) => (
+                <div key={group.title}>
+                  <div
+                    className="text-faint"
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      padding: "0 0.75rem",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {group.title}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {group.links.map((l) => (
+                      <NavItem
+                        key={l.href}
+                        href={l.href}
+                        label={l.label}
+                        Icon={l.icon}
+                        active={pathname === l.href || (l.aliases?.includes(pathname) ?? false)}
+                        onClick={() => setMobileOpen(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
               <div
                 style={{
@@ -356,7 +389,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           {BOTTOM_NAV.map((item) => {
-            const active = pathname === item.href;
+            const active = pathname === item.href || (item.aliases?.includes(pathname) ?? false);
             const Icon = item.icon;
             return (
               <Link
@@ -452,7 +485,11 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
         position: "relative",
       }}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <Link
+        href="/hoy"
+        className="flex items-center gap-3 min-w-0 flex-1 no-underline text-inherit hover:opacity-90 transition-opacity"
+        title="Ir a Hoy"
+      >
         <div className="relative flex-shrink-0">
           <Image
             src="/brand/logo-mark.png"
@@ -486,7 +523,7 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
             Daniel Espinosa
           </div>
         </div>
-      </div>
+      </Link>
       {onCollapse && (
         <button
           onClick={onCollapse}
