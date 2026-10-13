@@ -117,7 +117,25 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
   }
 
-  return NextResponse.json({ session });
+  // Si la sesión completada es del domingo (cierre de semana), adaptar automáticamente la semana siguiente al completo
+  let autoAdaptedInfo = null;
+  if (session.status === "realizada") {
+    try {
+      const { checkAndTriggerSundayAutoAdapt } = await import("@/lib/adaptive-weekly-plan");
+      const adapt = checkAndTriggerSundayAutoAdapt(session.date);
+      if (adapt.autoAdapted && adapt.result) {
+        autoAdaptedInfo = {
+          strategy: adapt.result.evaluation.strategy,
+          strategyTitle: adapt.result.evaluation.strategyTitle,
+          nextWeekStart: adapt.result.nextWeekStart,
+        };
+      }
+    } catch (e) {
+      console.error("Error triggering Sunday auto adapt:", e);
+    }
+  }
+
+  return NextResponse.json({ session, autoAdapted: autoAdaptedInfo });
 }
 
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

@@ -415,7 +415,7 @@ export default function RegistroPage() {
   async function saveSession(s: SessionRow) {
     setSavingId(s.id);
     try {
-      await fetch(`/api/sessions/${s.id}`, {
+      const res = await fetch(`/api/sessions/${s.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -426,8 +426,16 @@ export default function RegistroPage() {
           notes: s.notes,
         }),
       });
+      const data = await res.json();
       load();
-      toast.push("success", "Sesión guardada");
+      if (data?.autoAdapted) {
+        toast.push(
+          "success",
+          `🎉 ¡Semana cerrada! La siguiente semana (${data.autoAdapted.nextWeekStart}) se ha adaptado al completo según tu carga real (${data.autoAdapted.strategyTitle}).`
+        );
+      } else {
+        toast.push("success", "Sesión guardada");
+      }
       if (s.status === "realizada" || s.status === "parcial") {
         evaluateReadinessFeedback(s.date);
       }
@@ -456,8 +464,16 @@ export default function RegistroPage() {
           notes: s.notes,
         }),
       });
+      const data = await res.json();
       if (!res.ok) throw new Error();
-      toast.push("success", "Sesión modificada correctamente");
+      if (data?.autoAdapted) {
+        toast.push(
+          "success",
+          `🎉 ¡Semana cerrada! La siguiente semana (${data.autoAdapted.nextWeekStart}) se ha adaptado al completo según tu carga real (${data.autoAdapted.strategyTitle}).`
+        );
+      } else {
+        toast.push("success", "Sesión modificada correctamente");
+      }
       setEditingSession(null);
       load();
       if (s.status === "realizada" || s.status === "parcial") {

@@ -36,6 +36,7 @@ import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
+import { AdaptiveWeekCard } from "@/components/adaptive-week-card";
 
 interface PlanPreviewRow {
   date: string;
@@ -372,6 +373,7 @@ export default function PlanSemanalPage() {
         }
       />
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
+      <AdaptiveWeekCard currentViewWeekStart={weekStart} onPlanApplied={() => load(true)} />
 
       {importPreview && (
         <div className="surface animate-in w-full overflow-hidden" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-4)", borderColor: "var(--color-brand)" }}>

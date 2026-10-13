@@ -359,6 +359,39 @@ export default function HoyPage() {
           </Link>
         </div>
 
+        {/* Banner de Adaptación Semanal / Aviso de Cierre de Domingo */}
+        {settings.last_adaptive_plan && (() => {
+          try {
+            const p = JSON.parse(settings.last_adaptive_plan);
+            return (
+              <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-foreground mb-3 animate-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles size={14} className="text-emerald-400 flex-shrink-0" />
+                  <span className="truncate">
+                    <strong>Plan adaptativo:</strong> Próxima semana adaptada al completo · <em>{p.strategyTitle}</em>
+                  </span>
+                </div>
+                <Link href="/plan-semanal" className="text-emerald-400 hover:underline font-semibold flex items-center gap-1 text-[11px] flex-shrink-0">
+                  Ver plan <ArrowRight size={11} />
+                </Link>
+              </div>
+            );
+          } catch {
+            return null;
+          }
+        })()}
+
+        {isoDayOfWeek(today) === 7 && (
+          <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-foreground mb-3 animate-in">
+            <div className="flex items-center gap-2">
+              <Zap size={14} className="text-amber-400 flex-shrink-0" />
+              <span>
+                <strong>Cierre de semana:</strong> Al registrar tu entreno de hoy, el plan a largo plazo adaptará automáticamente la siguiente semana según tu carga real.
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* 7-Day Selector */}
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center">
           {weekDates(weekStartOf(today)).map((dIso, idx) => {
