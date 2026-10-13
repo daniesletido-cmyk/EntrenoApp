@@ -266,6 +266,71 @@ function migrateSchema(d: AppDb) {
       INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_speed', '15.06 km/h');
       INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_test_date', '2026-09-27');
       INSERT OR REPLACE INTO settings (key, value) VALUES ('target_pace_scenario', '5:00-5:15 min/km (VAM: 3:59 min/km)');
+
+      -- Reorganización de la semana 2026-10-12 a 2026-10-18 (CrossFit Mié/Vie, Natación Mar, Carreras y Descanso)
+      UPDATE sessions SET
+        discipline = 'descanso',
+        planned_code = 'Descanso / Sin entrenamiento',
+        status = 'no_realizada',
+        duration_min = 0,
+        distance_km = NULL,
+        rpe = NULL,
+        notes = 'DESCANSO (Día libre sin entrenamiento):\n- Ayer lunes no se entrenó (0 min de actividad).\n- Carga acumulada: 0 UA.'
+      WHERE date = '2026-10-12';
+
+      UPDATE sessions SET
+        discipline = 'natacion',
+        planned_code = 'NAT (Base Aeróbica & Descompresión Articular)',
+        duration_min = 45,
+        distance_km = 2.0,
+        rpe = 5,
+        notes = 'NATACIÓN · Base Aeróbica y Preparación Articular (~2.000m · 45 min · RPE 5 · Carga estimada: 225 UA):\n- Justificación de carga: Ayer descansaste (0 UA); hoy realizas natación técnica aeróbica para preparar el sistema cardiovascular y proteger los hombros/gemelos antes del CrossFit del miércoles y viernes.\n- Calentamiento: 350m suave y variado continuo (200m crol largo y relajado + 150m espalda suave para abrir la cintura escapular).\n- Técnica y Eficiencia: 4x50m técnica con pull-buoy (foco en agarre alto y tracción dorsal fluida, descanso 20s). *Objetivo*: Alinear cadera y soltar piernas.\n- Bloque Principal (Ritmo Crucero Aeróbico): 4x250m crol a ritmo constante y sostenido en zona aeróbica cómoda (descanso 30s entre bloques). *Recomendación*: Realizar las series 1 y 3 con pull-buoy para aislar gemelos y sóleos de cara a la carrera del miércoles.\n- Descarga continua: 200m nado continuo suave a estilo libre.\n- Vuelta a la calma: 150m espalda suave + respiración bilateral para equilibrar hombros y cuello. Cero fatiga acumulada.'
+      WHERE date = '2026-10-13';
+
+      UPDATE sessions SET
+        discipline = 'crossfit',
+        planned_code = 'CrossFit WOD (Steady: Habilidad Pino + 5 Rondas Running & Wall Walks)',
+        duration_min = 50,
+        distance_km = NULL,
+        rpe = 7.5,
+        notes = 'CROSSFIT · DÍA STEADY (Constante y sostenido · Duración ~50 min · RPE 7.5 · Carga estimada: 375 UA):\n\n1. BLOQUE DE FUERZA Y TÉCNICA (10:00 minutos de práctica):\n- Práctica de caminar haciendo el pino (Handstand Walk), mantenimiento de la vertical invertida estática (Handstand Hold) y estabilidad de hombros por encima de la cabeza (Overhead Stability).\n- Enfoque: Trabajo de desarrollo de habilidad y control neuromuscular. Sin medición ni carga máxima; priorizar la técnica limpia.\n\n2. WOD PRINCIPAL FREEDOM RX (Por Tiempo - 5 Rondas completas):\nCompletar en el menor tiempo posible:\n- 400 metros de Carrera continua (Run)\n- 50 Saltos dobles a la comba (Double Unders)\n- 5 Caminatas a la pared / Escaladas de pared (Wall Walks)\n*Puntuación: Tiempo total cronometrado.\n*Ritmo objetivo: Ritmo "Steady" (controlado y sin paradas largas), gestionando la fatiga de hombros en los wall walks y el impacto en gemelos de la comba.\n\n3. VUELTA A LA CALMA (5-10 min):\n- Estiramientos suaves de hombros (manguito rotador, pectorales) y descarga de gemelos y fascia plantar.'
+      WHERE date = '2026-10-14';
+
+      UPDATE sessions SET
+        discipline = 'carrera',
+        planned_code = 'R1 (Rodaje Regenerativo Suave VAM)',
+        duration_min = 38,
+        distance_km = 6.5,
+        rpe = 4.5,
+        notes = 'RUNNING · Rodaje Regenerativo en Zona R1 (~6.5 km · ~38 min · RPE 4-5 · Carga estimada: 171 UA):\n- Ritmo objetivo VAM: 5:25 - 4:59 min/km (Zona R1, 100% conversacional, VAM: 3:59 min/km).\n- Justificación de carga: Recuperar activamente la musculatura tras la carrera y saltos de comba del miércoles, manteniendo las piernas frescas para el esfuerzo de sentadillas pesadas del viernes.\n- Calentamiento: 5 min caminando a paso ligero y trote muy suave (>5:30/km).\n- Cuerpo principal: 30 min continuo a ritmo R1 suave, pisada elástica y cadencia alta (175-180 ppm).\n- Técnica final: 3x60m progresiones suaves soltando piernas (sin sprintar).\n- Vuelta a la calma: 3-5 min andando + estiramientos de sóleos y cuádriceps.'
+      WHERE date = '2026-10-15';
+
+      UPDATE sessions SET
+        discipline = 'crossfit',
+        planned_code = 'CrossFit WOD (Sprint: 8 Series Front Squat + Intervalos Box Step Overs)',
+        duration_min = 50,
+        distance_km = NULL,
+        rpe = 8.5,
+        notes = 'CROSSFIT · DÍA SPRINT (Máxima potencia láctica · Duración ~50 min · RPE 8.5 · Carga estimada: 425 UA):\n\n1. BLOQUE DE FUERZA (8 Series de 2 repeticiones):\n- 8 Series de 2 Sentadillas Frontales (Front Squats).\n- Descanso estricto de 1:00 minuto entre series.\n- Objetivo: Construir peso progresivamente hacia carga pesada. El resultado es el peso más pesado completado con técnica perfecta.\n\n2. WOD PRINCIPAL FREEDOM RX (Cada 3:30 min durante 5 Series):\nEn cada intervalo de 3:30 min, realizar a ritmo de SPRINT:\n- 8 Sentadillas Frontales (Front Squats con 60 kg chicos / 42.5 kg chicas · 135/95 lbs)\n- 16 Pasos por encima del cajón (Box Step Overs con cajón de 61 cm / 50 cm · pueden ser laterales o de frente)\n- 8 Sentadillas Frontales (Front Squats con 60 kg chicos / 42.5 kg chicas · 135/95 lbs)\n*Puntuación: Registrar el tiempo de cada serie individual. El tiempo restante hasta completar los 3:30 min es tu descanso antes de la siguiente serie.\n*Estrategia: Salir fuerte en cada intervalo buscando mantener un tiempo consistente entre las 5 rondas.\n\n3. VUELTA A LA CALMA (5-10 min):\n- Movilidad y descompresión de flexores de cadera, cuádriceps y zona lumbar.'
+      WHERE date = '2026-10-16';
+
+      UPDATE sessions SET
+        discipline = 'descanso',
+        planned_code = 'Descanso Activo & Movilidad Lumbo-Pélvica',
+        duration_min = 20,
+        distance_km = NULL,
+        rpe = 2,
+        notes = 'DESCANSO ACTIVO · Recuperación Lumbo-Pélvica (~20 min · RPE 2 · Carga estimada: 0 UA):\n- Justificación de carga: Tras el alto volumen e impacto excéntrico de sentadillas frontales pesadas y saltos del viernes (425 UA), el sábado se dedica a descompresión para asimilar la carga y llegar en óptimas condiciones a la tirada larga del domingo.\n- 8-10 min de foam roller en cuádriceps, glúteos, banda iliotibial y gemelos.\n- 10 min de movilidad articular de cadera (couch stretch para psoas, paloma para glúteos y rotación torácica).\n- Cero impacto articular de cara a la tirada larga del domingo.'
+      WHERE date = '2026-10-17';
+
+      UPDATE sessions SET
+        discipline = 'carrera',
+        planned_code = 'R5 (Tirada Larga de Volumen 14 km)',
+        duration_min = 74,
+        distance_km = 14.0,
+        rpe = 5.5,
+        notes = 'RUNNING · Tirada Larga de Volumen Semanal (14 km · ~74 min · RPE 5-6 · Carga estimada: 407 UA):\n- Ritmo objetivo VAM: 5:25 - 5:05 min/km (Ritmo aeróbico cómodo sostenido, VAM: 3:59 min/km).\n- Justificación de carga: Es el bloque principal de volumen aeróbico semanal. Llegarás con las piernas descansadas tras el sábado sin impacto.\n- Calentamiento: 5 min trote muy suave (>5:30/km) + movilidad de tobillos.\n- Bloque de volumen: 14 km continuos manteniendo pulsaciones controladas y cadencia estable (175 ppm).\n- Hidratación / Nutrición: Tomar agua o sales cada 20-25 minutos; 1 gel isotónico en el km 8-9 si es necesario.\n- Vuelta a la calma: 5 min andando a paso lento + estiramientos completos.'
+      WHERE date = '2026-10-18';
     `);
 
     ensureAnnualPlanPopulated(d);
