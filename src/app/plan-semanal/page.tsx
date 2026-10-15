@@ -25,6 +25,7 @@ import {
   Calendar,
   CalendarRange,
   Gauge,
+  FileText,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -356,6 +357,25 @@ export default function PlanSemanalPage() {
               <FileUp size={14} />
               Importar plan
             </Button>
+            <a
+              href="/Plan_Maraton_Madrid_Daniel_Espinosa.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              download="Plan_Maraton_Madrid_Daniel_Espinosa.pdf"
+              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5"
+              style={{
+                height: 36,
+                minHeight: 36,
+                borderRadius: "var(--radius-full)",
+                padding: "0 14px",
+                flex: "1 1 auto",
+                textDecoration: "none",
+              }}
+              title="Descargar Plan de Entrenamiento Maratón de Madrid en PDF"
+            >
+              <FileText size={14} className="text-brand" />
+              <span>Plan Madrid PDF</span>
+            </a>
             <button
               className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5"
               onClick={() => load(true)}

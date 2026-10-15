@@ -486,30 +486,30 @@ export function ensureAnnualPlanPopulated(db: AppDb) {
       planned_code: "R6 (Activación Pre-Carrera)",
       distance_km: 3,
       duration_min: 15,
-      notes: "15 min trote muy suave + 3 rectas de 50m progresivas para activar el sistema nervioso. Dormir pronto."
+      notes: "Víspera de carrera: 15 min trote muy suave + 3 rectas de 50m progresivas para activar el sistema nervioso. Recoger dorsal, preparar geles, equipación y descansar temprano."
     });
     sessions.push({
       date: formatDate(addDays(monday33, 6)),
       week_start: weekStart33,
-      discipline: "descanso",
-      planned_code: "Víspera de Carrera",
-      duration_min: 0,
-      notes: "Paseo de 15 min, recoger dorsal, preparar equipación, geles, zapatillas e hidratación. Cena rica en arroz/pasta con aceite."
+      discipline: "carrera",
+      planned_code: "MARATÓN DE MADRID (42.195 km)",
+      is_long_run: 1,
+      distance_km: 42.195,
+      duration_min: 215,
+      notes: "¡DÍA DEL MARATÓN DE MADRID! (42.195 km)\n- Objetivo: 5:00 - 5:12 min/km (Meta: Sub-3h35 / 3h40)\n- Estrategia Madrid:\n  1. Km 0-5 (Castellana): Salir cauto a 5:15-5:20/km.\n  2. Km 5-20 (Bajada centro): Rodar fluido a 5:00-5:05/km cuidando cuádriceps del impacto excéntrico.\n  3. Km 20-30 (Casa de Campo): Ritmo crucero a 5:05/km.\n  4. Km 30-42 (Atocha / Alfonso XII / Retiro): La gran subida. Mantener cabeza y cadencia a 5:10-5:15/km con el corazón.\n- Nutrición: 1 gel cada 40 min + agua/sales en cada avituallamiento.\n- ¡A disfrutar de cada zancada!"
     });
 
-    // SEMANA 34: LUNES 26 DE ABRIL DE 2027 — DÍA DE LA MARATÓN + POST-CARRERA
+    // SEMANA 34: LUNES 26 DE ABRIL DE 2027 — POST-CARRERA & RECUPERACIÓN
     const monday34 = addDays(startFase4, 14);
     const weekStart34 = formatDate(monday34);
 
     sessions.push({
       date: formatDate(monday34),
       week_start: weekStart34,
-      discipline: "carrera",
-      planned_code: "MARATÓN (42.195 km)",
-      is_long_run: 1,
-      distance_km: 42.195,
-      duration_min: 215,
-      notes: "¡DÍA DE LA MARATÓN! (42.195 km)\n- Objetivo de Ritmo: 5:00 - 5:15 min/km (Meta estimada: 3h30 - 3h41)\n- Estrategia: Salir conservador a 5:15/km los primeros 5K. Estabilizar a 5:05-5:10/km hasta el km 32. Si hay fuerzas, mantener o apretar a 5:00/km los últimos 10K.\n- Nutrición: 1 gel cada 40-45 min + agua/sales en cada avituallamiento (cada 20-25 min).\n- ¡A por todas y a disfrutar de cada kilómetro!"
+      discipline: "descanso",
+      planned_code: "Recuperación Post-Maratón",
+      duration_min: 0,
+      notes: "Descanso total, comida reconfortante, masaje suave y máxima hidratación. ¡Eres maratoniano de Madrid!"
     });
 
     sessions.push({
