@@ -27,9 +27,21 @@ function resolveDbPath(): string {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  if (!fs.existsSync(targetPath)) {
-    const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
-    if (fs.existsSync(seedPath)) {
+  const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
+  if (fs.existsSync(seedPath)) {
+    let copyRequired = !fs.existsSync(targetPath);
+    if (!copyRequired && process.env.VERCEL) {
+      try {
+        const seedStat = fs.statSync(seedPath);
+        const targetStat = fs.statSync(targetPath);
+        if (seedStat.size !== targetStat.size || seedStat.mtimeMs > targetStat.mtimeMs) {
+          copyRequired = true;
+        }
+      } catch {
+        copyRequired = true;
+      }
+    }
+    if (copyRequired) {
       try {
         fs.copyFileSync(seedPath, targetPath);
       } catch (e) {
@@ -286,6 +298,7 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'natacion',
         planned_code = 'NAT (Base Aeróbica & Descompresión Articular)',
+        status = 'realizada',
         duration_min = 45,
         distance_km = 2.0,
         rpe = 5,
@@ -295,6 +308,7 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'crossfit',
         planned_code = 'CrossFit WOD (Steady: Habilidad Pino + 5 Rondas Running & Wall Walks)',
+        status = 'realizada',
         duration_min = 50,
         distance_km = NULL,
         rpe = 7.5,
@@ -304,6 +318,7 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'carrera',
         planned_code = 'R1 (Rodaje Regenerativo Suave VAM)',
+        status = 'realizada',
         duration_min = 38,
         distance_km = 6.5,
         rpe = 4.5,
@@ -313,6 +328,7 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'crossfit',
         planned_code = 'CrossFit WOD (Sprint: 8 Series Front Squat + Intervalos Box Step Overs)',
+        status = 'realizada',
         duration_min = 50,
         distance_km = NULL,
         rpe = 8.5,
@@ -322,6 +338,7 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'descanso',
         planned_code = 'Descanso Activo & Movilidad Lumbo-Pélvica',
+        status = 'realizada',
         duration_min = 20,
         distance_km = NULL,
         rpe = 2,
@@ -331,9 +348,10 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'carrera',
         planned_code = 'R5 (Tirada Larga de Volumen 14 km)',
+        status = 'pendiente',
         duration_min = 74,
         distance_km = 14.0,
-        rpe = 5.5,
+        rpe = NULL,
         notes = 'RUNNING · Tirada Larga de Volumen Semanal (14 km · ~74 min · RPE 5-6 · Carga estimada: 407 UA):\n- Ritmo objetivo VAM: 5:25 - 5:05 min/km (Ritmo aeróbico cómodo sostenido, VAM: 3:59 min/km).\n- Justificación de carga: Es el bloque principal de volumen aeróbico semanal. Llegarás con las piernas descansadas tras el sábado sin impacto.\n- Calentamiento: 5 min trote muy suave (>5:30/km) + movilidad de tobillos.\n- Bloque de volumen: 14 km continuos manteniendo pulsaciones controladas y cadencia estable (175 ppm).\n- Hidratación / Nutrición: Tomar agua o sales cada 20-25 minutos; 1 gel isotónico en el km 8-9 si es necesario.\n- Vuelta a la calma: 5 min andando a paso lento + estiramientos completos.'
       WHERE date = '2026-10-18';
     `);
