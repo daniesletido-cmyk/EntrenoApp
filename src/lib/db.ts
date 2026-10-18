@@ -12,15 +12,20 @@ let db: DatabaseSync | null = null;
 
 function resolveDbPath(): string {
   // En la app de escritorio (Electron), main.cjs fijará DB_PATH a la carpeta
-  // de datos de usuario de Windows (userData). En desarrollo o nube, usamos ./data.
+  // de datos de usuario de Windows (userData). En Vercel Serverless, usamos /tmp.
+  // En desarrollo o contenedores, usamos ./data.
   let targetPath = path.join(process.cwd(), "data", "entrenoapp.db");
-  if (process.env.DB_PATH) {
+  if (process.env.VERCEL) {
+    targetPath = path.join("/tmp", "entrenoapp.db");
+  } else if (process.env.DB_PATH) {
     targetPath = process.env.DB_PATH;
   } else if (process.env.ENTRENO_DATA_DIR) {
     targetPath = path.join(process.env.ENTRENO_DATA_DIR, "entrenoapp.db");
   }
   const dir = path.dirname(targetPath);
-  fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 
   if (!fs.existsSync(targetPath)) {
     const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");

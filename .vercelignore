@@ -1,0 +1,16 @@
+node_modules
+.next
+android
+ios
+release
+build
+data
+dist
+electron
+*.exe
+*.apk
+*.ipa
+*.zip
+*.log
+%USER_BUNDLE%
+Claude outputs
