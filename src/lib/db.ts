@@ -364,12 +364,18 @@ function migrateSchema(d: AppDb) {
       UPDATE sessions SET
         discipline = 'carrera',
         planned_code = 'R5 (Tirada Larga de Volumen 14 km)',
-        status = 'pendiente',
+        status = 'realizada',
         duration_min = 74,
         distance_km = 14.0,
-        rpe = NULL,
+        rpe = 5.5,
         notes = 'RUNNING · Tirada Larga de Volumen Semanal (14 km · ~74 min · RPE 5-6 · Carga estimada: 407 UA):\n- Ritmo objetivo VAM: 5:25 - 5:05 min/km (Ritmo aeróbico cómodo sostenido, VAM: 3:59 min/km).\n- Justificación de carga: Es el bloque principal de volumen aeróbico semanal. Llegarás con las piernas descansadas tras el sábado sin impacto.\n- Calentamiento: 5 min trote muy suave (>5:30/km) + movilidad de tobillos.\n- Bloque de volumen: 14 km continuos manteniendo pulsaciones controladas y cadencia estable (175 ppm).\n- Hidratación / Nutrición: Tomar agua o sales cada 20-25 minutos; 1 gel isotónico en el km 8-9 si es necesario.\n- Vuelta a la calma: 5 min andando a paso lento + estiramientos completos.'
       WHERE date = '2026-10-18';
+
+      -- Semana actual (2026-10-19 a 2026-10-25): Lunes a Jueves completados
+      UPDATE sessions SET status = 'realizada', duration_min = 45, distance_km = 1.9, rpe = 4.5 WHERE date = '2026-10-19';
+      UPDATE sessions SET status = 'realizada', duration_min = 55, distance_km = 2.4, rpe = 8.5 WHERE date = '2026-10-20';
+      UPDATE sessions SET status = 'realizada', duration_min = 35.2, distance_km = 6.76, rpe = 5.5 WHERE date = '2026-10-21';
+      UPDATE sessions SET status = 'realizada', duration_min = 50, rpe = 7.5 WHERE date = '2026-10-22';
     `);
 
     ensureAnnualPlanPopulated(d);

@@ -5,6 +5,9 @@ const isVercel = Boolean(process.env.VERCEL);
 
 const nextConfig: NextConfig = {
   output: isMobile ? "export" : isVercel ? undefined : "standalone",
+  outputFileTracingIncludes: {
+    "/**": ["./seed/**/*"],
+  },
   images: {
     unoptimized: true,
   },
