@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { ensureAnnualPlanPopulated } from "@/lib/annual-plan-seed";
 
 // Mismo patrón que FinanzasApp: node:sqlite (nativo de Node, sin compilar nada),
@@ -30,17 +31,32 @@ function resolveDbPath(): string {
   const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
   if (fs.existsSync(seedPath)) {
     let copyRequired = !fs.existsSync(targetPath);
-    if (!copyRequired && process.env.VERCEL) {
+    if (process.env.VERCEL) {
       try {
-        const seedStat = fs.statSync(seedPath);
-        const targetStat = fs.statSync(targetPath);
-        if (seedStat.size !== targetStat.size || seedStat.mtimeMs > targetStat.mtimeMs) {
+        const seedBuffer = fs.readFileSync(seedPath);
+        const seedHash = crypto.createHash("md5").update(seedBuffer).digest("hex");
+        const hashFilePath = path.join(dir, ".seed_hash");
+        let activeHash = "";
+        if (fs.existsSync(hashFilePath)) {
+          try {
+            activeHash = fs.readFileSync(hashFilePath, "utf8").trim();
+          } catch {}
+        }
+        if (!copyRequired && activeHash !== seedHash) {
           copyRequired = true;
         }
-      } catch {
-        copyRequired = true;
+        if (copyRequired) {
+          fs.writeFileSync(targetPath, seedBuffer);
+          try {
+            fs.writeFileSync(hashFilePath, seedHash, "utf8");
+          } catch {}
+          return targetPath;
+        }
+      } catch (e) {
+        console.error("Error comprobando hash de seed:", e);
       }
     }
+
     if (copyRequired) {
       try {
         fs.copyFileSync(seedPath, targetPath);
