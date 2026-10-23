@@ -168,6 +168,7 @@ interface SessionRow {
   duration_min: number | null;
   distance_km: number | null;
   notes: string | null;
+  user_notes?: string | null;
   // Presente (no null) cuando el último cambio de esta sesión fue aplicar un
   // .fit importado — habilita el botón "Deshacer importación .fit".
   fit_backup: string | null;
@@ -424,6 +425,7 @@ export default function RegistroPage() {
           duration_min: s.duration_min,
           distance_km: s.distance_km,
           notes: s.notes,
+          user_notes: s.user_notes !== undefined ? s.user_notes : undefined,
         }),
       });
       const data = await res.json();
@@ -462,6 +464,7 @@ export default function RegistroPage() {
           duration_min: s.duration_min,
           distance_km: s.distance_km,
           notes: s.notes,
+          user_notes: s.user_notes !== undefined ? s.user_notes : undefined,
         }),
       });
       const data = await res.json();
@@ -1577,7 +1580,8 @@ export default function RegistroPage() {
                 const Icon = DISCIPLINE_ICON[s.discipline] ?? MoreHorizontal;
                 const discTheme = DISCIPLINE_COLORS[s.discipline] ?? DISCIPLINE_COLORS.otro;
                 const mod = parseWorkoutModification(s);
-                const hasInjuryNote = s.notes && INJURY_KEYWORDS.some((k) => s.notes!.toLowerCase().includes(k));
+                const injuryText = `${s.user_notes ?? ""} ${s.notes ?? ""}`.toLowerCase();
+                const hasInjuryNote = INJURY_KEYWORDS.some((k) => injuryText.includes(k));
                 const cleanNotes = s.notes
                   ? s.notes
                       .split("\n")
@@ -1773,10 +1777,11 @@ export default function RegistroPage() {
                     <div style={{ marginTop: "var(--space-3)" }}>
                       <Textarea
                         label="Notas / molestias reales"
+                        placeholder="Ej: Buenas sensaciones, molestia en sóleo km 5, ritmo fácil..."
                         hint="Si notas dolor articular, molestia o sensaciones, anótalo aquí."
                         rows={2}
-                        value={s.notes ?? ""}
-                        onChange={(e) => updateLocalSession(s.id, { notes: e.target.value })}
+                        value={s.user_notes ?? ""}
+                        onChange={(e) => updateLocalSession(s.id, { user_notes: e.target.value })}
                       />
                       {hasInjuryNote && (
                         <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--color-warning)", marginTop: 5 }}>
@@ -2097,7 +2102,16 @@ export default function RegistroPage() {
               )}
 
               <Textarea
-                label="Notas / molestias"
+                label="Notas / molestias del atleta"
+                placeholder="Ej: Buenas sensaciones, molestia en gemelo..."
+                rows={2}
+                value={editingSession.user_notes ?? ""}
+                onChange={(e) => setEditingSession({ ...editingSession, user_notes: e.target.value })}
+              />
+
+              <Textarea
+                label="Estructura / Prescripción del plan"
+                hint="Instrucciones planificadas del entrenamiento."
                 rows={3}
                 value={editingSession.notes ?? ""}
                 onChange={(e) => setEditingSession({ ...editingSession, notes: e.target.value })}

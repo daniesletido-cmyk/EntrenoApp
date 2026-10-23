@@ -17,6 +17,7 @@ export interface SessionRow {
   duration_min: number | null;
   distance_km: number | null;
   notes: string | null;
+  user_notes?: string | null;
   // JSON con el estado anterior de la sesión (ver FitBackup) cuando su
   // último cambio fue aplicar un .fit importado — null si no aplica o si ya
   // se deshizo esa importación.
@@ -33,6 +34,7 @@ export interface NewPlannedSession {
   is_long_run?: boolean;
   is_extra?: boolean | number;
   notes?: string | null;
+  user_notes?: string | null;
 }
 
 export function createPlannedSession(input: NewPlannedSession): SessionRow {
@@ -41,8 +43,8 @@ export function createPlannedSession(input: NewPlannedSession): SessionRow {
   const week_start = weekStartOf(input.date);
   const res = db
     .prepare(
-      `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
+      `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, user_notes, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
     )
     .run(
       input.date,
@@ -52,6 +54,7 @@ export function createPlannedSession(input: NewPlannedSession): SessionRow {
       input.is_long_run ? 1 : 0,
       input.is_extra ? 1 : 0,
       input.notes ?? null,
+      input.user_notes ?? null,
       now,
       now
     );
@@ -80,13 +83,16 @@ export interface LogSessionInput {
   duration_min?: number | null;
   distance_km?: number | null;
   notes?: string | null;
+  user_notes?: string | null;
 }
 
 export function logSessionResult(id: number, input: LogSessionInput): SessionRow | undefined {
+  const current = getSessionById(id);
+  if (!current) return undefined;
   const now = new Date().toISOString();
   getDb()
     .prepare(
-      `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, updated_at = ?
+      `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, user_notes = ?, updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -94,7 +100,8 @@ export function logSessionResult(id: number, input: LogSessionInput): SessionRow
       input.rpe ?? null,
       input.duration_min ?? null,
       input.distance_km ?? null,
-      input.notes ?? null,
+      input.notes !== undefined ? input.notes : current.notes,
+      input.user_notes !== undefined ? input.user_notes : current.user_notes,
       now,
       id
     );
@@ -107,6 +114,7 @@ interface FitBackup {
   duration_min: number | null;
   distance_km: number | null;
   notes: string | null;
+  user_notes: string | null;
 }
 
 // Igual que logSessionResult, pero además guarda en fit_backup cómo estaba
@@ -123,12 +131,13 @@ export function applyFitImport(id: number, input: LogSessionInput): SessionRow |
     duration_min: current.duration_min,
     distance_km: current.distance_km,
     notes: current.notes,
+    user_notes: current.user_notes ?? null,
   };
 
   const now = new Date().toISOString();
   getDb()
     .prepare(
-      `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, fit_backup = ?, updated_at = ?
+      `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, user_notes = ?, fit_backup = ?, updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -136,7 +145,8 @@ export function applyFitImport(id: number, input: LogSessionInput): SessionRow |
       input.rpe ?? null,
       input.duration_min ?? null,
       input.distance_km ?? null,
-      input.notes ?? null,
+      input.notes !== undefined ? input.notes : current.notes,
+      input.user_notes !== undefined ? input.user_notes : current.user_notes,
       JSON.stringify(backup),
       now,
       id
@@ -183,10 +193,10 @@ export function undoFitImport(id: number): SessionRow | undefined {
     }
     getDb()
       .prepare(
-        `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, fit_backup = NULL, fit_data = NULL, updated_at = ?
+        `UPDATE sessions SET status = ?, rpe = ?, duration_min = ?, distance_km = ?, notes = ?, user_notes = ?, fit_backup = NULL, fit_data = NULL, updated_at = ?
          WHERE id = ?`
       )
-      .run(backup.status, backup.rpe, backup.duration_min, backup.distance_km, backup.notes, now, id);
+      .run(backup.status, backup.rpe, backup.duration_min, backup.distance_km, backup.notes, backup.user_notes ?? null, now, id);
     return getSessionById(id);
   }
 
@@ -237,6 +247,7 @@ export interface UpdateSessionInput {
   duration_min?: number | null;
   distance_km?: number | null;
   notes?: string | null;
+  user_notes?: string | null;
   fitImport?: boolean;
   fit_data?: string | null;
 }
@@ -257,11 +268,13 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
       duration_min: current.duration_min,
       distance_km: current.distance_km,
       notes: current.notes,
+      user_notes: current.user_notes ?? null,
     };
     fitBackup = JSON.stringify(backup);
   }
 
   const fitData = input.fit_data !== undefined ? input.fit_data : current.fit_data;
+  const userNotes = input.user_notes !== undefined ? input.user_notes : current.user_notes;
 
   getDb()
     .prepare(
@@ -277,6 +290,7 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
         duration_min = ?,
         distance_km = ?,
         notes = ?,
+        user_notes = ?,
         fit_backup = ?,
         fit_data = ?,
         updated_at = ?
@@ -294,6 +308,7 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
       input.duration_min !== undefined ? input.duration_min : current.duration_min,
       input.distance_km !== undefined ? input.distance_km : current.distance_km,
       input.notes !== undefined ? input.notes : current.notes,
+      userNotes ?? null,
       fitBackup,
       fitData ?? null,
       now,
@@ -344,8 +359,8 @@ export function bulkCreateSessions(inputs: NewPlannedSession[]): SessionRow[] {
   const db = getDb();
   const now = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
+    `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, user_notes, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
   );
 
   const insertedIds: number[] = [];
@@ -360,6 +375,7 @@ export function bulkCreateSessions(inputs: NewPlannedSession[]): SessionRow[] {
         input.is_long_run ? 1 : 0,
         input.is_extra ? 1 : 0,
         input.notes ?? null,
+        input.user_notes ?? null,
         now,
         now
       );

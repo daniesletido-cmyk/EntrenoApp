@@ -119,17 +119,18 @@ function scanNotes(sessions: SessionRow[], keywords: string[]): string[] {
   for (const s of sessions) {
     // Solo escanear sesiones que el usuario haya registrado como realizadas o parciales
     if (s.status !== "realizada" && s.status !== "parcial") continue;
-    if (!s.notes) continue;
+    const combinedNotes = `${s.user_notes ?? ""} ${s.notes ?? ""}`.trim();
+    if (!combinedNotes) continue;
 
-    const lower = s.notes.toLowerCase();
+    const lower = combinedNotes.toLowerCase();
     for (const kw of keywords) {
       if (hasAffirmativeMatch(lower, kw)) {
         const kwIdx = lower.indexOf(kw);
         const start = Math.max(0, kwIdx - 15);
-        const end = Math.min(s.notes.length, kwIdx + kw.length + 25);
-        let snippet = s.notes.slice(start, end).replace(/\n+/g, " ").trim();
+        const end = Math.min(combinedNotes.length, kwIdx + kw.length + 25);
+        let snippet = combinedNotes.slice(start, end).replace(/\n+/g, " ").trim();
         if (start > 0) snippet = "..." + snippet;
-        if (end < s.notes.length) snippet = snippet + "...";
+        if (end < combinedNotes.length) snippet = snippet + "...";
         hits.push(`${s.date} (${s.discipline}): "${snippet}"`);
         break;
       }

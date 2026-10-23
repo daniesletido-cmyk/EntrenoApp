@@ -876,6 +876,29 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                   )}
 
                   {/* Notas y pauta del entrenamiento */}
+                  {session.user_notes && (
+                    <div className="surface-raised" style={{ padding: "var(--space-4)", marginBottom: "var(--space-3)", borderLeft: "4px solid var(--color-warning, #f59e0b)" }}>
+                      <div className="text-xs font-semibold uppercase text-muted flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
+                        <FileText size={13} style={{ color: "var(--color-warning, #f59e0b)" }} />
+                        <span>Sensaciones y Molestias Registradas</span>
+                      </div>
+                      <div
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          fontSize: "var(--text-sm)",
+                          lineHeight: 1.6,
+                          color: "var(--color-text)",
+                          backgroundColor: "rgba(245, 158, 11, 0.08)",
+                          padding: "var(--space-3)",
+                          borderRadius: "var(--radius-sm)",
+                          border: "1px solid rgba(245, 158, 11, 0.25)",
+                        }}
+                      >
+                        {session.user_notes}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
                     <div className="text-xs font-semibold uppercase text-muted flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
                       <FileText size={13} style={{ color: "var(--color-brand)" }} />

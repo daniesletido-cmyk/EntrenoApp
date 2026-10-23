@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     is_long_run: !!body.is_long_run,
     is_extra: !!body.is_extra,
     notes: body.notes ?? null,
+    user_notes: body.user_notes ?? null,
   });
   return NextResponse.json({ session }, { status: 201 });
 }

@@ -130,6 +130,7 @@ function createSchema(d: AppDb) {
       duration_min REAL,
       distance_km REAL,
       notes TEXT,
+      user_notes TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -243,6 +244,9 @@ function migrateSchema(d: AppDb) {
   }
   if (!columnExists(d, "sessions", "is_extra")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN is_extra INTEGER NOT NULL DEFAULT 0;`);
+  }
+  if (!columnExists(d, "sessions", "user_notes")) {
+    d.exec(`ALTER TABLE sessions ADD COLUMN user_notes TEXT;`);
   }
 
   // Puntuación de sueño (0-100) y desglose por fases en minutos, que llegan al

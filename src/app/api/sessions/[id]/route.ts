@@ -109,6 +109,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     duration_min: body.duration_min !== undefined ? (body.duration_min === "" || body.duration_min === null ? null : Number(body.duration_min)) : undefined,
     distance_km: body.distance_km !== undefined ? (body.distance_km === "" || body.distance_km === null ? null : Number(body.distance_km)) : undefined,
     notes: body.notes,
+    user_notes: body.user_notes !== undefined ? body.user_notes : undefined,
     fitImport: !!body.fitImport,
     fit_data: body.fit_data !== undefined ? body.fit_data : undefined,
   });
