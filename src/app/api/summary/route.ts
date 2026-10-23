@@ -16,13 +16,15 @@ function isWalkingSession(s: {
   distance_km: number | null;
   duration_min: number | null;
 }): boolean {
-  if (!s.distance_km || !s.duration_min || s.distance_km <= 0) return false;
+  if (s.discipline === "carrera") {
+    const pace = s.duration_min && s.distance_km && s.distance_km > 0 ? s.duration_min / s.distance_km : 0;
+    const title = (s.planned_code ?? "").toLowerCase();
+    if (pace >= 9.5 && /\b(caminata|paseo|senderismo|walk)\b/i.test(title)) return true;
+    return false;
+  }
+  if (s.discipline === "caminata") return true;
   const text = `${s.planned_code ?? ""} ${s.notes ?? ""}`.toLowerCase();
-  const hasWalkKeyword = /camin|and|walk|senderis|paseo/i.test(text);
-  const pace = s.duration_min / s.distance_km;
-  if (hasWalkKeyword) return true;
-  if (s.discipline !== "carrera" && pace >= 8.5) return true;
-  if (s.discipline === "carrera" && pace >= 10.0) return true;
+  if (/\b(caminata|senderismo|paseo)\b/i.test(text)) return true;
   return false;
 }
 
