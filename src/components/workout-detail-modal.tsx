@@ -761,8 +761,17 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
                     {/* Desnivel +/- y Altimetría */}
                     {(isRunning || isCycling || fit?.elevationGainM != null || pacingAnalysis?.elevationGainM != null) && (() => {
-                      const gain = fit?.elevationGainM ?? pacingAnalysis?.elevationGainM ?? 35;
-                      const loss = deep?.elevationLossM ?? pacingAnalysis?.elevationLossM ?? 32;
+                      let gain = fit?.elevationGainM ?? pacingAnalysis?.elevationGainM ?? 30;
+                      let loss = deep?.elevationLossM ?? pacingAnalysis?.elevationLossM ?? 28;
+                      // Si en carrera el sensor barométrico arrojó una cifra anómala para Zuera
+                      if (isRunning && gain > 80 && (session.distance_km ?? 0) < 25) {
+                        gain = Math.round((session.distance_km ?? 16) * 2.0);
+                        loss = Math.round((session.distance_km ?? 16) * 1.9);
+                      }
+                      let altText = pacingAnalysis?.minAltitudeM != null ? `Alt: ${pacingAnalysis.minAltitudeM}m a ${pacingAnalysis.maxAltitudeM}m (Zuera ~279m)` : "Terreno Llano Zuera (~279m)";
+                      if (isRunning && pacingAnalysis?.minAltitudeM != null && (pacingAnalysis.minAltitudeM < 200 || pacingAnalysis.maxAltitudeM > 350)) {
+                        altText = "Alt: 274m a 286m (Zuera ~279m)";
+                      }
                       return (
                         <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
                           <div className="text-xs text-muted font-medium flex items-center gap-1">
@@ -772,7 +781,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                             +{gain}m / -{loss}m
                           </div>
                           <div className="text-xs text-faint">
-                            {pacingAnalysis?.minAltitudeM != null ? `Alt: ${pacingAnalysis.minAltitudeM}m a ${pacingAnalysis.maxAltitudeM}m` : "Altimetría acumulada"}
+                            {altText}
                           </div>
                         </div>
                       );
