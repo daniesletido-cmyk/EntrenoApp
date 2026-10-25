@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Gauge,
+  Brain,
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
@@ -1731,6 +1732,32 @@ export default function RegistroPage() {
                         {cleanNotes}
                       </div>
                     )}
+
+                    {/* Callout de Psicología Deportiva en Registro */}
+                    {(() => {
+                      const psychoMatch = (cleanNotes || "").match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
+                      if (!psychoMatch) return null;
+                      return (
+                        <div
+                          className="w-full text-xs sm:text-sm flex items-start gap-2.5 p-3 rounded-xl border"
+                          style={{
+                            marginBottom: "var(--space-3)",
+                            backgroundColor: "rgba(139, 92, 246, 0.08)",
+                            borderColor: "rgba(139, 92, 246, 0.3)",
+                            borderLeft: "4px solid #a855f7",
+                            color: "var(--color-text)",
+                          }}
+                        >
+                          <Brain size={17} className="text-purple-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-400 mb-0.5">
+                              Psicología Deportiva & Foco Mental
+                            </div>
+                            <div className="leading-relaxed font-sans">{psychoMatch[1]}</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Formulario de registro con mayor visibilidad */}
                     <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>

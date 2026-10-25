@@ -34,6 +34,8 @@ import {
   Info,
   ListOrdered,
   Check,
+
+  Brain,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -898,6 +900,40 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                       </div>
                     </div>
                   )}
+
+                  {/* Callout de Psicología Deportiva en Detalle */}
+                  {(() => {
+                    const psychoMatch = (session.notes || "").match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
+                    if (!psychoMatch) return null;
+                    return (
+                      <div
+                        className="surface-raised"
+                        style={{
+                          padding: "var(--space-4)",
+                          marginBottom: "var(--space-3)",
+                          borderLeft: "4px solid #a855f7",
+                          backgroundColor: "rgba(139, 92, 246, 0.08)",
+                          borderTop: "1px solid rgba(139, 92, 246, 0.2)",
+                          borderRight: "1px solid rgba(139, 92, 246, 0.2)",
+                          borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                        }}
+                      >
+                        <div className="text-xs font-semibold uppercase text-purple-400 flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
+                          <Brain size={15} className="text-purple-400" />
+                          <span>Psicología Deportiva & Foco Mental</span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "var(--text-sm)",
+                            lineHeight: 1.6,
+                            color: "var(--color-text)",
+                          }}
+                        >
+                          {psychoMatch[1]}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
                     <div className="text-xs font-semibold uppercase text-muted flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>

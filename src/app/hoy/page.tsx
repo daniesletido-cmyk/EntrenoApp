@@ -30,6 +30,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Calendar,
+  Brain,
 } from "lucide-react";
 import Link from "next/link";
 import { todayISO, isoDayOfWeek, weekStartOf, weekDates } from "@/lib/dates";
@@ -1030,6 +1031,31 @@ export default function HoyPage() {
                           ? modInfo.adjustedWorkout.structure
                           : cleanNotes || "Estructura estándar de la sesión."}
                       </div>
+
+                      {/* Callout destacado de Psicología Deportiva */}
+                      {(() => {
+                        const noteText = modInfo?.adjustedWorkout?.structure || cleanNotes || "";
+                        const psychoMatch = noteText.match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
+                        if (!psychoMatch) return null;
+                        return (
+                          <div
+                            className="mt-2.5 p-3 rounded-xl border flex items-start gap-2.5 text-xs"
+                            style={{
+                              backgroundColor: "rgba(139, 92, 246, 0.1)",
+                              borderColor: "rgba(139, 92, 246, 0.35)",
+                              color: "var(--color-text)",
+                            }}
+                          >
+                            <Brain size={18} className="text-purple-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-400 mb-0.5 flex items-center gap-1.5">
+                                <span>Psicología Deportiva & Foco Mental</span>
+                              </div>
+                              <div className="leading-relaxed font-sans text-purple-100/90">{psychoMatch[1]}</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Si está adaptada, damos un desplegable para ver la que estaba programada originalmente */}
                       {modInfo && modInfo.isModified && (
