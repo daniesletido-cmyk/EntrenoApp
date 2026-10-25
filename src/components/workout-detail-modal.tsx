@@ -905,6 +905,11 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                   {(() => {
                     const psychoMatch = (session.notes || "").match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
                     if (!psychoMatch) return null;
+                    const rawTip = psychoMatch[1].trim();
+                    const colonIdx = rawTip.indexOf(":");
+                    const tipTitle = colonIdx > -1 ? rawTip.slice(0, colonIdx).trim() : null;
+                    const tipBody = colonIdx > -1 ? rawTip.slice(colonIdx + 1).trim() : rawTip;
+
                     return (
                       <div
                         className="surface-raised"
@@ -912,24 +917,45 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           padding: "var(--space-4)",
                           marginBottom: "var(--space-3)",
                           borderLeft: "4px solid #a855f7",
-                          backgroundColor: "rgba(139, 92, 246, 0.08)",
-                          borderTop: "1px solid rgba(139, 92, 246, 0.2)",
-                          borderRight: "1px solid rgba(139, 92, 246, 0.2)",
-                          borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                          backgroundColor: "rgba(147, 51, 234, 0.08)",
+                          borderTop: "1px solid rgba(168, 85, 247, 0.3)",
+                          borderRight: "1px solid rgba(168, 85, 247, 0.3)",
+                          borderBottom: "1px solid rgba(168, 85, 247, 0.3)",
+                          borderRadius: "var(--radius-md)",
                         }}
                       >
-                        <div className="text-xs font-semibold uppercase text-purple-400 flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
-                          <Brain size={15} className="text-purple-400" />
-                          <span>Psicología Deportiva & Foco Mental</span>
+                        <div className="flex items-center gap-2" style={{ marginBottom: "var(--space-2)" }}>
+                          <div
+                            className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: "rgba(168, 85, 247, 0.2)" }}
+                          >
+                            <Brain size={16} className="text-purple-400" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-purple-400">
+                            Psicología Deportiva & Foco Mental
+                          </span>
                         </div>
+                        {tipTitle && (
+                          <div
+                            className="font-bold text-foreground"
+                            style={{
+                              fontSize: "var(--text-base)",
+                              marginBottom: "var(--space-1)",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {tipTitle}
+                          </div>
+                        )}
                         <div
                           style={{
                             fontSize: "var(--text-sm)",
-                            lineHeight: 1.6,
+                            lineHeight: 1.65,
                             color: "var(--color-text)",
+                            opacity: 0.92,
                           }}
                         >
-                          {psychoMatch[1]}
+                          {tipBody}
                         </div>
                       </div>
                     );
@@ -953,7 +979,11 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           border: "1px solid var(--color-border)",
                         }}
                       >
-                        {session.notes}
+                        {session.notes
+                          .split("\n")
+                          .filter((l: string) => !l.includes("- Enfoque Psicológico & Tip Mental:"))
+                          .join("\n")
+                          .trim()}
                       </div>
                     ) : (
                       <div className="text-sm text-faint italic">No hay notas registradas para esta sesión.</div>

@@ -792,7 +792,7 @@ export default function HoyPage() {
                 const cleanNotes = s.notes
                   ? s.notes
                       .split("\n")
-                      .filter((line) => !line.includes("[Ajuste inteligente]"))
+                      .filter((line) => !line.includes("[Ajuste inteligente]") && !line.includes("- Enfoque Psicológico & Tip Mental:"))
                       .join("\n")
                       .trim()
                   : "";
@@ -1034,24 +1034,43 @@ export default function HoyPage() {
 
                       {/* Callout destacado de Psicología Deportiva */}
                       {(() => {
-                        const noteText = modInfo?.adjustedWorkout?.structure || cleanNotes || "";
+                        const noteText = s.notes || modInfo?.adjustedWorkout?.structure || "";
                         const psychoMatch = noteText.match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
                         if (!psychoMatch) return null;
+                        const rawTip = psychoMatch[1].trim();
+                        const colonIdx = rawTip.indexOf(":");
+                        const tipTitle = colonIdx > -1 ? rawTip.slice(0, colonIdx).trim() : null;
+                        const tipBody = colonIdx > -1 ? rawTip.slice(colonIdx + 1).trim() : rawTip;
+
                         return (
                           <div
-                            className="mt-2.5 p-3 rounded-xl border flex items-start gap-2.5 text-xs"
+                            className="mt-3 p-3.5 rounded-xl border flex items-start gap-3 shadow-xs"
                             style={{
-                              backgroundColor: "rgba(139, 92, 246, 0.1)",
-                              borderColor: "rgba(139, 92, 246, 0.35)",
-                              color: "var(--color-text)",
+                              backgroundColor: "rgba(147, 51, 234, 0.08)",
+                              borderColor: "rgba(168, 85, 247, 0.35)",
+                              borderLeft: "4px solid #a855f7",
                             }}
                           >
-                            <Brain size={18} className="text-purple-400 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-400 mb-0.5 flex items-center gap-1.5">
-                                <span>Psicología Deportiva & Foco Mental</span>
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                              style={{ backgroundColor: "rgba(168, 85, 247, 0.2)" }}
+                            >
+                              <Brain size={18} className="text-purple-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-purple-400">
+                                  Psicología Deportiva & Foco Mental
+                                </span>
                               </div>
-                              <div className="leading-relaxed font-sans text-purple-100/90">{psychoMatch[1]}</div>
+                              {tipTitle && (
+                                <div className="text-sm font-bold text-foreground mb-1 leading-snug">
+                                  {tipTitle}
+                                </div>
+                              )}
+                              <div className="text-xs sm:text-sm leading-relaxed text-muted-foreground font-sans">
+                                {tipBody}
+                              </div>
                             </div>
                           </div>
                         );
