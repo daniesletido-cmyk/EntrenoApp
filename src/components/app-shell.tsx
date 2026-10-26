@@ -22,6 +22,7 @@ import {
   RefreshCw,
   PanelLeftClose,
   PanelLeftOpen,
+  Trophy,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
@@ -38,7 +39,8 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
     links: [
       { href: "/hoy", label: "Hoy", icon: Sun },
       { href: "/plan-semanal", label: "Planificación", icon: CalendarRange, aliases: ["/calendario"] },
-      { href: "/gimnasio", label: "Gimnasio & Box", icon: Dumbbell },
+      { href: "/marcas", label: "Pesos & Marcas", icon: Trophy, aliases: ["/gimnasio"] },
+      { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
       { href: "/registro", label: "Registrar entreno", icon: ClipboardList },
     ],
   },
@@ -53,7 +55,6 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
   {
     title: "Más",
     links: [
-      { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
       { href: "/configuracion", label: "Configuración", icon: Settings },
     ],
   },
@@ -62,9 +63,9 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
 const BOTTOM_NAV: NavItemDef[] = [
   { href: "/hoy", label: "Hoy", icon: Sun },
   { href: "/plan-semanal", label: "Plan", icon: CalendarRange, aliases: ["/calendario"] },
-  { href: "/gimnasio", label: "Gimnasio", icon: Dumbbell },
+  { href: "/marcas", label: "Pesos", icon: Trophy, aliases: ["/gimnasio"] },
+  { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
   { href: "/progreso", label: "Progreso", icon: TrendingUp, aliases: ["/objetivos"] },
-  { href: "/entrenador", label: "Entrenador", icon: Bot, aliases: ["/recomendaciones"] },
 ];
 
 const LINKS = NAV_GROUPS.flatMap((g) => g.links);
@@ -82,6 +83,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ? { label: "Calendario" }
       : pathname === "/objetivos"
       ? { label: "Objetivos" }
+      : pathname === "/marcas" || pathname === "/gimnasio"
+      ? { label: "Pesos & Marcas" }
       : pathname === "/detalle"
       ? { label: "Detalle Entreno" }
       : pathname === "/recomendaciones"

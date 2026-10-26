@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { ensureAnnualPlanPopulated } from "@/lib/annual-plan-seed";
+import { DEFAULT_EXERCISES } from "@/lib/prs-catalog";
 
 // Mismo patrón que FinanzasApp: node:sqlite (nativo de Node, sin compilar nada),
 // sin better-sqlite3 ni Prisma. Cada fila se convierte a objeto plano porque
@@ -219,6 +220,28 @@ function createSchema(d: AppDb) {
       updated_at TEXT NOT NULL,
       UNIQUE(exercise_id, date)
     );
+
+    CREATE TABLE IF NOT EXISTS exercise_catalog (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      category TEXT NOT NULL,
+      unit TEXT NOT NULL DEFAULT 'kg',
+      is_custom INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS exercise_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exercise_name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      weight_kg REAL NOT NULL,
+      reps INTEGER DEFAULT 1,
+      date TEXT NOT NULL,
+      rpe REAL,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
 }
 
@@ -384,8 +407,95 @@ function migrateSchema(d: AppDb) {
     `);
 
     ensureAnnualPlanPopulated(d);
+    ensurePrsCatalogAndRecords(d);
   } catch (e) {
     console.error("Error auto-sincronizando sesiones históricas y anuales:", e);
+  }
+}
+
+function ensurePrsCatalogAndRecords(d: AppDb) {
+  try {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS exercise_catalog (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        category TEXT NOT NULL,
+        unit TEXT NOT NULL DEFAULT 'kg',
+        is_custom INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS exercise_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        exercise_name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        weight_kg REAL NOT NULL,
+        reps INTEGER DEFAULT 1,
+        date TEXT NOT NULL,
+        rpe REAL,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // Comprobar catálogo predefinido
+    const countRow = d.prepare<{ c: number }>("SELECT COUNT(*) as c FROM exercise_catalog").get();
+    if (!countRow || countRow.c === 0) {
+      const now = new Date().toISOString();
+      const insert = d.prepare("INSERT OR IGNORE INTO exercise_catalog (name, category, unit, is_custom, created_at) VALUES (?, ?, ?, 0, ?)");
+      for (const item of DEFAULT_EXERCISES) {
+        insert.run(item.name, item.category, item.unit, now);
+      }
+    }
+
+    // Comprobar si hay registros antiguos en gym_logs para migrarlos a exercise_records
+    const recordsCount = d.prepare<{ c: number }>("SELECT COUNT(*) as c FROM exercise_records").get();
+    if (!recordsCount || recordsCount.c === 0) {
+      try {
+        const oldLogs = d.prepare<{ name: string; weight_kg: number; reps: number | null; date: string; notes: string | null }>(`
+          SELECT ge.name, gl.weight_kg, gl.reps, gl.date, gl.notes
+          FROM gym_logs gl
+          JOIN gym_exercises ge ON ge.id = gl.exercise_id
+          WHERE gl.weight_kg IS NOT NULL AND gl.weight_kg > 0
+          ORDER BY gl.date ASC
+        `).all();
+
+        const insertRecord = d.prepare(`
+          INSERT INTO exercise_records (exercise_name, category, weight_kg, reps, date, notes, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const now = new Date().toISOString();
+
+        for (const log of oldLogs) {
+          let cleanName = log.name.replace(/\s*\([^)]*\)/g, "").trim();
+          let category = "Fuerza & Powerlifting";
+          if (cleanName.toLowerCase().includes("sentadilla")) cleanName = "Sentadilla Trasera (Back Squat)";
+          else if (cleanName.toLowerCase().includes("press banca")) cleanName = "Press de Banca (Bench Press)";
+          else if (cleanName.toLowerCase().includes("press militar")) cleanName = "Press Militar Estricto (Strict Press)";
+          else if (cleanName.toLowerCase().includes("jalón")) { cleanName = "Jalón al Pecho en Polea (Lat Pulldown)"; category = "Accesorios"; }
+          else if (cleanName.toLowerCase().includes("remo")) { cleanName = "Remo en Polea Baja / Máquina"; category = "Accesorios"; }
+          else if (cleanName.toLowerCase().includes("tríceps")) { cleanName = "Tríceps en Polea (Pushdown)"; category = "Accesorios"; }
+          else if (cleanName.toLowerCase().includes("bíceps")) { cleanName = "Curl de Bíceps con Mancuernas"; category = "Mancuernas"; }
+          else if (cleanName.toLowerCase().includes("peso muerto")) cleanName = "Peso Muerto Rumano (RDL)";
+
+          insertRecord.run(
+            cleanName,
+            category,
+            log.weight_kg,
+            log.reps || 1,
+            log.date,
+            log.notes || null,
+            now,
+            now
+          );
+        }
+      } catch (e) {
+        console.error("Error migrando gym_logs a exercise_records:", e);
+      }
+    }
+  } catch (err) {
+    console.error("Error en ensurePrsCatalogAndRecords:", err);
   }
 }
 
