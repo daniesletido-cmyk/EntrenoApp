@@ -135,7 +135,7 @@ export default function RecomendacionesPage() {
       />
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
-      {loading && <Loading label="Calculando recomendación…" />}
+      {loading && <Loading />}
 
       {!loading && rec && (
         <div className="animate-in grid gap-4">

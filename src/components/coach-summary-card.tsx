@@ -38,50 +38,28 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
 
   return (
     <div
-      className="surface animate-in w-full overflow-hidden"
-      style={{
-        padding: "var(--space-3) var(--space-4)",
-        marginBottom: "var(--space-4)",
-      }}
+      className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 sm:p-5 mb-4 animate-in w-full overflow-hidden"
     >
       {/* 1. Header con Badge de Entrenador Personal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5" style={{ marginBottom: "var(--space-3)" }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "var(--radius-sm)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "var(--color-brand-subtle)",
-              color: "var(--color-brand)",
-              flexShrink: 0,
-            }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-500/15 text-emerald-400 shrink-0 border border-emerald-500/30"
           >
             <Sparkles size={17} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span
-                style={{
-                  fontSize: "0.65rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "var(--color-brand)",
-                }}
-              >
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
                 Informe del Entrenador
               </span>
               {assessment.isCurrentWeek && (
-                <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "1px 5px" }}>
+                <span className="badge badge-brand text-[10px] px-1.5 py-0.5">
                   En curso
                 </span>
               )}
             </div>
-            <h2 className="truncate" style={{ fontSize: "var(--text-base)", fontWeight: 700, marginTop: 1, letterSpacing: "-0.015em" }}>
+            <h2 className="truncate text-base font-bold text-white mt-0.5 tracking-tight">
               {coachVerdict.title}
             </h2>
           </div>
@@ -89,180 +67,156 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
 
         {/* Readiness Pill */}
         <div
-          className="flex items-center gap-1.5 self-start sm:self-auto"
-          style={{
-            background: "var(--color-surface-raised)",
-            padding: "0.25rem 0.65rem",
-            borderRadius: "var(--radius-full)",
-            border: "1px solid var(--color-border)",
-          }}
+          className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-950/50 px-2.5 py-1 rounded-full border border-white/10"
         >
-          <Zap size={13} style={{ color: readinessToday.tone === "success" ? "var(--color-success)" : "var(--color-brand)" }} />
-          <span className="text-xs text-muted">Readiness:</span>
-          <span
-            className="font-bold text-xs tabular-nums"
-            style={{
-              color:
-                readinessToday.tone === "success"
-                  ? "var(--color-success)"
-                  : readinessToday.tone === "warning"
-                  ? "var(--color-warning)"
-                  : "var(--color-brand)",
-            }}
-          >
+          <Zap size={13} className="text-emerald-400" />
+          <span className="text-xs text-slate-400">Readiness:</span>
+          <span className="font-bold text-xs font-mono tabular-nums text-emerald-400">
             {readinessToday.score}/100
           </span>
         </div>
       </div>
 
       {/* 2. Narrativa del Entrenador */}
-      <p className="text-xs sm:text-sm text-muted" style={{ lineHeight: 1.55, marginBottom: "var(--space-3)" }}>
+      <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-3">
         {coachVerdict.narrative}
       </p>
 
       {/* 3. Métricas clave en una cuadrícula limpia y minimalista */}
-      <div
-        className="grid grid-cols-1 sm:grid-cols-3 gap-2.5"
-        style={{
-          marginBottom: "var(--space-3)",
-        }}
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
         {/* Métrica 1: Pico de Carga */}
-        <div
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-surface-raised)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-1)" }}>
-            <span className="text-xs font-semibold text-muted flex items-center gap-1.5">
-              <Flame size={14} style={{ color: "var(--color-accent)" }} />
+        <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/10 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Flame size={14} className="text-amber-400" />
               Pico de Carga
             </span>
             {peakSession && (
-              <span className="badge text-xs" style={{ background: "rgba(249, 115, 22, 0.12)", color: "var(--color-accent)" }}>
+              <span className="badge text-xs font-mono tabular-nums bg-amber-500/15 text-amber-400 border border-amber-500/30">
                 {peakSession.load} pts
               </span>
             )}
           </div>
           {peakSession ? (
             <div>
-              <div className="font-semibold text-sm">
+              <div className="font-semibold text-sm text-white">
                 {peakSession.dayName} · {peakSession.discipline.toUpperCase()}{" "}
                 {peakSession.plannedCode ? `(${peakSession.plannedCode})` : ""}
               </div>
-              <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+              <div className="text-xs text-slate-400 mt-0.5 font-mono tabular-nums">
                 {peakSession.durationMin} min @ RPE {peakSession.rpe}/10
               </div>
             </div>
           ) : (
-            <div className="text-xs text-muted">Sin sesiones completadas aún</div>
+            <div className="text-xs text-slate-400">Sin sesiones completadas aún</div>
           )}
         </div>
 
         {/* Métrica 2: Carga Semanal y ACWR */}
-        <div
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-surface-raised)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-1)" }}>
-            <span className="text-xs font-semibold text-muted flex items-center gap-1.5">
-              <Activity size={14} style={{ color: "var(--color-brand)" }} />
+        <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/10 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Activity size={14} className="text-emerald-400" />
               Carga Semanal
             </span>
-            <span className="badge badge-brand text-xs">
+            <span className="badge badge-brand text-xs font-mono tabular-nums">
               {loadAnalysis.currentWeekLoad} pts
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-semibold text-sm">
-                {loadAnalysis.totalMinutes} min · {loadAnalysis.totalKm} km
-              </div>
-              <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                {sessionsProgress.completedCount} de {sessionsProgress.plannedCount} sesiones
-              </div>
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-sm text-white font-mono tabular-nums">
+                ACWR {loadAnalysis.acwr !== null ? loadAnalysis.acwr.toFixed(2) : "—"}
+              </span>
+              {loadAnalysis.acwr !== null && (
+                <button
+                  type="button"
+                  onClick={() => setShowAcwrModal(true)}
+                  className="badge text-[11px] font-semibold"
+                  style={{
+                    backgroundColor:
+                      loadAnalysis.acwrStatus === "optimo"
+                        ? "rgba(16, 185, 129, 0.15)"
+                        : loadAnalysis.acwrStatus === "sobrecarga_alta"
+                        ? "rgba(239, 68, 68, 0.15)"
+                        : "rgba(245, 158, 11, 0.15)",
+                    color:
+                      loadAnalysis.acwrStatus === "optimo"
+                        ? "#10b981"
+                        : loadAnalysis.acwrStatus === "sobrecarga_alta"
+                        ? "#ef4444"
+                        : "#f59e0b",
+                    border: `1px solid ${
+                      loadAnalysis.acwrStatus === "optimo"
+                        ? "rgba(16, 185, 129, 0.3)"
+                        : loadAnalysis.acwrStatus === "sobrecarga_alta"
+                        ? "rgba(239, 68, 68, 0.3)"
+                        : "rgba(245, 158, 11, 0.3)"
+                    }`,
+                    cursor: "pointer",
+                  }}
+                  title="Ver explicación del ACWR"
+                >
+                  {loadAnalysis.acwrBadge}
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setShowAcwrModal(true)}
-                className="badge badge-neutral text-xs"
-                style={{ cursor: "pointer" }}
-                title="Ver diagnóstico ACWR"
-              >
-                <span>ACWR: {loadAnalysis.acwr !== null ? loadAnalysis.acwr.toFixed(2) : "—"}</span>
-                <Info size={11} style={{ marginLeft: 3 }} />
-              </button>
+            <div className="text-xs text-slate-400 mt-0.5">
+              Zona óptima: 0.8 a 1.3
             </div>
           </div>
         </div>
 
-        {/* Métrica 3: Descanso y Sueño */}
-        <div
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-surface-raised)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-1)" }}>
-            <span className="text-xs font-semibold text-muted flex items-center gap-1.5">
-              <BedDouble size={14} style={{ color: "var(--color-info)" }} />
-              Descanso Anoche
+        {/* Métrica 3: Cumplimiento de Sesiones */}
+        <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/10 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap size={14} className="text-emerald-400" />
+              Cumplimiento
             </span>
-            <span className="badge badge-info text-xs">
-              {readinessToday.sleepLastNightText.replace(" de sueño", "").replace(" de sueño anoche", "").replace(" dormidas anoche", "") || "7.8h"}
+            <span
+              className="badge text-xs font-mono tabular-nums"
+              style={{
+                backgroundColor:
+                  (sessionsProgress.compliancePct ?? 0) >= 80
+                    ? "rgba(16, 185, 129, 0.15)"
+                    : "rgba(245, 158, 11, 0.15)",
+                color:
+                  (sessionsProgress.compliancePct ?? 0) >= 80 ? "#10b981" : "#f59e0b",
+                border: `1px solid ${(sessionsProgress.compliancePct ?? 0) >= 80 ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+              }}
+            >
+              {sessionsProgress.compliancePct !== null ? `${sessionsProgress.compliancePct}%` : "—"}
             </span>
           </div>
           <div>
-            <div className="font-semibold text-sm">
-              {readinessToday.headline}
+            <div className="font-bold text-sm text-white font-mono tabular-nums">
+              {sessionsProgress.completedCount} de {sessionsProgress.plannedCount} sesiones
             </div>
-            <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-              Puntuación de preparación {readinessToday.score} / 100
+            <div className="text-xs text-slate-400 mt-0.5">
+              {sessionsProgress.pendingCount > 0
+                ? `${sessionsProgress.pendingCount} pendiente${sessionsProgress.pendingCount > 1 ? "s" : ""}`
+                : "Semana al día"}
             </div>
           </div>
         </div>
       </div>
 
       {/* 4. Pautas Clave y Estrategia */}
-      <div
-        style={{
-          padding: "var(--space-3) var(--space-4)",
-          borderRadius: "var(--radius-md)",
-          background: "var(--color-surface-raised)",
-          border: "1px solid var(--color-border)",
-          marginBottom: "var(--space-4)",
-        }}
-      >
-        <div className="font-semibold text-xs uppercase" style={{ color: "var(--color-brand)", letterSpacing: "0.04em", marginBottom: 6 }}>
+      <div className="p-4 rounded-xl bg-slate-950/40 border border-white/10 mb-4">
+        <div className="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2">
           Pautas clave para tu semana:
         </div>
-        <ul className="text-sm grid gap-1.5" style={{ paddingLeft: "1.2rem", margin: 0, color: "var(--color-text)" }}>
+        <ul className="text-sm grid gap-1.5 pl-4 m-0 text-slate-200">
           {coachVerdict.actionablePoints.map((point, i) => (
-            <li key={i} style={{ lineHeight: 1.5 }}>
+            <li key={i} className="leading-relaxed">
               {point}
             </li>
           ))}
         </ul>
         {coachVerdict.weekendStrategy && (
-          <div
-            className="text-xs text-muted"
-            style={{
-              marginTop: "var(--space-2)",
-              paddingTop: "var(--space-2)",
-              borderTop: "1px solid var(--color-border)",
-            }}
-          >
-            <Flag size={12} className="inline mr-1 text-muted" /> <strong style={{ color: "var(--color-text)" }}>Fin de semana:</strong> {coachVerdict.weekendStrategy}
+          <div className="text-xs text-slate-400 mt-2.5 pt-2.5 border-t border-white/10">
+            <Flag size={12} className="inline mr-1 text-emerald-400" /> <strong className="text-white">Fin de semana:</strong> {coachVerdict.weekendStrategy}
           </div>
         )}
       </div>

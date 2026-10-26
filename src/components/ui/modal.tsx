@@ -30,16 +30,7 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 200,
-        padding: "var(--space-4)",
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/60 animate-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -47,26 +38,20 @@ export function Modal({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="surface animate-in"
-        style={{
-          width: "min(560px, 100%)",
-          maxHeight: "min(680px, 90vh)",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "var(--shadow-md)",
-        }}
+        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl text-slate-100 overflow-hidden outline-none animate-in"
       >
-        <div
-          className="flex items-center justify-between"
-          style={{ padding: "var(--space-4)", borderBottom: "1px solid var(--color-border)" }}
-        >
-          <div className="font-semibold">{title}</div>
-          <button className="btn btn-ghost btn-icon" aria-label="Cerrar" onClick={onClose}>
-            <X size={16} />
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10">
+          <div className="font-bold text-base tracking-tight text-white">{title}</div>
+          <button
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors duration-150"
+            aria-label="Cerrar"
+            onClick={onClose}
+          >
+            <X size={18} />
           </button>
         </div>
-        <div style={{ padding: "var(--space-4)", overflowY: "auto", flex: 1 }}>{children}</div>
-        {footer && <div style={{ padding: "var(--space-4)", borderTop: "1px solid var(--color-border)" }}>{footer}</div>}
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1">{children}</div>
+        {footer && <div className="p-4 sm:p-5 border-t border-white/10 bg-slate-950/40">{footer}</div>}
       </div>
     </div>
   );

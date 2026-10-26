@@ -87,14 +87,14 @@ interface GymPR {
 }
 
 const CHART_COLORS = {
-  primary: "#3b82f6",
+  primary: "#10b981",
   secondary: "#f97316",
-  success: "#22c55e",
+  success: "#10b981",
   purple: "#a855f7",
   cyan: "#06b6d4",
-  deepSleep: "#2563eb",
+  deepSleep: "#059669",
   remSleep: "#9333ea",
-  lightSleep: "#38bdf8",
+  lightSleep: "#34d399",
   awakeSleep: "#64748b",
   grid: "#1e293b",
   text: "#94a3b8",
@@ -102,11 +102,11 @@ const CHART_COLORS = {
 
 const TOOLTIP_STYLE = {
   backgroundColor: "#0f172a",
-  border: "1px solid #334155",
-  borderRadius: 8,
+  border: "1px solid rgba(255, 255, 255, 0.12)",
+  borderRadius: 14,
   fontSize: 12,
   color: "#f8fafc",
-  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)",
+  boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.6)",
 };
 
 function ChartCard({
@@ -299,8 +299,8 @@ export default function ProgresoPage() {
           marginBottom: "var(--space-4)",
         }}
       >
-        <div className="surface" style={{ padding: "var(--space-3)" }}>
-          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             <div className="flex items-center gap-1.5">
               <span>Sueño Reciente</span>
               <InfoTooltip
@@ -308,18 +308,18 @@ export default function ProgresoPage() {
                 content="Media de horas de descanso y puntuación Zepp (0-100) en las últimas 2 semanas. Dormir entre 7 y 9 horas optimiza la recuperación muscular y hormonal."
               />
             </div>
-            <BedDouble size={14} style={{ color: CHART_COLORS.primary }} />
+            <BedDouble size={15} style={{ color: CHART_COLORS.primary }} />
           </div>
-          <div className="text-xl font-bold">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-white">
             {avgSleepHours ? `${avgSleepHours}h` : "—"}
           </div>
-          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+          <div className="text-xs text-slate-400 mt-1">
             {avgSleepScore ? `Score medio: ${avgSleepScore}/100` : "Media últimos 14 días"}
           </div>
         </div>
 
-        <div className="surface" style={{ padding: "var(--space-3)" }}>
-          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             <div className="flex items-center gap-1.5">
               <span>Ratio ACWR</span>
               <InfoTooltip
@@ -327,30 +327,30 @@ export default function ProgresoPage() {
                 content="Compara la carga de los últimos 7 días con la media de los últimos 28 días. Rango óptimo y seguro: 0.8 a 1.3. Por encima de 1.5 existe riesgo de sobrecarga y lesión."
               />
             </div>
-            <Activity size={14} style={{ color: CHART_COLORS.secondary }} />
+            <Activity size={15} style={{ color: CHART_COLORS.secondary }} />
           </div>
-          <div className="text-xl font-bold flex items-center gap-2">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight flex items-center gap-2 text-white">
             {currentAcwr !== null ? currentAcwr : "—"}
             {currentAcwr !== null && (
               <button
                 type="button"
                 onClick={() => setAlertModal("acwr")}
-                className="badge text-xs flex items-center gap-1"
+                className="badge text-xs flex items-center gap-1 rounded-full px-2 py-0.5"
                 style={{
                   border: "none",
                   cursor: "pointer",
                   backgroundColor:
                     currentAcwr >= 0.8 && currentAcwr <= 1.3
-                      ? "rgba(34, 197, 94, 0.15)"
+                      ? "rgba(16, 185, 129, 0.15)"
                       : currentAcwr > 1.5
                       ? "rgba(239, 68, 68, 0.15)"
                       : "rgba(249, 115, 22, 0.15)",
                   color:
                     currentAcwr >= 0.8 && currentAcwr <= 1.3
-                      ? "var(--color-success)"
+                      ? "#10b981"
                       : currentAcwr > 1.5
-                      ? "var(--color-danger)"
-                      : "var(--color-warning)",
+                      ? "#ef4444"
+                      : "#f97316",
                 }}
                 title="Pulsa para ver por qué sale esta alerta"
               >
@@ -363,13 +363,13 @@ export default function ProgresoPage() {
               </button>
             )}
           </div>
-          <div className="flex items-center justify-between text-xs" style={{ marginTop: 2 }}>
-            <span className="text-muted">Zona óptima: 0.8 a 1.3</span>
+          <div className="flex items-center justify-between text-xs mt-1">
+            <span className="text-slate-400">Zona óptima: 0.8 a 1.3</span>
             {currentAcwr !== null && (
               <button
                 type="button"
                 onClick={() => setAlertModal("acwr")}
-                className="text-brand flex items-center gap-0.5"
+                className="text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5"
                 style={{
                   background: "none",
                   border: "none",
@@ -386,8 +386,8 @@ export default function ProgresoPage() {
           </div>
         </div>
 
-        <div className="surface" style={{ padding: "var(--space-3)" }}>
-          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             <div className="flex items-center gap-1.5">
               <span>Cumplimiento 4 sem.</span>
               <InfoTooltip
@@ -395,18 +395,18 @@ export default function ProgresoPage() {
                 content="Porcentaje de entrenamientos completados respecto a los programados en las últimas 4 semanas. Mantenerlo por encima del 80% asegura una adaptación continua."
               />
             </div>
-            <CheckCircle2 size={14} style={{ color: CHART_COLORS.success }} />
+            <CheckCircle2 size={15} className="text-emerald-400" />
           </div>
-          <div className="text-xl font-bold">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-white">
             {avgCompliance !== null ? `${avgCompliance}%` : "—"}
           </div>
-          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+          <div className="text-xs text-slate-400 mt-1">
             Meta recomendada: 80%+
           </div>
         </div>
 
-        <div className="surface" style={{ padding: "var(--space-3)" }}>
-          <div className="flex items-center justify-between text-xs text-muted" style={{ marginBottom: 4 }}>
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             <div className="flex items-center gap-1.5">
               <span>Volumen Última Sem.</span>
               <InfoTooltip
@@ -414,12 +414,12 @@ export default function ProgresoPage() {
                 content="Tiempo total invertido en entrenamientos y kilómetros sumados durante la última semana. Ayuda a planificar el aumento gradual de volumen sin sobrecargas."
               />
             </div>
-            <Flame size={14} style={{ color: CHART_COLORS.purple }} />
+            <Flame size={15} style={{ color: CHART_COLORS.purple }} />
           </div>
-          <div className="text-xl font-bold">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-white">
             {currentWeek?.durationTotalMin ? formatMin(currentWeek.durationTotalMin) : "—"}
           </div>
-          <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+          <div className="text-xs text-slate-400 mt-1 font-mono tabular-nums">
             {currentWeek?.distanceTotalKm ? `${currentWeek.distanceTotalKm} km recorridos` : "Tiempo en movimiento"}
           </div>
         </div>

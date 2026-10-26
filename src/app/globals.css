@@ -15,8 +15,8 @@
   --color-surface-raised: #181b23;
   --color-surface-hover: #1f232e;
   --color-surface-translucent: rgba(18, 20, 26, 0.88);
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.13);
+  --color-border: rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
 
   /* Tipografía y Textos */
   --color-text: #f3f4f6;
@@ -71,13 +71,14 @@
 
   /* Radios suaves */
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
   /* Transiciones */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 140ms;
+  --duration-fast: 150ms;
   --duration-base: 220ms;
 }
 
@@ -219,7 +220,7 @@ button {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
   transition: border-color var(--duration-fast) var(--ease),
               box-shadow var(--duration-fast) var(--ease),
               transform var(--duration-fast) var(--ease),
@@ -230,9 +231,9 @@ button {
   cursor: pointer;
 }
 .surface-interactive:hover {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 8px 30px -4px rgba(16, 185, 129, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1.5px);
 }
 .surface-interactive:active {
   transform: translateY(0);
@@ -241,7 +242,8 @@ button {
 .surface-raised {
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 10px -1px rgba(0, 0, 0, 0.25);
   transition: background-color var(--duration-base) var(--ease), border-color var(--duration-fast) var(--ease);
 }
 
@@ -251,6 +253,26 @@ button {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
+
+/* ============================================================
+   ATHLETIC DATA & EFFORT ZONES (sports-data-display rule)
+   Z1/Z2 verde (#10b981), Z3 amarillo (#eab308), Z4 naranja (#f97316), Z5 rojo (#ef4444)
+   ============================================================ */
+.zone-z1, .zone-z2 { color: #10b981; }
+.bg-zone-z1, .bg-zone-z2 { background-color: #10b981; }
+.border-zone-z1, .border-zone-z2 { border-color: #10b981; }
+
+.zone-z3 { color: #eab308; }
+.bg-zone-z3 { background-color: #eab308; }
+.border-zone-z3 { border-color: #eab308; }
+
+.zone-z4 { color: #f97316; }
+.bg-zone-z4 { background-color: #f97316; }
+.border-zone-z4 { border-color: #f97316; }
+
+.zone-z5 { color: #ef4444; }
+.bg-zone-z5 { background-color: #ef4444; }
+.border-zone-z5 { border-color: #ef4444; }
 
 /* ============================================================
    STITCH KINETIC APEX HUD UTILITIES (FUTURISTIC PERFORMANCE)

@@ -915,7 +915,7 @@ export default function GimnasioPage() {
         </div>
       )}
 
-      {loading && <Loading label="Cargando..." />}
+      {loading && <Loading />}
 
       {!loading && days.length === 0 && (
         <EmptyState
@@ -1223,7 +1223,7 @@ export default function GimnasioPage() {
                 Progreso — {days.find((d) => d.id === selectedDayId)?.name}
               </div>
               {dayHistoryLoading ? (
-                <Loading label="Cargando progreso..." />
+                <Loading rows={2} />
               ) : (
                 <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
                   {dayHistory.map((h) => (

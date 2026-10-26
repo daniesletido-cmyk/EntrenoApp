@@ -345,12 +345,13 @@ function DetalleContent() {
     : [];
 
   // Datos para gráfico de barras de Zonas de Frecuencia Cardíaca (Multi-deporte)
+  // Regla de zonas de esfuerzo: Z1/Z2 verde, Z3 amarillo, Z4 naranja, Z5 rojo
   const hrZoneChartData = hrZoneDist
     ? [
-        { name: "Z1 Recup", timeMin: Number((hrZoneDist.z1Sec / 60).toFixed(1)), pct: hrZoneDist.z1Pct, color: "#64748b", rawTime: hrZoneDist.z1Sec },
+        { name: "Z1 Recup", timeMin: Number((hrZoneDist.z1Sec / 60).toFixed(1)), pct: hrZoneDist.z1Pct, color: "#10b981", rawTime: hrZoneDist.z1Sec },
         { name: "Z2 Base", timeMin: Number((hrZoneDist.z2Sec / 60).toFixed(1)), pct: hrZoneDist.z2Pct, color: "#10b981", rawTime: hrZoneDist.z2Sec },
-        { name: "Z3 Tempo", timeMin: Number((hrZoneDist.z3Sec / 60).toFixed(1)), pct: hrZoneDist.z3Pct, color: "#f59e0b", rawTime: hrZoneDist.z3Sec },
-        { name: "Z4 Umbral", timeMin: Number((hrZoneDist.z4Sec / 60).toFixed(1)), pct: hrZoneDist.z4Pct, color: "#8b5cf6", rawTime: hrZoneDist.z4Sec },
+        { name: "Z3 Tempo", timeMin: Number((hrZoneDist.z3Sec / 60).toFixed(1)), pct: hrZoneDist.z3Pct, color: "#eab308", rawTime: hrZoneDist.z3Sec },
+        { name: "Z4 Umbral", timeMin: Number((hrZoneDist.z4Sec / 60).toFixed(1)), pct: hrZoneDist.z4Pct, color: "#f97316", rawTime: hrZoneDist.z4Sec },
         { name: "Z5 VO2max", timeMin: Number((hrZoneDist.z5Sec / 60).toFixed(1)), pct: hrZoneDist.z5Pct, color: "#ef4444", rawTime: hrZoneDist.z5Sec },
       ]
     : [];
@@ -553,8 +554,20 @@ function DetalleContent() {
           </button>
         </div>
       ) : loadingSession ? (
-        <div className="surface flex items-center justify-center" style={{ height: 260 }}>
-          <div className="text-sm text-muted animate-pulse">Cargando métricas completas del entrenamiento...</div>
+        <div className="surface w-full p-6 animate-pulse space-y-4" style={{ minHeight: 260 }}>
+          <div className="flex items-center justify-between">
+            <div className="h-6 w-48 rounded-xl bg-white/10" />
+            <div className="h-5 w-24 rounded-lg bg-white/5" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 rounded-xl bg-white/5 border border-white/5 p-3 flex flex-col justify-between">
+                <div className="h-3 w-16 rounded bg-white/10" />
+                <div className="h-7 w-20 rounded bg-white/10" />
+              </div>
+            ))}
+          </div>
+          <div className="h-28 w-full rounded-xl bg-white/5 border border-white/5" />
         </div>
       ) : !session ? (
         <div className="surface text-sm text-muted text-center" style={{ padding: "var(--space-6)" }}>
@@ -2109,16 +2122,16 @@ function DetalleContent() {
                       }}
                     >
                       {hrZoneDist.z1Pct > 0 && (
-                        <div title={`Z1 Recuperación: ${hrZoneDist.z1Pct}% (${formatSecondsDetailed(hrZoneDist.z1Sec)})`} style={{ width: `${hrZoneDist.z1Pct}%`, backgroundColor: "#64748b" }} />
+                        <div title={`Z1 Recuperación: ${hrZoneDist.z1Pct}% (${formatSecondsDetailed(hrZoneDist.z1Sec)})`} style={{ width: `${hrZoneDist.z1Pct}%`, backgroundColor: "#10b981" }} />
                       )}
                       {hrZoneDist.z2Pct > 0 && (
                         <div title={`Z2 Base Aeróbica: ${hrZoneDist.z2Pct}% (${formatSecondsDetailed(hrZoneDist.z2Sec)})`} style={{ width: `${hrZoneDist.z2Pct}%`, backgroundColor: "#10b981" }} />
                       )}
                       {hrZoneDist.z3Pct > 0 && (
-                        <div title={`Z3 Tempo: ${hrZoneDist.z3Pct}% (${formatSecondsDetailed(hrZoneDist.z3Sec)})`} style={{ width: `${hrZoneDist.z3Pct}%`, backgroundColor: "#f59e0b" }} />
+                        <div title={`Z3 Tempo: ${hrZoneDist.z3Pct}% (${formatSecondsDetailed(hrZoneDist.z3Sec)})`} style={{ width: `${hrZoneDist.z3Pct}%`, backgroundColor: "#eab308" }} />
                       )}
                       {hrZoneDist.z4Pct > 0 && (
-                        <div title={`Z4 Umbral: ${hrZoneDist.z4Pct}% (${formatSecondsDetailed(hrZoneDist.z4Sec)})`} style={{ width: `${hrZoneDist.z4Pct}%`, backgroundColor: "#8b5cf6" }} />
+                        <div title={`Z4 Umbral: ${hrZoneDist.z4Pct}% (${formatSecondsDetailed(hrZoneDist.z4Sec)})`} style={{ width: `${hrZoneDist.z4Pct}%`, backgroundColor: "#f97316" }} />
                       )}
                       {hrZoneDist.z5Pct > 0 && (
                         <div title={`Z5 VO2max: ${hrZoneDist.z5Pct}% (${formatSecondsDetailed(hrZoneDist.z5Sec)})`} style={{ width: `${hrZoneDist.z5Pct}%`, backgroundColor: "#ef4444" }} />
@@ -2634,7 +2647,14 @@ function DetalleContent() {
 
 export default function DetallePage() {
   return (
-    <Suspense fallback={<div className="text-sm text-muted p-4">Cargando...</div>}>
+    <Suspense
+      fallback={
+        <div className="w-full p-4 space-y-4 animate-pulse">
+          <div className="h-10 w-48 rounded-xl bg-white/10" />
+          <div className="h-64 w-full rounded-2xl bg-white/5 border border-white/10" />
+        </div>
+      }
+    >
       <DetalleContent />
     </Suspense>
   );

@@ -23,9 +23,9 @@ export function useToast() {
 }
 
 const ICONS: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle2 size={18} style={{ color: "var(--color-success)" }} />,
-  error: <XCircle size={18} style={{ color: "var(--color-danger)" }} />,
-  info: <Info size={18} style={{ color: "var(--color-info)" }} />,
+  success: <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />,
+  error: <XCircle size={18} className="text-rose-400 shrink-0" />,
+  info: <Info size={18} className="text-sky-400 shrink-0" />,
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -37,7 +37,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, type, message }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3200);
+    }, 3400);
   }, []);
 
   const dismiss = (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -47,41 +47,28 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div
         aria-live="polite"
+        className="fixed z-50 flex flex-col gap-2 max-w-[min(380px,calc(100vw-2rem))] pointer-events-none"
         style={{
-          position: "fixed",
-          bottom: "var(--space-4)",
-          right: "var(--space-4)",
-          zIndex: 100,
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--space-2)",
-          maxWidth: "min(360px, calc(100vw - 2rem))",
+          bottom: "calc(74px + env(safe-area-inset-bottom, 12px))",
+          right: "1rem",
         }}
       >
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="surface-raised animate-in"
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "var(--space-2)",
-              padding: "var(--space-3)",
-              boxShadow: "var(--shadow-md)",
-            }}
+            className="pointer-events-auto backdrop-blur-md bg-slate-900/90 border border-white/10 rounded-2xl p-3.5 shadow-2xl flex items-start gap-3 animate-in transition-all duration-150"
             role="status"
           >
             {ICONS[t.type]}
-            <span className="text-sm" style={{ flex: 1 }}>
+            <span className="text-sm font-medium text-slate-100 leading-snug flex-1">
               {t.message}
             </span>
             <button
               onClick={() => dismiss(t.id)}
               aria-label="Cerrar notificación"
-              className="btn-ghost btn-icon"
-              style={{ minHeight: "auto", padding: 2 }}
+              className="text-slate-400 hover:text-white transition-colors duration-150 p-0.5 rounded-lg shrink-0"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         ))}
