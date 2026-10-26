@@ -137,20 +137,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", position: "relative" }}>
-      {/* Sidebar — Escritorio */}
+      {/* Sidebar — Escritorio: FIJO de arriba a abajo (top: 0, bottom: 0) para que NUNCA se corte al hacer scroll */}
       <aside
-        className="hidden md:flex border-r border-white/10 bg-slate-950/95"
+        className={`hidden md:flex border-r border-white/10 bg-[#0a0d16] fixed inset-y-0 left-0 z-30 flex-col overflow-hidden transition-all duration-200 ${
+          sidebarCollapsed ? "w-0 invisible pointer-events-none" : "w-64 visible"
+        }`}
         style={{
           width: sidebarCollapsed ? 0 : 256,
-          flexShrink: 0,
-          flexDirection: "column",
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          maxHeight: "100vh",
-          overflow: "hidden",
-          transition: "width 0.22s var(--ease), border-color var(--duration-base) var(--ease), background-color var(--duration-base) var(--ease)",
-          visibility: sidebarCollapsed ? "hidden" : "visible",
         }}
       >
         <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
@@ -194,9 +187,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          {/* Footer del sidebar estilo El Míster — flex-shrink: 0 para que NUNCA se corte */}
+          {/* Footer del sidebar estilo El Míster — anclado abajo y flex-shrink: 0 */}
           <div
-            className="flex-shrink-0 border-t border-white/10 bg-slate-950/60"
+            className="flex-shrink-0 border-t border-white/10 bg-slate-950/70"
             style={{
               padding: "12px 14px calc(14px + env(safe-area-inset-bottom, 0px))",
               display: "flex",
@@ -417,7 +410,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Área de contenido principal */}
-      <main style={{ flex: 1, minWidth: 0 }}>
+      <main
+        className={`flex-1 min-w-0 transition-[margin] duration-200 ${
+          sidebarCollapsed ? "md:ml-0" : "md:ml-64"
+        }`}
+        style={{ flex: 1, minWidth: 0 }}
+      >
         {sidebarCollapsed && (
           <button
             onClick={() => toggleSidebar(false)}

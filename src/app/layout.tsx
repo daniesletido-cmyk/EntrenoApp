@@ -10,7 +10,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AppLockGuard } from "@/components/auth/app-lock-guard";
 
 export const viewport: Viewport = {
-  themeColor: "#090d16",
+  themeColor: "#080a10",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
