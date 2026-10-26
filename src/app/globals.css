@@ -7,27 +7,26 @@
 
 :root {
   /* ==========================================================
-     TEMA POR DEFECTO: MODO OSCURO (Obsidian Kinetic — Luxury Sports Minimalism)
-     Inspirado en Apple Fitness+, Whoop 4.0 y Oura Ring Gen 3
+     TEMA POR DEFECTO: MODO OSCURO (Obsidian Sport Studio — El Míster Edition)
      ========================================================== */
-  --color-bg: #090a0f;
-  --color-surface: #121622;
-  --color-surface-raised: #181d2a;
-  --color-surface-hover: #1f2537;
-  --color-surface-translucent: rgba(18, 22, 34, 0.90);
-  --color-border: rgba(255, 255, 255, 0.09);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-bg: #080a10;
+  --color-surface: #121624;
+  --color-surface-raised: #161b2c;
+  --color-surface-hover: #1c2237;
+  --color-surface-translucent: rgba(18, 22, 36, 0.92);
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
 
   /* Tipografía y Textos */
-  --color-text: #f8fafc;
+  --color-text: #f1f5f9;
   --color-text-muted: #94a3b8;
   --color-text-faint: #64748b;
 
-  /* Acento de Marca — Esmeralda Puro & Ámbar Cálido */
+  /* Acento de Marca — Esmeralda Pro Deportivo (#10b981) */
   --color-brand: #10b981;
   --color-brand-hover: #059669;
-  --color-brand-contrast: #090a0f;
-  --color-brand-subtle: rgba(16, 185, 129, 0.12);
+  --color-brand-contrast: #080a10;
+  --color-brand-subtle: rgba(16, 185, 129, 0.14);
   --color-accent: #f59e0b;
   --gradient-brand: linear-gradient(135deg, #10b981 0%, #059669 100%);
   --gradient-brand-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
@@ -149,6 +148,10 @@ body {
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+.brand-dot-glow {
+  box-shadow: 0 0 8px #10b981;
 }
 
 ::selection {

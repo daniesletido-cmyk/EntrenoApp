@@ -28,7 +28,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 interface NavItemDef {
   href: string;
   label: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   aliases?: string[];
 }
 
@@ -141,87 +141,100 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <aside
         className="hidden md:flex border-r border-white/10 bg-slate-950/95"
         style={{
-          width: sidebarCollapsed ? 0 : 240,
+          width: sidebarCollapsed ? 0 : 256,
           flexShrink: 0,
           flexDirection: "column",
           position: "sticky",
           top: 0,
           height: "100vh",
+          maxHeight: "100vh",
           overflow: "hidden",
           transition: "width 0.22s var(--ease), border-color var(--duration-base) var(--ease), background-color var(--duration-base) var(--ease)",
           visibility: sidebarCollapsed ? "hidden" : "visible",
         }}
       >
-        <div style={{ width: 240, height: "100%", display: "flex", flexDirection: "column" }}>
+        <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
           <Brand onCollapse={() => toggleSidebar(true)} />
-        <nav
-          style={{
-            padding: "var(--space-3) var(--space-2)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)",
-            flex: 1,
-            overflowY: "auto",
-          }}
-        >
-          {NAV_GROUPS.map((group) => (
-            <div key={group.title}>
-              <div
-                className="text-faint"
-                style={{
-                  fontSize: "0.68rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  padding: "0 0.75rem",
-                  marginBottom: 4,
-                }}
-              >
-                {group.title}
+          <nav
+            style={{
+              padding: "10px 10px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              flex: "1 1 0%",
+              minHeight: 0,
+              overflowY: "auto",
+            }}
+          >
+            {NAV_GROUPS.map((group) => (
+              <div key={group.title}>
+                <div
+                  className="text-slate-400 font-extrabold uppercase tracking-widest"
+                  style={{
+                    fontSize: "0.68rem",
+                    letterSpacing: "0.08em",
+                    padding: "0 0.75rem",
+                    marginBottom: 4,
+                  }}
+                >
+                  {group.title}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {group.links.map((l) => (
+                    <NavItem
+                      key={l.href}
+                      href={l.href}
+                      label={l.label}
+                      Icon={l.icon}
+                      active={pathname === l.href || (l.aliases?.includes(pathname) ?? false)}
+                    />
+                  ))}
+                </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {group.links.map((l) => (
-                  <NavItem
-                    key={l.href}
-                    href={l.href}
-                    label={l.label}
-                    Icon={l.icon}
-                    active={pathname === l.href || (l.aliases?.includes(pathname) ?? false)}
-                  />
-                ))}
+            ))}
+          </nav>
+
+          {/* Footer del sidebar estilo El Míster — flex-shrink: 0 para que NUNCA se corte */}
+          <div
+            className="flex-shrink-0 border-t border-white/10 bg-slate-950/60"
+            style={{
+              padding: "12px 14px calc(14px + env(safe-area-inset-bottom, 0px))",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            {/* Card de atleta con initials avatar y glowing dot */}
+            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all duration-150">
+              <div className="relative w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-400 flex-shrink-0">
+                DE
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 brand-dot-glow" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-slate-100 truncate leading-tight">
+                  Daniel Espinosa
+                </div>
+                <div className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                  <span>Maratón</span>
+                  <span className="text-slate-600">·</span>
+                  <span className="font-mono tabular-nums text-emerald-400 font-medium">{raceDate}</span>
+                </div>
               </div>
             </div>
-          ))}
-        </nav>
 
-        {/* Footer del sidebar con selector de tema y refresco */}
-        <div
-          style={{
-            padding: "var(--space-3) var(--space-3)",
-            borderTop: "1px solid var(--color-border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-2)",
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Tema visual</span>
-            <ThemeToggle />
+            {/* Fila de controles compactos: Refrescar + Tema */}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={triggerGlobalRefresh}
+                className="flex-1 flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/10 transition-colors"
+                title="Refrescar métricas, cargas y consejos"
+              >
+                <RefreshCw size={13} className={isGlobalRefreshing ? "animate-spin text-emerald-400" : "text-slate-400"} />
+                <span className="truncate">{isGlobalRefreshing ? "Actualizando..." : "Refrescar"}</span>
+              </button>
+              <ThemeToggle />
+            </div>
           </div>
-          <button
-            onClick={triggerGlobalRefresh}
-            className="btn btn-secondary btn-sm"
-            style={{ width: "100%", justifyContent: "center", gap: 6, fontSize: "0.78rem" }}
-            title="Refrescar métricas, cargas y consejos"
-          >
-            <RefreshCw size={13} className={isGlobalRefreshing ? "animate-spin text-primary" : ""} />
-            <span>{isGlobalRefreshing ? "Actualizando..." : "Refrescar datos"}</span>
-          </button>
-          <div className="text-xs text-faint" style={{ marginTop: 2 }}>
-            <div>Maratón · {raceDate}</div>
-            <div style={{ color: "var(--color-text-muted)", fontSize: "0.72rem" }}>Daniel Espinosa</div>
-          </div>
-        </div>
         </div>
       </aside>
 
@@ -445,12 +458,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 function Brand({ onCollapse }: { onCollapse?: () => void }) {
   return (
     <div
+      className="flex-shrink-0"
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         gap: "var(--space-2)",
-        padding: "var(--space-4) var(--space-3) var(--space-4) var(--space-4)",
+        padding: "16px 14px 14px 16px",
         borderBottom: "1px solid var(--color-border)",
         position: "relative",
       }}
@@ -466,8 +480,9 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
             alt=""
             width={32}
             height={32}
-            className="rounded-lg"
+            className="rounded-lg shadow-sm"
           />
+          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 brand-dot-glow" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -479,18 +494,20 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
                 fontSize: "0.62rem",
                 padding: "1px 6px",
                 borderRadius: "9999px",
-                background: "var(--color-brand-subtle)",
-                color: "var(--color-brand)",
-                border: "1px solid var(--color-brand)",
-                fontWeight: 700,
+                background: "rgba(16, 185, 129, 0.14)",
+                color: "#10b981",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                fontWeight: 800,
                 lineHeight: 1.2,
+                letterSpacing: "0.04em",
               }}
             >
               PRO
             </span>
           </div>
-          <div className="text-xs text-muted truncate" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-            Daniel Espinosa
+          <div className="text-xs text-slate-400 truncate flex items-center gap-1" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            <span>Plan Maratón 2027</span>
           </div>
         </div>
       </Link>
@@ -501,15 +518,15 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
           title="Ocultar barra lateral"
           aria-label="Ocultar barra lateral"
           style={{
-            width: 30,
-            height: 30,
-            minWidth: 30,
+            width: 28,
+            height: 28,
+            minWidth: 28,
             borderRadius: "var(--radius-sm)",
             color: "var(--color-text-muted)",
             padding: 0,
           }}
         >
-          <PanelLeftClose size={16} />
+          <PanelLeftClose size={15} />
         </button>
       )}
     </div>
@@ -525,7 +542,7 @@ function NavItem({
 }: {
   href: string;
   label: string;
-  Icon: React.ComponentType<{ size?: number }>;
+  Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   active: boolean;
   onClick?: () => void;
 }) {
@@ -534,14 +551,17 @@ function NavItem({
       href={href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors duration-150 no-underline min-h-[40px] ${
+      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 no-underline min-h-[38px] ${
         active
-          ? "bg-emerald-500/15 text-emerald-400 font-semibold border-l-4 border-emerald-500 shadow-sm"
-          : "text-slate-400 hover:text-white hover:bg-white/5 font-medium border-l-4 border-transparent"
+          ? "bg-emerald-500/15 text-emerald-300 font-semibold border border-emerald-500/30 shadow-[inset_0_0_12px_rgba(16,185,129,0.08)]"
+          : "text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
       }`}
     >
-      <Icon size={18} />
-      <span>{label}</span>
+      <Icon size={17} strokeWidth={active ? 2.3 : 1.8} className={active ? "text-emerald-400" : "text-slate-400"} />
+      <span className="truncate">{label}</span>
+      {active && (
+        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400 brand-dot-glow flex-shrink-0" />
+      )}
     </Link>
   );
 }
