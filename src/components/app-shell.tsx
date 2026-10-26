@@ -139,12 +139,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div style={{ display: "flex", minHeight: "100vh", position: "relative" }}>
       {/* Sidebar — Escritorio */}
       <aside
-        className="hidden md:flex"
+        className="hidden md:flex border-r border-white/10 bg-slate-950/95"
         style={{
           width: sidebarCollapsed ? 0 : 240,
           flexShrink: 0,
-          borderRight: sidebarCollapsed ? "none" : "1px solid var(--color-border)",
-          background: "var(--color-surface)",
           flexDirection: "column",
           position: "sticky",
           top: 0,
@@ -230,15 +228,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Topbar móvil */}
       <div className="md:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 40 }}>
         <div
+          className="backdrop-blur-md bg-slate-950/80 border-b border-white/10"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: "calc(var(--space-2) + env(safe-area-inset-top, 0px)) var(--space-3) var(--space-2)",
-            background: "var(--color-surface-translucent)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            borderBottom: "1px solid var(--color-border)",
             minHeight: 52,
           }}
         >
@@ -294,17 +289,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileOpen(false)}
             />
             <nav
-              className="animate-in"
+              className="animate-in backdrop-blur-md bg-slate-950/95 border-b border-white/10 shadow-2xl"
               style={{
-                background: "var(--color-surface)",
-                borderBottom: "1px solid var(--color-border)",
                 padding: "var(--space-3) var(--space-2)",
                 display: "flex",
                 flexDirection: "column",
                 gap: "var(--space-3)",
                 maxHeight: "calc(100vh - 120px)",
                 overflowY: "auto",
-                boxShadow: "var(--shadow-md)",
               }}
             >
               {NAV_GROUPS.map((group) => (
@@ -373,19 +365,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         <nav
+          className="backdrop-blur-md bg-slate-950/85 border border-white/10 rounded-2xl shadow-2xl p-1.5 grid"
           style={{
             pointerEvents: "auto",
             margin: "0 auto",
             maxWidth: 460,
-            background: "var(--color-surface-translucent)",
-            backdropFilter: "blur(24px)",
-            WebkitBackdropFilter: "blur(24px)",
-            border: "1px solid var(--color-border-strong)",
-            borderRadius: "var(--radius-full)",
-            boxShadow: "var(--shadow-md)",
-            display: "grid",
             gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
-            padding: "4px 4px",
+            gap: "4px",
           }}
         >
           {BOTTOM_NAV.map((item) => {
@@ -396,33 +382,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 2,
-                  minHeight: 46,
-                  padding: "4px 2px",
-                  borderRadius: "var(--radius-full)",
-                  background: active ? "var(--color-brand)" : "transparent",
-                  color: active ? "var(--color-brand-contrast)" : "var(--color-text-muted)",
-                  boxShadow: active ? "var(--shadow-glow-brand)" : "none",
-                  transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
-                  textDecoration: "none",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
+                className={`flex flex-col items-center justify-center gap-1 min-h-[46px] py-1 px-1 rounded-xl transition-colors duration-150 no-underline relative overflow-hidden ${
+                  active
+                    ? "bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30"
+                    : "text-slate-400 hover:text-white hover:bg-white/5 font-medium"
+                }`}
               >
-                <Icon size={16} strokeWidth={active ? 2.4 : 1.8} />
+                <Icon size={17} strokeWidth={active ? 2.5 : 1.8} />
                 <span
+                  className="text-[10px] tracking-tight leading-none truncate max-w-full"
                   style={{
-                    fontSize: "0.62rem",
                     fontWeight: active ? 700 : 500,
-                    letterSpacing: "-0.01em",
-                    lineHeight: 1,
-                    whiteSpace: "nowrap",
-                    textOverflow: "ellipsis",
                   }}
                 >
                   {item.label}
@@ -564,22 +534,11 @@ function NavItem({
       href={href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-3)",
-        padding: "0.5rem 0.75rem",
-        borderRadius: "var(--radius-md)",
-        fontSize: "var(--text-sm)",
-        fontWeight: active ? 700 : 500,
-        color: active ? "var(--color-brand)" : "var(--color-text-muted)",
-        background: active ? "var(--color-brand-subtle)" : "transparent",
-        borderLeft: active ? "3px solid var(--color-brand)" : "3px solid transparent",
-        boxShadow: active ? "inset 0 0 12px var(--color-brand-subtle)" : "none",
-        transition: "all var(--duration-fast) var(--ease)",
-        minHeight: 40,
-        textDecoration: "none",
-      }}
+      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors duration-150 no-underline min-h-[40px] ${
+        active
+          ? "bg-emerald-500/15 text-emerald-400 font-semibold border-l-4 border-emerald-500 shadow-sm"
+          : "text-slate-400 hover:text-white hover:bg-white/5 font-medium border-l-4 border-transparent"
+      }`}
     >
       <Icon size={18} />
       <span>{label}</span>

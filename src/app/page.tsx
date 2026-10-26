@@ -22,7 +22,6 @@ import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
-import { Loading } from "@/components/ui/loading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CoachSummaryCard } from "@/components/coach-summary-card";
 import { useToast } from "@/components/ui/toast";
@@ -207,45 +206,26 @@ export default function ResumenPage() {
 
       {raceDate && (
         <div
-          className="surface flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in w-full"
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            marginBottom: "var(--space-4)",
-            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%)",
-            border: "1px solid rgba(59, 130, 246, 0.22)",
-            borderRadius: "var(--radius-lg)",
-          }}
+          className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in w-full p-4 mb-4 hover:border-emerald-500/30 transition-colors duration-150"
         >
           <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
             <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: "var(--radius-md)",
-                background: "var(--color-brand)",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
-                flexShrink: 0,
-                marginTop: 2,
-              }}
+              className="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-lg shadow-emerald-500/20 shrink-0 mt-0.5"
             >
-              <Flag size={18} />
+              <Flag size={18} strokeWidth={2.4} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   Daniel Espinosa · Objetivo Principal
                 </span>
-                <span className="badge badge-brand" style={{ fontSize: "0.62rem", padding: "1px 6px" }}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   Maratón
                 </span>
               </div>
-              <div className="font-extrabold text-sm sm:text-base leading-tight mt-0.5 text-foreground" style={{ wordBreak: "break-word" }}>
-                Faltan <span style={{ color: "var(--color-brand)" }}>{daysUntilRace(raceDate)} días</span>
-                <span className="text-xs sm:text-sm font-semibold text-muted ml-1.5 inline-block">
+              <div className="font-extrabold text-sm sm:text-base leading-tight mt-1 text-white" style={{ wordBreak: "break-word" }}>
+                Faltan <span className="text-emerald-400 font-mono tabular-nums">{daysUntilRace(raceDate)} días</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-400 ml-1.5 inline-block">
                   ({new Date(raceDate + "T00:00:00Z").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })})
                 </span>
               </div>
@@ -253,8 +233,8 @@ export default function ResumenPage() {
           </div>
           <Link
             href="/objetivos"
-            className="btn btn-secondary text-xs self-stretch sm:self-auto justify-center"
-            style={{ minHeight: 34, height: 34, padding: "0 14px", borderRadius: "var(--radius-full)", flexShrink: 0 }}
+            className="btn btn-secondary text-xs self-stretch sm:self-auto justify-center rounded-xl border border-white/10 hover:border-emerald-500/40 transition-colors duration-150"
+            style={{ minHeight: 34, height: 34, padding: "0 14px", flexShrink: 0 }}
           >
             Ver objetivo
           </Link>
@@ -263,7 +243,7 @@ export default function ResumenPage() {
 
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
-      {loading && <Loading label="Cargando resumen de la semana…" />}
+      {loading && <HomeSkeleton />}
 
       {!loading && summary && (
         <div className="animate-in grid gap-4 w-full overflow-hidden">
@@ -271,10 +251,9 @@ export default function ResumenPage() {
 
           {rec && rec.action !== "mantener" && (
             <div
-              className="surface flex items-start gap-3.5 w-full"
+              className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm flex items-start gap-3.5 w-full p-4"
               style={{
-                padding: "var(--space-3) var(--space-4)",
-                borderLeft: `3px solid ${BANNER_STYLE[ACTION_BANNER[rec.action].tone].color}`,
+                borderLeft: `4px solid ${BANNER_STYLE[ACTION_BANNER[rec.action].tone].color}`,
               }}
             >
               <span
@@ -293,13 +272,13 @@ export default function ResumenPage() {
                 >
                   {ACTION_BANNER[rec.action].label}
                 </div>
-                <p className="text-xs sm:text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
+                <p className="text-xs sm:text-sm text-slate-400" style={{ marginTop: 2, lineHeight: 1.5 }}>
                   {rec.summary}
                 </p>
               </div>
               <Link
                 href="/recomendaciones"
-                className="btn btn-secondary text-xs"
+                className="btn btn-secondary text-xs rounded-xl border border-white/10 hover:border-emerald-500/40 transition-colors duration-150"
                 style={{ flexShrink: 0, height: 34, minHeight: 34 }}
               >
                 Ver detalle
@@ -310,12 +289,12 @@ export default function ResumenPage() {
 
           {/* Core Week Metrics Grid */}
           <div className="w-full">
-            <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Métricas de la semana
               </span>
               {summary.compliancePct !== null && (
-                <span className="text-xs text-muted">
+                <span className="text-xs text-slate-400 font-mono tabular-nums">
                   {summary.realizadas + summary.parciales} de {summary.planificadas} sesiones
                   {summary.extrasRealizadas && summary.extrasRealizadas > 0
                     ? ` (+${summary.extrasRealizadas} extra)`
@@ -419,7 +398,7 @@ export default function ResumenPage() {
 
           {/* Quick Actions */}
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted" style={{ marginBottom: "var(--space-2)" }}>
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
               Accesos directos
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -437,21 +416,85 @@ export default function ResumenPage() {
   );
 }
 
+function HomeSkeleton() {
+  return (
+    <div className="space-y-4 w-full animate-pulse mt-4">
+      {/* Coach summary card skeleton */}
+      <div className="h-28 w-full rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-white/10 shrink-0" />
+          <div className="space-y-1.5 flex-1">
+            <div className="h-4 w-40 rounded bg-white/10" />
+            <div className="h-3 w-64 rounded bg-white/5" />
+          </div>
+        </div>
+        <div className="h-3 w-full rounded bg-white/5" />
+      </div>
+
+      {/* Primary Metrics Grid Skeleton */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="h-3.5 w-36 rounded bg-white/10" />
+          <div className="h-3 w-28 rounded bg-white/5" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <div className="h-3 w-20 rounded bg-white/10" />
+                <div className="h-5 w-5 rounded-full bg-white/10" />
+              </div>
+              <div className="h-8 w-24 rounded bg-white/10" />
+              <div className="h-3 w-16 rounded bg-white/5" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Secondary Metrics Grid Skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-32 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <div className="h-3 w-20 rounded bg-white/10" />
+              <div className="h-5 w-5 rounded-full bg-white/10" />
+            </div>
+            <div className="h-8 w-24 rounded bg-white/10" />
+            <div className="h-3 w-16 rounded bg-white/5" />
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Links Skeleton */}
+      <div className="space-y-2 pt-2">
+        <div className="h-3.5 w-32 rounded bg-white/10" />
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-16 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex items-center justify-between">
+              <div className="space-y-1.5 flex-1">
+                <div className="h-3.5 w-24 rounded bg-white/10" />
+                <div className="h-2.5 w-40 rounded bg-white/5" />
+              </div>
+              <div className="h-4 w-4 rounded bg-white/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QuickLink({ href, title, description }: { href: string; title: string; description: string }) {
   return (
     <Link
       href={href}
-      className="surface surface-interactive flex items-center justify-between"
-      style={{
-        padding: "var(--space-3) var(--space-4)",
-        borderRadius: "var(--radius-md)",
-      }}
+      className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-md backdrop-blur-sm p-4 flex items-center justify-between no-underline hover:bg-slate-800/80 hover:border-emerald-500/40 transition-colors duration-150 group"
     >
       <div>
-        <div className="font-semibold text-sm">{title}</div>
-        <div className="text-xs text-muted" style={{ marginTop: 2 }}>{description}</div>
+        <div className="font-semibold text-sm text-slate-100 group-hover:text-emerald-400 transition-colors duration-150">{title}</div>
+        <div className="text-xs text-slate-400 mt-0.5">{description}</div>
       </div>
-      <ArrowRight size={15} className="text-muted" style={{ flexShrink: 0, marginLeft: 8 }} />
+      <ArrowRight size={15} className="text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all duration-150 shrink-0 ml-2" />
     </Link>
   );
 }

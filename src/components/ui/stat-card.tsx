@@ -3,12 +3,12 @@ import { ReactNode } from "react";
 type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "brand";
 
 const TONE_STYLES: Record<Tone, { color: string; bg: string; border: string }> = {
-  neutral: { color: "var(--color-text)", bg: "var(--color-surface-raised)", border: "var(--color-border)" },
-  success: { color: "var(--color-success)", bg: "var(--color-success-bg)", border: "rgba(16, 185, 129, 0.25)" },
-  warning: { color: "var(--color-warning)", bg: "var(--color-warning-bg)", border: "rgba(245, 158, 11, 0.25)" },
-  danger: { color: "var(--color-danger)", bg: "var(--color-danger-bg)", border: "rgba(239, 68, 68, 0.25)" },
-  info: { color: "var(--color-info)", bg: "var(--color-info-bg)", border: "rgba(14, 165, 233, 0.25)" },
-  brand: { color: "var(--color-brand)", bg: "var(--color-brand-subtle)", border: "rgba(59, 130, 246, 0.25)" },
+  neutral: { color: "var(--color-text)", bg: "rgba(255, 255, 255, 0.05)", border: "rgba(255, 255, 255, 0.1)" },
+  success: { color: "#10B981", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.25)" },
+  warning: { color: "#F59E0B", bg: "rgba(245, 158, 11, 0.12)", border: "rgba(245, 158, 11, 0.25)" },
+  danger: { color: "#EF4444", bg: "rgba(239, 68, 68, 0.12)", border: "rgba(239, 68, 68, 0.25)" },
+  info: { color: "#0EA5E9", bg: "rgba(14, 165, 233, 0.12)", border: "rgba(14, 165, 233, 0.25)" },
+  brand: { color: "#10B981", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.25)" },
 };
 
 export function StatCard({
@@ -27,52 +27,28 @@ export function StatCard({
   const t = TONE_STYLES[tone];
   return (
     <div
-      className="surface surface-interactive flex flex-col justify-between w-full overflow-hidden"
-      style={{
-        padding: "var(--space-3)",
-        position: "relative",
-      }}
+      className="flex flex-col justify-between w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-lg backdrop-blur-sm transition-all duration-150 hover:border-white/20 hover:bg-slate-900/80"
+      style={{ position: "relative" }}
     >
       {/* Top subtle tone line */}
       {tone !== "neutral" && (
         <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: t.color,
-          }}
+          className="absolute top-0 left-0 right-0 h-1"
+          style={{ background: t.color }}
         />
       )}
 
       <div>
-        <div className="flex items-center justify-between gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
-          <span
-            className="truncate"
-            style={{
-              fontSize: "0.68rem",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              color: "var(--color-text-muted)",
-            }}
-          >
+        <div className="flex items-center justify-between gap-1.5 mb-2">
+          <span className="text-xs uppercase tracking-wider font-semibold text-slate-400 truncate">
             {label}
           </span>
           {icon && (
             <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{
-                width: 26,
-                height: 26,
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
                 background: t.bg,
                 color: t.color,
-                flexShrink: 0,
               }}
             >
               {icon}
@@ -81,12 +57,10 @@ export function StatCard({
         </div>
 
         <div
-          className="tabular-nums font-bold truncate"
+          className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight truncate"
           style={{
-            fontSize: "clamp(1.25rem, 4vw, 1.65rem)",
-            letterSpacing: "-0.03em",
             color: tone === "neutral" ? "var(--color-text)" : t.color,
-            lineHeight: 1.1,
+            lineHeight: 1.15,
           }}
         >
           {value}
@@ -95,15 +69,8 @@ export function StatCard({
 
       {sublabel && (
         <div
-          className="text-xs text-muted truncate"
+          className="text-xs text-slate-400 truncate mt-2 font-medium"
           title={sublabel}
-          style={{
-            marginTop: "var(--space-2)",
-            paddingTop: "var(--space-1)",
-            borderTop: "1px solid var(--color-border)",
-            fontSize: "0.7rem",
-            lineHeight: 1.35,
-          }}
         >
           {sublabel}
         </div>
