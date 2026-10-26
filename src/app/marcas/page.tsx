@@ -86,6 +86,15 @@ function formatDate(iso: string) {
   return iso;
 }
 
+function formatShortDate(iso: string) {
+  if (!iso) return "";
+  const parts = iso.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}`;
+  }
+  return iso;
+}
+
 export default function MarcasPage() {
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -509,36 +518,36 @@ export default function MarcasPage() {
                 </div>
 
                 {/* Acciones de la Tarjeta */}
-                <div className="p-2.5 bg-slate-950/40 border-t border-white/10 flex items-center gap-1.5">
+                <div className="p-2.5 bg-slate-950/40 border-t border-white/10 flex items-center gap-2">
                   <button
                     onClick={() => openNewLog(exercise)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-colors"
+                    className="flex-1 min-h-[40px] flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 active:scale-95 transition-all"
                   >
-                    <Plus size={14} />
+                    <Plus size={15} />
                     <span>Registrar</span>
                   </button>
 
                   <button
                     onClick={() => setGraphModalExercise(exercise)}
-                    className={`flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`min-h-[40px] flex items-center justify-center gap-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all ${
                       hasPr
-                        ? "bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/10"
+                        ? "bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/10 active:scale-95"
                         : "bg-white/[0.02] text-slate-500 border border-transparent cursor-not-allowed opacity-60"
                     }`}
                     disabled={!hasPr}
                     title={hasPr ? "Ver gráfica de progresión" : "Registra al menos una marca para ver la gráfica"}
                   >
-                    <TrendingUp size={14} className={hasPr ? "text-cyan-400" : ""} />
+                    <TrendingUp size={15} className={hasPr ? "text-cyan-400" : ""} />
                     <span>Gráfica</span>
                   </button>
 
                   {hasPr && (
                     <button
                       onClick={() => setHistoryModalExercise(exercise)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent transition-colors"
+                      className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.05] border border-white/5 active:scale-95 transition-all"
                       title="Ver todos los registros históricos"
                     >
-                      <History size={15} />
+                      <History size={16} />
                     </button>
                   )}
                 </div>
@@ -639,23 +648,24 @@ export default function MarcasPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={graphModalExercise.history.map((h) => ({
-                        date: formatDate(h.date),
+                        shortDate: formatShortDate(h.date),
+                        fullDate: formatDate(h.date),
                         weight: h.weight_kg,
                         reps: h.reps,
                         notes: h.notes,
                       }))}
-                      margin={{ top: 15, right: 15, left: -15, bottom: 5 }}
+                      margin={{ top: 15, right: 10, left: -20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                       <XAxis
-                        dataKey="date"
+                        dataKey="shortDate"
                         stroke="#64748b"
-                        fontSize={11}
+                        fontSize={10}
                         tickLine={false}
                       />
                       <YAxis
                         stroke="#64748b"
-                        fontSize={11}
+                        fontSize={10}
                         domain={["dataMin - 5", "dataMax + 5"]}
                         tickLine={false}
                       />
@@ -665,7 +675,7 @@ export default function MarcasPage() {
                             const data = payload[0].payload;
                             return (
                               <div className="p-2.5 rounded-xl bg-slate-900 border border-white/15 shadow-xl text-xs space-y-1">
-                                <div className="text-slate-400">{data.date}</div>
+                                <div className="text-slate-400 font-medium">{data.fullDate}</div>
                                 <div className="text-base font-black font-mono text-emerald-400">
                                   {data.weight} {graphModalExercise.unit}
                                 </div>
@@ -702,22 +712,23 @@ export default function MarcasPage() {
             </div>
 
             {/* Botón rápido para registrar en este ejercicio */}
-            <div className="flex items-center justify-between pt-2">
-              <button
-                onClick={() => {
-                  setGraphModalExercise(null);
-                  openNewLog(graphModalExercise);
-                }}
-                className="btn btn-primary btn-sm flex items-center gap-1.5"
-              >
-                <Plus size={14} />
-                <span>Registrar nueva marca en {graphModalExercise.name}</span>
-              </button>
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-white/10">
               <button
                 onClick={() => setGraphModalExercise(null)}
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-sm justify-center"
               >
                 Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  const ex = graphModalExercise;
+                  setGraphModalExercise(null);
+                  openNewLog(ex);
+                }}
+                className="btn btn-primary btn-sm flex items-center justify-center gap-1.5"
+              >
+                <Plus size={14} />
+                <span>Registrar nueva marca</span>
               </button>
             </div>
           </div>
@@ -756,6 +767,7 @@ export default function MarcasPage() {
                 <input
                   type="number"
                   step="0.5"
+                  inputMode="decimal"
                   autoFocus
                   placeholder="Ej. 85.5"
                   value={formWeight}
@@ -771,6 +783,7 @@ export default function MarcasPage() {
                 <input
                   type="number"
                   min="1"
+                  inputMode="numeric"
                   placeholder="1"
                   value={formReps}
                   onChange={(e) => setFormReps(e.target.value)}
@@ -780,7 +793,7 @@ export default function MarcasPage() {
             </div>
 
             {/* Accesos rápidos a reps */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] text-slate-400">Reps rápidas:</span>
               {["1 (1RM)", "3", "5", "8", "10"].map((r) => {
                 const num = r.split(" ")[0];
@@ -789,7 +802,7 @@ export default function MarcasPage() {
                     key={r}
                     type="button"
                     onClick={() => setFormReps(num)}
-                    className={`px-2 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                    className={`min-h-[34px] px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
                       formReps === num
                         ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold"
                         : "bg-white/[0.04] text-slate-400 border-white/10 hover:text-white"

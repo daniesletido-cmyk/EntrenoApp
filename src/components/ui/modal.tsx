@@ -38,7 +38,7 @@ export function Modal({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl text-slate-100 overflow-hidden outline-none animate-in"
+        className="w-full max-w-lg max-h-[88dvh] flex flex-col rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl text-slate-100 overflow-hidden outline-none animate-in"
       >
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10">
           <div className="font-bold text-base tracking-tight text-white">{title}</div>
