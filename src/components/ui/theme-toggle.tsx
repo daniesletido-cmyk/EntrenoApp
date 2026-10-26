@@ -19,8 +19,8 @@ export function ThemeToggle({
     if (currentTheme) {
       setTheme(currentTheme);
     } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setTheme(prefersDark ? "dark" : "light");
+      setTheme("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
     }
   }, []);
 

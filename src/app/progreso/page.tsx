@@ -299,8 +299,8 @@ export default function ProgresoPage() {
           marginBottom: "var(--space-4)",
         }}
       >
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Sueño Reciente</span>
               <InfoTooltip
@@ -310,16 +310,16 @@ export default function ProgresoPage() {
             </div>
             <BedDouble size={15} style={{ color: CHART_COLORS.primary }} />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-white">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-foreground">
             {avgSleepHours ? `${avgSleepHours}h` : "—"}
           </div>
-          <div className="text-xs text-slate-400 mt-1">
+          <div className="text-xs text-muted mt-1">
             {avgSleepScore ? `Score medio: ${avgSleepScore}/100` : "Media últimos 14 días"}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Ratio ACWR</span>
               <InfoTooltip
@@ -329,7 +329,7 @@ export default function ProgresoPage() {
             </div>
             <Activity size={15} style={{ color: CHART_COLORS.secondary }} />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight flex items-center gap-2 text-white">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight flex items-center gap-2 text-foreground">
             {currentAcwr !== null ? currentAcwr : "—"}
             {currentAcwr !== null && (
               <button
@@ -364,7 +364,7 @@ export default function ProgresoPage() {
             )}
           </div>
           <div className="flex items-center justify-between text-xs mt-1">
-            <span className="text-slate-400">Zona óptima: 0.8 a 1.3</span>
+            <span className="text-muted">Zona óptima: 0.8 a 1.3</span>
             {currentAcwr !== null && (
               <button
                 type="button"
@@ -386,8 +386,8 @@ export default function ProgresoPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Cumplimiento 4 sem.</span>
               <InfoTooltip
@@ -397,16 +397,16 @@ export default function ProgresoPage() {
             </div>
             <CheckCircle2 size={15} className="text-emerald-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-white">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-foreground">
             {avgCompliance !== null ? `${avgCompliance}%` : "—"}
           </div>
-          <div className="text-xs text-slate-400 mt-1">
+          <div className="text-xs text-muted mt-1">
             Meta recomendada: 80%+
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Volumen Última Sem.</span>
               <InfoTooltip
@@ -416,10 +416,10 @@ export default function ProgresoPage() {
             </div>
             <Flame size={15} style={{ color: CHART_COLORS.purple }} />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-white">
+          <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight text-foreground">
             {currentWeek?.durationTotalMin ? formatMin(currentWeek.durationTotalMin) : "—"}
           </div>
-          <div className="text-xs text-slate-400 mt-1 font-mono tabular-nums">
+          <div className="text-xs text-muted mt-1 font-mono tabular-nums">
             {currentWeek?.distanceTotalKm ? `${currentWeek.distanceTotalKm} km recorridos` : "Tiempo en movimiento"}
           </div>
         </div>

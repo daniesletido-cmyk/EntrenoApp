@@ -26,7 +26,7 @@ export function Loading({ rows = 3, className = "" }: LoadingProps) {
       </div>
 
       {/* Main card skeleton */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 space-y-3 shadow-lg">
+      <div className="surface p-5 space-y-3 shadow-lg">
         <div className="h-4 w-1/3 rounded bg-white/10" />
         <div className="h-8 w-2/3 rounded-lg bg-white/10" />
         <div className="h-3 w-1/2 rounded bg-white/5" />
@@ -37,7 +37,7 @@ export function Loading({ rows = 3, className = "" }: LoadingProps) {
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={i}
-            className="h-28 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between shadow-md"
+            className="h-28 surface p-4 flex flex-col justify-between shadow-md"
           >
             <div className="flex items-center justify-between">
               <div className="h-3 w-16 rounded bg-white/10" />

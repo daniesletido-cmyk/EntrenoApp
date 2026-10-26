@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" data-theme="dark" className="dark" suppressHydrationWarning>
       <head>
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=4" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=4" />
@@ -55,8 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               (function() {
                 try {
                   var saved = localStorage.getItem('entrenoapp_theme');
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var theme = saved || (prefersDark ? 'dark' : 'light');
+                  var theme = saved || 'dark';
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch(e) {}
               })();

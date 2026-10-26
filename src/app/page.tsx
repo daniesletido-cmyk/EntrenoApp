@@ -206,7 +206,7 @@ export default function ResumenPage() {
 
       {raceDate && (
         <div
-          className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in w-full p-4 mb-4 hover:border-emerald-500/30 transition-colors duration-150"
+          className="surface flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in w-full p-4 mb-4 hover:border-emerald-500/30 transition-colors duration-150"
         >
           <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
             <div
@@ -216,16 +216,16 @@ export default function ResumenPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
                   Daniel Espinosa · Objetivo Principal
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   Maratón
                 </span>
               </div>
-              <div className="font-extrabold text-sm sm:text-base leading-tight mt-1 text-white" style={{ wordBreak: "break-word" }}>
+              <div className="font-extrabold text-sm sm:text-base leading-tight mt-1 text-foreground" style={{ wordBreak: "break-word" }}>
                 Faltan <span className="text-emerald-400 font-mono tabular-nums">{daysUntilRace(raceDate)} días</span>
-                <span className="text-xs sm:text-sm font-semibold text-slate-400 ml-1.5 inline-block">
+                <span className="text-xs sm:text-sm font-semibold text-muted ml-1.5 inline-block">
                   ({new Date(raceDate + "T00:00:00Z").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })})
                 </span>
               </div>
@@ -251,7 +251,7 @@ export default function ResumenPage() {
 
           {rec && rec.action !== "mantener" && (
             <div
-              className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm flex items-start gap-3.5 w-full p-4"
+              className="surface flex items-start gap-3.5 w-full p-4"
               style={{
                 borderLeft: `4px solid ${BANNER_STYLE[ACTION_BANNER[rec.action].tone].color}`,
               }}
@@ -272,7 +272,7 @@ export default function ResumenPage() {
                 >
                   {ACTION_BANNER[rec.action].label}
                 </div>
-                <p className="text-xs sm:text-sm text-slate-400" style={{ marginTop: 2, lineHeight: 1.5 }}>
+                <p className="text-xs sm:text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
                   {rec.summary}
                 </p>
               </div>
@@ -290,11 +290,11 @@ export default function ResumenPage() {
           {/* Core Week Metrics Grid */}
           <div className="w-full">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
                 Métricas de la semana
               </span>
               {summary.compliancePct !== null && (
-                <span className="text-xs text-slate-400 font-mono tabular-nums">
+                <span className="text-xs text-muted font-mono tabular-nums">
                   {summary.realizadas + summary.parciales} de {summary.planificadas} sesiones
                   {summary.extrasRealizadas && summary.extrasRealizadas > 0
                     ? ` (+${summary.extrasRealizadas} extra)`
@@ -420,7 +420,7 @@ function HomeSkeleton() {
   return (
     <div className="space-y-4 w-full animate-pulse mt-4">
       {/* Coach summary card skeleton */}
-      <div className="h-28 w-full rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between">
+      <div className="h-28 w-full surface p-4 flex flex-col justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-white/10 shrink-0" />
           <div className="space-y-1.5 flex-1">
@@ -439,7 +439,7 @@ function HomeSkeleton() {
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between">
+            <div key={i} className="h-32 surface p-4 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="h-3 w-20 rounded bg-white/10" />
                 <div className="h-5 w-5 rounded-full bg-white/10" />
@@ -454,7 +454,7 @@ function HomeSkeleton() {
       {/* Secondary Metrics Grid Skeleton */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-32 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex flex-col justify-between">
+          <div key={i} className="h-32 surface p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <div className="h-3 w-20 rounded bg-white/10" />
               <div className="h-5 w-5 rounded-full bg-white/10" />
@@ -470,7 +470,7 @@ function HomeSkeleton() {
         <div className="h-3.5 w-32 rounded bg-white/10" />
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-16 rounded-2xl border border-white/10 bg-slate-900/60 p-4 flex items-center justify-between">
+            <div key={i} className="h-16 surface p-4 flex items-center justify-between">
               <div className="space-y-1.5 flex-1">
                 <div className="h-3.5 w-24 rounded bg-white/10" />
                 <div className="h-2.5 w-40 rounded bg-white/5" />
@@ -488,13 +488,13 @@ function QuickLink({ href, title, description }: { href: string; title: string; 
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-md backdrop-blur-sm p-4 flex items-center justify-between no-underline hover:bg-slate-800/80 hover:border-emerald-500/40 transition-colors duration-150 group"
+      className="surface surface-interactive p-4 flex items-center justify-between no-underline group"
     >
       <div>
-        <div className="font-semibold text-sm text-slate-100 group-hover:text-emerald-400 transition-colors duration-150">{title}</div>
-        <div className="text-xs text-slate-400 mt-0.5">{description}</div>
+        <div className="font-semibold text-sm text-foreground group-hover:text-emerald-400 transition-colors duration-150">{title}</div>
+        <div className="text-xs text-muted mt-0.5">{description}</div>
       </div>
-      <ArrowRight size={15} className="text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all duration-150 shrink-0 ml-2" />
+      <ArrowRight size={15} className="text-muted group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all duration-150 shrink-0 ml-2" />
     </Link>
   );
 }

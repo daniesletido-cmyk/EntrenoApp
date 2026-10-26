@@ -1286,7 +1286,7 @@ function HoySkeleton() {
   return (
     <div className="space-y-4 animate-pulse w-full mt-4">
       {/* 7-day strip skeleton */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+      <div className="surface p-4">
         <div className="h-4 w-48 rounded bg-white/10 mb-3" />
         <div className="grid grid-cols-7 gap-2">
           {[1, 2, 3, 4, 5, 6, 7].map((i) => (
@@ -1296,7 +1296,7 @@ function HoySkeleton() {
       </div>
 
       {/* Physiological Recovery Gauge skeleton */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 space-y-4">
+      <div className="surface p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="h-4 w-44 rounded bg-white/10" />
           <div className="h-6 w-24 rounded-full bg-white/10" />
@@ -1314,7 +1314,7 @@ function HoySkeleton() {
 
       {/* Main workout & nutrition cards skeleton */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 space-y-3">
+        <div className="surface p-5 space-y-3">
           <div className="h-6 w-1/2 rounded bg-white/10" />
           <div className="h-20 rounded-xl bg-white/5" />
           <div className="grid grid-cols-4 gap-2">
@@ -1323,7 +1323,7 @@ function HoySkeleton() {
             ))}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 space-y-3">
+        <div className="surface p-5 space-y-3">
           <div className="h-6 w-1/2 rounded bg-white/10" />
           <div className="h-28 rounded-xl bg-white/5" />
         </div>

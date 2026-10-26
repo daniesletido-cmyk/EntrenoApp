@@ -38,7 +38,7 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
 
   return (
     <div
-      className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur-sm p-4 sm:p-5 mb-4 animate-in w-full overflow-hidden"
+      className="surface p-4 sm:p-5 mb-4 animate-in w-full overflow-hidden"
     >
       {/* 1. Header con Badge de Entrenador Personal */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
@@ -59,7 +59,7 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
                 </span>
               )}
             </div>
-            <h2 className="truncate text-base font-bold text-white mt-0.5 tracking-tight">
+            <h2 className="truncate text-base font-bold text-foreground mt-0.5 tracking-tight">
               {coachVerdict.title}
             </h2>
           </div>
@@ -67,10 +67,10 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
 
         {/* Readiness Pill */}
         <div
-          className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-950/50 px-2.5 py-1 rounded-full border border-white/10"
+          className="flex items-center gap-1.5 self-start sm:self-auto surface-raised px-2.5 py-1 rounded-full border border-border"
         >
           <Zap size={13} className="text-emerald-400" />
-          <span className="text-xs text-slate-400">Readiness:</span>
+          <span className="text-xs text-muted">Readiness:</span>
           <span className="font-bold text-xs font-mono tabular-nums text-emerald-400">
             {readinessToday.score}/100
           </span>
@@ -78,16 +78,16 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
       </div>
 
       {/* 2. Narrativa del Entrenador */}
-      <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-3">
+      <p className="text-xs sm:text-sm text-muted leading-relaxed mb-3">
         {coachVerdict.narrative}
       </p>
 
       {/* 3. Métricas clave en una cuadrícula limpia y minimalista */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
         {/* Métrica 1: Pico de Carga */}
-        <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/10 flex flex-col justify-between">
+        <div className="surface-raised p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5">
               <Flame size={14} className="text-amber-400" />
               Pico de Carga
             </span>
@@ -99,23 +99,23 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
           </div>
           {peakSession ? (
             <div>
-              <div className="font-semibold text-sm text-white">
+              <div className="font-semibold text-sm text-foreground">
                 {peakSession.dayName} · {peakSession.discipline.toUpperCase()}{" "}
                 {peakSession.plannedCode ? `(${peakSession.plannedCode})` : ""}
               </div>
-              <div className="text-xs text-slate-400 mt-0.5 font-mono tabular-nums">
+              <div className="text-xs text-muted mt-0.5 font-mono tabular-nums">
                 {peakSession.durationMin} min @ RPE {peakSession.rpe}/10
               </div>
             </div>
           ) : (
-            <div className="text-xs text-slate-400">Sin sesiones completadas aún</div>
+            <div className="text-xs text-muted">Sin sesiones completadas aún</div>
           )}
         </div>
 
         {/* Métrica 2: Carga Semanal y ACWR */}
-        <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/10 flex flex-col justify-between">
+        <div className="surface-raised p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5">
               <Activity size={14} className="text-emerald-400" />
               Carga Semanal
             </span>
@@ -125,7 +125,7 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
           </div>
           <div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-sm text-white font-mono tabular-nums">
+              <span className="font-bold text-sm text-foreground font-mono tabular-nums">
                 ACWR {loadAnalysis.acwr !== null ? loadAnalysis.acwr.toFixed(2) : "—"}
               </span>
               {loadAnalysis.acwr !== null && (
@@ -161,16 +161,16 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
                 </button>
               )}
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
+            <div className="text-xs text-muted mt-0.5">
               Zona óptima: 0.8 a 1.3
             </div>
           </div>
         </div>
 
         {/* Métrica 3: Cumplimiento de Sesiones */}
-        <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/10 flex flex-col justify-between">
+        <div className="surface-raised p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5">
               <Zap size={14} className="text-emerald-400" />
               Cumplimiento
             </span>
@@ -190,10 +190,10 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
             </span>
           </div>
           <div>
-            <div className="font-bold text-sm text-white font-mono tabular-nums">
+            <div className="font-bold text-sm text-foreground font-mono tabular-nums">
               {sessionsProgress.completedCount} de {sessionsProgress.plannedCount} sesiones
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
+            <div className="text-xs text-muted mt-0.5">
               {sessionsProgress.pendingCount > 0
                 ? `${sessionsProgress.pendingCount} pendiente${sessionsProgress.pendingCount > 1 ? "s" : ""}`
                 : "Semana al día"}
@@ -203,11 +203,11 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
       </div>
 
       {/* 4. Pautas Clave y Estrategia */}
-      <div className="p-4 rounded-xl bg-slate-950/40 border border-white/10 mb-4">
+      <div className="surface-raised p-4 mb-4">
         <div className="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2">
           Pautas clave para tu semana:
         </div>
-        <ul className="text-sm grid gap-1.5 pl-4 m-0 text-slate-200">
+        <ul className="text-sm grid gap-1.5 pl-4 m-0 text-foreground">
           {coachVerdict.actionablePoints.map((point, i) => (
             <li key={i} className="leading-relaxed">
               {point}
@@ -215,8 +215,8 @@ export function CoachSummaryCard({ assessment }: { assessment: WeeklyCoachAssess
           ))}
         </ul>
         {coachVerdict.weekendStrategy && (
-          <div className="text-xs text-slate-400 mt-2.5 pt-2.5 border-t border-white/10">
-            <Flag size={12} className="inline mr-1 text-emerald-400" /> <strong className="text-white">Fin de semana:</strong> {coachVerdict.weekendStrategy}
+          <div className="text-xs text-muted mt-2.5 pt-2.5 border-t border-border">
+            <Flag size={12} className="inline mr-1 text-emerald-400" /> <strong className="text-foreground">Fin de semana:</strong> {coachVerdict.weekendStrategy}
           </div>
         )}
       </div>
