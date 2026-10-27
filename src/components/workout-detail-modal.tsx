@@ -36,6 +36,7 @@ import {
   Check,
 
   Brain,
+  UtensilsCrossed,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -987,6 +988,59 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                       <FileText size={13} style={{ color: "var(--color-brand)" }} />
                       <span>Pauta Planificada y Notas de Ejecución</span>
                     </div>
+                    {/* Callout Nutrición Pre-Entreno */}
+                    {(() => {
+                      const noteText = session.notes || "";
+                      const nutMatch = noteText.match(/- Estrategia Nutrición \(Media Mañana\):([\s\S]*?)(?=- Enfoque Psicológico|$)/i);
+                      if (!nutMatch) return null;
+                      const lines = nutMatch[1].trim().split("\n").map((l: string) => l.trim()).filter(Boolean);
+                      const opt1330 = lines.find((l: string) => l.includes("13:30h"));
+                      const optTarde = lines.find((l: string) => l.includes("tarde") || l.includes("Media mañana"));
+
+                      return (
+                        <div
+                          className="rounded-xl border p-3.5 flex items-start gap-3 shadow-xs mb-3"
+                          style={{
+                            backgroundColor: "rgba(16, 185, 129, 0.08)",
+                            borderColor: "rgba(16, 185, 129, 0.35)",
+                            borderLeft: "4px solid #10b981",
+                          }}
+                        >
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                            style={{ backgroundColor: "rgba(16, 185, 129, 0.2)" }}
+                          >
+                            <UtensilsCrossed size={18} className="text-emerald-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                                Nutrición Pre-Entreno &amp; Media Mañana
+                              </span>
+                            </div>
+                            <div className="space-y-2 text-xs leading-relaxed">
+                              {opt1330 && (
+                                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-foreground">
+                                  <strong className="text-emerald-400 block mb-0.5 font-bold">
+                                    🟢 Si entrenas a las 13:30h (Tomar 11:45h – 12:00h):
+                                  </strong>
+                                  <span className="text-muted">{opt1330.replace(/^•?\s*Si entrenas a las 13:30h\s*\(.*?\):\s*/i, "")}</span>
+                                </div>
+                              )}
+                              {optTarde && (
+                                <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-foreground">
+                                  <strong className="text-sky-400 block mb-0.5 font-bold">
+                                    🔵 Si entrenas por la tarde (comes a las 13:30h):
+                                  </strong>
+                                  <span className="text-muted">{optTarde.replace(/^•?\s*Si entrenas por la tarde\s*\(.*?\):\s*/i, "").replace(/^•?\s*Media mañana\s*\(.*?\):\s*/i, "")}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {session.notes ? (
                       <div
                         style={{
@@ -1002,7 +1056,13 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                       >
                         {session.notes
                           .split("\n")
-                          .filter((l: string) => !l.includes("- Enfoque Psicológico & Tip Mental:"))
+                          .filter(
+                            (l: string) =>
+                              !l.includes("- Enfoque Psicológico & Tip Mental:") &&
+                              !l.includes("- Estrategia Nutrición (Media Mañana):") &&
+                              !l.trim().startsWith("• Si entrenas a las 13:30h") &&
+                              !l.trim().startsWith("• Si entrenas por la tarde")
+                          )
                           .join("\n")
                           .trim()}
                       </div>

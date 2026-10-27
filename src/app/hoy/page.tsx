@@ -794,7 +794,14 @@ export default function HoyPage() {
                 const cleanNotes = s.notes
                   ? s.notes
                       .split("\n")
-                      .filter((line) => !line.includes("[Ajuste inteligente]") && !line.includes("- Enfoque Psicológico & Tip Mental:"))
+                      .filter(
+                        (line) =>
+                          !line.includes("[Ajuste inteligente]") &&
+                          !line.includes("- Enfoque Psicológico & Tip Mental:") &&
+                          !line.includes("- Estrategia Nutrición (Media Mañana):") &&
+                          !line.trim().startsWith("• Si entrenas a las 13:30h") &&
+                          !line.trim().startsWith("• Si entrenas por la tarde")
+                      )
                       .join("\n")
                       .trim()
                   : "";
@@ -1034,6 +1041,59 @@ export default function HoyPage() {
                           : cleanNotes || "Estructura estándar de la sesión."}
                       </div>
 
+                      {/* Callout destacado de Estrategia Nutricional Pre-Entreno */}
+                      {(() => {
+                        const noteText = s.notes || "";
+                        const nutMatch = noteText.match(/- Estrategia Nutrición \(Media Mañana\):([\s\S]*?)(?=- Enfoque Psicológico|$)/i);
+                        if (!nutMatch) return null;
+                        const lines = nutMatch[1].trim().split("\n").map((l) => l.trim()).filter(Boolean);
+                        const opt1330 = lines.find((l) => l.includes("13:30h"));
+                        const optTarde = lines.find((l) => l.includes("tarde") || l.includes("Media mañana"));
+
+                        return (
+                          <div
+                            className="mt-3 p-3.5 rounded-xl border flex items-start gap-3 shadow-xs animate-in"
+                            style={{
+                              backgroundColor: "rgba(16, 185, 129, 0.08)",
+                              borderColor: "rgba(16, 185, 129, 0.35)",
+                              borderLeft: "4px solid #10b981",
+                            }}
+                          >
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                              style={{ backgroundColor: "rgba(16, 185, 129, 0.2)" }}
+                            >
+                              <UtensilsCrossed size={18} className="text-emerald-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                                  Nutrición Pre-Entreno &amp; Media Mañana
+                                </span>
+                              </div>
+                              <div className="space-y-2 text-xs leading-relaxed">
+                                {opt1330 && (
+                                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-foreground">
+                                    <strong className="text-emerald-400 block mb-0.5 font-bold">
+                                      🟢 Si entrenas a las 13:30h (Tomar 11:45h – 12:00h):
+                                    </strong>
+                                    <span className="text-muted-foreground">{opt1330.replace(/^•?\s*Si entrenas a las 13:30h\s*\(.*?\):\s*/i, "")}</span>
+                                  </div>
+                                )}
+                                {optTarde && (
+                                  <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-foreground">
+                                    <strong className="text-sky-400 block mb-0.5 font-bold">
+                                      🔵 Si entrenas por la tarde (comes a las 13:30h):
+                                    </strong>
+                                    <span className="text-muted-foreground">{optTarde.replace(/^•?\s*Si entrenas por la tarde\s*\(.*?\):\s*/i, "").replace(/^•?\s*Media mañana\s*\(.*?\):\s*/i, "")}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* Callout destacado de Psicología Deportiva */}
                       {(() => {
                         const noteText = s.notes || modInfo?.adjustedWorkout?.structure || "";
@@ -1201,7 +1261,8 @@ export default function HoyPage() {
               <>
                 {menu.map((m) => {
                   const isBreakfast = m.meal.toLowerCase().includes("desayuno");
-                  const isLunch = m.meal.toLowerCase().includes("almuerzo") || m.meal.toLowerCase().includes("comida");
+                  const isMidMorning = m.meal.toLowerCase().includes("almuerzo");
+                  const isLunch = !isMidMorning && m.meal.toLowerCase().includes("comida");
                   const isSnack = m.meal.toLowerCase().includes("merienda") || m.meal.toLowerCase().includes("snack");
 
                   return (
@@ -1240,10 +1301,17 @@ export default function HoyPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline gap-2">
-                          <span className="text-sm font-semibold text-foreground truncate">
-                            {m.meal}
-                            {m.option_label ? ` · ${m.option_label}` : ""}
-                          </span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm font-semibold text-foreground truncate">
+                              {m.meal}
+                              {m.option_label ? ` · ${m.option_label}` : ""}
+                            </span>
+                            {isMidMorning && (
+                              <span className="badge text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                                13:30h vs Tarde
+                              </span>
+                            )}
+                          </div>
                           {m.kcal != null && (
                             <span className="text-xs font-semibold text-emerald-500 shrink-0">
                               {m.kcal} kcal
