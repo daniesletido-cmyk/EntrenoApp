@@ -22,6 +22,7 @@ import {
 import type { SessionRow } from "@/lib/repo/sessions";
 import {
   buildStructuredFitDiagnostics,
+  normalizeRecoveryTime,
   ComplianceVerdict,
   TechnicalBulletItem,
   FitStructuredFeedback,
@@ -82,30 +83,36 @@ export function SessionFeedbackCard({
               }
             : null);
 
-        const suunto = suuntoMetrics
-          ? {
-              pte: suuntoMetrics.pte ?? diag.suuntoReport?.pte ?? null,
-              epoc: suuntoMetrics.epoc ?? diag.suuntoReport?.epoc ?? null,
-              recoveryTimeHours:
-                suuntoMetrics.recoveryTimeHours ?? diag.suuntoReport?.recoveryTimeHours ?? null,
-              recoveryTimeFormatted:
-                diag.suuntoReport?.recoveryTimeFormatted ??
-                (suuntoMetrics.recoveryTimeHours
-                  ? `${suuntoMetrics.recoveryTimeHours.toFixed(1)}h`
-                  : undefined),
-              deviceModel: suuntoMetrics.deviceModel || diag.suuntoReport?.deviceModel || "Suunto",
-              feeling: suuntoMetrics.feeling ?? null,
-              tss: suuntoMetrics.tss ?? null,
-            }
-          : diag.suuntoReport
-          ? {
-              pte: diag.suuntoReport.pte,
-              epoc: diag.suuntoReport.epoc,
-              recoveryTimeHours: diag.suuntoReport.recoveryTimeHours,
-              recoveryTimeFormatted: diag.suuntoReport.recoveryTimeFormatted,
-              deviceModel: diag.suuntoReport.deviceModel,
-            }
-          : null;
+        const rawRec =
+          suuntoMetrics?.recoveryTimeHours ??
+          diag.suuntoReport?.recoveryTimeHours ??
+          parsed.deepAnalysis?.recoveryTimeHours ??
+          parsed.recoveryTimeHours;
+        const normalizedRec = normalizeRecoveryTime(rawRec);
+
+        const suunto =
+          suuntoMetrics || diag.suuntoReport || normalizedRec.hours !== null
+            ? {
+                pte:
+                  suuntoMetrics?.pte ??
+                  diag.suuntoReport?.pte ??
+                  parsed.deepAnalysis?.trainingEffect ??
+                  null,
+                epoc:
+                  suuntoMetrics?.epoc ??
+                  diag.suuntoReport?.epoc ??
+                  parsed.deepAnalysis?.epoc ??
+                  null,
+                recoveryTimeHours: normalizedRec.hours,
+                recoveryTimeFormatted: normalizedRec.formatted,
+                deviceModel:
+                  suuntoMetrics?.deviceModel ||
+                  diag.suuntoReport?.deviceModel ||
+                  "Suunto 9 Peak Pro",
+                feeling: suuntoMetrics?.feeling ?? null,
+                tss: suuntoMetrics?.tss ?? null,
+              }
+            : null;
 
         return {
           verdict: diag.complianceVerdict || "Cumplido",

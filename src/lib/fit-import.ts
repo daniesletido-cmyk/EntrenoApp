@@ -1565,9 +1565,12 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       let recoveryTimeHours: number | null = null;
       let recoveryTimeMinutes: number | null = null;
       if (typeof rawRecovery === "number" && rawRecovery > 0) {
-        if (rawRecovery > 300) {
+        if (rawRecovery > 3600) {
           recoveryTimeHours = Number((rawRecovery / 3600).toFixed(1));
           recoveryTimeMinutes = Math.round(rawRecovery / 60);
+        } else if (rawRecovery > 96) {
+          recoveryTimeHours = Number((rawRecovery / 60).toFixed(1));
+          recoveryTimeMinutes = Math.round(rawRecovery);
         } else {
           recoveryTimeHours = Number(rawRecovery.toFixed(1));
           recoveryTimeMinutes = Math.round(rawRecovery * 60);
@@ -1824,10 +1827,13 @@ export async function parseWorkoutJson(buffer: Buffer): Promise<FitSummary> {
 
   let recoveryHours: number | null = null;
   let recoveryMin: number | null = null;
-  if (typeof rawRecovery === "number") {
-    if (rawRecovery > 300) {
+  if (typeof rawRecovery === "number" && rawRecovery > 0) {
+    if (rawRecovery > 3600) {
       recoveryHours = Number((rawRecovery / 3600).toFixed(1));
       recoveryMin = Math.round(rawRecovery / 60);
+    } else if (rawRecovery > 96) {
+      recoveryHours = Number((rawRecovery / 60).toFixed(1));
+      recoveryMin = Math.round(rawRecovery);
     } else {
       recoveryHours = Number(rawRecovery.toFixed(1));
       recoveryMin = Math.round(rawRecovery * 60);

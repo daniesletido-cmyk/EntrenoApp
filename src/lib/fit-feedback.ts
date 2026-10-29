@@ -45,6 +45,29 @@ export interface FitStructuredFeedback {
   } | null;
 }
 
+export function normalizeRecoveryTime(raw: number | null | undefined): { hours: number | null; formatted: string } {
+  if (typeof raw !== "number" || raw <= 0) {
+    return { hours: null, formatted: "12 - 24 horas" };
+  }
+  let h = raw;
+  if (raw > 3600) {
+    h = raw / 3600; // segundos (ej. 79800s -> 22.16h)
+  } else if (raw > 96) {
+    h = raw / 60; // minutos (ej. 1330m -> 22.16h)
+  }
+  const hours = Number(h.toFixed(1));
+  if (hours < 1) {
+    const mins = Math.max(1, Math.round(hours * 60));
+    return { hours, formatted: `${mins} minutos` };
+  }
+  const wholeH = Math.floor(hours);
+  const remM = Math.round((hours - wholeH) * 60);
+  return {
+    hours,
+    formatted: remM > 0 ? `${wholeH}h ${remM}m` : `${wholeH} hora${wholeH !== 1 ? "s" : ""}`,
+  };
+}
+
 export function formatSecondsDetailed(seconds: number | null | undefined): string {
   if (!seconds || seconds <= 0) return "0m 00s";
   const total = Math.round(seconds);
@@ -378,22 +401,9 @@ export function buildStructuredFitDiagnostics(summary: FitSummary, targetSession
   // --- Extracción de Métricas Suunto y Reporte Fisiológico ---
   const epoc = summary.epoc ?? summary.deepAnalysis?.epoc ?? summary.deepAnalysis?.suuntoMetrics?.epoc ?? null;
   const pte = summary.pte ?? summary.deepAnalysis?.pte ?? summary.deepAnalysis?.suuntoMetrics?.pte ?? null;
-  const recoveryTimeHours = summary.recoveryTimeHours ?? summary.deepAnalysis?.recoveryTimeHours ?? summary.deepAnalysis?.suuntoMetrics?.recoveryTimeHours ?? null;
+  const rawRecovery = summary.recoveryTimeHours ?? summary.deepAnalysis?.recoveryTimeHours ?? summary.deepAnalysis?.suuntoMetrics?.recoveryTimeHours ?? null;
+  const { hours: recoveryTimeHours, formatted: recoveryTimeFormatted } = normalizeRecoveryTime(rawRecovery);
   const deviceModel = summary.deepAnalysis?.suuntoMetrics?.deviceModel ?? (summary.deepAnalysis?.suuntoMetrics?.deviceManufacturer === "suunto" ? "Suunto 9 Peak Pro" : null);
-
-  let recoveryTimeFormatted = "12 - 24 horas";
-  if (recoveryTimeHours !== null) {
-    if (recoveryTimeHours < 1) {
-      const mins = Math.round(recoveryTimeHours * 60);
-      recoveryTimeFormatted = `${mins} minutos`;
-    } else if (recoveryTimeHours <= 3) {
-      const h = Math.floor(recoveryTimeHours);
-      const m = Math.round((recoveryTimeHours - h) * 60);
-      recoveryTimeFormatted = m > 0 ? `${h}h ${m}m` : `${h} hora${h !== 1 ? "s" : ""}`;
-    } else {
-      recoveryTimeFormatted = `${Math.round(recoveryTimeHours)} horas`;
-    }
-  }
 
   let trainingEffectVerdict = "Estímulo de mantenimiento aeróbico y salud cardiovascular";
   if (pte !== null) {
