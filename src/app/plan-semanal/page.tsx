@@ -339,50 +339,49 @@ export default function PlanSemanalPage() {
         title="Plan semanal"
         description="Planifica qué toca cada día — carrera, gimnasio, natación… — y luego registra el resultado en Registro."
         actions={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 w-full sm:w-auto">
             <input ref={importFileRef} type="file" accept=".xlsx,.csv,.pdf,.png,.jpg,.jpeg" onChange={handleImportFile} style={{ display: "none" }} />
             <Button
               variant="secondary"
               loading={importLoading}
               onClick={() => importFileRef.current?.click()}
-              style={{ height: 36, minHeight: 36, borderRadius: "var(--radius-full)", padding: "0 14px", flex: "1 1 auto" }}
+              className="text-xs flex-1 sm:flex-initial"
+              style={{ height: 36, minHeight: 36, borderRadius: "var(--radius-full)", padding: "0 12px" }}
             >
               <FileUp size={14} />
-              Importar plan
+              <span>Importar</span>
             </Button>
             <a
               href="/Plan_Maraton_Madrid_Daniel_Espinosa.pdf"
               target="_blank"
               rel="noopener noreferrer"
               download="Plan_Maraton_Madrid_Daniel_Espinosa.pdf"
-              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5"
+              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
               style={{
                 height: 36,
                 minHeight: 36,
                 borderRadius: "var(--radius-full)",
-                padding: "0 14px",
-                flex: "1 1 auto",
+                padding: "0 12px",
                 textDecoration: "none",
               }}
               title="Descargar Plan de Entrenamiento Maratón de Madrid en PDF"
             >
               <FileText size={14} className="text-brand" />
-              <span>Plan Madrid PDF</span>
+              <span>Plan PDF</span>
             </a>
             <button
-              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5"
+              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0"
               onClick={() => load(true)}
               disabled={refreshing}
               style={{
                 height: 36,
                 minHeight: 36,
                 borderRadius: "var(--radius-full)",
-                padding: "0 14px",
-                flex: "1 1 auto",
+                padding: "0 12px",
               }}
             >
               <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
-              <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+              <span>{refreshing ? "…" : "Refrescar"}</span>
             </button>
           </div>
         }

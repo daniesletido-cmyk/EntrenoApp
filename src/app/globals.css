@@ -585,11 +585,16 @@ textarea.field {
     box-sizing: border-box !important;
   }
 
+  .grid {
+    max-width: 100% !important;
+  }
+
   /* Prevenir desbordamiento de notas y texto pre-wrap */
   [style*="pre-wrap"], .whitespace-pre-wrap, pre, code {
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
     max-width: 100% !important;
+    white-space: pre-wrap !important;
   }
 }
 

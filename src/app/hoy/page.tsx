@@ -466,7 +466,7 @@ export default function HoyPage() {
             className="relative overflow-hidden surface p-5 animate-in"
           >
             {/* Diffused Subtle Ambient Glow */}
-            <div className="absolute -right-6 -top-6 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute right-0 top-0 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none overflow-hidden" />
 
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -762,9 +762,9 @@ export default function HoyPage() {
       </section>
 
       {/* 4. Sesión Principal de Hoy & Menú de Hoy */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full min-w-0">
         {/* Columna Izquierda: Entrenamiento de Hoy */}
-        <div>
+        <div className="min-w-0 w-full">
           <div className="flex justify-between items-baseline mb-3 px-1">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">
               Sesión Principal
@@ -1198,7 +1198,7 @@ export default function HoyPage() {
         </div>
 
         {/* Columna Derecha: Nutrición & Menú de Hoy */}
-        <div>
+        <div className="min-w-0 w-full">
           <div className="flex justify-between items-baseline mb-3 px-1">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">
               Nutrición &amp; Hidratación
@@ -1382,7 +1382,7 @@ function HoySkeleton() {
       </div>
 
       {/* Main workout & nutrition cards skeleton */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0">
         <div className="surface p-5 space-y-3">
           <div className="h-6 w-1/2 rounded bg-white/10" />
           <div className="h-20 rounded-xl bg-white/5" />

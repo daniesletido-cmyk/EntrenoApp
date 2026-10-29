@@ -208,12 +208,12 @@ export function AdaptiveWeekCard({ currentViewWeekStart, onPlanApplied }: Adapti
       </div>
 
       {/* Métricas clave de la evaluación previa */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3">
-        <div className="surface-raised rounded-md p-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 pt-3 w-full min-w-0">
+        <div className="surface-raised rounded-md p-2 sm:p-2.5 min-w-0 overflow-hidden">
           <div className="text-[10px] uppercase font-bold text-muted flex items-center gap-1">
-            <Activity size={12} /> Carga Foster
+            <Activity size={12} className="flex-shrink-0" /> <span className="truncate">Carga Foster</span>
           </div>
-          <div className="text-sm font-bold mt-0.5">
+          <div className="text-sm font-bold mt-0.5 truncate">
             {evaluation.realLoadFoster} UA{" "}
             <span className="text-[10px] font-normal text-muted">
               ({evaluation.loadDeltaPct >= 0 ? `+${evaluation.loadDeltaPct}%` : `${evaluation.loadDeltaPct}%`})
@@ -221,11 +221,11 @@ export function AdaptiveWeekCard({ currentViewWeekStart, onPlanApplied }: Adapti
           </div>
         </div>
 
-        <div className="surface-raised rounded-md p-2.5">
+        <div className="surface-raised rounded-md p-2 sm:p-2.5 min-w-0 overflow-hidden">
           <div className="text-[10px] uppercase font-bold text-muted flex items-center gap-1">
-            <CheckCircle2 size={12} /> Cumplimiento
+            <CheckCircle2 size={12} className="flex-shrink-0" /> <span className="truncate">Cumplimiento</span>
           </div>
-          <div className="text-sm font-bold mt-0.5">
+          <div className="text-sm font-bold mt-0.5 truncate">
             {evaluation.compliancePct}%{" "}
             <span className="text-[10px] font-normal text-muted">
               ({evaluation.completedSessionsCount}/{evaluation.totalPlannedCount})
@@ -233,11 +233,11 @@ export function AdaptiveWeekCard({ currentViewWeekStart, onPlanApplied }: Adapti
           </div>
         </div>
 
-        <div className="surface-raised rounded-md p-2.5">
+        <div className="surface-raised rounded-md p-2 sm:p-2.5 min-w-0 overflow-hidden">
           <div className="text-[10px] uppercase font-bold text-muted flex items-center gap-1">
-            <Gauge size={12} /> Ratio ACWR
+            <Gauge size={12} className="flex-shrink-0" /> <span className="truncate">Ratio ACWR</span>
           </div>
-          <div className="text-sm font-bold mt-0.5">
+          <div className="text-sm font-bold mt-0.5 truncate">
             {evaluation.acwr ?? "N/A"}{" "}
             <span className="text-[10px] font-normal text-muted capitalize">
               · Fatiga {evaluation.fatigueLevel}
@@ -245,11 +245,11 @@ export function AdaptiveWeekCard({ currentViewWeekStart, onPlanApplied }: Adapti
           </div>
         </div>
 
-        <div className="surface-raised rounded-md p-2.5">
+        <div className="surface-raised rounded-md p-2 sm:p-2.5 min-w-0 overflow-hidden">
           <div className="text-[10px] uppercase font-bold text-muted flex items-center gap-1">
-            <Calendar size={12} /> Próxima semana
+            <Calendar size={12} className="flex-shrink-0" /> <span className="truncate">Próxima semana</span>
           </div>
-          <div className="text-sm font-bold mt-0.5">
+          <div className="text-sm font-bold mt-0.5 truncate">
             {totalNextWeekLoad} UA{" "}
             <span className="text-[10px] font-normal text-muted">
               ({totalNextWeekDistanceKm} km run)
@@ -285,12 +285,12 @@ export function AdaptiveWeekCard({ currentViewWeekStart, onPlanApplied }: Adapti
             {plannedDays.map((d) => (
               <div
                 key={d.date}
-                className="surface-raised rounded-md p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                className="surface-raised rounded-md p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs min-w-0 w-full overflow-hidden"
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-[11px] w-18 text-muted">{d.dayName}</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0 flex-1">
+                  <span className="font-bold text-[11px] w-14 sm:w-18 text-muted flex-shrink-0">{d.dayName}</span>
                   <span
-                    className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
+                    className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase flex-shrink-0"
                     style={{
                       backgroundColor:
                         d.discipline === "carrera"
@@ -312,10 +312,10 @@ export function AdaptiveWeekCard({ currentViewWeekStart, onPlanApplied }: Adapti
                   >
                     {d.discipline}
                   </span>
-                  <span className="font-medium">{d.plannedCode}</span>
+                  <span className="font-medium break-words leading-tight" style={{ overflowWrap: "anywhere" }}>{d.plannedCode}</span>
                 </div>
 
-                <div className="flex items-center gap-3 text-muted text-[11px] pl-20 sm:pl-0">
+                <div className="flex items-center gap-2 sm:gap-3 text-muted text-[11px] flex-shrink-0 self-end sm:self-auto">
                   {d.distanceKm && <span>{d.distanceKm} km</span>}
                   {d.durationMin > 0 && <span>{d.durationMin} min</span>}
                   {d.estimatedLoad > 0 && <span className="font-semibold text-text">{d.estimatedLoad} UA</span>}
