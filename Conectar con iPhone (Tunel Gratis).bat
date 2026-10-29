@@ -19,8 +19,8 @@ if not exist "%CF_EXE%" (
   )
 )
 
-set TARGET_PORT=3000
-netstat -ano | findstr ":3000 " >nul 2>nul
+set TARGET_PORT=3210
+netstat -ano | findstr ":3210 " >nul 2>nul
 if errorlevel 1 (
   echo El servidor de EntrenoApp no estaba iniciado. Arrancando servidor local...
   start /min "EntrenoApp Local" cmd /c "npm run dev"

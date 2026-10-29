@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listSessionsForWeek } from "@/lib/repo/sessions";
-import { listSleepBetween } from "@/lib/repo/sleep";
+import { listSessionsForWeek, SessionRow } from "@/lib/repo/sessions";
+import { listSleepBetween, SleepRow } from "@/lib/repo/sleep";
 import { weekStartOf, todayISO, addDays } from "@/lib/dates";
+import { getDb } from "@/lib/db";
+import { computeDailyReadiness } from "@/lib/readiness";
 
 function avg(nums: number[]): number | null {
   const valid = nums.filter((n) => Number.isFinite(n));
@@ -82,6 +84,57 @@ export async function GET(req: NextRequest) {
   const walkAvgPaceMinKm = walkDistanceKm > 0 ? walkDurationMin / walkDistanceKm : null;
   const walkCount = walks.length;
 
+  // Sesiones recientes con telemetría Suunto para el Dashboard
+  let recentSessions: any[] = [];
+  try {
+    const rawSessions = getDb()
+      .prepare<SessionRow>(
+        "SELECT id, date, discipline, planned_code, status, duration_min, distance_km, rpe, fit_data FROM sessions WHERE status IN ('realizada', 'parcial') OR date <= date('now') ORDER BY date DESC, id DESC LIMIT 6"
+      )
+      .all();
+
+    recentSessions = rawSessions.map((s) => {
+      let suuntoMetrics: any = null;
+      if (s.fit_data) {
+        try {
+          const parsed = JSON.parse(s.fit_data);
+          suuntoMetrics = parsed.deepAnalysis?.suuntoMetrics || {
+            pte: parsed.pte ?? parsed.deepAnalysis?.pte,
+            epoc: parsed.epoc ?? parsed.deepAnalysis?.epoc,
+            recoveryTimeHours: parsed.recoveryTimeHours,
+          };
+        } catch {}
+      }
+      return {
+        id: s.id,
+        date: s.date,
+        discipline: s.discipline,
+        planned_code: s.planned_code,
+        status: s.status,
+        duration_min: s.duration_min,
+        distance_km: s.distance_km,
+        rpe: s.rpe,
+        hasFit: !!s.fit_data,
+        suuntoMetrics,
+      };
+    });
+  } catch {}
+
+  // Historial reciente de sueño (últimos 7 registros)
+  let recentSleep: any[] = [];
+  try {
+    recentSleep = getDb()
+      .prepare<SleepRow>(
+        "SELECT date, hours, quality, score, deep_min, rem_min, light_min, awake_min FROM sleep_logs ORDER BY date DESC LIMIT 7"
+      )
+      .all();
+  } catch {}
+
+  let readiness: any = null;
+  try {
+    readiness = computeDailyReadiness(todayISO());
+  } catch {}
+
   return NextResponse.json({
     weekStart,
     weekEnd,
@@ -107,5 +160,8 @@ export async function GET(req: NextRequest) {
     walkAvgPaceMinKm,
     walkCount,
     avgPaceMinKm: runAvgPaceMinKm, // compatibilidad hacia atrás
+    recentSessions,
+    recentSleep,
+    readiness,
   });
 }

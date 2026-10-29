@@ -44,6 +44,7 @@ import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 
 interface FitLap {
   index: number;
@@ -816,6 +817,10 @@ export default function RegistroPage() {
           </>
         }
       />
+
+      {/* Zona de Importación Drag & Drop */}
+      <FileDropzone compact className="mb-4" onSuccess={load} />
+
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
       {sleepPreview && sleepSummary && (

@@ -5,17 +5,12 @@ import crypto from "node:crypto";
 import { ensureAnnualPlanPopulated } from "@/lib/annual-plan-seed";
 import { DEFAULT_EXERCISES } from "@/lib/prs-catalog";
 
-// Mismo patrón que FinanzasApp: node:sqlite (nativo de Node, sin compilar nada),
-// sin better-sqlite3 ni Prisma. Cada fila se convierte a objeto plano porque
-// node:sqlite devuelve prototipo null, que Next.js rechaza pasar de Server a
-// Client Component.
-
 let db: DatabaseSync | null = null;
+let activeDbPath: string | null = null;
+let lastCloudSyncTime = 0;
+let syncScheduled = false;
 
 function resolveDbPath(): string {
-  // En la app de escritorio (Electron), main.cjs fijará DB_PATH a la carpeta
-  // de datos de usuario de Windows (userData). En Vercel Serverless, usamos /tmp.
-  // En desarrollo o contenedores, usamos ./data.
   let targetPath = path.join(process.cwd(), "data", "entrenoapp.db");
   if (process.env.VERCEL) {
     targetPath = path.join("/tmp", "entrenoapp.db");
@@ -24,48 +19,44 @@ function resolveDbPath(): string {
   } else if (process.env.ENTRENO_DATA_DIR) {
     targetPath = path.join(process.env.ENTRENO_DATA_DIR, "entrenoapp.db");
   }
+
   const dir = path.dirname(targetPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
   const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
-  if (fs.existsSync(seedPath)) {
-    let copyRequired = !fs.existsSync(targetPath);
-    if (process.env.VERCEL) {
-      try {
-        const seedBuffer = fs.readFileSync(seedPath);
-        const seedHash = crypto.createHash("md5").update(seedBuffer).digest("hex");
-        const hashFilePath = path.join(dir, ".seed_hash");
-        let activeHash = "";
-        if (fs.existsSync(hashFilePath)) {
-          try {
-            activeHash = fs.readFileSync(hashFilePath, "utf8").trim();
-          } catch {}
-        }
-        if (!copyRequired && activeHash !== seedHash) {
-          copyRequired = true;
-        }
-        if (copyRequired) {
-          fs.writeFileSync(targetPath, seedBuffer);
-          try {
-            fs.writeFileSync(hashFilePath, seedHash, "utf8");
-          } catch {}
-          return targetPath;
-        }
-      } catch (e) {
-        console.error("Error comprobando hash de seed:", e);
-      }
-    }
 
-    if (copyRequired) {
+  if (!fs.existsSync(targetPath)) {
+    if (fs.existsSync(seedPath)) {
       try {
         fs.copyFileSync(seedPath, targetPath);
       } catch (e) {
-        console.error("Error copiando seed de base de datos:", e);
+        console.error("[DB] Error al inicializar desde seed:", e);
       }
     }
+  } else if (process.env.VERCEL) {
+    // En Vercel, si existe seed con un hash diferente al actualmente activo y no hay persistencia en Blob,
+    // comprobar si se necesita actualizar.
+    try {
+      if (fs.existsSync(seedPath)) {
+        const hashFile = path.join(dir, ".seed_hash");
+        const seedBuffer = fs.readFileSync(seedPath);
+        const seedHash = crypto.createHash("md5").update(seedBuffer).digest("hex");
+        let activeHash = "";
+        if (fs.existsSync(hashFile)) {
+          activeHash = fs.readFileSync(hashFile, "utf8").trim();
+        }
+        if (activeHash !== seedHash && !fs.existsSync(targetPath)) {
+          fs.writeFileSync(targetPath, seedBuffer);
+          fs.writeFileSync(hashFile, seedHash, "utf8");
+        }
+      }
+    } catch (e) {
+      console.error("[DB] Error de verificación de seed en Vercel:", e);
+    }
   }
+
   return targetPath;
 }
 
@@ -91,6 +82,7 @@ function wrap(raw: DatabaseSync): AppDb {
       return {
         run: (...params: unknown[]) => {
           const res = stmt.run(...(params as never[]));
+          triggerDataPersistence();
           return { lastInsertRowid: res.lastInsertRowid, changes: Number(res.changes) };
         },
         get: (...params: unknown[]) => toPlainObject(stmt.get(...(params as never[])) as T | undefined),
@@ -99,13 +91,15 @@ function wrap(raw: DatabaseSync): AppDb {
     },
     exec(sql: string) {
       raw.exec(sql);
+      triggerDataPersistence();
     },
     transaction<T>(fn: () => T) {
       return () => {
-        raw.exec("BEGIN");
+        raw.exec("BEGIN IMMEDIATE");
         try {
           const result = fn();
           raw.exec("COMMIT");
+          triggerDataPersistence();
           return result;
         } catch (err) {
           raw.exec("ROLLBACK");
@@ -116,8 +110,117 @@ function wrap(raw: DatabaseSync): AppDb {
   };
 }
 
+export function triggerDataPersistence(): void {
+  if (syncScheduled) return;
+  syncScheduled = true;
+
+  setTimeout(async () => {
+    syncScheduled = false;
+    try {
+      const dbPath = activeDbPath || resolveDbPath();
+      if (!fs.existsSync(dbPath)) return;
+
+      // 1. En desarrollo local o servidor dedicado: sincronizar con seed/entrenoapp.db
+      // para que cualquier commit a git o despliegue en la nube contenga los datos actuales.
+      if (!process.env.VERCEL) {
+        const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
+        try {
+          const seedDir = path.dirname(seedPath);
+          if (!fs.existsSync(seedDir)) fs.mkdirSync(seedDir, { recursive: true });
+          fs.copyFileSync(dbPath, seedPath);
+        } catch (e) {
+          console.warn("[DB] Fallo silencioso al sincronizar seed:", e);
+        }
+
+        // Crear copia de seguridad rotativa periódica (máximo cada 1 hora)
+        const now = Date.now();
+        if (now - lastCloudSyncTime > 3600000) {
+          lastCloudSyncTime = now;
+          rotateLocalBackup(dbPath);
+        }
+      } else {
+        // 2. En Vercel: si existe BLOB_READ_WRITE_TOKEN, subir snapshot persistente a Vercel Blob
+        if (process.env.BLOB_READ_WRITE_TOKEN) {
+          try {
+            const { put } = await import("@vercel/blob");
+            const buffer = fs.readFileSync(dbPath);
+            await put("entrenoapp-db/entrenoapp.db", buffer, {
+              access: "public",
+              addRandomSuffix: false,
+            });
+            lastCloudSyncTime = Date.now();
+          } catch (e) {
+            console.warn("[DB] Error sincronizando con Vercel Blob:", e);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[DB] Error en persistencia de datos:", err);
+    }
+  }, 1000);
+}
+
+function rotateLocalBackup(dbPath: string): void {
+  try {
+    const backupDir = path.join(path.dirname(dbPath), "tmp-backups");
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+    const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+    const backupFile = path.join(backupDir, `entrenoapp-backup-${stamp}.db`);
+    fs.copyFileSync(dbPath, backupFile);
+
+    // Mantener como máximo los 7 backups más recientes
+    const files = fs
+      .readdirSync(backupDir)
+      .filter((f) => f.startsWith("entrenoapp-backup-") && f.endsWith(".db"))
+      .sort();
+
+    while (files.length > 7) {
+      const oldest = files.shift();
+      if (oldest) {
+        try {
+          fs.unlinkSync(path.join(backupDir, oldest));
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn("[DB] Error rotando backups locales:", err);
+  }
+}
+
+function columnExists(d: AppDb, table: string, column: string): boolean {
+  try {
+    const rows = d.prepare<{ name: string }>(`PRAGMA table_info(${table})`).all();
+    return rows.some((r) => r.name === column);
+  } catch {
+    return false;
+  }
+}
+
+function isMigrationExecuted(d: AppDb, version: string): boolean {
+  try {
+    const row = d.prepare<{ c: number }>("SELECT COUNT(*) as c FROM _schema_migrations WHERE version = ?").get(version);
+    return (row?.c ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+function recordMigration(d: AppDb, version: string): void {
+  try {
+    d.prepare("INSERT OR REPLACE INTO _schema_migrations (version, executed_at) VALUES (?, datetime('now'))").run(version);
+  } catch (e) {
+    console.error("[DB] Error registrando migración:", version, e);
+  }
+}
+
 function createSchema(d: AppDb) {
   d.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_migrations (
+      version TEXT PRIMARY KEY,
+      executed_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
@@ -132,6 +235,8 @@ function createSchema(d: AppDb) {
       distance_km REAL,
       notes TEXT,
       user_notes TEXT,
+      fit_backup TEXT,
+      fit_data TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -142,6 +247,15 @@ function createSchema(d: AppDb) {
       hours REAL,
       quality INTEGER,
       notes TEXT,
+      score INTEGER,
+      deep_min REAL,
+      light_min REAL,
+      rem_min REAL,
+      awake_min REAL,
+      source TEXT,
+      nap_min REAL,
+      nap_count INTEGER DEFAULT 0,
+      nap_notes TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -186,9 +300,6 @@ function createSchema(d: AppDb) {
       updated_at TEXT NOT NULL
     );
 
-    -- Catálogo de días de gimnasio (Día A, Día B...) definido por el usuario,
-    -- y los ejercicios que tocan cada día. Los pesos/series/reps se registran
-    -- aparte, en gym_logs, uno por ejercicio y fecha.
     CREATE TABLE IF NOT EXISTS gym_days (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -245,20 +356,8 @@ function createSchema(d: AppDb) {
   `);
 }
 
-function columnExists(d: AppDb, table: string, column: string): boolean {
-  const rows = d.prepare<{ name: string }>(`PRAGMA table_info(${table})`).all();
-  return rows.some((r) => r.name === column);
-}
-
-// Igual que en FinanzasApp: sin Prisma, sin herramienta de migraciones.
-// CREATE TABLE IF NOT EXISTS no toca tablas ya existentes, así que una
-// columna nueva en el futuro necesita añadirse aquí a mano, comprobando
-// primero con PRAGMA table_info si ya existe (idempotente).
 function migrateSchema(d: AppDb) {
-  // Guarda el estado de la sesión (estado, rpe, duración, distancia, notas)
-  // justo antes de aplicar un .fit importado, para poder deshacerlo con un
-  // botón desde Registro. NULL mientras no se haya importado ningún .fit
-  // sobre esa sesión, o después de deshacerlo.
+  // Asegurar columnas faltantes en tablas existentes
   if (!columnExists(d, "sessions", "fit_backup")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN fit_backup TEXT;`);
   }
@@ -272,10 +371,6 @@ function migrateSchema(d: AppDb) {
     d.exec(`ALTER TABLE sessions ADD COLUMN user_notes TEXT;`);
   }
 
-  // Puntuación de sueño (0-100) y desglose por fases en minutos, que llegan al
-  // importar el CSV exportado desde ZeppBridge (ver src/lib/import/zepp-sleep.ts).
-  // La entrada manual de "calidad" (1-5) en Registro sigue viviendo en `quality`
-  // y no se toca — son dos cosas distintas, nunca se mezclan en la misma escala.
   if (!columnExists(d, "sleep_logs", "score")) {
     d.exec(`ALTER TABLE sleep_logs ADD COLUMN score INTEGER;`);
   }
@@ -311,135 +406,30 @@ function migrateSchema(d: AppDb) {
     d.exec(`ALTER TABLE gym_logs ADD COLUMN series_data TEXT;`);
   }
 
-  // Auto-sincronización garantizada de sesiones históricas realizadas y Test VAM
-  try {
-    d.exec(`
-      UPDATE sessions SET status = 'realizada', duration_min = 40, distance_km = 1.6, rpe = 6 WHERE id = 11 OR (date = '2026-09-12' AND discipline = 'natacion');
-      UPDATE sessions SET status = 'realizada', duration_min = 54, distance_km = 9.0, rpe = 6 WHERE id = 14 OR (date = '2026-09-13' AND discipline = 'carrera');
-      UPDATE sessions SET status = 'realizada', duration_min = 40, distance_km = 1.5, rpe = 6 WHERE id = 17 OR (date = '2026-09-15' AND discipline = 'natacion');
-      UPDATE sessions SET status = 'realizada', duration_min = 58, distance_km = 10.0, rpe = 6 WHERE id = 20 OR (date = '2026-09-20' AND discipline = 'carrera');
-      UPDATE sessions SET status = 'realizada', duration_min = 38, distance_km = 6.2, rpe = 5 WHERE id = 27 OR (date = '2026-09-24' AND discipline = 'carrera');
-      UPDATE sessions SET status = 'realizada', duration_min = 42, distance_km = 1.6, rpe = 6 WHERE id = 28 OR (date = '2026-09-25' AND discipline = 'natacion');
-      UPDATE sessions SET status = 'realizada', duration_min = 48, distance_km = 8.5, rpe = 7 WHERE id = 29 OR (date = '2026-09-26' AND discipline = 'carrera');
-      UPDATE sessions SET status = 'realizada', duration_min = 35, distance_km = 5.8, rpe = 10, notes = 'TEST VAM realizado: 5 min a máxima intensidad. VAM obtenido: 3:59 min/km (15.06 km/h). Nuevas zonas de carrera calculadas y activadas.' WHERE id = 30 OR (date = '2026-09-27' AND discipline = 'carrera');
-      INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_pace', '3:59 min/km');
-      INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_speed', '15.06 km/h');
-      INSERT OR REPLACE INTO settings (key, value) VALUES ('vam_test_date', '2026-09-27');
-      INSERT OR REPLACE INTO settings (key, value) VALUES ('target_pace_scenario', '5:00-5:15 min/km (VAM: 3:59 min/km)');
-
-      -- Reorganización de la semana 2026-10-12 a 2026-10-18 (CrossFit Mié/Vie, Natación Mar, Carreras y Descanso)
-      UPDATE sessions SET
-        discipline = 'descanso',
-        planned_code = 'Descanso / Sin entrenamiento',
-        status = 'no_realizada',
-        duration_min = 0,
-        distance_km = NULL,
-        rpe = NULL,
-        notes = 'DESCANSO (Día libre sin entrenamiento):\n- Ayer lunes no se entrenó (0 min de actividad).\n- Carga acumulada: 0 UA.'
-      WHERE date = '2026-10-12';
-
-      UPDATE sessions SET
-        discipline = 'natacion',
-        planned_code = 'NAT (Base Aeróbica & Descompresión Articular)',
-        status = 'realizada',
-        duration_min = 45,
-        distance_km = 2.0,
-        rpe = 5,
-        notes = 'NATACIÓN · Base Aeróbica y Preparación Articular (~2.000m · 45 min · RPE 5 · Carga estimada: 225 UA):\n- Justificación de carga: Ayer descansaste (0 UA); hoy realizas natación técnica aeróbica para preparar el sistema cardiovascular y proteger los hombros/gemelos antes del CrossFit del miércoles y viernes.\n- Calentamiento: 350m suave y variado continuo (200m crol largo y relajado + 150m espalda suave para abrir la cintura escapular).\n- Técnica y Eficiencia: 4x50m técnica con pull-buoy (foco en agarre alto y tracción dorsal fluida, descanso 20s). *Objetivo*: Alinear cadera y soltar piernas.\n- Bloque Principal (Ritmo Crucero Aeróbico): 4x250m crol a ritmo constante y sostenido en zona aeróbica cómoda (descanso 30s entre bloques). *Recomendación*: Realizar las series 1 y 3 con pull-buoy para aislar gemelos y sóleos de cara a la carrera del miércoles.\n- Descarga continua: 200m nado continuo suave a estilo libre.\n- Vuelta a la calma: 150m espalda suave + respiración bilateral para equilibrar hombros y cuello. Cero fatiga acumulada.'
-      WHERE date = '2026-10-13';
-
-      UPDATE sessions SET
-        discipline = 'crossfit',
-        planned_code = 'CrossFit WOD (Steady: Habilidad Pino + 5 Rondas Running & Wall Walks)',
-        status = 'realizada',
-        duration_min = 50,
-        distance_km = NULL,
-        rpe = 7.5,
-        notes = 'CROSSFIT · DÍA STEADY (Constante y sostenido · Duración ~50 min · RPE 7.5 · Carga estimada: 375 UA):\n\n1. BLOQUE DE FUERZA Y TÉCNICA (10:00 minutos de práctica):\n- Práctica de caminar haciendo el pino (Handstand Walk), mantenimiento de la vertical invertida estática (Handstand Hold) y estabilidad de hombros por encima de la cabeza (Overhead Stability).\n- Enfoque: Trabajo de desarrollo de habilidad y control neuromuscular. Sin medición ni carga máxima; priorizar la técnica limpia.\n\n2. WOD PRINCIPAL FREEDOM RX (Por Tiempo - 5 Rondas completas):\nCompletar en el menor tiempo posible:\n- 400 metros de Carrera continua (Run)\n- 50 Saltos dobles a la comba (Double Unders)\n- 5 Caminatas a la pared / Escaladas de pared (Wall Walks)\n*Puntuación: Tiempo total cronometrado.\n*Ritmo objetivo: Ritmo "Steady" (controlado y sin paradas largas), gestionando la fatiga de hombros en los wall walks y el impacto en gemelos de la comba.\n\n3. VUELTA A LA CALMA (5-10 min):\n- Estiramientos suaves de hombros (manguito rotador, pectorales) y descarga de gemelos y fascia plantar.'
-      WHERE date = '2026-10-14';
-
-      UPDATE sessions SET
-        discipline = 'carrera',
-        planned_code = 'R1 (Rodaje Regenerativo Suave VAM)',
-        status = 'realizada',
-        duration_min = 38,
-        distance_km = 6.5,
-        rpe = 4.5,
-        notes = 'RUNNING · Rodaje Regenerativo en Zona R1 (~6.5 km · ~38 min · RPE 4-5 · Carga estimada: 171 UA):\n- Ritmo objetivo VAM: 5:25 - 4:59 min/km (Zona R1, 100% conversacional, VAM: 3:59 min/km).\n- Justificación de carga: Recuperar activamente la musculatura tras la carrera y saltos de comba del miércoles, manteniendo las piernas frescas para el esfuerzo de sentadillas pesadas del viernes.\n- Calentamiento: 5 min caminando a paso ligero y trote muy suave (>5:30/km).\n- Cuerpo principal: 30 min continuo a ritmo R1 suave, pisada elástica y cadencia alta (175-180 ppm).\n- Técnica final: 3x60m progresiones suaves soltando piernas (sin sprintar).\n- Vuelta a la calma: 3-5 min andando + estiramientos de sóleos y cuádriceps.'
-      WHERE date = '2026-10-15';
-
-      UPDATE sessions SET
-        discipline = 'crossfit',
-        planned_code = 'CrossFit WOD (Sprint: 8 Series Front Squat + Intervalos Box Step Overs)',
-        status = 'realizada',
-        duration_min = 50,
-        distance_km = NULL,
-        rpe = 8.5,
-        notes = 'CROSSFIT · DÍA SPRINT (Máxima potencia láctica · Duración ~50 min · RPE 8.5 · Carga estimada: 425 UA):\n\n1. BLOQUE DE FUERZA (8 Series de 2 repeticiones):\n- 8 Series de 2 Sentadillas Frontales (Front Squats).\n- Descanso estricto de 1:00 minuto entre series.\n- Objetivo: Construir peso progresivamente hacia carga pesada. El resultado es el peso más pesado completado con técnica perfecta.\n\n2. WOD PRINCIPAL FREEDOM RX (Cada 3:30 min durante 5 Series):\nEn cada intervalo de 3:30 min, realizar a ritmo de SPRINT:\n- 8 Sentadillas Frontales (Front Squats con 60 kg chicos / 42.5 kg chicas · 135/95 lbs)\n- 16 Pasos por encima del cajón (Box Step Overs con cajón de 61 cm / 50 cm · pueden ser laterales o de frente)\n- 8 Sentadillas Frontales (Front Squats con 60 kg chicos / 42.5 kg chicas · 135/95 lbs)\n*Puntuación: Registrar el tiempo de cada serie individual. El tiempo restante hasta completar los 3:30 min es tu descanso antes de la siguiente serie.\n*Estrategia: Salir fuerte en cada intervalo buscando mantener un tiempo consistente entre las 5 rondas.\n\n3. VUELTA A LA CALMA (5-10 min):\n- Movilidad y descompresión de flexores de cadera, cuádriceps y zona lumbar.'
-      WHERE date = '2026-10-16';
-
-      UPDATE sessions SET
-        discipline = 'descanso',
-        planned_code = 'Descanso Activo & Movilidad Lumbo-Pélvica',
-        status = 'realizada',
-        duration_min = 20,
-        distance_km = NULL,
-        rpe = 2,
-        notes = 'DESCANSO ACTIVO · Recuperación Lumbo-Pélvica (~20 min · RPE 2 · Carga estimada: 0 UA):\n- Justificación de carga: Tras el alto volumen e impacto excéntrico de sentadillas frontales pesadas y saltos del viernes (425 UA), el sábado se dedica a descompresión para asimilar la carga y llegar en óptimas condiciones a la tirada larga del domingo.\n- 8-10 min de foam roller en cuádriceps, glúteos, banda iliotibial y gemelos.\n- 10 min de movilidad articular de cadera (couch stretch para psoas, paloma para glúteos y rotación torácica).\n- Cero impacto articular de cara a la tirada larga del domingo.'
-      WHERE date = '2026-10-17';
-
-      UPDATE sessions SET
-        discipline = 'carrera',
-        planned_code = 'R5 (Tirada Larga de Volumen 14 km)',
-        status = 'realizada',
-        duration_min = 74,
-        distance_km = 14.0,
-        rpe = 5.5,
-        notes = 'RUNNING · Tirada Larga de Volumen Semanal (14 km · ~74 min · RPE 5-6 · Carga estimada: 407 UA):\n- Ritmo objetivo VAM: 5:25 - 5:05 min/km (Ritmo aeróbico cómodo sostenido, VAM: 3:59 min/km).\n- Justificación de carga: Es el bloque principal de volumen aeróbico semanal. Llegarás con las piernas descansadas tras el sábado sin impacto.\n- Calentamiento: 5 min trote muy suave (>5:30/km) + movilidad de tobillos.\n- Bloque de volumen: 14 km continuos manteniendo pulsaciones controladas y cadencia estable (175 ppm).\n- Hidratación / Nutrición: Tomar agua o sales cada 20-25 minutos; 1 gel isotónico en el km 8-9 si es necesario.\n- Vuelta a la calma: 5 min andando a paso lento + estiramientos completos.'
-      WHERE date = '2026-10-18';
-
-      -- Semana actual (2026-10-19 a 2026-10-25): Lunes a Viernes completados
-      UPDATE sessions SET status = 'realizada', duration_min = 45, distance_km = 1.9, rpe = 4.5 WHERE date = '2026-10-19';
-      UPDATE sessions SET status = 'realizada', duration_min = 55, distance_km = 2.4, rpe = 8.5 WHERE date = '2026-10-20';
-      UPDATE sessions SET status = 'realizada', duration_min = 35.2, distance_km = 6.76, rpe = 5.5 WHERE date = '2026-10-21';
-      UPDATE sessions SET status = 'realizada', duration_min = 50, rpe = 7.5 WHERE date = '2026-10-22';
-      UPDATE sessions SET status = 'realizada', duration_min = 20, rpe = 2 WHERE date = '2026-10-23';
-    `);
-
-    ensureAnnualPlanPopulated(d);
-    ensurePrsCatalogAndRecords(d);
-  } catch (e) {
-    console.error("Error auto-sincronizando sesiones históricas y anuales:", e);
+  // Migración idempotente para índices de alto rendimiento
+  if (!isMigrationExecuted(d, "20261029_create_performance_indexes")) {
+    try {
+      d.exec(`
+        CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
+        CREATE INDEX IF NOT EXISTS idx_sessions_week_start ON sessions(week_start);
+        CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+        CREATE INDEX IF NOT EXISTS idx_sleep_date ON sleep_logs(date);
+        CREATE INDEX IF NOT EXISTS idx_gym_logs_date ON gym_logs(date);
+        CREATE INDEX IF NOT EXISTS idx_exercise_records_date ON exercise_records(date);
+      `);
+      recordMigration(d, "20261029_create_performance_indexes");
+    } catch (e) {
+      console.error("[DB] Error creando índices:", e);
+    }
   }
+
+  // Catálogo de PRs y plan anual poblado de manera garantizada
+  ensureAnnualPlanPopulated(d);
+  ensurePrsCatalogAndRecords(d);
 }
 
 function ensurePrsCatalogAndRecords(d: AppDb) {
   try {
-    d.exec(`
-      CREATE TABLE IF NOT EXISTS exercise_catalog (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        category TEXT NOT NULL,
-        unit TEXT NOT NULL DEFAULT 'kg',
-        is_custom INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS exercise_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        exercise_name TEXT NOT NULL,
-        category TEXT NOT NULL,
-        weight_kg REAL NOT NULL,
-        reps INTEGER DEFAULT 1,
-        date TEXT NOT NULL,
-        rpe REAL,
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-    `);
-
-    // Comprobar catálogo predefinido
     const countRow = d.prepare<{ c: number }>("SELECT COUNT(*) as c FROM exercise_catalog").get();
     if (!countRow || countRow.c === 0) {
       const now = new Date().toISOString();
@@ -448,60 +438,11 @@ function ensurePrsCatalogAndRecords(d: AppDb) {
         insert.run(item.name, item.category, item.unit, now);
       }
     }
-
-    // Comprobar si hay registros antiguos en gym_logs para migrarlos a exercise_records
-    const recordsCount = d.prepare<{ c: number }>("SELECT COUNT(*) as c FROM exercise_records").get();
-    if (!recordsCount || recordsCount.c === 0) {
-      try {
-        const oldLogs = d.prepare<{ name: string; weight_kg: number; reps: number | null; date: string; notes: string | null }>(`
-          SELECT ge.name, gl.weight_kg, gl.reps, gl.date, gl.notes
-          FROM gym_logs gl
-          JOIN gym_exercises ge ON ge.id = gl.exercise_id
-          WHERE gl.weight_kg IS NOT NULL AND gl.weight_kg > 0
-          ORDER BY gl.date ASC
-        `).all();
-
-        const insertRecord = d.prepare(`
-          INSERT INTO exercise_records (exercise_name, category, weight_kg, reps, date, notes, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        const now = new Date().toISOString();
-
-        for (const log of oldLogs) {
-          let cleanName = log.name.replace(/\s*\([^)]*\)/g, "").trim();
-          let category = "Fuerza & Powerlifting";
-          if (cleanName.toLowerCase().includes("sentadilla")) cleanName = "Sentadilla Trasera (Back Squat)";
-          else if (cleanName.toLowerCase().includes("press banca")) cleanName = "Press de Banca (Bench Press)";
-          else if (cleanName.toLowerCase().includes("press militar")) cleanName = "Press Militar Estricto (Strict Press)";
-          else if (cleanName.toLowerCase().includes("jalón")) { cleanName = "Jalón al Pecho en Polea (Lat Pulldown)"; category = "Accesorios"; }
-          else if (cleanName.toLowerCase().includes("remo")) { cleanName = "Remo en Polea Baja / Máquina"; category = "Accesorios"; }
-          else if (cleanName.toLowerCase().includes("tríceps")) { cleanName = "Tríceps en Polea (Pushdown)"; category = "Accesorios"; }
-          else if (cleanName.toLowerCase().includes("bíceps")) { cleanName = "Curl de Bíceps con Mancuernas"; category = "Mancuernas"; }
-          else if (cleanName.toLowerCase().includes("peso muerto")) cleanName = "Peso Muerto Rumano (RDL)";
-
-          insertRecord.run(
-            cleanName,
-            category,
-            log.weight_kg,
-            log.reps || 1,
-            log.date,
-            log.notes || null,
-            now,
-            now
-          );
-        }
-      } catch (e) {
-        console.error("Error migrando gym_logs a exercise_records:", e);
-      }
-    }
   } catch (err) {
-    console.error("Error en ensurePrsCatalogAndRecords:", err);
+    console.error("[DB] Error en ensurePrsCatalogAndRecords:", err);
   }
 }
 
-// Igual que FinanzasApp: si hay una restauración de copia de seguridad
-// pendiente (ver src/lib/repo/backup.ts), se aplica aquí, antes de abrir
-// ninguna conexión — nunca se sustituye la base de datos en caliente.
 function applyPendingRestoreIfAny(dbPath: string) {
   const pendingPath = `${dbPath}.restore-pending`;
   if (!fs.existsSync(pendingPath)) return;
@@ -511,7 +452,7 @@ function applyPendingRestoreIfAny(dbPath: string) {
   }
   for (const ext of ["-wal", "-shm", "-journal"]) {
     const p = `${dbPath}${ext}`;
-    if (fs.existsSync(/*turbopackIgnore: true*/ p)) fs.unlinkSync(/*turbopackIgnore: true*/ p);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
   }
   fs.renameSync(pendingPath, dbPath);
 }
@@ -519,10 +460,14 @@ function applyPendingRestoreIfAny(dbPath: string) {
 export function getDb(): AppDb {
   if (db) return wrap(db);
   const dbPath = resolveDbPath();
+  activeDbPath = dbPath;
   applyPendingRestoreIfAny(dbPath);
+
   db = new DatabaseSync(dbPath);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
+  db.exec("PRAGMA synchronous = NORMAL;");
+
   const wrapped = wrap(db);
   createSchema(wrapped);
   migrateSchema(wrapped);
@@ -530,5 +475,5 @@ export function getDb(): AppDb {
 }
 
 export function getDbPath(): string {
-  return resolveDbPath();
+  return activeDbPath || resolveDbPath();
 }

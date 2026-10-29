@@ -142,6 +142,17 @@ export interface FitPacingAnalysis {
   maxAltitudeM?: number | null;
 }
 
+export interface SuuntoMetrics {
+  epoc?: number | null;
+  pte?: number | null;
+  recoveryTimeHours?: number | null;
+  recoveryTimeMinutes?: number | null;
+  feeling?: number | null;
+  tss?: number | null;
+  deviceModel?: string | null;
+  deviceManufacturer?: string | null;
+}
+
 export interface FitDeepAnalysis {
   avgCadence?: number | null;
   maxCadence?: number | null;
@@ -160,6 +171,10 @@ export interface FitDeepAnalysis {
   trainingEffect?: number | null;
   anaerobicTrainingEffect?: number | null;
   recoveryTimeHours?: number | null;
+  recoveryTimeMinutes?: number | null;
+  epoc?: number | null;
+  pte?: number | null;
+  suuntoMetrics?: SuuntoMetrics | null;
   timeSeries?: FitTimeSeriesPoint[];
   pacingAnalysis?: FitPacingAnalysis;
 }
@@ -185,6 +200,11 @@ export interface FitSummary {
   deepAnalysis: FitDeepAnalysis;
   timeSeries?: FitTimeSeriesPoint[];
   pacingAnalysis?: FitPacingAnalysis;
+  epoc?: number | null;
+  pte?: number | null;
+  recoveryTimeHours?: number | null;
+  recoveryTimeMinutes?: number | null;
+  suuntoMetrics?: SuuntoMetrics | null;
 }
 
 export function formatPace(minKm: number | null | undefined): string {
@@ -1479,7 +1499,28 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       if (sport === "carrera") {
         zoneDistribution = computeZoneDistributionFromRecords(rawRecords);
       }
-      const hrZoneDistribution = computeHrZonesFromRecords(rawRecords, maxHeartRate ?? 190);
+
+      // 1. Zonas de frecuencia cardíaca nativas del reloj (ej: Suunto 9 Peak Pro time_in_hr_zone array)
+      let hrZoneDistribution = computeHrZonesFromRecords(rawRecords, maxHeartRate ?? 190);
+      const rawWatchHrZones = (session as any).time_in_hr_zone;
+      if (Array.isArray(rawWatchHrZones) && rawWatchHrZones.length >= 5) {
+        const [z1, z2, z3, z4, z5] = rawWatchHrZones.map((v: any) => (typeof v === "number" && v >= 0 ? v : 0));
+        const total = z1 + z2 + z3 + z4 + z5;
+        if (total > 0) {
+          hrZoneDistribution = {
+            z1Sec: Math.round(z1),
+            z2Sec: Math.round(z2),
+            z3Sec: Math.round(z3),
+            z4Sec: Math.round(z4),
+            z5Sec: Math.round(z5),
+            z1Pct: Math.round((z1 / total) * 100),
+            z2Pct: Math.round((z2 / total) * 100),
+            z3Pct: Math.round((z3 / total) * 100),
+            z4Pct: Math.round((z4 / total) * 100),
+            z5Pct: Math.round((z5 / total) * 100),
+          };
+        }
+      }
 
       // Desacoplamiento cardiovascular
       let aerobicDecouplingPct: number | null = null;
@@ -1516,9 +1557,42 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         }
       }
 
-      const trainingEffect = (session.total_training_effect as number | undefined) ?? null;
-      const anaerobicTrainingEffect = (session.total_anaerobic_effect as number | undefined) ?? null;
-      const recoveryTimeHours = (session.recovery_time as number | undefined) ? Math.round((session.recovery_time as number) / 60) : null;
+      // Métricas fisiológicas Suunto y reloj avanzado
+      const trainingEffect = typeof (session as any).total_training_effect === "number" ? Number((session as any).total_training_effect.toFixed(1)) : null;
+      const anaerobicTrainingEffect = typeof (session as any).total_anaerobic_effect === "number" ? Number((session as any).total_anaerobic_effect.toFixed(1)) : null;
+      
+      const rawRecovery = (session as any).recovery_time;
+      let recoveryTimeHours: number | null = null;
+      let recoveryTimeMinutes: number | null = null;
+      if (typeof rawRecovery === "number" && rawRecovery > 0) {
+        if (rawRecovery > 300) {
+          recoveryTimeHours = Number((rawRecovery / 3600).toFixed(1));
+          recoveryTimeMinutes = Math.round(rawRecovery / 60);
+        } else {
+          recoveryTimeHours = Number(rawRecovery.toFixed(1));
+          recoveryTimeMinutes = Math.round(rawRecovery * 60);
+        }
+      }
+
+      const peakEpoc = typeof (session as any).peak_epoc === "number" ? Number((session as any).peak_epoc.toFixed(1)) : null;
+      const feeling = typeof (session as any).feeling === "number" ? (session as any).feeling : null;
+      const tss = typeof (session as any).training_stress_score === "number" ? Number((session as any).training_stress_score.toFixed(1)) : null;
+
+      const devInfo = (data as any).device_infos?.[0] || {};
+      const fileId = (data as any).file_ids?.[0] || {};
+      const deviceManufacturer = fileId.manufacturer || devInfo.manufacturer || null;
+      const deviceModel = devInfo.product_name || (typeof devInfo.product === "string" ? devInfo.product : null) || (deviceManufacturer === "suunto" ? "Suunto 9 Peak Pro" : null);
+
+      const suuntoMetrics: SuuntoMetrics = {
+        epoc: peakEpoc,
+        pte: trainingEffect,
+        recoveryTimeHours,
+        recoveryTimeMinutes,
+        feeling,
+        tss,
+        deviceModel: typeof deviceModel === "string" ? deviceModel : null,
+        deviceManufacturer: typeof deviceManufacturer === "string" ? String(deviceManufacturer) : null,
+      };
 
       const timeSeries = buildTimeSeriesFromRecords(rawRecords, isCycling, durationMin, totalDistanceKm);
       const pacingAnalysis = computePacingAnalysis(rawRecords, laps, isCycling, totalDistanceKm, durationMin, elevationGainM, elevationLossM);
@@ -1541,6 +1615,10 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         trainingEffect,
         anaerobicTrainingEffect,
         recoveryTimeHours,
+        recoveryTimeMinutes,
+        epoc: peakEpoc,
+        pte: trainingEffect,
+        suuntoMetrics,
         timeSeries,
         pacingAnalysis,
       };
@@ -1583,7 +1661,237 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         deepAnalysis,
         timeSeries,
         pacingAnalysis,
+        epoc: peakEpoc,
+        pte: trainingEffect,
+        recoveryTimeHours,
+        recoveryTimeMinutes,
+        suuntoMetrics,
       });
     });
   });
+}
+
+// Parser para archivos GPX (exportaciones de relojes Suunto, Strava o Garmin)
+export async function parseGpxBuffer(buffer: Buffer): Promise<FitSummary> {
+  const text = buffer.toString("utf8");
+
+  // Extraer nombre de la actividad
+  const nameMatch = text.match(/<name>(.*?)<\/name>/i);
+  const rawName = nameMatch ? nameMatch[1].trim() : "Actividad GPX";
+
+  // Extraer puntos de track
+  const trkptRegex = /<trkpt\s+lat="([^"]+)"\s+lon="([^"]+)">([\s\S]*?)<\/trkpt>/gi;
+  const rawRecords: Record<string, unknown>[] = [];
+  let match: RegExpExecArray | null;
+
+  let totalAscent = 0;
+  let totalDescent = 0;
+  let prevEle: number | null = null;
+  let prevLat: number | null = null;
+  let prevLon: number | null = null;
+  let accumulatedDistM = 0;
+
+  function haversineDistM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  while ((match = trkptRegex.exec(text)) !== null) {
+    const lat = parseFloat(match[1]);
+    const lon = parseFloat(match[2]);
+    const content = match[3];
+
+    const eleMatch = content.match(/<ele>(.*?)<\/ele>/i);
+    const timeMatch = content.match(/<time>(.*?)<\/time>/i);
+    const hrMatch = content.match(/<(?:gpxtpx:)?hr>(.*?)<\/(?:gpxtpx:)?hr>/i);
+    const cadMatch = content.match(/<(?:gpxtpx:)?cad>(.*?)<\/(?:gpxtpx:)?cad>/i);
+
+    const ele = eleMatch ? parseFloat(eleMatch[1]) : null;
+    const time = timeMatch ? new Date(timeMatch[1]) : new Date();
+    const hr = hrMatch ? parseInt(hrMatch[1], 10) : null;
+    const cad = cadMatch ? parseInt(cadMatch[1], 10) : null;
+
+    if (prevLat !== null && prevLon !== null) {
+      const d = haversineDistM(prevLat, prevLon, lat, lon);
+      accumulatedDistM += d;
+    }
+    prevLat = lat;
+    prevLon = lon;
+
+    if (ele !== null && prevEle !== null) {
+      const diff = ele - prevEle;
+      if (diff > 0.5) totalAscent += diff;
+      else if (diff < -0.5) totalDescent += Math.abs(diff);
+    }
+    if (ele !== null) prevEle = ele;
+
+    rawRecords.push({
+      timestamp: time,
+      position_lat: lat,
+      position_long: lon,
+      altitude: ele,
+      distance: accumulatedDistM,
+      heart_rate: hr,
+      cadence: cad,
+    });
+  }
+
+  const startDate = rawRecords.length > 0 ? (rawRecords[0].timestamp as Date) : new Date();
+  const endDate = rawRecords.length > 0 ? (rawRecords[rawRecords.length - 1].timestamp as Date) : startDate;
+  const durationMin = Math.max(1, Math.round(((endDate.getTime() - startDate.getTime()) / 60000) * 10) / 10);
+  const totalDistanceKm = Number((accumulatedDistM / 1000).toFixed(2));
+
+  const sport = mapSport(rawName, null, rawName, totalDistanceKm);
+  const isCycling = sport === "ciclismo";
+
+  const allHrs = rawRecords.map((r) => r.heart_rate as number).filter((h): h is number => typeof h === "number" && h > 40);
+  const avgHeartRate = allHrs.length > 0 ? Math.round(allHrs.reduce((a, b) => a + b, 0) / allHrs.length) : null;
+  const maxHeartRate = allHrs.length > 0 ? Math.max(...allHrs) : null;
+
+  const avgPaceMinKm = totalDistanceKm > 0.2 ? Number((durationMin / totalDistanceKm).toFixed(2)) : null;
+  const avgSpeedKmh = durationMin > 0 ? Number((totalDistanceKm / (durationMin / 60)).toFixed(1)) : null;
+
+  const laps = buildKmSplitsFromRecords(rawRecords, isCycling);
+  const hrZoneDistribution = computeHrZonesFromRecords(rawRecords, maxHeartRate ?? 190);
+  const zoneDistribution = sport === "carrera" ? computeZoneDistributionFromRecords(rawRecords) : null;
+  const timeSeries = buildTimeSeriesFromRecords(rawRecords, isCycling, durationMin, totalDistanceKm);
+  const pacingAnalysis = computePacingAnalysis(rawRecords, laps, isCycling, totalDistanceKm, durationMin, Math.round(totalAscent), Math.round(totalDescent));
+
+  const suuntoMetrics: SuuntoMetrics = {
+    deviceManufacturer: "suunto",
+    deviceModel: "Suunto GPX Export",
+  };
+
+  const deepAnalysis: FitDeepAnalysis = {
+    avgCadence: null,
+    maxCadence: null,
+    elevationGainM: Math.round(totalAscent),
+    elevationLossM: Math.round(totalDescent),
+    zoneDistribution,
+    hrZoneDistribution,
+    suuntoMetrics,
+    timeSeries,
+    pacingAnalysis,
+  };
+
+  return {
+    date: toLocalISODate(startDate),
+    startTime: startDate.toISOString(),
+    sport,
+    sportRaw: "gpx",
+    subSportRaw: null,
+    activityName: rawName,
+    durationMin,
+    distanceKm: totalDistanceKm,
+    avgPaceMinKm,
+    avgSpeedKmh,
+    avgHeartRate,
+    maxHeartRate,
+    calories: null,
+    avgCadence: null,
+    elevationGainM: Math.round(totalAscent),
+    laps,
+    deepAnalysis,
+    timeSeries,
+    pacingAnalysis,
+    suuntoMetrics,
+  };
+}
+
+// Parser para exportaciones JSON de Suunto / entrenamientos
+export async function parseWorkoutJson(buffer: Buffer): Promise<FitSummary> {
+  const text = buffer.toString("utf8");
+  const data = JSON.parse(text);
+
+  const startDate = data.start_time ? new Date(data.start_time) : data.date ? new Date(data.date) : new Date();
+  const durationMin = data.duration_minutes ?? data.durationMin ?? (data.total_timer_time ? Number((data.total_timer_time / 60).toFixed(1)) : 45);
+  const distanceKm = data.distance_km ?? data.distanceKm ?? (data.distance_meters ? Number((data.distance_meters / 1000).toFixed(2)) : null);
+  const sport = mapSport(data.sport ?? data.activity_type ?? data.sport_name ?? "otro");
+
+  const avgHeartRate = data.avg_hr ?? data.average_heart_rate ?? data.avgHeartRate ?? null;
+  const maxHeartRate = data.max_hr ?? data.max_heart_rate ?? data.maxHeartRate ?? null;
+  const calories = data.calories ?? data.total_calories ?? null;
+  const elevationGainM = data.elevation_gain_m ?? data.elevationGainM ?? data.total_ascent ?? 0;
+
+  const rawPte = data.pte ?? data.total_training_effect ?? data.training_effect ?? null;
+  const rawEpoc = data.epoc ?? data.peak_epoc ?? null;
+  const rawRecovery = data.recovery_time ?? data.recoveryTimeHours ?? null;
+
+  let recoveryHours: number | null = null;
+  let recoveryMin: number | null = null;
+  if (typeof rawRecovery === "number") {
+    if (rawRecovery > 300) {
+      recoveryHours = Number((rawRecovery / 3600).toFixed(1));
+      recoveryMin = Math.round(rawRecovery / 60);
+    } else {
+      recoveryHours = Number(rawRecovery.toFixed(1));
+      recoveryMin = Math.round(rawRecovery * 60);
+    }
+  }
+
+  const suuntoMetrics: SuuntoMetrics = {
+    epoc: typeof rawEpoc === "number" ? Number(rawEpoc.toFixed(1)) : null,
+    pte: typeof rawPte === "number" ? Number(rawPte.toFixed(1)) : null,
+    recoveryTimeHours: recoveryHours,
+    recoveryTimeMinutes: recoveryMin,
+    feeling: data.feeling ?? null,
+    tss: data.training_stress_score ?? data.tss ?? null,
+    deviceModel: data.device_model ?? data.product_name ?? "Suunto App",
+    deviceManufacturer: "suunto",
+  };
+
+  const avgPaceMinKm = distanceKm && distanceKm > 0 ? Number((durationMin / distanceKm).toFixed(2)) : null;
+  const avgSpeedKmh = durationMin > 0 && distanceKm ? Number((distanceKm / (durationMin / 60)).toFixed(1)) : null;
+
+  const deepAnalysis: FitDeepAnalysis = {
+    epoc: suuntoMetrics.epoc,
+    pte: suuntoMetrics.pte,
+    recoveryTimeHours: recoveryHours,
+    recoveryTimeMinutes: recoveryMin,
+    elevationGainM,
+    suuntoMetrics,
+  };
+
+  return {
+    date: toLocalISODate(startDate),
+    startTime: startDate.toISOString(),
+    sport,
+    sportRaw: data.sport ?? "json",
+    subSportRaw: data.sub_sport ?? null,
+    activityName: data.activity_name ?? data.name ?? "Entrenamiento Importado",
+    durationMin,
+    distanceKm,
+    avgPaceMinKm,
+    avgSpeedKmh,
+    avgHeartRate,
+    maxHeartRate,
+    calories,
+    avgCadence: data.avg_cadence ?? null,
+    elevationGainM,
+    laps: [],
+    deepAnalysis,
+    epoc: suuntoMetrics.epoc,
+    pte: suuntoMetrics.pte,
+    recoveryTimeHours: recoveryHours,
+    recoveryTimeMinutes: recoveryMin,
+    suuntoMetrics,
+  };
+}
+
+// Ingestor maestro unificado para FIT, GPX y JSON
+export async function parseWorkoutFile(buffer: Buffer, filename: string): Promise<FitSummary> {
+  const name = filename.toLowerCase();
+  if (name.endsWith(".fit")) {
+    return parseFitBuffer(buffer);
+  } else if (name.endsWith(".gpx")) {
+    return parseGpxBuffer(buffer);
+  } else if (name.endsWith(".json")) {
+    return parseWorkoutJson(buffer);
+  }
+  throw new Error("Formato no soportado. Se admiten archivos .fit, .gpx o .json");
 }

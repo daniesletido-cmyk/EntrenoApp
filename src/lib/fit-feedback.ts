@@ -7,10 +7,31 @@ export interface FitFeedbackItem {
   text: string;
 }
 
+export type ComplianceVerdict = "Cumplido" | "Parcialmente cumplido" | "Exceso/Desvío de intensidad";
+
+export interface TechnicalBulletItem {
+  icon: "heart" | "zap" | "shield" | "activity";
+  title: string;
+  badge?: string;
+  badgeTone?: "success" | "warning" | "danger" | "brand";
+  text: string;
+}
+
 export interface FitStructuredFeedback {
   summary: string;
   positives: string[];
   deviations: string[];
+  complianceVerdict?: ComplianceVerdict;
+  complianceTone?: "success" | "warning" | "danger";
+  technicalBullets?: TechnicalBulletItem[];
+  suuntoReport?: {
+    epoc: number | null;
+    pte: number | null;
+    recoveryTimeHours: number | null;
+    recoveryTimeFormatted: string;
+    trainingEffectVerdict: string;
+    deviceModel?: string | null;
+  } | null;
   targetCompliance?: {
     plannedZone: string;
     plannedRange: string;
@@ -20,6 +41,7 @@ export interface FitStructuredFeedback {
     timeInTargetFormatted: string;
     verdict: string;
     isCompliant: boolean;
+    status?: ComplianceVerdict;
   } | null;
 }
 
@@ -324,10 +346,161 @@ export function buildStructuredFitDiagnostics(summary: FitSummary, targetSession
     summaryText = "Actividad completada y registrada en el sistema.";
   }
 
+  // --- Determinar Veredicto de Cumplimiento de Objetivos ---
+  let complianceVerdict: ComplianceVerdict = "Cumplido";
+  let complianceTone: "success" | "warning" | "danger" = "success";
+
+  if (targetCompliance) {
+    if (deviations.some((d) => d.includes("Zona Gris") || d.includes("ritmos superiores") || d.includes("alta intensidad"))) {
+      complianceVerdict = "Exceso/Desvío de intensidad";
+      complianceTone = "danger";
+    } else if (!targetCompliance.isCompliant || targetCompliance.compliancePct < 40) {
+      complianceVerdict = "Parcialmente cumplido";
+      complianceTone = "warning";
+    } else {
+      complianceVerdict = "Cumplido";
+      complianceTone = "success";
+    }
+    targetCompliance.status = complianceVerdict;
+  } else if (targetSession) {
+    const plannedDur = targetSession.duration_min ?? 45;
+    const actualDur = summary.durationMin ?? 45;
+    const durRatio = actualDur / plannedDur;
+    if (durRatio >= 0.8 && durRatio <= 1.25) {
+      complianceVerdict = "Cumplido";
+      complianceTone = "success";
+    } else if (durRatio < 0.6 || durRatio > 1.4) {
+      complianceVerdict = "Parcialmente cumplido";
+      complianceTone = "warning";
+    }
+  }
+
+  // --- Extracción de Métricas Suunto y Reporte Fisiológico ---
+  const epoc = summary.epoc ?? summary.deepAnalysis?.epoc ?? summary.deepAnalysis?.suuntoMetrics?.epoc ?? null;
+  const pte = summary.pte ?? summary.deepAnalysis?.pte ?? summary.deepAnalysis?.suuntoMetrics?.pte ?? null;
+  const recoveryTimeHours = summary.recoveryTimeHours ?? summary.deepAnalysis?.recoveryTimeHours ?? summary.deepAnalysis?.suuntoMetrics?.recoveryTimeHours ?? null;
+  const deviceModel = summary.deepAnalysis?.suuntoMetrics?.deviceModel ?? (summary.deepAnalysis?.suuntoMetrics?.deviceManufacturer === "suunto" ? "Suunto 9 Peak Pro" : null);
+
+  let recoveryTimeFormatted = "12 - 24 horas";
+  if (recoveryTimeHours !== null) {
+    if (recoveryTimeHours < 1) {
+      const mins = Math.round(recoveryTimeHours * 60);
+      recoveryTimeFormatted = `${mins} minutos`;
+    } else if (recoveryTimeHours <= 3) {
+      const h = Math.floor(recoveryTimeHours);
+      const m = Math.round((recoveryTimeHours - h) * 60);
+      recoveryTimeFormatted = m > 0 ? `${h}h ${m}m` : `${h} hora${h !== 1 ? "s" : ""}`;
+    } else {
+      recoveryTimeFormatted = `${Math.round(recoveryTimeHours)} horas`;
+    }
+  }
+
+  let trainingEffectVerdict = "Estímulo de mantenimiento aeróbico y salud cardiovascular";
+  if (pte !== null) {
+    if (pte >= 4.5) trainingEffectVerdict = "Sobrecarga Máxima / Impacto Anaeróbico Crítico (Agotamiento)";
+    else if (pte >= 3.5) trainingEffectVerdict = "Mejora Fisiológica Significativa y Desarrollo de Potencia";
+    else if (pte >= 2.5) trainingEffectVerdict = "Mantenimiento Óptimo de la Capacidad Aeróbica y Fondo";
+    else if (pte >= 1.5) trainingEffectVerdict = "Estímulo Menor / Recuperación Activa con Mínimo Catabolismo";
+    else trainingEffectVerdict = "Carga Regenerativa Muy Suave / Descompresión Articular";
+  }
+
+  const suuntoReport = {
+    epoc,
+    pte,
+    recoveryTimeHours,
+    recoveryTimeFormatted,
+    trainingEffectVerdict,
+    deviceModel,
+  };
+
+  // --- Diagnóstico Técnico Conciso en Viñetas ---
+  const technicalBullets: TechnicalBulletItem[] = [];
+
+  // 1. Respuesta Cardíaca & Eficiencia Aeróbica / Desacoplamiento
+  if (drift !== null && drift !== undefined) {
+    if (drift <= 3.5) {
+      technicalBullets.push({
+        icon: "heart",
+        title: "Eficiencia Aeróbica & Pulso",
+        badge: `Deriva +${drift.toFixed(1)}%`,
+        badgeTone: "success",
+        text: `Acoplamiento cardiovascular excelente (+${drift.toFixed(1)}%). El pulso se mantuvo totalmente plano y en armonía con el ritmo a lo largo de toda la sesión, lo que refleja gran economía de carrera y reservas energéticas estables.`,
+      });
+    } else if (drift <= 5.5) {
+      technicalBullets.push({
+        icon: "heart",
+        title: "Eficiencia Aeróbica & Pulso",
+        badge: `Deriva +${drift.toFixed(1)}%`,
+        badgeTone: "brand",
+        text: `Deriva cardíaca dentro de la norma fisiológica (+${drift.toFixed(1)}%). Ligera elevación del pulso esperada por termorregulación y deshidratación gradual en el tramo final.`,
+      });
+    } else {
+      technicalBullets.push({
+        icon: "heart",
+        title: "Eficiencia Aeróbica & Pulso",
+        badge: `Deriva +${drift.toFixed(1)}%`,
+        badgeTone: "danger",
+        text: `Deriva cardiovascular acusada (+${drift.toFixed(1)}%). El pulso subió significativamente en la segunda mitad para mantener la velocidad, señal de fatiga neuromuscular previa, deshidratación o condiciones de calor.`,
+      });
+    }
+  } else if (summary.avgHeartRate) {
+    technicalBullets.push({
+      icon: "heart",
+      title: "Respuesta Cardiovascular",
+      badge: `${summary.avgHeartRate} lpm media`,
+      badgeTone: summary.avgHeartRate > 165 ? "warning" : "success",
+      text: `Frecuencia cardíaca media contenida en ${summary.avgHeartRate} lpm${summary.maxHeartRate ? ` (pico máximo en ${summary.maxHeartRate} lpm)` : ""}. Respuesta cardíaca intermitente y controlada acorde al esfuerzo pautado.`,
+    });
+  }
+
+  // 2. Impacto Fisiológico Suunto (EPOC & PTE)
+  if (pte !== null || epoc !== null) {
+    const epocStr = epoc !== null ? ` · EPOC: ${epoc} ml/kg` : "";
+    technicalBullets.push({
+      icon: "zap",
+      title: "Impacto Fisiológico Suunto",
+      badge: pte !== null ? `PTE ${pte.toFixed(1)}/5.0` : undefined,
+      badgeTone: pte !== null && pte >= 4.0 ? "danger" : pte !== null && pte >= 3.0 ? "brand" : "success",
+      text: `${trainingEffectVerdict}${epocStr}. ${
+        pte !== null && pte >= 3.5
+          ? "La sesión generó una deuda de oxígeno relevante; asimila el estímulo con suficiente aporte de carbohidratos."
+          : "Sesión ejecutada con bajo estrés fisiológico, permitiendo rápida asimilación celular."
+      }`,
+    });
+  } else {
+    technicalBullets.push({
+      icon: "zap",
+      title: "Impacto Fisiológico de la Sesión",
+      badge: "Carga Controlada",
+      badgeTone: "brand",
+      text: "Carga metabólica asimilable dentro del ciclo semanal. Estimulación adecuada de la capilarización y regeneración muscular.",
+    });
+  }
+
+  // 3. Recomendación Directa para el Descanso y Sesión de Mañana
+  let recAdvice = "Prioriza cena rica en proteínas y verduras, hidratación con sales minerales y 8 horas de sueño para regenerar los tejidos musculares.";
+  if (recoveryTimeHours !== null && recoveryTimeHours >= 24) {
+    recAdvice = `El reloj estima ${recoveryTimeFormatted} de recuperación completa. Mantén descanso activo, electrolitos y evita cargas de fuerza explosiva en las próximas 24h.`;
+  } else if (recoveryTimeHours !== null && recoveryTimeHours < 6) {
+    recAdvice = `Recuperación rápida estimada (${recoveryTimeFormatted}). El impacto neuromuscular ha sido bajo; tu organismo estará al 100% para la sesión de mañana.`;
+  }
+
+  technicalBullets.push({
+    icon: "shield",
+    title: "Recomendación para Descanso & Próxima Sesión",
+    badge: recoveryTimeFormatted,
+    badgeTone: recoveryTimeHours !== null && recoveryTimeHours > 20 ? "warning" : "success",
+    text: recAdvice,
+  });
+
   return {
     summary: summaryText,
     positives,
     deviations,
+    complianceVerdict,
+    complianceTone,
+    technicalBullets,
+    suuntoReport,
     targetCompliance,
   };
 }
@@ -745,6 +918,31 @@ export function buildUnifiedSessionDiagnostics(
       summary: `Pauta de entrenamiento basada en VAM 3:59 min/km.`,
       positives,
       deviations,
+      complianceVerdict: "Cumplido",
+      complianceTone: "success",
+      technicalBullets: [
+        {
+          icon: "heart",
+          title: "Intensidad y Zonas Cardíacas",
+          badge: target?.name ?? "Aeróbico",
+          badgeTone: "brand",
+          text: `Sesión calculada para trabajar en el rango ${target?.rangeLabel ?? "aeróbico continuo"} protegiendo el sistema cardiovascular y optimizando la tasa de oxidación de grasas.`,
+        },
+        {
+          icon: "zap",
+          title: "Estímulo Planificado",
+          badge: "Carga Óptima",
+          badgeTone: "success",
+          text: "Volumen calibrado para generar adaptación celular sin interferir con la sesión de CrossFit o fuerza.",
+        },
+        {
+          icon: "shield",
+          title: "Estrategia Post-Sesión",
+          badge: "Recuperación",
+          badgeTone: "brand",
+          text: "Realiza estiramientos suaves de sóleos y cadena posterior al finalizar, e hidrátate con agua y sales minerales.",
+        },
+      ],
       targetCompliance,
     },
     zoneDistribution: plannedZones,

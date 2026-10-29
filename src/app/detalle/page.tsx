@@ -33,6 +33,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowRight,
+  ShieldAlert,
   Timer,
   Star,
   Lightbulb,
@@ -1058,6 +1059,142 @@ function DetalleContent() {
                   </div>
                 )}
               </div>
+
+              {/* Reporte de Telemetría Suunto & Veredicto de Cumplimiento */}
+              {structuredFeedback?.complianceVerdict && (
+                <div
+                  className="p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in"
+                  style={{
+                    backgroundColor:
+                      structuredFeedback.complianceTone === "success"
+                        ? "rgba(16, 185, 129, 0.08)"
+                        : structuredFeedback.complianceTone === "danger"
+                        ? "rgba(239, 68, 68, 0.08)"
+                        : "rgba(245, 158, 11, 0.08)",
+                    borderColor:
+                      structuredFeedback.complianceTone === "success"
+                        ? "rgba(16, 185, 129, 0.3)"
+                        : structuredFeedback.complianceTone === "danger"
+                        ? "rgba(239, 68, 68, 0.3)"
+                        : "rgba(245, 158, 11, 0.3)",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+                      style={{
+                        backgroundColor:
+                          structuredFeedback.complianceTone === "success"
+                            ? "#10b981"
+                            : structuredFeedback.complianceTone === "danger"
+                            ? "#ef4444"
+                            : "#f59e0b",
+                        color: "#0f172a",
+                      }}
+                    >
+                      <Target size={20} />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                        Veredicto de Cumplimiento
+                      </div>
+                      <div className="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                        <span>{structuredFeedback.complianceVerdict}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted max-w-sm sm:text-right">
+                    {structuredFeedback.targetCompliance?.verdict ||
+                      "La sesión ejecutada se ha contrastado frente a la prescripción del plan."}
+                  </div>
+                </div>
+              )}
+
+              {/* Panel Suunto Analytics (PTE, EPOC, Recuperación) */}
+              {(structuredFeedback?.suuntoReport?.pte != null ||
+                structuredFeedback?.suuntoReport?.epoc != null ||
+                fit?.suuntoMetrics != null) && (
+                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 animate-in">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Zap size={15} className="text-emerald-400" />
+                      <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                        Suunto Analytics & Carga Fisiológica
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                      {structuredFeedback?.suuntoReport?.deviceModel || "Suunto 9 Peak Pro"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <div className="text-[10px] text-muted font-medium">Peak Training Effect</div>
+                      <div className="text-base font-extrabold text-emerald-400 font-mono mt-0.5">
+                        {structuredFeedback?.suuntoReport?.pte ?? fit?.deepAnalysis?.pte ?? "—"} / 5.0
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">Impacto aeróbico</div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <div className="text-[10px] text-muted font-medium">EPOC Máximo</div>
+                      <div className="text-base font-extrabold text-cyan-400 font-mono mt-0.5">
+                        {structuredFeedback?.suuntoReport?.epoc ?? fit?.deepAnalysis?.epoc ?? "—"} ml/kg
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">Consumo O2 post-esfuerzo</div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <div className="text-[10px] text-muted font-medium">Tiempo de Recuperación</div>
+                      <div className="text-base font-extrabold text-amber-400 font-mono mt-0.5">
+                        {structuredFeedback?.suuntoReport?.recoveryTimeFormatted ?? "—"}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">Asimilación muscular</div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <div className="text-[10px] text-muted font-medium">Calidad de Respuesta</div>
+                      <div className="text-base font-extrabold text-indigo-400 font-mono mt-0.5">
+                        {fit?.deepAnalysis?.suuntoMetrics?.feeling ? `${fit.deepAnalysis.suuntoMetrics.feeling}/5` : "Excelente"}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">Sensación del reloj</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Diagnóstico Técnico en Viñetas Concisas */}
+              {structuredFeedback?.technicalBullets && structuredFeedback.technicalBullets.length > 0 && (
+                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 animate-in">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Activity size={15} className="text-cyan-400" />
+                    <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                      Diagnóstico Técnico & Fisiológico
+                    </span>
+                  </div>
+
+                  <div className="grid gap-2.5">
+                    {structuredFeedback.technicalBullets.map((bullet: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-950/70 border border-slate-800/80">
+                        <div className="mt-0.5 text-emerald-400 shrink-0">
+                          {bullet.icon === "heart" ? <Heart size={16} /> : bullet.icon === "zap" ? <Zap size={16} /> : <ShieldAlert size={16} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-xs text-slate-100">{bullet.title}</span>
+                            {bullet.badge && (
+                              <span className="text-[10px] font-bold px-2 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                                {bullet.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-300 mt-1 leading-relaxed">{bullet.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Diagnósticos del Entrenador IA */}
               {structuredFeedback && (structuredFeedback.positives?.length > 0 || structuredFeedback.deviations?.length > 0) && (

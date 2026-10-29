@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseFitBuffer } from "@/lib/fit-import";
+import { parseWorkoutFile } from "@/lib/fit-import";
 import { buildFitFeedback } from "@/lib/fit-feedback";
 import { listSessionsForWeek } from "@/lib/repo/sessions";
 import { weekStartOf } from "@/lib/dates";
@@ -20,13 +20,14 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No se ha recibido ningún archivo" }, { status: 400 });
   }
-  if (!file.name.toLowerCase().endsWith(".fit")) {
-    return NextResponse.json({ error: "El archivo debe tener extensión .fit" }, { status: 400 });
+  const fileName = file.name.toLowerCase();
+  if (!fileName.endsWith(".fit") && !fileName.endsWith(".gpx") && !fileName.endsWith(".json")) {
+    return NextResponse.json({ error: "El archivo debe ser un formato de entrenamiento válido (.fit, .gpx o .json)" }, { status: 400 });
   }
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const summary = await parseFitBuffer(buffer);
+    const summary = await parseWorkoutFile(buffer, file.name);
 
     const weekStart = weekStartOf(summary.date);
     const sessionsThatWeek = listSessionsForWeek(weekStart);
