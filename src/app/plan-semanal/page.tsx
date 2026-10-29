@@ -40,23 +40,15 @@ import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { AdaptiveWeekCard } from "@/components/adaptive-week-card";
+import { SessionFeedbackCard } from "@/components/session-feedback-card";
+import { WorkoutDetailModal } from "@/components/workout-detail-modal";
+import type { SessionRow } from "@/lib/repo/sessions";
 
 interface PlanPreviewRow {
   date: string;
   discipline: string;
   planned_code: string | null;
   is_long_run: boolean;
-  notes: string | null;
-}
-
-interface SessionRow {
-  id: number;
-  date: string;
-  discipline: string;
-  planned_code: string | null;
-  is_long_run: number;
-  is_extra?: number;
-  status: string;
   notes: string | null;
 }
 
@@ -101,6 +93,7 @@ export default function PlanSemanalPage() {
   const [importCommitting, setImportCommitting] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -880,6 +873,14 @@ export default function PlanSemanalPage() {
                           </div>
                         )}
 
+                        {/* Feedback visual & telemetría del entrenamiento */}
+                        {!isEditing && (
+                          <SessionFeedbackCard
+                            session={s}
+                            onOpenDetail={(id) => setDetailSessionId(id)}
+                          />
+                        )}
+
                         {isEditing && (
                           <div className="w-full" style={{ marginTop: "var(--space-2)" }}>
                             <Textarea
@@ -1012,6 +1013,13 @@ export default function PlanSemanalPage() {
         onConfirm={executeRemoveSession}
         onCancel={() => setSessionToDelete(null)}
       />
+
+      {detailSessionId !== null && (
+        <WorkoutDetailModal
+          sessionId={detailSessionId}
+          onClose={() => setDetailSessionId(null)}
+        />
+      )}
     </div>
   );
 }
