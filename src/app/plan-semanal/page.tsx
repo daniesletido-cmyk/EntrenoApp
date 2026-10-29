@@ -648,9 +648,8 @@ export default function PlanSemanalPage() {
           return (
             <div
               key={date}
-              className="surface w-full overflow-hidden"
+              className="surface w-full overflow-hidden p-2.5 sm:p-3.5"
               style={{
-                padding: "var(--space-3) var(--space-3)",
                 borderLeft: isToday ? "3px solid var(--color-brand)" : undefined,
               }}
             >
@@ -741,9 +740,8 @@ export default function PlanSemanalPage() {
                     return (
                       <li
                         key={s.id}
-                        className="surface-raised w-full overflow-hidden"
+                        className="surface-raised w-full overflow-hidden p-3 sm:p-4"
                         style={{
-                          padding: "var(--space-3) var(--space-4)",
                           borderRadius: "var(--radius-lg)",
                           border: mod && mod.isModified ? "1.5px solid rgba(245, 158, 11, 0.55)" : "1px solid var(--color-border)",
                           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
@@ -756,12 +754,12 @@ export default function PlanSemanalPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-3 w-full">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2.5 w-full">
+                          <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
                             <div
                               style={{
-                                width: 44,
-                                height: 44,
+                                width: 40,
+                                height: 40,
                                 borderRadius: "var(--radius-md)",
                                 background: discTheme.bg,
                                 display: "flex",
@@ -770,11 +768,12 @@ export default function PlanSemanalPage() {
                                 flexShrink: 0,
                                 color: discTheme.color,
                               }}
+                              className="mt-0.5 sm:mt-0 flex items-center justify-center"
                             >
-                              <Icon size={22} />
+                              <Icon size={20} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="font-extrabold text-base sm:text-lg tracking-tight truncate" style={{ color: "var(--color-text)" }}>
+                              <div className="font-extrabold text-sm sm:text-base tracking-tight leading-snug break-words" style={{ color: "var(--color-text)", overflowWrap: "anywhere" }}>
                                 {meta.label} {s.planned_code ? `· ${s.planned_code}` : ""}
                               </div>
                               <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: 4 }}>
@@ -819,57 +818,60 @@ export default function PlanSemanalPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 self-start pt-0.5">
                             <button
                               className="btn btn-ghost"
-                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
+                              style={{ width: 32, height: 32, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Escribir o editar el detalle del entreno"
                               title="Editar notas del entreno"
                               onClick={() => (isEditing ? setEditingId(null) : startEditingNotes(s))}
                             >
-                              <NotebookPen size={16} />
+                              <NotebookPen size={15} />
                             </button>
                             <button
                               className="btn btn-ghost"
-                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
+                              style={{ width: 32, height: 32, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Copiar entreno para Notas"
                               title="Copiar entreno para Notas"
                               onClick={() => copySession(s)}
                             >
                               {copiedId === s.id ? (
-                                <Check size={16} style={{ color: "var(--color-success)" }} />
+                                <Check size={15} style={{ color: "var(--color-success)" }} />
                               ) : (
-                                <Copy size={16} />
+                                <Copy size={15} />
                               )}
                             </button>
                             <button
                               className="btn btn-ghost"
-                              style={{ width: 34, height: 34, padding: 0, borderRadius: "var(--radius-sm)" }}
+                              style={{ width: 32, height: 32, padding: 0, borderRadius: "var(--radius-sm)" }}
                               aria-label="Quitar sesión"
                               title="Eliminar sesión"
                               onClick={() => requestRemoveSession(s.id)}
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={15} />
                             </button>
                           </div>
                         </div>
 
                         {!isEditing && cleanNotes && (
                           <div
-                            className="w-full text-sm sm:text-base"
+                            className="w-full text-xs sm:text-sm"
                             style={{
                               marginTop: "var(--space-3)",
-                              padding: "var(--space-3) var(--space-4)",
+                              padding: "10px 12px",
                               background: "var(--color-surface)",
                               borderRadius: "var(--radius-md)",
                               borderLeft: `4px solid ${discTheme.color}`,
                               whiteSpace: "pre-wrap",
-                              lineHeight: 1.55,
+                              lineHeight: 1.6,
                               wordBreak: "break-word",
+                              overflowWrap: "anywhere",
+                              maxWidth: "100%",
+                              overflowX: "hidden",
                               color: "var(--color-text)",
                             }}
                           >
-                            {s.notes}
+                            {cleanNotes}
                           </div>
                         )}
 

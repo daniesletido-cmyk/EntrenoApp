@@ -325,30 +325,30 @@ export function SessionFeedbackCard({
 
   return (
     <div
-      className={`mt-3 rounded-xl border p-3.5 sm:p-4 bg-slate-950/70 transition-all ${verdictStyles.border} ${verdictStyles.glow}`}
+      className={`mt-3 rounded-xl border p-2.5 sm:p-4 bg-slate-950/70 transition-all max-w-full overflow-hidden ${verdictStyles.border} ${verdictStyles.glow}`}
     >
       {/* 1. Header con Veredicto & Telemetría */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/80">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800/80 w-full min-w-0">
+        <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
+          <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 flex-shrink-0 mt-0.5 sm:mt-0">
             {verdictStyles.icon}
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] sm:text-xs font-bold text-slate-100 uppercase tracking-wider">
                 Análisis & Feedback
               </span>
-              <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full ${verdictStyles.badgeBg}`}>
+              <span className={`text-[10px] sm:text-[11px] font-extrabold px-1.5 sm:px-2 py-0.5 rounded-full ${verdictStyles.badgeBg}`}>
                 {isCompleted ? feedbackData.verdict : "Prescripción Planificada"}
               </span>
               {feedbackData.suunto?.deviceModel && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center gap-1 font-semibold">
-                  <Watch size={11} className="text-emerald-400" />
+                <span className="text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center gap-1 font-semibold">
+                  <Watch size={10} className="text-emerald-400" />
                   <span>{feedbackData.suunto.deviceModel}</span>
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 leading-snug line-clamp-2">
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-1 leading-snug break-words">
               {feedbackData.summary}
             </p>
           </div>
@@ -369,58 +369,58 @@ export function SessionFeedbackCard({
 
       {/* 2. Ribbon de Métricas Suunto & Carga (si están disponibles) */}
       {feedbackData.suunto && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 pb-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 pt-2.5 pb-2 w-full min-w-0">
           {feedbackData.suunto.pte != null && (
-            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-              <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Zap size={11} className="text-emerald-400" />
-                <span>PTE (Firstbeat)</span>
+            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
+              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                <Zap size={10} className="text-emerald-400 flex-shrink-0" />
+                <span className="truncate">PTE</span>
               </div>
-              <div className="text-base font-extrabold text-emerald-400 font-mono mt-0.5">
-                {feedbackData.suunto.pte.toFixed(1)} <span className="text-xs text-slate-500 font-normal">/ 5.0</span>
+              <div className="text-sm sm:text-base font-extrabold text-emerald-400 font-mono mt-0.5 truncate">
+                {feedbackData.suunto.pte.toFixed(1)} <span className="text-[10px] text-slate-500 font-normal">/ 5.0</span>
               </div>
-              <div className="text-[9px] text-slate-400 truncate mt-0.5">
+              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">
                 {feedbackData.suunto.pte >= 3.5 ? "Impacto alto" : feedbackData.suunto.pte >= 2.0 ? "Mantenimiento" : "Recuperación"}
               </div>
             </div>
           )}
 
           {feedbackData.suunto.epoc != null && (
-            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-              <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Flame size={11} className="text-amber-400" />
-                <span>EPOC Pico</span>
+            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
+              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                <Flame size={10} className="text-amber-400 flex-shrink-0" />
+                <span className="truncate">EPOC Pico</span>
               </div>
-              <div className="text-base font-extrabold text-amber-400 font-mono mt-0.5">
-                {feedbackData.suunto.epoc} <span className="text-xs text-slate-500 font-normal">ml/kg</span>
+              <div className="text-sm sm:text-base font-extrabold text-amber-400 font-mono mt-0.5 truncate">
+                {feedbackData.suunto.epoc} <span className="text-[10px] text-slate-500 font-normal">ml/kg</span>
               </div>
-              <div className="text-[9px] text-slate-400 truncate mt-0.5">Demanda oxígeno post-ejercicio</div>
+              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">Demanda O2</div>
             </div>
           )}
 
           {feedbackData.suunto.recoveryTimeFormatted && (
-            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-              <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Timer size={11} className="text-cyan-400" />
-                <span>Recuperación</span>
+            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
+              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                <Timer size={10} className="text-cyan-400 flex-shrink-0" />
+                <span className="truncate">Recuperación</span>
               </div>
-              <div className="text-base font-extrabold text-cyan-400 font-mono mt-0.5 truncate">
+              <div className="text-sm sm:text-base font-extrabold text-cyan-400 font-mono mt-0.5 truncate">
                 {feedbackData.suunto.recoveryTimeFormatted}
               </div>
-              <div className="text-[9px] text-slate-400 truncate mt-0.5">Estimado por reloj</div>
+              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">Estimado reloj</div>
             </div>
           )}
 
           {session.rpe != null && (
-            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-              <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Activity size={11} className="text-indigo-400" />
-                <span>Esfuerzo RPE</span>
+            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
+              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                <Activity size={10} className="text-indigo-400 flex-shrink-0" />
+                <span className="truncate">Esfuerzo RPE</span>
               </div>
-              <div className="text-base font-extrabold text-indigo-400 font-mono mt-0.5">
-                {session.rpe} <span className="text-xs text-slate-500 font-normal">/ 10</span>
+              <div className="text-sm sm:text-base font-extrabold text-indigo-400 font-mono mt-0.5 truncate">
+                {session.rpe} <span className="text-[10px] text-slate-500 font-normal">/ 10</span>
               </div>
-              <div className="text-[9px] text-slate-400 truncate mt-0.5">Carga percibida</div>
+              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">Carga percibida</div>
             </div>
           )}
         </div>
@@ -428,19 +428,19 @@ export function SessionFeedbackCard({
 
       {/* 3. Viñetas de Diagnóstico Técnico & Fisiológico */}
       {feedbackData.bullets && feedbackData.bullets.length > 0 && (
-        <div className="mt-2.5 space-y-2">
+        <div className="mt-2 space-y-1.5 w-full min-w-0">
           {feedbackData.bullets.map((b, idx) => {
             const iconComp =
               b.icon === "heart" ? (
-                <Heart size={13} className="text-rose-400 flex-shrink-0" />
+                <Heart size={12} className="text-rose-400 flex-shrink-0" />
               ) : b.icon === "zap" ? (
-                <Zap size={13} className="text-amber-400 flex-shrink-0" />
+                <Zap size={12} className="text-amber-400 flex-shrink-0" />
               ) : b.icon === "shield" ? (
-                <Shield size={13} className="text-emerald-400 flex-shrink-0" />
+                <Shield size={12} className="text-emerald-400 flex-shrink-0" />
               ) : b.icon === "target" ? (
-                <Target size={13} className="text-blue-400 flex-shrink-0" />
+                <Target size={12} className="text-blue-400 flex-shrink-0" />
               ) : (
-                <Activity size={13} className="text-cyan-400 flex-shrink-0" />
+                <Activity size={12} className="text-cyan-400 flex-shrink-0" />
               );
 
             const badgeBg =
@@ -455,19 +455,19 @@ export function SessionFeedbackCard({
             return (
               <div
                 key={idx}
-                className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-900/50 border border-slate-800/60 text-xs"
+                className="flex items-start gap-2 p-2 rounded-lg bg-slate-900/50 border border-slate-800/60 text-xs min-w-0 w-full overflow-hidden"
               >
-                <div className="mt-0.5">{iconComp}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-slate-200">{b.title}</span>
+                <div className="mt-0.5 flex-shrink-0">{iconComp}</div>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-slate-200 text-[11px] sm:text-xs break-words">{b.title}</span>
                     {b.badge && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded border font-semibold ${badgeBg}`}>
+                      <span className={`text-[9px] sm:text-[10px] font-mono px-1.5 py-0.2 rounded border font-semibold ${badgeBg}`}>
                         {b.badge}
                       </span>
                     )}
                   </div>
-                  <p className="text-slate-400 mt-0.5 leading-relaxed text-[11px] sm:text-xs">
+                  <p className="text-slate-400 mt-0.5 leading-relaxed text-[11px] sm:text-xs break-words" style={{ overflowWrap: "anywhere" }}>
                     {b.text}
                   </p>
                 </div>

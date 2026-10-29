@@ -564,12 +564,32 @@ textarea.field {
 
 @media (max-width: 768px) {
   .main-content-container {
-    padding: var(--space-4) var(--space-3) !important;
+    padding: var(--space-4) 10px !important;
     padding-bottom: calc(110px + env(safe-area-inset-bottom, 24px)) !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
   
   .surface {
     border-radius: var(--radius-md) !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .surface-raised {
+    border-radius: var(--radius-md) !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevenir desbordamiento de notas y texto pre-wrap */
+  [style*="pre-wrap"], .whitespace-pre-wrap, pre, code {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    max-width: 100% !important;
   }
 }
 

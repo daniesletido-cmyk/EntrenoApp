@@ -1029,11 +1029,12 @@ export default function HoyPage() {
 
                       {/* Recuadro con la estructura exacta a realizar hoy */}
                       <div
-                        className="p-3.5 rounded-xl border text-xs leading-relaxed whitespace-pre-wrap font-sans"
+                        className="p-3 sm:p-3.5 rounded-xl border text-xs leading-relaxed whitespace-pre-wrap font-sans break-words max-w-full overflow-x-hidden"
                         style={{
                           backgroundColor: modInfo && modInfo.isModified ? "rgba(16, 185, 129, 0.08)" : "var(--color-surface-raised)",
                           borderColor: modInfo && modInfo.isModified ? "rgba(16, 185, 129, 0.35)" : "var(--color-border)",
                           color: "var(--color-text)",
+                          overflowWrap: "anywhere",
                         }}
                       >
                         {modInfo && modInfo.isModified && modInfo.adjustedWorkout?.structure

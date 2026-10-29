@@ -1633,7 +1633,7 @@ export default function RegistroPage() {
                           <Icon size={24} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-black text-lg sm:text-xl tracking-tight truncate" style={{ color: "var(--color-text)" }}>
+                          <div className="font-black text-base sm:text-xl tracking-tight leading-snug break-words" style={{ color: "var(--color-text)", overflowWrap: "anywhere" }}>
                             {s.planned_code || DISCIPLINE_LABEL[s.discipline] || s.discipline}
                             {s.planned_code && (
                               <span className="text-xs sm:text-sm font-semibold text-muted ml-2 font-normal">
@@ -1717,16 +1717,19 @@ export default function RegistroPage() {
                     {/* Prescripción / Instrucciones del plan bien visibles */}
                     {cleanNotes && (
                       <div
-                        className="w-full text-sm sm:text-base"
+                        className="w-full text-xs sm:text-sm"
                         style={{
                           marginBottom: "var(--space-3)",
-                          padding: "var(--space-3) var(--space-4)",
+                          padding: "10px 12px",
                           background: "var(--color-surface)",
                           borderRadius: "var(--radius-md)",
                           borderLeft: `4px solid ${discTheme.color}`,
                           whiteSpace: "pre-wrap",
-                          lineHeight: 1.55,
+                          lineHeight: 1.6,
                           wordBreak: "break-word",
+                          overflowWrap: "anywhere",
+                          maxWidth: "100%",
+                          overflowX: "hidden",
                           color: "var(--color-text)",
                         }}
                       >
