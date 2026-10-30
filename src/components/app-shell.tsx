@@ -25,6 +25,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PushNotificationBanner } from "@/components/push/push-notification-banner";
 
 interface NavItemDef {
   href: string;
@@ -218,7 +219,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Fila de controles compactos: Refrescar + Tema */}
+            {/* Fila de controles compactos: Refrescar + Push + Tema */}
             <div className="flex items-center justify-between gap-2">
               <button
                 onClick={triggerGlobalRefresh}
@@ -228,6 +229,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <RefreshCw size={13} className={isGlobalRefreshing ? "animate-spin text-emerald-400" : "text-slate-400"} />
                 <span className="truncate">{isGlobalRefreshing ? "Actualizando..." : "Refrescar"}</span>
               </button>
+              <PushNotificationBanner variant="compact" />
               <ThemeToggle />
             </div>
           </div>
@@ -270,6 +272,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <PushNotificationBanner variant="compact" />
             <button
               onClick={triggerGlobalRefresh}
               className="btn btn-ghost btn-icon"

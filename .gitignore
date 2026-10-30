@@ -21,3 +21,5 @@ ios/App/Pods/
 release/  
 .vercel
 .env*
+
+!.env.example

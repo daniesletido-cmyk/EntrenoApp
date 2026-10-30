@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SecuritySettingsModal } from "@/components/auth/security-settings-modal";
 import { isAppLockEnabled, getAppLockType } from "@/lib/security";
+import { PushNotificationBanner } from "@/components/push/push-notification-banner";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -205,6 +206,9 @@ export default function ConfiguracionPage() {
             Alterna entre <strong>Modo Claro</strong> (fondos limpios y grises tenues de alto contraste) y <strong>Modo Oscuro</strong> (grafito pizarra suave para evitar fatiga visual). La app también detecta la preferencia de tu sistema operativo automáticamente.
           </p>
         </div>
+
+        {/* SECCIÓN NOTIFICACIONES PUSH */}
+        <PushNotificationBanner variant="card" />
 
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>

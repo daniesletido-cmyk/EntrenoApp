@@ -353,6 +353,54 @@ function createSchema(d: AppDb) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS workouts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      suunto_id TEXT UNIQUE,
+      fecha TEXT NOT NULL,
+      tipo TEXT NOT NULL,
+      duracion REAL NOT NULL,
+      distancia REAL,
+      fc_media REAL,
+      fc_max REAL,
+      carga_tss REAL,
+      rpe REAL,
+      raw_data TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS recovery (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fecha TEXT NOT NULL UNIQUE,
+      sleep_duration REAL,
+      deep_sleep_min REAL,
+      rem_min REAL,
+      resting_hr REAL,
+      recovery_score REAL,
+      raw_data TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS training_plan (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      semana TEXT NOT NULL UNIQUE,
+      sesiones_planificadas TEXT NOT NULL,
+      adaptaciones_ia TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      device_type TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
 }
 
@@ -420,6 +468,69 @@ function migrateSchema(d: AppDb) {
       recordMigration(d, "20261029_create_performance_indexes");
     } catch (e) {
       console.error("[DB] Error creando índices:", e);
+    }
+  }
+
+  // Migración idempotente para modelos de Suunto, Zepp, Training Plan y Web Push
+  if (!isMigrationExecuted(d, "20261030_suunto_zepp_push_models")) {
+    try {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS workouts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          suunto_id TEXT UNIQUE,
+          fecha TEXT NOT NULL,
+          tipo TEXT NOT NULL,
+          duracion REAL NOT NULL,
+          distancia REAL,
+          fc_media REAL,
+          fc_max REAL,
+          carga_tss REAL,
+          rpe REAL,
+          raw_data TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS recovery (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          fecha TEXT NOT NULL UNIQUE,
+          sleep_duration REAL,
+          deep_sleep_min REAL,
+          rem_min REAL,
+          resting_hr REAL,
+          recovery_score REAL,
+          raw_data TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS training_plan (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          semana TEXT NOT NULL UNIQUE,
+          sesiones_planificadas TEXT NOT NULL,
+          adaptaciones_ia TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          endpoint TEXT NOT NULL UNIQUE,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          device_type TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_workouts_fecha ON workouts(fecha);
+        CREATE INDEX IF NOT EXISTS idx_workouts_tipo ON workouts(tipo);
+        CREATE INDEX IF NOT EXISTS idx_recovery_fecha ON recovery(fecha);
+        CREATE INDEX IF NOT EXISTS idx_training_plan_semana ON training_plan(semana);
+      `);
+      recordMigration(d, "20261030_suunto_zepp_push_models");
+    } catch (e) {
+      console.error("[DB] Error aplicando migración 20261030_suunto_zepp_push_models:", e);
     }
   }
 
