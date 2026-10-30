@@ -18,7 +18,8 @@
     "cap:open:ios": "npx cap open ios",
     "build:apk": "npm run build:mobile && cd android && gradlew.bat assembleDebug",
     "download:mobile": "node scripts/download-artifacts.mjs",
-    "sync:zepp": "node scripts/sync-zepp.mjs"
+    "sync:zepp": "node scripts/sync-zepp.mjs",
+    "validate-plan": "node scripts/validate-running-plan.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",

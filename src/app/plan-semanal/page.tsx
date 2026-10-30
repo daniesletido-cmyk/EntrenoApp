@@ -42,6 +42,7 @@ import { WorkoutModificationBanner } from "@/components/workout-modification-ban
 import { AdaptiveWeekCard } from "@/components/adaptive-week-card";
 import { SessionFeedbackCard } from "@/components/session-feedback-card";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
+import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import type { SessionRow } from "@/lib/repo/sessions";
 
 interface PlanPreviewRow {
@@ -853,24 +854,14 @@ export default function PlanSemanalPage() {
                         </div>
 
                         {!isEditing && cleanNotes && (
-                          <div
-                            className="w-full text-xs sm:text-sm"
-                            style={{
-                              marginTop: "var(--space-3)",
-                              padding: "10px 12px",
-                              background: "var(--color-surface)",
-                              borderRadius: "var(--radius-md)",
-                              borderLeft: `4px solid ${discTheme.color}`,
-                              whiteSpace: "pre-wrap",
-                              lineHeight: 1.6,
-                              wordBreak: "break-word",
-                              overflowWrap: "anywhere",
-                              maxWidth: "100%",
-                              overflowX: "hidden",
-                              color: "var(--color-text)",
-                            }}
-                          >
-                            {cleanNotes}
+                          <div className="w-full" style={{ marginTop: "var(--space-3)" }}>
+                            <WorkoutStructuredNotes
+                              notes={cleanNotes}
+                              discipline={s.discipline}
+                              themeColor={discTheme.color}
+                              distanceKm={s.distance_km}
+                              durationMin={s.duration_min}
+                            />
                           </div>
                         )}
 

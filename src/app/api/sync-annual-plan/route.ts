@@ -29,7 +29,7 @@ export async function GET() {
   }> = [];
 
   // FASE 1B (Semanas 5 a 16: 2026-10-05 a 2026-12-27)
-  const longRunsFase1b = [12, 14, 16, 11, 14, 16, 18, 12, 16, 18, 20, 14];
+  const longRunsFase1b = [12, 14, 16, 12, 14, 16, 18, 12, 16, 18, 20, 14];
   let startDate = new Date("2026-10-05T12:00:00Z");
 
   for (let w = 0; w < 12; w++) {
@@ -54,7 +54,7 @@ export async function GET() {
       planned_code: "R1 (Base Aeróbica)",
       distance_km: 8,
       duration_min: 45,
-      notes: `RUNNING suave en zona R1 (5:23 - 4:59 min/km, RPE 4-5):\n- Calentamiento: 5 min trote muy suave (>5:25/km)\n- Rodaje continuo: 35-40 min a ritmo R1\n- Técnica: 4x80m progresiones con alta cadencia\n- Vuelta a la calma: 5 min andando`
+      notes: `RUNNING suave en zona R1 (5:23 - 4:59 min/km, RPE 4-5):\n- Calentamiento: 5 min trote muy suave (>5:25/km)\n- Parte principal: Rodaje continuo 35-40 min a ritmo R1 + Técnica 4x80m progresiones con alta cadencia\n- Vuelta a la calma: 5 min andando`
     });
 
     const swim1 = getSwimmingWorkoutForWeek(semNum, 1);
@@ -93,7 +93,7 @@ export async function GET() {
       planned_code: "R2 (Moderado Progresivo)",
       distance_km: 10.5,
       duration_min: 55,
-      notes: `RUNNING moderado progresivo (receta R2 · 10-11 km):\n- Calentamiento 10 min suave\n- Cuerpo: 1er tercio suave en R1 (5:15/km), 2º tercio a ritmo tempo R2 (4:55-4:40/km), último km progresivo a 4:35/km\n- Vuelta a la calma: 5 min suave`
+      notes: `RUNNING moderado progresivo (receta R2 · 10-11 km):\n- Calentamiento: 10 min trote suave progresivo\n- Parte principal: 1er tercio suave en R1 (5:15/km), 2º tercio a ritmo tempo R2 (4:55-4:40/km), último km progresivo a 4:35/km\n- Vuelta a la calma: 5 min suave`
     });
 
     sessions.push({
@@ -104,7 +104,7 @@ export async function GET() {
       is_long_run: 1,
       distance_km: longRunDist,
       duration_min: Math.round(longRunDist * 5.25),
-      notes: `RUNNING Tirada Larga de Volumen (${longRunDist} km · Sem ${semNum}):\n- Ritmo aeróbico cómodo: 5:25 - 5:05 min/km (RPE ≤6)\n- Hidratación: Agua/isotónico cada 20-25 min en tiradas >14 km\n- Vuelta a la calma: 5 min andando + estiramientos`
+      notes: `RUNNING Tirada Larga de Volumen (${longRunDist} km · Sem ${semNum}):\n- Calentamiento: 10 min trote muy suave (>5:30/km) + movilidad articular activa\n- Parte principal: ${longRunDist} km a ritmo aeróbico cómodo (5:25 - 5:05 min/km, RPE ≤6)\n- Vuelta a la calma: 5 min andando + estiramientos completos\n- Hidratación: Agua/isotónico cada 20-25 min en tiradas >14 km`
     });
   }
 
@@ -607,29 +607,34 @@ export async function GET() {
     }
   }
 
-  db.prepare("DELETE FROM sessions WHERE date >= '2026-10-05'").run();
-
+  // NUNCA borrar sesiones existentes ni sobrescribir adaptaciones del usuario
+  const checkStmt = db.prepare("SELECT id FROM sessions WHERE date = ?");
   const insertStmt = db.prepare(`
     INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, status, duration_min, distance_km, notes, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, 0, 'pendiente', ?, ?, ?, ?, ?)
   `);
 
   const now = new Date().toISOString();
+  let addedCount = 0;
   for (const s of sessions) {
-    insertStmt.run(
-      s.date,
-      s.week_start,
-      s.discipline,
-      s.planned_code || null,
-      s.is_long_run ? 1 : 0,
-      s.duration_min ?? null,
-      s.distance_km ?? null,
-      s.notes ?? null,
-      now,
-      now
-    );
+    const existing = checkStmt.get(s.date);
+    if (!existing) {
+      insertStmt.run(
+        s.date,
+        s.week_start,
+        s.discipline,
+        s.planned_code || null,
+        s.is_long_run ? 1 : 0,
+        s.duration_min ?? null,
+        s.distance_km ?? null,
+        s.notes ?? null,
+        now,
+        now
+      );
+      addedCount++;
+    }
   }
 
   const count = db.prepare("SELECT count(*) as c FROM sessions").get();
-  return NextResponse.json({ ok: true, count: count?.c, added: sessions.length });
+  return NextResponse.json({ ok: true, count: count?.c, added: addedCount });
 }
