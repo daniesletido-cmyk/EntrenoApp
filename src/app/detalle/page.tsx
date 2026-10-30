@@ -130,8 +130,9 @@ function DetalleContent() {
   const router = useRouter();
 
   const today = todayISO();
-  const initialSessionId = searchParams.get("id");
+  const initialSessionId = searchParams.get("id") || searchParams.get("session");
   const initialDate = searchParams.get("date") ?? today;
+  const initialTab = searchParams.get("tab");
 
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
   const [weekStart, setWeekStart] = useState<string>(weekStartOf(initialDate));
@@ -141,7 +142,9 @@ function DetalleContent() {
   );
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [loadingSession, setLoadingSession] = useState(false);
-  const [activeTab, setActiveTab] = useState<"general" | "pacing" | "zones" | "charts" | "laps" | "gym" | "readiness">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "pacing" | "zones" | "charts" | "laps" | "gym" | "readiness">(
+    initialTab === "readiness" || initialTab === "sueno" ? "readiness" : "general"
+  );
   const [activeChart, setActiveChart] = useState<"pace_hr" | "elevation_pace" | "cadence_stride" | "zones">("pace_hr");
   const [uploadingFit, setUploadingFit] = useState(false);
   const [selectedEffortIdx, setSelectedEffortIdx] = useState<number>(0);
@@ -167,6 +170,9 @@ function DetalleContent() {
             setSelectedDate(found.date);
             return;
           }
+          // Si hay una sesión específica seleccionada que no pertenece a esta semana,
+          // el effect de selectedSessionId actualizará weekStart sin sobreescribir el ID
+          return;
         }
 
         // Si no, auto-seleccionar la sesión del selectedDate
@@ -232,10 +238,27 @@ function DetalleContent() {
     setLoadingSession(true);
     fetch(`/api/sessions/${selectedSessionId}`)
       .then((r) => r.json())
-      .then((res) => setSessionDetail(res))
+      .then((res) => {
+        setSessionDetail(res);
+        if (res?.date) {
+          setSelectedDate(res.date);
+          const wk = weekStartOf(res.date);
+          setWeekStart((prev) => (prev !== wk ? wk : prev));
+        }
+      })
       .catch(() => {})
       .finally(() => setLoadingSession(false));
   }, [selectedSessionId]);
+
+  // Si cambia el parámetro ?tab= en la URL
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "readiness" || tab === "sueno") {
+      setActiveTab("readiness");
+    } else if (tab && ["general", "pacing", "zones", "charts", "laps", "gym"].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
 
   // Subida directa de archivo .FIT
   async function handleDirectFitUpload(e: React.ChangeEvent<HTMLInputElement>) {

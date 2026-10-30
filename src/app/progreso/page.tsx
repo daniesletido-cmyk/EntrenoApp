@@ -167,6 +167,18 @@ export default function ProgresoPage() {
   const [alertModal, setAlertModal] = useState<"acwr" | "sleep" | "compliance" | null>(null);
   const toast = useToast();
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "sueno" || window.location.hash === "#sueno") {
+        setActiveTab("sueno");
+      } else if (tab === "entrenos" || tab === "fuerza" || tab === "peso" || tab === "todos") {
+        setActiveTab(tab as any);
+      }
+    }
+  }, []);
+
   const load = useCallback(() => {
     fetch("/api/history?weeks=12")
       .then((r) => r.json())

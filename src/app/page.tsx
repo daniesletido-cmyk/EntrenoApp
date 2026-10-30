@@ -549,7 +549,7 @@ export default function ResumenPage() {
                   return (
                     <Link
                       key={ses.id}
-                      href={`/detalle?session=${ses.id}`}
+                      href={`/detalle?id=${ses.id}&date=${ses.date}`}
                       className="p-3.5 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800/80 hover:border-emerald-500/30 transition-all flex flex-col justify-between group no-underline text-slate-200"
                     >
                       <div>

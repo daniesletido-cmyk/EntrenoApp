@@ -78,12 +78,30 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
           throw new Error(data.error || "No se pudo importar el archivo de sueño");
         }
 
-        const count = data.insertedCount ?? (Array.isArray(data.rows) ? data.rows.length : 1);
+        const rows = data.rows ?? [];
+        const toSave = rows.filter((r: any) => r.isNecessary !== false);
+        if (toSave.length > 0) {
+          setStatusMessage("Guardando datos de descanso en tu base de datos persistente...");
+          const saveRes = await fetch("/api/sleep", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              logs: toSave.map((r: any) => ({ ...r, source: "zepp" })),
+            }),
+          });
+          if (!saveRes.ok) {
+            console.error("Error persistiendo logs de sueño en SQLite");
+          }
+        }
+
+        const latestDate = rows[0]?.date || new Date().toISOString().slice(0, 10);
+        const count = toSave.length > 0 ? toSave.length : rows.length;
+
         setSuccessInfo({
           type: "sleep",
           title: "Sueño sincronizado con éxito",
           details: `${count} registro(s) de descanso procesados e integrados en tu base de datos persistente.`,
-          date: new Date().toISOString().slice(0, 10),
+          date: latestDate,
         });
 
         if (onSuccess) onSuccess();
@@ -297,9 +315,17 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-            {successInfo.sessionId ? (
+            {successInfo.type === "sleep" ? (
               <Link
-                href={`/detalle?session=${successInfo.sessionId}`}
+                href="/progreso?tab=sueno"
+                className="btn btn-primary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+              >
+                <span>Ver Análisis</span>
+                <ArrowRight size={13} />
+              </Link>
+            ) : successInfo.sessionId ? (
+              <Link
+                href={`/detalle?id=${successInfo.sessionId}&date=${successInfo.date ?? ""}`}
                 className="btn btn-primary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
               >
                 <span>Ver Análisis</span>
@@ -307,7 +333,7 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
               </Link>
             ) : (
               <Link
-                href="/registro"
+                href={successInfo.date ? `/detalle?date=${successInfo.date}` : "/registro"}
                 className="btn btn-secondary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
               >
                 <span>Ver en Registro</span>
