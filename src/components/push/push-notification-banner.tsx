@@ -37,7 +37,7 @@ export function PushNotificationBanner({
   const checkExistingSubscription = useCallback(async () => {
     try {
       if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
-      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
       if (reg) {
         const sub = await reg.pushManager.getSubscription();
         setIsSubscribed(!!sub);

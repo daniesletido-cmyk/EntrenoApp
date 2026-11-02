@@ -17,6 +17,7 @@ import {
   Loader2,
   Send,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -95,12 +96,38 @@ export function NotificationCenter({
     try {
       if (typeof window === "undefined") return;
       if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
-      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+
+      // Obtener o registrar Service Worker
+      let reg: ServiceWorkerRegistration | undefined = await navigator.serviceWorker.getRegistration();
+      if (!reg && "ready" in navigator.serviceWorker) {
+        reg = await navigator.serviceWorker.ready;
+      }
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      }
+
       if (reg) {
-        const sub = await reg.pushManager.getSubscription();
+        let sub = await reg.pushManager.getSubscription();
+
+        // Si tenemos permiso concedido en el navegador pero aún no se había suscrito a pushManager, crear suscripción
+        if (!sub && Notification.permission === "granted") {
+          try {
+            const keyRes = await fetch("/api/push/subscribe");
+            const keyData = await keyRes.json();
+            if (keyData.publicKey) {
+              sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+              });
+            }
+          } catch (autoSubErr) {
+            console.warn("Auto push subscribe warning:", autoSubErr);
+          }
+        }
+
         setIsPushSubscribed(!!sub);
         if (sub) {
-          // Re-sincronizar automáticamente la suscripción con el servidor para que siempre esté activa
+          // Re-sincronizar automáticamente la suscripción con el servidor para que siempre esté activa en la BD
           const subJson = sub.toJSON();
           fetch("/api/push/subscribe", {
             method: "POST",
@@ -228,24 +255,30 @@ export function NotificationCenter({
     }
   };
 
-  const triggerDirectTestNotification = async (type: "daily" | "weekly" = "daily") => {
+  const triggerDirectTestNotification = async (type: "daily" | "weekly" = "daily", delaySeconds: number = 0) => {
     setPushTesting(true);
+    if (delaySeconds > 0) {
+      toast.push("info", `⏳ ¡Tienes ${delaySeconds} segundos! Sal de la app o bloquea tu iPhone ya...`);
+    }
+
     try {
+      let currentSubJson: any = null;
+
       // Asegurar que la suscripción está guardada en el servidor antes de pedir el test
       if (typeof window !== "undefined" && "serviceWorker" in navigator) {
         try {
-          const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+          const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
           if (reg) {
             const sub = await reg.pushManager.getSubscription();
             if (sub) {
-              const subJson = sub.toJSON();
+              currentSubJson = sub.toJSON();
               await fetch("/api/push/subscribe", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   endpoint: sub.endpoint,
-                  keys: subJson.keys,
-                  subscription: subJson,
+                  keys: currentSubJson.keys,
+                  subscription: currentSubJson,
                   deviceType: "mobile",
                 }),
               });
@@ -259,17 +292,22 @@ export function NotificationCenter({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type,
+          delaySeconds,
+          subscription: currentSubJson,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.push("success", data.message || "¡Notificación enviada a tu pantalla!");
+        if (delaySeconds === 0) {
+          toast.push("success", data.message || "¡Notificación enviada a tu pantalla!");
+        } else {
+          toast.push("success", "¡Aviso enviado a tu pantalla de bloqueo!");
+        }
         fetchNotifications();
 
-        // En Safari / iOS PWA, si todavía no se ha sincronizado la suscripción en base de datos,
-        // disparar aviso local inmediato para que el usuario vea el resultado al instante
-        if ((!data.totalSubscriptions || data.successCount === 0) && "serviceWorker" in navigator) {
-          const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+        // En Safari / iOS PWA con app abierta inmediata
+        if (delaySeconds === 0 && (!data.totalSubscriptions || data.successCount === 0) && "serviceWorker" in navigator) {
+          const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
           if (reg && reg.showNotification) {
             if (type === "daily") {
               await reg.showNotification("🏅 Tu informe de hoy está listo", {
@@ -458,31 +496,43 @@ export function NotificationCenter({
         {/* Barra de estado / Botón de prueba push */}
         <div className="px-3 pt-3 flex-shrink-0">
           {isPushSubscribed ? (
-            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                <span className="text-xs font-semibold text-emerald-300 truncate">Push activo en tu móvil</span>
+            <div className="space-y-2">
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+                  <span className="text-xs font-semibold text-emerald-300 truncate">Push activo en tu móvil</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => triggerDirectTestNotification("daily", 0)}
+                    disabled={pushTesting}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 flex items-center gap-1"
+                    title="Probar notificación de informe diario"
+                  >
+                    {pushTesting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                    <span>Diario</span>
+                  </button>
+                  <button
+                    onClick={() => triggerDirectTestNotification("weekly", 0)}
+                    disabled={pushTesting}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition-all active:scale-95 flex items-center gap-1"
+                    title="Probar notificación de informe semanal"
+                  >
+                    <BarChart3 size={12} />
+                    <span>Semanal</span>
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button
-                  onClick={() => triggerDirectTestNotification("daily")}
-                  disabled={pushTesting}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 flex items-center gap-1"
-                  title="Probar notificación de informe diario"
-                >
-                  {pushTesting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                  <span>Diario</span>
-                </button>
-                <button
-                  onClick={() => triggerDirectTestNotification("weekly")}
-                  disabled={pushTesting}
-                  className="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition-all active:scale-95 flex items-center gap-1"
-                  title="Probar notificación de informe semanal"
-                >
-                  <BarChart3 size={12} />
-                  <span>Semanal</span>
-                </button>
-              </div>
+
+              {/* Botón para probar con móvil bloqueado / app cerrada */}
+              <button
+                onClick={() => triggerDirectTestNotification("daily", 5)}
+                disabled={pushTesting}
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-200 border border-amber-500/30 font-semibold text-xs transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Lock size={13} className="text-amber-400" />
+                <span>Probar con móvil bloqueado (cuenta 5 seg)</span>
+              </button>
             </div>
           ) : (
             <div className="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex flex-col gap-2">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendPushToAll, sendDailyReportPush, sendWeeklyReportPush } from "@/lib/push-notifications";
+import { savePushSubscription } from "@/lib/repo/push-subscriptions";
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,6 +8,7 @@ export async function POST(req: NextRequest) {
     let customBody = "Carrera 12.0 km (98 TSS): Carga, métricas y conclusión del entrenador listas. Pulsa para ver tu análisis.";
     let customUrl = "/hoy";
     let type = "daily";
+    let delaySeconds = 0;
 
     try {
       const body = await req.json();
@@ -14,7 +16,25 @@ export async function POST(req: NextRequest) {
       if (body.title) customTitle = body.title;
       if (body.body) customBody = body.body;
       if (body.url) customUrl = body.url;
+      if (typeof body.delaySeconds === "number") delaySeconds = body.delaySeconds;
+
+      // Si el cliente envía su suscripción en la misma llamada de prueba, guardarla directamente
+      const endpoint = body.subscription?.endpoint || body.endpoint;
+      const keys = body.subscription?.keys || body.keys;
+      if (endpoint && keys?.p256dh && keys?.auth) {
+        savePushSubscription({
+          endpoint,
+          p256dh: keys.p256dh,
+          auth: keys.auth,
+          device_type: "mobile",
+        });
+      }
     } catch {}
+
+    // Si se solicitó retraso (para dar tiempo al usuario a cerrar la app o bloquear la pantalla)
+    if (delaySeconds > 0) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(delaySeconds, 15) * 1000));
+    }
 
     let result;
     if (type === "daily") {
