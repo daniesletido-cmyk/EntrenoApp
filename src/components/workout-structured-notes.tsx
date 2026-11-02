@@ -123,17 +123,17 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
 
   // 2. Extraer Enfoque Mental
   let mentalTip = "";
-  const mentalMatch = text.match(/-\s*Enfoque Psicológico & Tip Mental:[^\n]*(?:\n\s+•[^\n]*|\n(?!\s*-)[^\n]*)*/);
+  const mentalMatch = text.match(/-\s*Enfoque Psicológico & Tip Mental:[^\n]*(?:\n\s+•[^\n]*|\n(?!\s*-)[^\n]*)*/i);
   if (mentalMatch) {
     mentalTip = mentalMatch[0].replace(/^-\s*Enfoque Psicológico & Tip Mental:\s*/i, "").trim();
     text = text.replace(mentalMatch[0], "").trim();
   }
 
-  // 3. Extraer Estrategia Nutrición
+  // 3. Extraer Estrategia Nutrición (soporta mayúsculas y minúsculas)
   let nutrition = "";
-  const nutMatch = text.match(/-\s*Estrategia Nutrición[^\n]*(?:\n\s+•[^\n]*|\n(?!\s*-)[^\n]*)*/);
+  const nutMatch = text.match(/-\s*(?:Estrategia )?Nutrición[^\n]*(?:\n\s+•[^\n]*|\n(?!\s*-)[^\n]*)*/i);
   if (nutMatch) {
-    nutrition = nutMatch[0].replace(/^-\s*Estrategia Nutrición(?:\s*\([^)]*\))?:\s*/i, "").trim();
+    nutrition = nutMatch[0].replace(/^-\s*(?:Estrategia )?Nutrición(?:\s*\([^)]*\))?:\s*/i, "").trim();
     text = text.replace(nutMatch[0], "").trim();
   }
 
@@ -233,7 +233,7 @@ export function WorkoutStructuredNotes({
   durationMin,
   className = "",
 }: WorkoutStructuredNotesProps) {
-  const [showNutrition, setShowNutrition] = useState(false);
+  const [showNutrition, setShowNutrition] = useState(true);
   const [showMental, setShowMental] = useState(false);
 
   const parsed = useMemo(() => parseWorkoutNotes(notes, discipline), [notes, discipline]);
