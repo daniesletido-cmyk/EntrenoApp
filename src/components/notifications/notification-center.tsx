@@ -214,20 +214,45 @@ export function NotificationCenter({
     }
   };
 
-  const triggerDirectTestNotification = async () => {
+  const triggerDirectTestNotification = async (type: "daily" | "weekly" = "daily") => {
     setPushTesting(true);
     try {
       const res = await fetch("/api/push/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "daily",
+          type,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.push("success", data.message || "¡Notificación de prueba enviada a tu móvil!");
+        toast.push("success", data.message || "¡Notificación enviada a tu pantalla!");
         fetchNotifications();
+
+        // En Safari / iOS PWA, si todavía no se ha sincronizado la suscripción en base de datos,
+        // disparar aviso local inmediato para que el usuario vea el resultado al instante
+        if ((!data.totalSubscriptions || data.successCount === 0) && "serviceWorker" in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+          if (reg && reg.showNotification) {
+            if (type === "daily") {
+              await reg.showNotification("🏅 Tu informe de hoy está listo", {
+                body: "⚡ Carrera: 12.0 km · 60 min · 5:02 min/km · 98 TSS\n🎯 Conclusión del entrenador y carga analizadas. Pulsa para ver tu análisis.",
+                icon: "/icon-192.png",
+                badge: "/icon-192.png",
+                data: { url: "/entrenos/480" },
+                tag: "daily-report-480",
+              });
+            } else {
+              await reg.showNotification("📊 Tu informe semanal está listo", {
+                body: "🏆 34.5 km · 5 sesiones · 420 TSS\n📈 Balance de carga, fatiga y adaptaciones del coach listas.",
+                icon: "/icon-192.png",
+                badge: "/icon-192.png",
+                data: { url: "/informe-semanal" },
+                tag: "weekly-report-test",
+              });
+            }
+          }
+        }
       } else {
         throw new Error(data.error);
       }
@@ -401,14 +426,26 @@ export function NotificationCenter({
                 <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-emerald-300 truncate">Push activo en tu móvil</span>
               </div>
-              <button
-                onClick={triggerDirectTestNotification}
-                disabled={pushTesting}
-                className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 flex items-center gap-1 flex-shrink-0"
-              >
-                {pushTesting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                <span>Probar aviso</span>
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => triggerDirectTestNotification("daily")}
+                  disabled={pushTesting}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 flex items-center gap-1"
+                  title="Probar notificación de informe diario"
+                >
+                  {pushTesting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                  <span>Diario</span>
+                </button>
+                <button
+                  onClick={() => triggerDirectTestNotification("weekly")}
+                  disabled={pushTesting}
+                  className="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition-all active:scale-95 flex items-center gap-1"
+                  title="Probar notificación de informe semanal"
+                >
+                  <BarChart3 size={12} />
+                  <span>Semanal</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex flex-col gap-2">
