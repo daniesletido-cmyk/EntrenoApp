@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -13,7 +14,7 @@ import {
   Clock,
   Sparkles,
   Smartphone,
-  Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -55,6 +56,7 @@ export function NotificationCenter({
   variant?: "icon" | "button" | "menu-item";
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [notifications, setNotifications] = useState<AppNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -74,6 +76,7 @@ export function NotificationCenter({
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     fetchNotifications();
 
     const handlePushChange = () => fetchNotifications();
@@ -86,6 +89,18 @@ export function NotificationCenter({
     };
   }, [fetchNotifications]);
 
+  // Bloquear scroll de la página de fondo cuando el drawer está abierto en móvil
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
   const handleOpen = () => {
     fetchNotifications();
     setIsOpen(true);
@@ -96,7 +111,7 @@ export function NotificationCenter({
   };
 
   const handleNotificationClick = async (item: AppNotificationItem) => {
-    // 1. Marcar como leída en segundo plano
+    // 1. Marcar como leída
     if (!item.read) {
       try {
         await fetch("/api/notifications", {
@@ -114,7 +129,7 @@ export function NotificationCenter({
     // 2. Cerrar el panel
     setIsOpen(false);
 
-    // 3. Navegar directamente a la información de la notificación
+    // 3. Navegar directamente al contenido
     if (item.url) {
       router.push(item.url);
     }
@@ -143,7 +158,7 @@ export function NotificationCenter({
       case "weekly_report":
         return {
           icon: BarChart3,
-          label: "Semanal",
+          label: "Informe Semanal",
           color: "bg-purple-500/20 text-purple-300 border-purple-500/30",
           iconColor: "text-purple-400",
         };
@@ -170,6 +185,180 @@ export function NotificationCenter({
         };
     }
   };
+
+  const modalContent = isOpen && mounted ? (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        zIndex: 999999,
+        backgroundColor: "rgba(0, 0, 0, 0.75)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        display: "flex",
+        alignItems: "stretch",
+        justifyContent: "flex-end",
+      }}
+      onClick={handleClose}
+      aria-modal="true"
+      role="dialog"
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 420,
+          height: "100dvh",
+          backgroundColor: "#080c14", // 100% opaco para que NUNCA se transparenten elementos de fondo
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "-12px 0 35px rgba(0, 0, 0, 0.8)",
+          borderLeft: "1px solid rgba(255, 255, 255, 0.12)",
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Cabecera sólida */}
+        <div className="px-4 py-3 border-b border-white/10 bg-slate-950/80 flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+              <Bell size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                Avisos & Notificaciones
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold">
+                    {unreadCount} nuevas
+                  </span>
+                )}
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Toca en cualquier aviso para ver los detalles
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                disabled={loading}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-xs flex items-center gap-1"
+                title="Marcar todas como leídas"
+                aria-label="Marcar leídas"
+              >
+                <CheckCheck size={18} />
+              </button>
+            )}
+            <button
+              onClick={handleClose}
+              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/15 transition-colors"
+              aria-label="Cerrar panel"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Lista scrolleable independiente */}
+        <div className="flex-1 overflow-y-auto divide-y divide-white/5 p-3 space-y-2">
+          {notifications.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-400">
+              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 mb-3">
+                <Bell size={24} />
+              </div>
+              <h4 className="text-sm font-semibold text-white">No hay notificaciones aún</h4>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                Cuando cargues un entreno o se complete la semana, aquí verás cada informe y podrás entrar con un clic.
+              </p>
+            </div>
+          ) : (
+            notifications.map((n) => {
+              const badge = getCategoryBadge(n.category);
+              const Icon = badge.icon;
+              const isUnread = !n.read;
+
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => handleNotificationClick(n)}
+                  className={`group relative p-3 sm:p-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98] border ${
+                    isUnread
+                      ? "bg-indigo-950/40 border-indigo-500/40 shadow-md shadow-indigo-950/20"
+                      : "bg-white/[0.03] border-white/5 hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner mt-0.5 ${badge.color}`}
+                    >
+                      <Icon size={17} className={badge.iconColor} />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${badge.color}`}
+                        >
+                          {badge.label}
+                        </span>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 flex-shrink-0">
+                          <Clock size={11} />
+                          {timeAgo(n.created_at)}
+                        </span>
+                      </div>
+
+                      <h4
+                        className={`text-xs sm:text-sm font-bold tracking-tight mt-1 truncate ${
+                          isUnread ? "text-white" : "text-slate-200"
+                        }`}
+                      >
+                        {n.title}
+                      </h4>
+
+                      <p className="text-[11px] sm:text-xs text-slate-300/80 line-clamp-2 mt-0.5 leading-relaxed">
+                        {n.body}
+                      </p>
+
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 group-hover:text-indigo-300 mt-2">
+                        <span>Ver información</span>
+                        <ChevronRight
+                          size={13}
+                          className="transition-transform group-hover:translate-x-0.5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Pie fijo */}
+        <div className="p-3 border-t border-white/10 bg-slate-950/90 flex items-center justify-between text-xs text-slate-400 flex-shrink-0">
+          <span className="flex items-center gap-1.5">
+            <Smartphone size={14} className="text-emerald-400" />
+            <span>Web Push sincronizado</span>
+          </span>
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              router.push("/configuracion");
+            }}
+            className="text-indigo-400 hover:text-indigo-300 font-semibold"
+          >
+            Ajustes de alertas →
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <>
@@ -213,156 +402,10 @@ export function NotificationCenter({
         </button>
       )}
 
-      {/* Drawer / Modal de Notificaciones */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-end sm:justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={handleClose}
-        >
-          <div
-            className="w-full sm:max-w-md h-full bg-slate-950/95 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
-              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-            }}
-          >
-            {/* Cabecera del Centro de Notificaciones */}
-            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                  <Bell size={17} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                    Avisos & Notificaciones
-                    {unreadCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold">
-                        {unreadCount} nuevas
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Toca en cualquier aviso para ver los detalles
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllRead}
-                    disabled={loading}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-xs flex items-center gap-1"
-                    title="Marcar todas como leídas"
-                  >
-                    <CheckCheck size={16} />
-                  </button>
-                )}
-                <button
-                  onClick={handleClose}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                  aria-label="Cerrar"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Lista de Notificaciones enviadas */}
-            <div className="flex-1 overflow-y-auto divide-y divide-white/5 p-2 sm:p-3">
-              {notifications.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-400">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 mb-3">
-                    <Bell size={24} />
-                  </div>
-                  <h4 className="text-sm font-semibold text-white">No hay notificaciones aún</h4>
-                  <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                    Cuando cargues un entreno o se complete la semana, aquí verás cada informe y podrás entrar con un clic.
-                  </p>
-                </div>
-              ) : (
-                notifications.map((n) => {
-                  const badge = getCategoryBadge(n.category);
-                  const Icon = badge.icon;
-                  const isUnread = !n.read;
-
-                  return (
-                    <div
-                      key={n.id}
-                      onClick={() => handleNotificationClick(n)}
-                      className={`group relative p-3 sm:p-3.5 rounded-xl cursor-pointer transition-all active:scale-[0.99] hover:bg-white/[0.05] ${
-                        isUnread ? "bg-indigo-500/[0.07] border-l-2 border-indigo-400" : ""
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner mt-0.5 ${
-                            badge.color
-                          }`}
-                        >
-                          <Icon size={17} className={badge.iconColor} />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${badge.color}`}
-                            >
-                              {badge.label}
-                            </span>
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1 flex-shrink-0">
-                              <Clock size={11} />
-                              {timeAgo(n.created_at)}
-                            </span>
-                          </div>
-
-                          <h4
-                            className={`text-xs sm:text-sm font-bold tracking-tight mt-1 truncate ${
-                              isUnread ? "text-white" : "text-slate-300"
-                            }`}
-                          >
-                            {n.title}
-                          </h4>
-
-                          <p className="text-[11px] sm:text-xs text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
-                            {n.body}
-                          </p>
-
-                          <div className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 group-hover:text-indigo-300 mt-2">
-                            <span>Ver información</span>
-                            <ChevronRight
-                              size={13}
-                              className="transition-transform group-hover:translate-x-0.5"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Pie del Centro de Notificaciones */}
-            <div className="p-3 border-t border-white/10 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <Smartphone size={14} className="text-emerald-400" />
-                <span>Web Push sincronizado</span>
-              </span>
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  router.push("/configuracion");
-                }}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold"
-              >
-                Ajustes de alertas →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Renderizado vía Portal directamente en document.body para evitar bugs de stacking/backdrop-filter */}
+      {mounted && typeof document !== "undefined" && modalContent
+        ? createPortal(modalContent, document.body)
+        : null}
     </>
   );
 }
