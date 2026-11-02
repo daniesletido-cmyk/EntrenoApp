@@ -99,6 +99,20 @@ export function NotificationCenter({
       if (reg) {
         const sub = await reg.pushManager.getSubscription();
         setIsPushSubscribed(!!sub);
+        if (sub) {
+          // Re-sincronizar automáticamente la suscripción con el servidor para que siempre esté activa
+          const subJson = sub.toJSON();
+          fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              endpoint: sub.endpoint,
+              keys: subJson.keys,
+              subscription: subJson,
+              deviceType: "mobile",
+            }),
+          }).catch(() => {});
+        }
       }
     } catch {}
   }, []);
@@ -217,6 +231,29 @@ export function NotificationCenter({
   const triggerDirectTestNotification = async (type: "daily" | "weekly" = "daily") => {
     setPushTesting(true);
     try {
+      // Asegurar que la suscripción está guardada en el servidor antes de pedir el test
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+          if (reg) {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+              const subJson = sub.toJSON();
+              await fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  endpoint: sub.endpoint,
+                  keys: subJson.keys,
+                  subscription: subJson,
+                  deviceType: "mobile",
+                }),
+              });
+            }
+          }
+        } catch {}
+      }
+
       const res = await fetch("/api/push/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
