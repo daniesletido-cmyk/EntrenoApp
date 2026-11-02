@@ -14,7 +14,9 @@ import {
   Clock,
   Sparkles,
   Smartphone,
-  ExternalLink,
+  Loader2,
+  Send,
+  CheckCircle2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -27,6 +29,17 @@ export interface AppNotificationItem {
   category: "daily_report" | "weekly_report" | "workout" | "sleep" | "system";
   read: number;
   created_at: string;
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 function timeAgo(dateString: string): string {
@@ -60,6 +73,9 @@ export function NotificationCenter({
   const [notifications, setNotifications] = useState<AppNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushTesting, setPushTesting] = useState(false);
   const router = useRouter();
   const toast = useToast();
 
@@ -75,19 +91,37 @@ export function NotificationCenter({
     } catch {}
   }, []);
 
+  const checkPush = useCallback(async () => {
+    try {
+      if (typeof window === "undefined") return;
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        setIsPushSubscribed(!!sub);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     fetchNotifications();
+    checkPush();
 
-    const handlePushChange = () => fetchNotifications();
+    const handlePushChange = () => {
+      fetchNotifications();
+      checkPush();
+    };
     window.addEventListener("entrenoapp_push_changed", handlePushChange);
-    window.addEventListener("focus", fetchNotifications);
+    window.addEventListener("focus", () => {
+      fetchNotifications();
+      checkPush();
+    });
 
     return () => {
       window.removeEventListener("entrenoapp_push_changed", handlePushChange);
-      window.removeEventListener("focus", fetchNotifications);
     };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, checkPush]);
 
   // Bloquear scroll de la página de fondo cuando el drawer está abierto en móvil
   useEffect(() => {
@@ -103,11 +137,108 @@ export function NotificationCenter({
 
   const handleOpen = () => {
     fetchNotifications();
+    checkPush();
     setIsOpen(true);
   };
 
   const handleClose = () => {
     setIsOpen(false);
+  };
+
+  const activatePushOnThisDevice = async () => {
+    setPushLoading(true);
+    try {
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+        throw new Error("Este dispositivo no soporta notificaciones push en este modo.");
+      }
+
+      let currentPerm = Notification.permission;
+      if (currentPerm === "denied") {
+        throw new Error("Permisos bloqueados en tu iPhone. Revisa Ajustes > Notificaciones de Safari.");
+      }
+
+      if (currentPerm !== "granted") {
+        currentPerm = await Notification.requestPermission();
+        if (currentPerm !== "granted") {
+          throw new Error("No se concedió el permiso de notificaciones en el diálogo del sistema.");
+        }
+      }
+
+      const keyRes = await fetch("/api/push/subscribe");
+      const keyData = await keyRes.json();
+      if (!keyData.publicKey) {
+        throw new Error("Clave pública VAPID no disponible.");
+      }
+
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+
+      const convertedKey = urlBase64ToUint8Array(keyData.publicKey);
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey,
+      });
+
+      const subJson = subscription.toJSON();
+      const rawP256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
+      const rawAuth = subscription.getKey ? subscription.getKey("auth") : null;
+
+      const p256dh =
+        subJson.keys?.p256dh ||
+        (rawP256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawP256dh)))) : "");
+      const auth =
+        subJson.keys?.auth ||
+        (rawAuth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth)))) : "");
+
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          keys: { p256dh, auth },
+          subscription: subJson,
+          deviceType: "mobile",
+        }),
+      });
+
+      setIsPushSubscribed(true);
+      window.dispatchEvent(new Event("entrenoapp_push_changed"));
+      toast.push("success", "¡Avisos push activados en tu móvil!");
+
+      // Enviar de inmediato la notificación de prueba
+      triggerDirectTestNotification();
+    } catch (err: any) {
+      toast.push("error", err.message || "Error al activar notificaciones");
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const triggerDirectTestNotification = async () => {
+    setPushTesting(true);
+    try {
+      const res = await fetch("/api/push/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "daily",
+          title: "🏅 Tu informe del entreno de hoy está listo",
+          body: "Carrera 12.0 km (98 TSS): Ritmo 5:02 min/km. Carga y conclusiones del coach listas.",
+          url: "/hoy",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.push("success", data.message || "¡Notificación de prueba enviada a tu móvil!");
+        fetchNotifications();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      toast.push("error", err.message || "Error al enviar la prueba");
+    } finally {
+      setPushTesting(false);
+    }
   };
 
   const handleNotificationClick = async (item: AppNotificationItem) => {
@@ -211,7 +342,7 @@ export function NotificationCenter({
           width: "100%",
           maxWidth: 420,
           height: "100dvh",
-          backgroundColor: "#080c14", // 100% opaco para que NUNCA se transparenten elementos de fondo
+          backgroundColor: "#080c14", // 100% opaco para que NUNCA se trasluzca nada detrás
           display: "flex",
           flexDirection: "column",
           boxShadow: "-12px 0 35px rgba(0, 0, 0, 0.8)",
@@ -263,6 +394,46 @@ export function NotificationCenter({
               <X size={20} />
             </button>
           </div>
+        </div>
+
+        {/* Barra de estado / Botón de prueba push */}
+        <div className="px-3 pt-3 flex-shrink-0">
+          {isPushSubscribed ? (
+            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                <span className="text-xs font-semibold text-emerald-300 truncate">Push activo en tu móvil</span>
+              </div>
+              <button
+                onClick={triggerDirectTestNotification}
+                disabled={pushTesting}
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 flex items-center gap-1 flex-shrink-0"
+              >
+                {pushTesting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                <span>Probar aviso</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                  <Smartphone size={14} />
+                  Avisos en pantalla de bloqueo
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-tight">
+                Pulsa para que te suene y vibre el móvil al terminar un entreno o cerrar la semana.
+              </p>
+              <button
+                onClick={activatePushOnThisDevice}
+                disabled={pushLoading}
+                className="w-full py-2 px-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/20"
+              >
+                {pushLoading ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                <span>Activar avisos en este móvil</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Lista scrolleable independiente */}
