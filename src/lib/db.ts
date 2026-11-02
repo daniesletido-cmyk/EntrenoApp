@@ -401,6 +401,18 @@ function createSchema(d: AppDb) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS app_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      url TEXT NOT NULL,
+      icon TEXT,
+      category TEXT,
+      read INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_app_notifications_created ON app_notifications(created_at DESC);
   `);
 }
 

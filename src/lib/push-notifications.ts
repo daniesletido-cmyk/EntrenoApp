@@ -4,6 +4,7 @@ import {
   deletePushSubscription,
   PushSubscriptionRow,
 } from "@/lib/repo/push-subscriptions";
+import { createNotification } from "@/lib/repo/notifications";
 
 // Fallback de desarrollo para que nunca falle la inicialización si aún no se configuran las VAPID en .env
 const DEFAULT_VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:entrenoapp@danielespinosa.es";
@@ -126,6 +127,15 @@ export async function sendWorkoutLoadedPush(workout: {
   const distText = workout.distancia != null ? `${Number(workout.distancia).toFixed(1)} km` : `${workout.duracion} min`;
   const tssText = workout.carga_tss != null ? ` (${Math.round(workout.carga_tss)} TSS)` : "";
 
+  try {
+    createNotification({
+      title: "🏅 Tu informe del entreno de hoy está listo",
+      body: `${sportName}: ${distText}${tssText}. Conclusión del entrenador y carga analizadas. Pulsa para ver el detalle.`,
+      url: `/entrenos/${workout.id}`,
+      category: "workout",
+    });
+  } catch {}
+
   return sendPushToAll({
     title: "🏅 Tu informe del entreno de hoy está listo",
     body: `${sportName}: ${distText}${tssText}. Conclusión del entrenador y carga analizadas. Pulsa para ver el detalle.`,
@@ -154,6 +164,15 @@ export async function sendDailyReportPush(session: {
       ? `${session.duration_min} min`
       : session.planned_code || "Sesión completada";
 
+  try {
+    createNotification({
+      title: "🏅 Tu informe del entreno de hoy está listo",
+      body: `${sportName} (${detail}): Métricas, carga y conclusión del entrenador preparadas. Pulsa para ver tu análisis.`,
+      url: `/entrenos/${session.id}`,
+      category: "daily_report",
+    });
+  } catch {}
+
   return sendPushToAll({
     title: "🏅 Tu informe del entreno de hoy está listo",
     body: `${sportName} (${detail}): Métricas, carga y conclusión del entrenador preparadas. Pulsa para ver tu análisis.`,
@@ -169,6 +188,15 @@ export async function sendDailyReportPush(session: {
  */
 export async function sendWeeklyReportPush(weekStart: string, summary?: { totalKm?: number; sessionsCount?: number }) {
   const kmText = summary?.totalKm ? ` (${summary.totalKm.toFixed(1)} km completados)` : "";
+  try {
+    createNotification({
+      title: "📊 Tu informe semanal está listo",
+      body: `¡Semana completada con éxito${kmText}! Balance de carga, métricas de descanso y conclusiones del coach preparadas. Pulsa para revisarlo.`,
+      url: `/informe-semanal?week=${weekStart}`,
+      category: "weekly_report",
+    });
+  } catch {}
+
   return sendPushToAll({
     title: "📊 Tu informe semanal está listo",
     body: `¡Semana completada con éxito${kmText}! Balance de carga, métricas de descanso y conclusiones del coach preparadas. Pulsa para revisarlo.`,
