@@ -23,9 +23,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Trophy,
+  BarChart3,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationBanner } from "@/components/push/push-notification-banner";
+import { ReportNotificationBanner } from "@/components/report-notification-banner";
 
 interface NavItemDef {
   href: string;
@@ -48,6 +50,7 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
   {
     title: "Rendimiento",
     links: [
+      { href: "/informe-semanal", label: "Informe Semanal", icon: BarChart3 },
       { href: "/progreso", label: "Progreso & Objetivos", icon: TrendingUp, aliases: ["/objetivos"] },
       { href: "/entrenador", label: "Entrenador IA", icon: Bot, aliases: ["/recomendaciones"] },
       { href: "/", label: "Resumen Semanal", icon: LayoutDashboard },
@@ -449,6 +452,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <div className="main-content-container">
           <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-top, 0px))" }} />
+          <ReportNotificationBanner />
           {children}
           {/* Espaciador de seguridad para garantizar que nada se corte por abajo */}
           <div className="md:hidden" style={{ height: "calc(100px + env(safe-area-inset-bottom, 24px))" }} />

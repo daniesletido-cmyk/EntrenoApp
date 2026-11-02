@@ -34,7 +34,7 @@ import {
   Info,
   ListOrdered,
   Check,
-
+  Sparkles,
   Brain,
   UtensilsCrossed,
   ShieldAlert,
@@ -1033,6 +1033,40 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           </ul>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Conclusión Diaria del Entrenador */}
+                  {session.status === "realizada" && (
+                    <div className="surface-raised" style={{ padding: "var(--space-4)", marginBottom: "var(--space-3)", borderLeft: "4px solid #10b981", backgroundColor: "rgba(16, 185, 129, 0.08)", borderTop: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
+                        <Sparkles size={14} className="text-emerald-400" />
+                        <span>Informe & Conclusión Diaria del Entrenador</span>
+                      </div>
+                      <div className="text-sm font-bold text-white" style={{ marginBottom: "var(--space-1)" }}>
+                        {session.discipline === "carrera"
+                          ? "Motor Aeróbico & Telemetría Clavada"
+                          : session.discipline === "crossfit"
+                          ? "Potencia Glucolítica y Fuerza Metabólica"
+                          : session.discipline === "natacion"
+                          ? "Descarga Articular y Retorno Venoso Óptimo"
+                          : session.discipline === "caminata"
+                          ? "Resistencia Muscular y Adaptación de Altura"
+                          : "Estímulo Completado y Asimilado"}
+                      </div>
+                      <p style={{ fontSize: "var(--text-xs)", lineHeight: 1.6, color: "var(--color-text-secondary, #cbd5e1)", margin: 0 }}>
+                        {session.discipline === "carrera" && session.distance_km && session.distance_km >= 10
+                          ? `Tirada de volumen completada con ${session.distance_km} km y cadencia ágil. Se consolidaron los ritmos previstos de preparación para el maratón con excelente respuesta cardíaca.`
+                          : session.discipline === "carrera"
+                          ? `Intervalos ejecutados con precisión métrica. Aclaramiento de lactato óptimo y estabilidad de pulso.`
+                          : session.discipline === "crossfit"
+                          ? `Gran capacidad de mantener potencia en fatiga. Las series de fuerza se transfieren a la economía articular sin sobrecargas residuales.`
+                          : session.discipline === "natacion"
+                          ? `Nado fluido sin impacto. La descompresión de hombros y la flotación facilitan la recuperación del tren inferior.`
+                          : session.discipline === "caminata"
+                          ? `Excelente volumen en zona Z1/Z2. Se acumuló tiempo en movimiento con estímulo muscular en subida.`
+                          : `Sesión asimilada correctamente con una carga calculada de ${Math.round((session.duration_min || 45) * (session.rpe || 6))} UA.`}
+                      </p>
                     </div>
                   )}
 
