@@ -4,8 +4,8 @@ import { savePushSubscription } from "@/lib/repo/push-subscriptions";
 
 export async function POST(req: NextRequest) {
   try {
-    let customTitle = "🏅 Tu informe del entreno de hoy está listo";
-    let customBody = "Carrera 12.0 km (98 TSS): Carga, métricas y conclusión del entrenador listas. Pulsa para ver tu análisis.";
+    let customTitle = "Informe de hoy listo";
+    let customBody = "Carrera: 12.0 km · 60 min · 5:02/km · 98 TSS.\nAnálisis de carga disponible.";
     let customUrl = "/hoy";
     let type = "daily";
     let delaySeconds = 0;

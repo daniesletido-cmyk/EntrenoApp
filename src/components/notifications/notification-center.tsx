@@ -258,7 +258,7 @@ export function NotificationCenter({
   const triggerDirectTestNotification = async (type: "daily" | "weekly" = "daily", delaySeconds: number = 0) => {
     setPushTesting(true);
     if (delaySeconds > 0) {
-      toast.push("info", `⏳ ¡Tienes ${delaySeconds} segundos! Sal de la app o bloquea tu iPhone ya...`);
+      toast.push("info", "Bloquea la pantalla o sal de la app ahora. El aviso llegará en 5 segundos.");
     }
 
     try {
@@ -299,9 +299,9 @@ export function NotificationCenter({
       const data = await res.json();
       if (res.ok) {
         if (delaySeconds === 0) {
-          toast.push("success", data.message || "¡Notificación enviada a tu pantalla!");
+          toast.push("success", data.message || "Notificación enviada");
         } else {
-          toast.push("success", "¡Aviso enviado a tu pantalla de bloqueo!");
+          toast.push("success", "Aviso enviado a pantalla de bloqueo");
         }
         fetchNotifications();
 
@@ -310,16 +310,16 @@ export function NotificationCenter({
           const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
           if (reg && reg.showNotification) {
             if (type === "daily") {
-              await reg.showNotification("🏅 Tu informe de hoy está listo", {
-                body: "⚡ Carrera: 12.0 km · 60 min · 5:02 min/km · 98 TSS\n🎯 Conclusión del entrenador y carga analizadas. Pulsa para ver tu análisis.",
+              await reg.showNotification("Informe de hoy listo", {
+                body: "Carrera: 12.0 km · 60 min · 5:02/km · 98 TSS.\nAnálisis de carga disponible.",
                 icon: "/icon-192.png",
                 badge: "/icon-192.png",
                 data: { url: "/entrenos/480" },
                 tag: "daily-report-480",
               });
             } else {
-              await reg.showNotification("📊 Tu informe semanal está listo", {
-                body: "🏆 34.5 km · 5 sesiones · 420 TSS\n📈 Balance de carga, fatiga y adaptaciones del coach listas.",
+              await reg.showNotification("Informe semanal listo", {
+                body: "34.5 km · 5 sesiones · 420 TSS.\nBalance de carga disponible.",
                 icon: "/icon-192.png",
                 badge: "/icon-192.png",
                 data: { url: "/informe-semanal" },
@@ -531,7 +531,7 @@ export function NotificationCenter({
                 className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-200 border border-amber-500/30 font-semibold text-xs transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
               >
                 <Lock size={13} className="text-amber-400" />
-                <span>Probar con móvil bloqueado (cuenta 5 seg)</span>
+                <span>Probar con pantalla bloqueada (5s)</span>
               </button>
             </div>
           ) : (

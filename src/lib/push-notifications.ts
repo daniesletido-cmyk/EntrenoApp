@@ -128,8 +128,8 @@ export async function sendWorkoutLoadedPush(workout: {
   const tssText = workout.carga_tss != null ? `${Math.round(workout.carga_tss)} TSS` : "";
   const metricsLine = [distText, tssText].filter(Boolean).join(" · ");
 
-  const title = `🏅 Tu informe de hoy está listo`;
-  const body = `⚡ ${sportName}: ${metricsLine}\n🎯 Conclusión del entrenador y carga analizadas. Pulsa para ver tu análisis.`;
+  const title = `Entrenamiento analizado`;
+  const body = `${sportName}: ${metricsLine}. Métricas y carga disponibles.`;
 
   try {
     createNotification({
@@ -175,14 +175,14 @@ export async function sendDailyReportPush(session: {
     const minPerKm = session.duration_min / session.distance_km;
     const mins = Math.floor(minPerKm);
     const secs = Math.round((minPerKm - mins) * 60);
-    paceText = `${mins}:${secs.toString().padStart(2, "0")} min/km`;
+    paceText = `${mins}:${secs.toString().padStart(2, "0")}/km`;
   }
   const tssText = session.carga_tss != null ? `${Math.round(session.carga_tss)} TSS` : "";
 
   const metrics = [distText, durationText, paceText, tssText].filter(Boolean).join(" · ") || session.planned_code || "Completado";
 
-  const title = `🏅 Tu informe de hoy está listo`;
-  const body = `⚡ ${sportName}: ${metrics}\n🎯 Conclusión del entrenador y carga analizadas. Pulsa para ver tu análisis.`;
+  const title = `Informe de hoy listo`;
+  const body = `${sportName}: ${metrics}.\nAnálisis de carga y conclusiones preparados.`;
 
   try {
     createNotification({
@@ -212,8 +212,8 @@ export async function sendWeeklyReportPush(weekStart: string, summary?: { totalK
   const sessionsText = summary?.sessionsCount ? `${summary.sessionsCount} sesiones` : "";
   const statsLine = [kmText, sessionsText, tssText].filter(Boolean).join(" · ") || "Semana cerrada";
 
-  const title = `📊 Tu informe semanal está listo`;
-  const body = `🏆 ${statsLine}\n📈 Balance de carga, descanso y adaptaciones del coach preparadas.`;
+  const title = `Informe semanal listo`;
+  const body = `${statsLine}.\nBalance de carga y adaptaciones disponibles.`;
 
   try {
     createNotification({

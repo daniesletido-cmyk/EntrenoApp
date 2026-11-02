@@ -9,8 +9,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   let data = {
-    title: "⚡ Entreno cargado y analizado",
-    body: "Nuevo entrenamiento sincronizado. Pulsa para ver el detalle y ajustes de la semana.",
+    title: "Entrenamiento analizado",
+    body: "Métricas y carga procesadas. Pulsa para ver el detalle.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     data: {
