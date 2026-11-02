@@ -56,3 +56,17 @@ Estas reglas tienen prioridad absoluta en cualquier tarea, modificación o gener
 - Antes de dar por finalizada una tarea en los entrenamientos o desplegar a producción:
   - Ejecutar `npm run validate-plan` para comprobar que ninguna sesión de carrera tenga partes principales reducidas por resta.
   - Verificar que TypeScript compila sin errores (`npx tsc --noEmit`).
+
+---
+
+## 5. RESTRICCIÓN MÉDICA Y ALERGIA ALIMENTARIA (ESTRICTA / VITAL)
+
+- **ALERGIA SEVERA**: Dani es **alérgico estricto a las nueces, avellanas y almendras** (y por extensión a cualquier fruto seco de cáscara o trazas de los mismos: cremas de frutos secos, harina de almendra/avellana, leche de almendras, turrones, granolas o barritas con frutos secos).
+- **PROHIBICIÓN TOTAL**: Jamás recomendar, incluir ni sugerir nuez, avellana, almendra ni genéricos de "frutos secos" en ningún menú (`menu_items`), notas de entrenamiento (`sessions.notes`), consejos de hidratación/nutrición o respuestas del Coach AI.
+- **ALTERNATIVAS SEGURAS**: Usar exclusivamente semillas sin riesgo alérgico:
+  - Semillas de calabaza (pipas de calabaza)
+  - Semillas de girasol (pipas de girasol)
+  - Semillas de chía
+  - Semillas de lino
+  - Sésamo / Tahini 100% puro
+  - Avena, fruta fresca/deshidratada (plátano, dátiles, pasas) y grasas saludables limpias (AOVE, aguacate).
