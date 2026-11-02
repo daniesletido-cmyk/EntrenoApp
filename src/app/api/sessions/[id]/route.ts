@@ -134,6 +134,30 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     } catch (e) {
       console.error("Error triggering Sunday auto adapt:", e);
     }
+
+    // Disparar notificaciones Web Push al móvil
+    try {
+      const { sendDailyReportPush, sendWeeklyReportPush } = await import("@/lib/push-notifications");
+      await sendDailyReportPush({
+        id: session.id,
+        discipline: session.discipline,
+        distance_km: session.distance_km,
+        duration_min: session.duration_min,
+        planned_code: session.planned_code,
+      });
+
+      const { listSessionsForWeek } = await import("@/lib/repo/sessions");
+      const weekSessions = listSessionsForWeek(session.week_start);
+      const pendingWorkouts = weekSessions.filter(
+        (s) => s.status !== "realizada" && s.discipline !== "descanso"
+      );
+      if (pendingWorkouts.length === 0) {
+        const totalKm = weekSessions.reduce((acc, s) => acc + (s.status === "realizada" ? (s.distance_km || 0) : 0), 0);
+        await sendWeeklyReportPush(session.week_start, { totalKm, sessionsCount: weekSessions.length });
+      }
+    } catch (pushErr) {
+      console.warn("[Push] Error al enviar notificación de informe:", pushErr);
+    }
   }
 
   return NextResponse.json({ session, autoAdapted: autoAdaptedInfo });

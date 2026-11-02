@@ -127,11 +127,54 @@ export async function sendWorkoutLoadedPush(workout: {
   const tssText = workout.carga_tss != null ? ` (${Math.round(workout.carga_tss)} TSS)` : "";
 
   return sendPushToAll({
-    title: "⚡ Entreno cargado y analizado",
-    body: `${sportName}: ${distText}${tssText}. Carga calculada. Pulsa para ver el detalle y ajustes de la semana.`,
+    title: "🏅 Tu informe del entreno de hoy está listo",
+    body: `${sportName}: ${distText}${tssText}. Conclusión del entrenador y carga analizadas. Pulsa para ver el detalle.`,
     data: {
       url: `/entrenos/${workout.id}`,
     },
     tag: `workout-${workout.id}`,
+  });
+}
+
+/**
+ * Envía notificación push instantánea cuando el informe diario de un entreno está listo
+ */
+export async function sendDailyReportPush(session: {
+  id: number;
+  discipline: string;
+  distance_km?: number | null;
+  duration_min?: number | null;
+  planned_code?: string | null;
+  title?: string | null;
+}) {
+  const sportName = session.discipline.charAt(0).toUpperCase() + session.discipline.slice(1);
+  const detail = session.distance_km != null && session.distance_km > 0
+    ? `${Number(session.distance_km).toFixed(1)} km`
+    : session.duration_min != null && session.duration_min > 0
+      ? `${session.duration_min} min`
+      : session.planned_code || "Sesión completada";
+
+  return sendPushToAll({
+    title: "🏅 Tu informe del entreno de hoy está listo",
+    body: `${sportName} (${detail}): Métricas, carga y conclusión del entrenador preparadas. Pulsa para ver tu análisis.`,
+    data: {
+      url: `/entrenos/${session.id}`,
+    },
+    tag: `daily-report-${session.id}`,
+  });
+}
+
+/**
+ * Envía notificación push cuando el informe semanal está listo
+ */
+export async function sendWeeklyReportPush(weekStart: string, summary?: { totalKm?: number; sessionsCount?: number }) {
+  const kmText = summary?.totalKm ? ` (${summary.totalKm.toFixed(1)} km completados)` : "";
+  return sendPushToAll({
+    title: "📊 Tu informe semanal está listo",
+    body: `¡Semana completada con éxito${kmText}! Balance de carga, métricas de descanso y conclusiones del coach preparadas. Pulsa para revisarlo.`,
+    data: {
+      url: `/informe-semanal?week=${weekStart}`,
+    },
+    tag: `weekly-report-${weekStart}`,
   });
 }
