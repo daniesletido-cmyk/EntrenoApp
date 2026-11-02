@@ -125,20 +125,24 @@ export async function sendWorkoutLoadedPush(workout: {
 }) {
   const sportName = workout.tipo.charAt(0).toUpperCase() + workout.tipo.slice(1);
   const distText = workout.distancia != null ? `${Number(workout.distancia).toFixed(1)} km` : `${workout.duracion} min`;
-  const tssText = workout.carga_tss != null ? ` (${Math.round(workout.carga_tss)} TSS)` : "";
+  const tssText = workout.carga_tss != null ? `${Math.round(workout.carga_tss)} TSS` : "";
+  const metricsLine = [distText, tssText].filter(Boolean).join(" · ");
+
+  const title = `🏅 Tu informe de hoy está listo`;
+  const body = `⚡ ${sportName}: ${metricsLine}\n🎯 Conclusión del entrenador y carga analizadas. Pulsa para ver tu análisis.`;
 
   try {
     createNotification({
-      title: "🏅 Tu informe del entreno de hoy está listo",
-      body: `${sportName}: ${distText}${tssText}. Conclusión del entrenador y carga analizadas. Pulsa para ver el detalle.`,
+      title,
+      body,
       url: `/entrenos/${workout.id}`,
       category: "workout",
     });
   } catch {}
 
   return sendPushToAll({
-    title: "🏅 Tu informe del entreno de hoy está listo",
-    body: `${sportName}: ${distText}${tssText}. Conclusión del entrenador y carga analizadas. Pulsa para ver el detalle.`,
+    title,
+    body,
     data: {
       url: `/entrenos/${workout.id}`,
     },
@@ -156,26 +160,42 @@ export async function sendDailyReportPush(session: {
   duration_min?: number | null;
   planned_code?: string | null;
   title?: string | null;
+  carga_tss?: number | null;
+  pace?: string | null;
 }) {
   const sportName = session.discipline.charAt(0).toUpperCase() + session.discipline.slice(1);
-  const detail = session.distance_km != null && session.distance_km > 0
+  const distText = session.distance_km != null && session.distance_km > 0
     ? `${Number(session.distance_km).toFixed(1)} km`
-    : session.duration_min != null && session.duration_min > 0
-      ? `${session.duration_min} min`
-      : session.planned_code || "Sesión completada";
+    : "";
+  const durationText = session.duration_min != null && session.duration_min > 0
+    ? `${session.duration_min} min`
+    : "";
+  let paceText = session.pace ? session.pace : "";
+  if (!paceText && session.distance_km && session.distance_km > 0 && session.duration_min && session.duration_min > 0 && session.discipline.toLowerCase().includes("carrer")) {
+    const minPerKm = session.duration_min / session.distance_km;
+    const mins = Math.floor(minPerKm);
+    const secs = Math.round((minPerKm - mins) * 60);
+    paceText = `${mins}:${secs.toString().padStart(2, "0")} min/km`;
+  }
+  const tssText = session.carga_tss != null ? `${Math.round(session.carga_tss)} TSS` : "";
+
+  const metrics = [distText, durationText, paceText, tssText].filter(Boolean).join(" · ") || session.planned_code || "Completado";
+
+  const title = `🏅 Tu informe de hoy está listo`;
+  const body = `⚡ ${sportName}: ${metrics}\n🎯 Conclusión del entrenador y carga analizadas. Pulsa para ver tu análisis.`;
 
   try {
     createNotification({
-      title: "🏅 Tu informe del entreno de hoy está listo",
-      body: `${sportName} (${detail}): Métricas, carga y conclusión del entrenador preparadas. Pulsa para ver tu análisis.`,
+      title,
+      body,
       url: `/entrenos/${session.id}`,
       category: "daily_report",
     });
   } catch {}
 
   return sendPushToAll({
-    title: "🏅 Tu informe del entreno de hoy está listo",
-    body: `${sportName} (${detail}): Métricas, carga y conclusión del entrenador preparadas. Pulsa para ver tu análisis.`,
+    title,
+    body,
     data: {
       url: `/entrenos/${session.id}`,
     },
@@ -186,20 +206,27 @@ export async function sendDailyReportPush(session: {
 /**
  * Envía notificación push cuando el informe semanal está listo
  */
-export async function sendWeeklyReportPush(weekStart: string, summary?: { totalKm?: number; sessionsCount?: number }) {
-  const kmText = summary?.totalKm ? ` (${summary.totalKm.toFixed(1)} km completados)` : "";
+export async function sendWeeklyReportPush(weekStart: string, summary?: { totalKm?: number; totalTss?: number; sessionsCount?: number }) {
+  const kmText = summary?.totalKm ? `${summary.totalKm.toFixed(1)} km` : "";
+  const tssText = summary?.totalTss ? `${Math.round(summary.totalTss)} TSS` : "";
+  const sessionsText = summary?.sessionsCount ? `${summary.sessionsCount} sesiones` : "";
+  const statsLine = [kmText, sessionsText, tssText].filter(Boolean).join(" · ") || "Semana cerrada";
+
+  const title = `📊 Tu informe semanal está listo`;
+  const body = `🏆 ${statsLine}\n📈 Balance de carga, descanso y adaptaciones del coach preparadas.`;
+
   try {
     createNotification({
-      title: "📊 Tu informe semanal está listo",
-      body: `¡Semana completada con éxito${kmText}! Balance de carga, métricas de descanso y conclusiones del coach preparadas. Pulsa para revisarlo.`,
+      title,
+      body,
       url: `/informe-semanal?week=${weekStart}`,
       category: "weekly_report",
     });
   } catch {}
 
   return sendPushToAll({
-    title: "📊 Tu informe semanal está listo",
-    body: `¡Semana completada con éxito${kmText}! Balance de carga, métricas de descanso y conclusiones del coach preparadas. Pulsa para revisarlo.`,
+    title,
+    body,
     data: {
       url: `/informe-semanal?week=${weekStart}`,
     },

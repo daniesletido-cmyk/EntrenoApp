@@ -222,9 +222,6 @@ export function NotificationCenter({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "daily",
-          title: "🏅 Tu informe del entreno de hoy está listo",
-          body: "Carrera 12.0 km (98 TSS): Ritmo 5:02 min/km. Carga y conclusiones del coach listas.",
-          url: "/hoy",
         }),
       });
       const data = await res.json();
