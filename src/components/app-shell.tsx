@@ -275,7 +275,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <PushNotificationBanner variant="compact" />
+            <PushNotificationBanner variant="icon" />
             <button
               onClick={triggerGlobalRefresh}
               className="btn btn-ghost btn-icon"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Bell, CheckCircle2, AlertTriangle, Loader2, Send, Info, Smartphone, BarChart3, Trophy, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -19,7 +19,7 @@ export function PushNotificationBanner({
   variant = "card",
   onDismiss,
 }: {
-  variant?: "card" | "compact" | "button" | "banner";
+  variant?: "card" | "compact" | "icon" | "banner";
   onDismiss?: () => void;
 }) {
   const [isSupported, setIsSupported] = useState(false);
@@ -31,7 +31,21 @@ export function PushNotificationBanner({
   const [isIosWeb, setIsIosWeb] = useState(false);
   const [statusHelp, setStatusHelp] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [justActivated, setJustActivated] = useState(false);
   const toast = useToast();
+
+  const checkExistingSubscription = useCallback(async () => {
+    try {
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        setIsSubscribed(!!sub);
+      }
+    } catch (err) {
+      console.warn("Aviso comprobando suscripción push previa:", err);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -59,22 +73,20 @@ export function PushNotificationBanner({
       checkExistingSubscription();
     }
 
-    if (localStorage.getItem("entrenoapp_dismiss_push_banner") === "1") {
-      setDismissed(true);
-    }
-  }, []);
-
-  async function checkExistingSubscription() {
     try {
-      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
-      if (reg) {
-        const sub = await reg.pushManager.getSubscription();
-        setIsSubscribed(!!sub);
+      if (localStorage.getItem("entrenoapp_dismiss_push_banner") === "1") {
+        setDismissed(true);
       }
-    } catch (err) {
-      console.warn("Aviso comprobando suscripción previa:", err);
-    }
-  }
+    } catch {}
+
+    const handlePushChange = () => {
+      checkExistingSubscription();
+    };
+    window.addEventListener("entrenoapp_push_changed", handlePushChange);
+    return () => {
+      window.removeEventListener("entrenoapp_push_changed", handlePushChange);
+    };
+  }, [checkExistingSubscription]);
 
   async function subscribeToPush() {
     setLoading(true);
@@ -85,7 +97,7 @@ export function PushNotificationBanner({
       if (isIosWeb) {
         toast.push(
           "info",
-          "En iPhone/iPad: Pulsa el botón Compartir de Safari y selecciona 'Añadir a pantalla de inicio' para activar notificaciones push."
+          "En iPhone: Pulsa el botón Compartir de Safari y selecciona 'Añadir a pantalla de inicio' para activar notificaciones push."
         );
         setStatusHelp(
           "En iOS debes pulsar 'Compartir' > 'Añadir a pantalla de inicio' para que Apple permita notificaciones."
@@ -131,7 +143,7 @@ export function PushNotificationBanner({
       const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
 
-      // 6. Si existía una suscripción previa (p.ej. con clave antigua o corrupta), desuscribirla limpiamente
+      // 6. Si existía una suscripción previa, desuscribirla limpiamente
       const existingSub = await reg.pushManager.getSubscription();
       if (existingSub) {
         try {
@@ -148,7 +160,7 @@ export function PushNotificationBanner({
         applicationServerKey: convertedKey,
       });
 
-      // 8. Extraer claves de forma universal
+      // 8. Extraer claves
       const subJson = subscription.toJSON();
       const rawP256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
       const rawAuth = subscription.getKey ? subscription.getKey("auth") : null;
@@ -178,9 +190,11 @@ export function PushNotificationBanner({
       }
 
       setIsSubscribed(true);
+      setJustActivated(true);
+      window.dispatchEvent(new Event("entrenoapp_push_changed"));
       toast.push("success", "¡Notificaciones push activadas correctamente en tu móvil!");
 
-      // Enviar una prueba automática discreta para verificar recepción
+      // Enviar una prueba automática
       try {
         await fetch("/api/push/test", {
           method: "POST",
@@ -227,23 +241,38 @@ export function PushNotificationBanner({
     }
   }
 
-  if (dismissed) return null;
-
-  if (!isSupported) {
-    if (variant === "compact") return null;
+  // Vista icono puro (ideal para el header móvil sin romper el título)
+  if (variant === "icon") {
+    if (!isSupported) return null;
     return (
-      <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-amber-300 flex items-start gap-3">
-        <AlertTriangle size={18} className="shrink-0 text-amber-400 mt-0.5" />
-        <div>
-          <span className="font-semibold block text-white">Navegador sin soporte Web Push</span>
-          Este navegador no admite notificaciones Web Push. Abre EntrenoApp en Google Chrome, Samsung Internet o Safari (como PWA).
-        </div>
-      </div>
+      <button
+        onClick={isSubscribed ? () => sendTestNotification("daily") : subscribeToPush}
+        disabled={loading || testingDaily || testingWeekly}
+        className="btn btn-ghost btn-icon relative"
+        aria-label={isSubscribed ? "Notificaciones push activas (probar)" : "Activar notificaciones"}
+        title={isSubscribed ? "Notificaciones push activas. Toca para probar aviso." : "Toca para activar notificaciones push"}
+        style={{ width: 38, height: 38, minWidth: 38, borderRadius: "50%" }}
+      >
+        {loading || testingDaily || testingWeekly ? (
+          <Loader2 size={17} className="animate-spin text-primary" />
+        ) : (
+          <Bell
+            size={17}
+            className={isSubscribed ? "text-emerald-400 fill-emerald-400/20" : "text-amber-400 animate-pulse"}
+          />
+        )}
+        <span
+          className={`absolute top-2 right-2 w-2 h-2 rounded-full ${
+            isSubscribed ? "bg-emerald-400" : "bg-amber-400 animate-ping"
+          }`}
+        />
+      </button>
     );
   }
 
-  // Vista compacta para la barra superior
+  // Vista compacta (para sidebar de escritorio)
   if (variant === "compact") {
+    if (!isSupported) return null;
     return (
       <div className="flex items-center gap-1.5">
         {isSubscribed ? (
@@ -258,14 +287,13 @@ export function PushNotificationBanner({
             ) : (
               <Bell size={13} className="text-emerald-400 fill-emerald-400/20" />
             )}
-            <span className="hidden sm:inline">Push activo</span>
-            <span className="sm:hidden">Push</span>
+            <span>Push activo</span>
           </button>
         ) : (
           <button
             onClick={subscribeToPush}
             disabled={loading}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 transition-all shadow-md active:scale-95 animate-pulse"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 transition-all shadow-md active:scale-95"
             title="Activar notificaciones en el móvil"
           >
             {loading ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
@@ -276,107 +304,87 @@ export function PushNotificationBanner({
     );
   }
 
-  // Vista Banner para la cabecera de Hoy y otras páginas
+  // Vista Banner (para la cabecera de las páginas)
   if (variant === "banner") {
+    // Si ya está suscrito y no acaba de activarlo, NO mostrar banner para no estorbar en el móvil
+    if (isSubscribed && !justActivated) return null;
+    if (dismissed) return null;
+
     return (
       <div className="w-full max-w-5xl mx-auto mb-4 px-3 sm:px-4 animate-in fade-in slide-in-from-top-2 duration-300">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border border-indigo-500/30 p-3.5 sm:p-4 shadow-xl backdrop-blur-md">
-          <div className="flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner ${
-                  isSubscribed
-                    ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
-                    : "bg-indigo-500/20 border border-indigo-500/30 text-indigo-400"
-                }`}
-              >
-                {isSubscribed ? <CheckCircle2 size={20} /> : <Bell size={20} className="animate-bounce" />}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                      isSubscribed
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                        : "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
-                    }`}
-                  >
-                    {isSubscribed ? "Notificaciones Activas" : "Avisos en el Móvil"}
-                  </span>
-                  <span className="text-xs text-slate-300/80 font-medium">
-                    {isSubscribed ? "Listo para saltar en tu pantalla" : "Informes diarios y semanales"}
-                  </span>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950/80 to-slate-900 border border-indigo-500/30 p-4 shadow-xl backdrop-blur-md">
+          {justActivated ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 size={18} />
                 </div>
-                <h4 className="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5">
-                  {isSubscribed
-                    ? "📲 Las notificaciones saltarán directamente en tu móvil"
-                    : "📲 Activa las notificaciones en tu móvil"}
-                </h4>
-                <p className="text-xs text-slate-300/80 mt-0.5">
-                  {isSubscribed
-                    ? "Recibirás '🏅 Tu informe del entreno de hoy está listo' y '📊 Tu informe semanal está listo'."
-                    : "Te saltará un aviso con sonido y vibración en tu teléfono en cuanto cargues un entreno o se cierre la semana."}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {isSubscribed ? (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    onClick={() => sendTestNotification("daily")}
-                    disabled={testingDaily || testingWeekly}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 font-bold text-xs transition-all active:scale-95"
-                    title="Probar aviso de entreno diario en tu móvil"
-                  >
-                    {testingDaily ? <Loader2 size={13} className="animate-spin" /> : <Trophy size={13} />}
-                    <span>Probar diario</span>
-                  </button>
-                  <button
-                    onClick={() => sendTestNotification("weekly")}
-                    disabled={testingDaily || testingWeekly}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 font-bold text-xs transition-all active:scale-95"
-                    title="Probar aviso de informe semanal en tu móvil"
-                  >
-                    {testingWeekly ? <Loader2 size={13} className="animate-spin" /> : <BarChart3 size={13} />}
-                    <span>Probar semanal</span>
-                  </button>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-white">¡Notificaciones móviles activadas!</h4>
+                  <p className="text-xs text-slate-300">Te saltarán los informes diarios y semanales con sonido y vibración.</p>
                 </div>
-              ) : (
-                <button
-                  onClick={subscribeToPush}
-                  disabled={loading}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-indigo-500/20 active:scale-95"
-                >
-                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
-                  <span>Activar en este móvil</span>
-                </button>
-              )}
-
+              </div>
               <button
-                onClick={() => {
-                  setDismissed(true);
-                  try {
-                    localStorage.setItem("entrenoapp_dismiss_push_banner", "1");
-                  } catch {}
-                  if (onDismiss) onDismiss();
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Cerrar"
-                aria-label="Cerrar"
+                onClick={() => setJustActivated(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
               >
                 <X size={16} />
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 shadow-inner mt-0.5">
+                  <Bell size={20} className="animate-bounce" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      Notificaciones en tu móvil
+                    </span>
+                  </div>
+                  <h4 className="text-sm sm:text-base font-bold text-white tracking-tight mt-1">
+                    Activa los avisos de tus informes
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed mt-0.5">
+                    Te saltará un aviso con sonido y vibración de &ldquo;Tu informe del entreno de hoy está listo&rdquo; y &ldquo;Tu informe semanal está listo&rdquo;.
+                  </p>
+                </div>
+              </div>
 
-          {/* Instrucción específica para iOS */}
-          {isIosWeb && !isSubscribed && (
-            <div className="mt-3 pt-3 border-t border-indigo-500/20 text-xs text-sky-300 flex items-start gap-2">
-              <Smartphone size={15} className="text-sky-400 shrink-0 mt-0.5" />
-              <span>
-                <strong>Usuarios de iPhone:</strong> Pulsa el botón de <em>Compartir</em> en Safari (icono de caja con flecha arriba) y selecciona <strong>"Añadir a pantalla de inicio"</strong>. Luego abre la app desde ese icono para activar las notificaciones.
-              </span>
+              <div className="flex items-center gap-2 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
+                <button
+                  onClick={subscribeToPush}
+                  disabled={loading}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-indigo-500/25 active:scale-95"
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
+                  <span>Activar en este móvil</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setDismissed(true);
+                    try {
+                      localStorage.setItem("entrenoapp_dismiss_push_banner", "1");
+                    } catch {}
+                    if (onDismiss) onDismiss();
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                  title="Cerrar"
+                  aria-label="Cerrar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {isIosWeb && (
+                <div className="w-full mt-2 pt-2 border-t border-indigo-500/20 text-xs text-sky-300 flex items-start gap-2">
+                  <Smartphone size={15} className="text-sky-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>iPhone:</strong> Pulsa el icono de <em>Compartir</em> en Safari y elige <strong>"Añadir a pantalla de inicio"</strong>. Luego abre la app desde ese icono para recibir notificaciones en pantalla de bloqueo.
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
