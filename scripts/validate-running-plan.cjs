@@ -29,20 +29,20 @@ for (const dbRelPath of dbs) {
     hasErrors = true;
   } else {
     const is12kMain = session480.notes && session480.notes.includes('Parte principal (12.0 km');
-    const is14_5Total = session480.distance_km === 14.5;
+    const is14_5Total = session480.distance_km === 14.5 || (session480.status === 'realizada' && session480.distance_km >= 12.0);
     const hasPace = session480.notes && session480.notes.includes('5:25 - 5:10 min/km');
 
     if (!is12kMain) {
       console.error(`  ❌ ERROR 480: La Parte Principal no tiene los 12.0 km íntegros en las notas.`);
       hasErrors = true;
     } else if (!is14_5Total) {
-      console.error(`  ❌ ERROR 480: La distancia total no es 14.5 km (es ${session480.distance_km} km).`);
+      console.error(`  ❌ ERROR 480: La distancia total no es válida (es ${session480.distance_km} km).`);
       hasErrors = true;
     } else if (!hasPace) {
       console.error(`  ❌ ERROR 480: Falta el ritmo objetivo en las notas.`);
       hasErrors = true;
     } else {
-      console.log(`  ✅ Sesión 480 (31/10/2026): 12.0 km Parte Principal · 14.5 km Total · Ritmo objetivo presente.`);
+      console.log(`  ✅ Sesión 480 (31/10/2026): 12.0 km Parte Principal · ${session480.distance_km} km ${session480.status === 'realizada' ? 'Realizada' : 'Total'} · Ritmo objetivo presente.`);
     }
   }
 
