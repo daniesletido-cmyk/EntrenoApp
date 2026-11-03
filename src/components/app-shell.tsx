@@ -24,6 +24,7 @@ import {
   PanelLeftOpen,
   Trophy,
   BarChart3,
+  Crown,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationBanner } from "@/components/push/push-notification-banner";
@@ -60,6 +61,7 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
   {
     title: "Más",
     links: [
+      { href: "/precios", label: "Planes & Pro", icon: Crown, aliases: ["/landing"] },
       { href: "/configuracion", label: "Configuración", icon: Settings },
     ],
   },

@@ -413,6 +413,23 @@ function createSchema(d: AppDb) {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_app_notifications_created ON app_notifications(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL DEFAULT 'default_user',
+      stripe_customer_id TEXT UNIQUE,
+      stripe_subscription_id TEXT UNIQUE,
+      plan TEXT NOT NULL DEFAULT 'free',
+      billing_period TEXT DEFAULT 'monthly',
+      status TEXT NOT NULL DEFAULT 'free',
+      current_period_end TEXT,
+      cancel_at_period_end INTEGER DEFAULT 0,
+      metadata TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
   `);
 }
 
@@ -543,6 +560,33 @@ function migrateSchema(d: AppDb) {
       recordMigration(d, "20261030_suunto_zepp_push_models");
     } catch (e) {
       console.error("[DB] Error aplicando migración 20261030_suunto_zepp_push_models:", e);
+    }
+  }
+
+  // Migración idempotente para suscripciones y monetización Stripe
+  if (!isMigrationExecuted(d, "20261103_subscriptions_and_billing")) {
+    try {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL DEFAULT 'default_user',
+          stripe_customer_id TEXT UNIQUE,
+          stripe_subscription_id TEXT UNIQUE,
+          plan TEXT NOT NULL DEFAULT 'free',
+          billing_period TEXT DEFAULT 'monthly',
+          status TEXT NOT NULL DEFAULT 'free',
+          current_period_end TEXT,
+          cancel_at_period_end INTEGER DEFAULT 0,
+          metadata TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+      `);
+      recordMigration(d, "20261103_subscriptions_and_billing");
+    } catch (e) {
+      console.error("[DB] Error aplicando migración 20261103_subscriptions_and_billing:", e);
     }
   }
 

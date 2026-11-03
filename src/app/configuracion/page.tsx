@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert } from "lucide-react";
+import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,29 @@ export default function ConfiguracionPage() {
   const [lockEnabled, setLockEnabled] = useState(false);
   const [lockType, setLockType] = useState<"pin" | "password">("pin");
 
+  const [subInfo, setSubInfo] = useState<{
+    plan?: string;
+    status?: string;
+    isActive?: boolean;
+    periodEnd?: string | null;
+  } | null>(null);
+
+  const refreshSubscription = () => {
+    fetch("/api/subscription/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.subscription) {
+          setSubInfo({
+            plan: data.subscription.plan,
+            status: data.subscription.status,
+            isActive: data.subscription.status === "active" || data.subscription.status === "trialing",
+            periodEnd: data.subscription.current_period_end,
+          });
+        }
+      })
+      .catch(() => {});
+  };
+
   const refreshSecurity = () => {
     setLockEnabled(isAppLockEnabled());
     setLockType(getAppLockType());
@@ -51,6 +74,7 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     refreshSecurity();
+    refreshSubscription();
     const handleSec = () => refreshSecurity();
     window.addEventListener("entrenoapp:security_changed", handleSec);
     return () => window.removeEventListener("entrenoapp:security_changed", handleSec);
@@ -155,6 +179,24 @@ export default function ConfiguracionPage() {
     }
   }
 
+  async function handleOpenPortal() {
+    try {
+      const res = await fetch("/api/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "default_user" }),
+      });
+      const data = await res.json();
+      if (data.portalUrl) {
+        window.location.href = data.portalUrl;
+      } else {
+        toast.push("info", data.message || "Gestiona tu suscripción en la sección de planes.");
+      }
+    } catch {
+      toast.push("error", "No se pudo conectar con el portal de facturación.");
+    }
+  }
+
   function handleRestore(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -209,6 +251,52 @@ export default function ConfiguracionPage() {
 
         {/* SECCIÓN NOTIFICACIONES PUSH */}
         <PushNotificationBanner variant="card" />
+
+        {/* SECCIÓN PLAN & FACTURACIÓN */}
+        <div className="surface" style={{ padding: "var(--space-4)" }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Crown size={16} className="text-amber-400" />
+              Suscripción y Estado de la Cuenta
+            </div>
+            <span
+              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                subInfo?.isActive
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-slate-800 text-slate-400 border border-slate-700"
+              }`}
+            >
+              {subInfo?.plan === "pro_coach"
+                ? "Pro Coach"
+                : subInfo?.plan === "premium_annual"
+                ? "Atleta Premium (Anual)"
+                : subInfo?.plan === "premium_monthly"
+                ? "Atleta Premium (Mensual)"
+                : "Atleta Básico (Gratis)"}
+            </span>
+          </div>
+
+          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
+            {subInfo?.isActive
+              ? "Tu cuenta tiene acceso completo al Entrenador IA, sincronización de relojes Suunto/Zepp y análisis de fatiga ACWR."
+              : "Estás en el plan gratuito con registro básico de sesiones. Desbloquea el Entrenador IA y la sincronización con el plan Premium."}
+          </p>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Link href="/precios">
+              <Button variant="primary">
+                <Crown size={14} />
+                {subInfo?.isActive ? "Ver o Cambiar Plan" : "Mejorar a Premium"}
+              </Button>
+            </Link>
+            {subInfo?.isActive && (
+              <Button variant="ghost" onClick={handleOpenPortal}>
+                <CreditCard size={14} />
+                Portal de Facturación Stripe
+              </Button>
+            )}
+          </div>
+        </div>
 
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>

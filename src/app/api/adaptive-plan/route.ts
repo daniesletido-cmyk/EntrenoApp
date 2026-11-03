@@ -5,9 +5,13 @@ import {
   applyNextWeekAdaptivePlan,
 } from "@/lib/adaptive-weekly-plan";
 import { weekStartOf, todayISO } from "@/lib/dates";
+import { enforceSubscriptionAccess } from "@/lib/security/subscription-guard";
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = enforceSubscriptionAccess("adaptive_plan", req.nextUrl.searchParams.get("userId") || "default_user");
+    if (denied) return denied;
+
     const week = req.nextUrl.searchParams.get("week") ?? todayISO();
     const currentWeekStart = weekStartOf(week);
     const plan = generateNextWeekAdaptivePlan(currentWeekStart);
@@ -21,6 +25,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
+    const denied = enforceSubscriptionAccess("adaptive_plan", body.userId || "default_user");
+    if (denied) return denied;
+
     const week = body.weekStart ?? todayISO();
     const currentWeekStart = weekStartOf(week);
     const result = applyNextWeekAdaptivePlan(currentWeekStart);

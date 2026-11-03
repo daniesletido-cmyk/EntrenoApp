@@ -109,6 +109,19 @@ export default function EntrenadorPage() {
       });
 
       if (!res.ok) {
+        if (res.status === 403) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `paywall-${Date.now()}`,
+              role: "assistant",
+              content:
+                "🔒 **El Entrenador Personal IA requiere suscripción a EntrenoApp Premium.**\n\nDesbloquea el análisis adaptativo de tus cargas y el asesoramiento fisiológico 24/7 con 7 días de prueba gratuita en la pestaña **[Planes & Pro](/precios)**.",
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            },
+          ]);
+          return;
+        }
         throw new Error("Error en la respuesta del servidor");
       }
 

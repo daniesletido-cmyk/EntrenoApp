@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { askCoachAI, ChatMessage } from "@/lib/coach-ai/engine";
 import { todayISO } from "@/lib/dates";
+import { enforceSubscriptionAccess } from "@/lib/security/subscription-guard";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    // Verificación de suscripción para Entrenador IA
+    const denied = enforceSubscriptionAccess("ai_coach", body.userId || "default_user");
+    if (denied) return denied;
+
     const messages: ChatMessage[] = Array.isArray(body.messages) ? body.messages : [];
 
     if (messages.length === 0) {
