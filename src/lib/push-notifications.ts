@@ -233,3 +233,38 @@ export async function sendWeeklyReportPush(weekStart: string, summary?: { totalK
     tag: `weekly-report-${weekStart}`,
   });
 }
+
+/**
+ * Envía notificación push instantánea cuando se registra o sincroniza el sueño
+ */
+export async function sendSleepRecordedPush(sleep: {
+  date: string;
+  hours?: number | null;
+  score?: number | null;
+  quality?: number | null;
+}) {
+  const hoursText = sleep.hours != null ? `${Number(sleep.hours).toFixed(1)}h de sueño` : "Sueño registrado";
+  const scoreText = sleep.score != null ? `Puntuación ${sleep.score}/100` : "";
+  const metrics = [hoursText, scoreText].filter(Boolean).join(" · ");
+
+  const title = `Sueño registrado`;
+  const body = `${metrics}.\nMétricas de recuperación y readiness actualizadas.`;
+
+  try {
+    createNotification({
+      title,
+      body,
+      url: `/hoy`,
+      category: "sleep",
+    });
+  } catch {}
+
+  return sendPushToAll({
+    title,
+    body,
+    data: {
+      url: `/hoy`,
+    },
+    tag: `sleep-${sleep.date}`,
+  });
+}

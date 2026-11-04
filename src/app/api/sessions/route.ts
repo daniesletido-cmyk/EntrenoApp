@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!body.date || !body.discipline) {
     return NextResponse.json({ error: "date y discipline son obligatorios" }, { status: 400 });
   }
-  const session = createPlannedSession({
+  let session = createPlannedSession({
     date: body.date,
     discipline: body.discipline as Discipline,
     planned_code: body.planned_code ?? null,
@@ -39,5 +39,34 @@ export async function POST(req: NextRequest) {
     notes: body.notes ?? null,
     user_notes: body.user_notes ?? null,
   });
+
+  // Si se creaba ya como realizada o con métricas reales, actualizar y notificar
+  if (body.status === "realizada" || body.duration_min != null || body.fit_data) {
+    const { updateSession } = await import("@/lib/repo/sessions");
+    const updated = updateSession(session.id, {
+      status: body.status || "realizada",
+      duration_min: body.duration_min != null ? Number(body.duration_min) : undefined,
+      distance_km: body.distance_km != null ? Number(body.distance_km) : undefined,
+      rpe: body.rpe != null ? Number(body.rpe) : undefined,
+      fit_data: body.fit_data,
+    });
+    if (updated) session = updated;
+
+    if (session.status === "realizada") {
+      try {
+        const { sendDailyReportPush } = await import("@/lib/push-notifications");
+        await sendDailyReportPush({
+          id: session.id,
+          discipline: session.discipline,
+          distance_km: session.distance_km,
+          duration_min: session.duration_min,
+          planned_code: session.planned_code,
+        });
+      } catch (pushErr) {
+        console.warn("[Session Push] Error al notificar nueva sesión realizada:", pushErr);
+      }
+    }
+  }
+
   return NextResponse.json({ session }, { status: 201 });
 }

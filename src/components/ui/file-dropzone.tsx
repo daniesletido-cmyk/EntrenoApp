@@ -61,6 +61,29 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
 
     const name = file.name.toLowerCase();
 
+    // Sincronizar silenciosamente la suscripción push para que el aviso móvil llegue sin falta
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistration().then(async (reg) => {
+        if (reg) {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            const subJson = sub.toJSON();
+            const rawP256dh = sub.getKey ? sub.getKey("p256dh") : null;
+            const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+            const p256dh = (subJson.keys && subJson.keys.p256dh) || (rawP256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawP256dh)))) : "");
+            const auth = (subJson.keys && subJson.keys.auth) || (rawAuth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth)))) : "");
+            if (p256dh && auth) {
+              fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh, auth }, deviceType: "mobile" }),
+              }).catch(() => {});
+            }
+          }
+        }
+      }).catch(() => {});
+    }
+
     try {
       // 1. Archivo de Sueño (CSV o JSON con palabras de sleep/zepp)
       if (name.endsWith(".csv") || (name.endsWith(".json") && (name.includes("sleep") || name.includes("zepp")))) {
@@ -143,6 +166,27 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
               fitImport: true,
             }),
           });
+        } else {
+          // Si no había sesión planificada previa, registrarla automáticamente como sesión realizada
+          setStatusMessage("Registrando entrenamiento importado en el calendario...");
+          const createRes = await fetch("/api/sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              date: summary.date,
+              discipline: summary.sport || "otro",
+              planned_code: summary.activityName || "Entrenamiento importado",
+              status: "realizada",
+              duration_min: summary.durationMin,
+              distance_km: summary.distanceKm,
+              is_extra: true,
+              fit_data: JSON.stringify(summary),
+            }),
+          });
+          const createData = await createRes.json();
+          if (createData?.session?.id) {
+            finalSessionId = createData.session.id;
+          }
         }
 
         const suunto = summary.deepAnalysis?.suuntoMetrics;

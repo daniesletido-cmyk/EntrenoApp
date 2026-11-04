@@ -64,6 +64,29 @@ function timeAgo(dateString: string): string {
   }
 }
 
+function extractSubscriptionPayload(sub: PushSubscription) {
+  const subJson = sub.toJSON();
+  const rawP256dh = sub.getKey ? sub.getKey("p256dh") : null;
+  const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+
+  const p256dh =
+    (subJson.keys && subJson.keys.p256dh) ||
+    (rawP256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawP256dh)))) : "");
+  const auth =
+    (subJson.keys && subJson.keys.auth) ||
+    (rawAuth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth)))) : "");
+
+  return {
+    endpoint: sub.endpoint,
+    keys: { p256dh, auth },
+    subscription: {
+      endpoint: sub.endpoint,
+      keys: { p256dh, auth },
+    },
+    deviceType: "mobile",
+  };
+}
+
 export function NotificationCenter({
   variant = "icon",
 }: {
@@ -128,17 +151,14 @@ export function NotificationCenter({
         setIsPushSubscribed(!!sub);
         if (sub) {
           // Re-sincronizar automáticamente la suscripción con el servidor para que siempre esté activa en la BD
-          const subJson = sub.toJSON();
-          fetch("/api/push/subscribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              endpoint: sub.endpoint,
-              keys: subJson.keys,
-              subscription: subJson,
-              deviceType: "mobile",
-            }),
-          }).catch(() => {});
+          const payload = extractSubscriptionPayload(sub);
+          if (payload.keys.p256dh && payload.keys.auth) {
+            fetch("/api/push/subscribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }).catch(() => {});
+          }
         }
       }
     } catch {}
@@ -220,26 +240,11 @@ export function NotificationCenter({
         applicationServerKey: convertedKey,
       });
 
-      const subJson = subscription.toJSON();
-      const rawP256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
-      const rawAuth = subscription.getKey ? subscription.getKey("auth") : null;
-
-      const p256dh =
-        subJson.keys?.p256dh ||
-        (rawP256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawP256dh)))) : "");
-      const auth =
-        subJson.keys?.auth ||
-        (rawAuth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth)))) : "");
-
+      const payload = extractSubscriptionPayload(subscription);
       await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint,
-          keys: { p256dh, auth },
-          subscription: subJson,
-          deviceType: "mobile",
-        }),
+        body: JSON.stringify(payload),
       });
 
       setIsPushSubscribed(true);
@@ -271,16 +276,12 @@ export function NotificationCenter({
           if (reg) {
             const sub = await reg.pushManager.getSubscription();
             if (sub) {
-              currentSubJson = sub.toJSON();
+              const payload = extractSubscriptionPayload(sub);
+              currentSubJson = payload.subscription;
               await fetch("/api/push/subscribe", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  endpoint: sub.endpoint,
-                  keys: currentSubJson.keys,
-                  subscription: currentSubJson,
-                  deviceType: "mobile",
-                }),
+                body: JSON.stringify(payload),
               });
             }
           }

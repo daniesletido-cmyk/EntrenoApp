@@ -38,6 +38,18 @@ export async function POST(req: NextRequest) {
       inputs.push(input);
     }
     const logs = batchUpsertSleepLogs(inputs);
+
+    // Disparar notificación push para el registro de sueño más reciente
+    try {
+      const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
+      const latest = logs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (latest) {
+        await sendSleepRecordedPush(latest);
+      }
+    } catch (pushErr) {
+      console.warn("[Sleep Push] Error notificando sueño por lote:", pushErr);
+    }
+
     return NextResponse.json({ logs, count: logs.length });
   }
 
@@ -49,5 +61,14 @@ export async function POST(req: NextRequest) {
   }
 
   const log = upsertSleepLog(input);
+
+  // Disparar notificación push para el registro de sueño
+  try {
+    const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
+    await sendSleepRecordedPush(log);
+  } catch (pushErr) {
+    console.warn("[Sleep Push] Error notificando sueño individual:", pushErr);
+  }
+
   return NextResponse.json({ log });
 }
