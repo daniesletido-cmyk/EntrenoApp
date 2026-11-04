@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendPushToAll, sendDailyReportPush, sendWeeklyReportPush } from "@/lib/push-notifications";
+import { sendPushToAll, sendDailyReportPush, sendWeeklyReportPush, sendSleepRecordedPush } from "@/lib/push-notifications";
 import { savePushSubscription } from "@/lib/repo/push-subscriptions";
+import { createNotification } from "@/lib/repo/notifications";
 
 export async function POST(req: NextRequest) {
   try {
-    let customTitle = "Informe de hoy listo";
-    let customBody = "Carrera: 12.0 km · 60 min · 5:02/km · 98 TSS.\nAnálisis de carga disponible.";
+    let customTitle: string | undefined;
+    let customBody: string | undefined;
     let customUrl = "/hoy";
-    let type = "daily";
+    let type: string | undefined;
     let delaySeconds = 0;
 
     try {
@@ -37,7 +38,33 @@ export async function POST(req: NextRequest) {
     }
 
     let result;
-    if (type === "daily") {
+    if (customTitle || customBody) {
+      const title = customTitle || "Notificación de prueba";
+      const bodyText = customBody || "Notificación personalizada de EntrenoApp";
+      try {
+        createNotification({
+          title,
+          body: bodyText,
+          url: customUrl,
+          category: type === "sleep" ? "sleep" : "system",
+        });
+      } catch {}
+
+      result = await sendPushToAll({
+        title,
+        body: bodyText,
+        data: { url: customUrl },
+        tag: `push-custom-${Date.now()}`,
+      });
+    } else if (type === "sleep") {
+      result = await sendSleepRecordedPush({
+        date: new Date().toISOString().slice(0, 10),
+        hours: 8.0,
+        score: 85,
+      });
+    } else if (type === "weekly") {
+      result = await sendWeeklyReportPush("2026-10-26", { totalKm: 34.5, totalTss: 420, sessionsCount: 5 });
+    } else {
       result = await sendDailyReportPush({
         id: 480,
         discipline: "carrera",
@@ -46,14 +73,6 @@ export async function POST(req: NextRequest) {
         planned_code: "R1-Base",
         pace: "5:02 min/km",
         carga_tss: 98,
-      });
-    } else if (type === "weekly") {
-      result = await sendWeeklyReportPush("2026-10-26", { totalKm: 34.5, totalTss: 420, sessionsCount: 5 });
-    } else {
-      result = await sendPushToAll({
-        title: customTitle,
-        body: customBody,
-        data: { url: customUrl },
       });
     }
 
