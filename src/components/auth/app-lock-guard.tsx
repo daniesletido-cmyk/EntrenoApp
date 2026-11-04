@@ -11,6 +11,20 @@ import {
   verifyAppLock,
   LockType,
 } from "@/lib/security";
+import { haptics } from "@/lib/haptics";
+
+const KEYPAD_LETTERS: Record<string, string> = {
+  "1": "",
+  "2": "A B C",
+  "3": "D E F",
+  "4": "G H I",
+  "5": "J K L",
+  "6": "M N O",
+  "7": "P Q R S",
+  "8": "T U V",
+  "9": "W X Y Z",
+  "0": "+",
+};
 
 export function AppLockGuard({ children }: { children: React.ReactNode }) {
   // Estado de la entrada dinámica (Splash screen)
@@ -76,11 +90,9 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
 
   // 2. Validación de PIN o Contraseña
   const triggerError = (msg: string) => {
+    haptics.error();
     setErrorMessage(msg);
     setErrorShake(true);
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([100, 50, 100]);
-    }
     setTimeout(() => {
       setErrorShake(false);
       setPinDigits("");
@@ -95,6 +107,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
     try {
       const isValid = await verifyAppLock(secretToTest);
       if (isValid) {
+        haptics.success();
         unlockSession();
         setLocked(false);
         setPinDigits("");
@@ -113,6 +126,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
   // 3. Manejo de teclado numérico táctil para PIN
   const handlePinDigit = (digit: string) => {
     if (pinDigits.length >= 6 || isVerifying) return;
+    haptics.light();
     const next = pinDigits + digit;
     setPinDigits(next);
     setErrorMessage("");
@@ -125,12 +139,14 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
 
   const handlePinBackspace = () => {
     if (pinDigits.length > 0) {
+      haptics.selection();
       setPinDigits(pinDigits.slice(0, -1));
       setErrorMessage("");
     }
   };
 
   const handlePinClear = () => {
+    haptics.medium();
     setPinDigits("");
     setErrorMessage("");
   };
@@ -175,26 +191,26 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
             position: "fixed",
             inset: 0,
             zIndex: 99990,
-            backgroundColor: "#070b14",
-            backgroundImage: "radial-gradient(ellipse at 50% 15%, rgba(59, 130, 246, 0.15) 0%, rgba(7, 11, 20, 1) 70%)",
+            backgroundColor: "#000000",
+            backgroundImage: "radial-gradient(ellipse at 50% 15%, rgba(48, 209, 88, 0.12) 0%, rgba(0, 0, 0, 1) 75%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            padding: "var(--space-4)",
+            padding: "calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px))",
             userSelect: "none",
           }}
         >
           <div
             className={`flex flex-col items-center max-w-sm w-full animate-in ${errorShake ? "shake-anim" : ""}`}
             style={{
-              padding: "var(--space-5)",
-              backgroundColor: "rgba(15, 23, 42, 0.75)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              borderRadius: "var(--radius-xl, 20px)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
+              padding: "var(--space-6) var(--space-5)",
+              backgroundColor: "rgba(28, 28, 30, 0.82)",
+              backdropFilter: "blur(25px) saturate(180%)",
+              WebkitBackdropFilter: "blur(25px) saturate(180%)",
+              borderRadius: "28px",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              boxShadow: "0 24px 50px rgba(0, 0, 0, 0.8)",
             }}
           >
             {/* Logo de la aplicación con icono de candado */}
@@ -205,8 +221,8 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                 height: 72,
                 borderRadius: "20px",
                 padding: 4,
-                background: "linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(30, 41, 59, 0.8))",
-                boxShadow: "0 8px 24px rgba(59, 130, 246, 0.25)",
+                background: "linear-gradient(135deg, rgba(48, 209, 88, 0.4), rgba(28, 28, 30, 0.8))",
+                boxShadow: "0 8px 24px rgba(48, 209, 88, 0.25)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -230,30 +246,30 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                   height: 26,
                   borderRadius: "50%",
                   backgroundColor: "var(--color-brand)",
-                  color: "#ffffff",
+                  color: "#000000",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
                 }}
               >
-                <Lock size={13} />
+                <Lock size={13} strokeWidth={2.5} />
               </div>
             </div>
 
-            <div className="font-bold text-lg" style={{ letterSpacing: "-0.02em" }}>
+            <div className="font-bold text-xl text-white" style={{ letterSpacing: "-0.02em" }}>
               EntrenoApp
             </div>
-            <div className="text-xs text-muted" style={{ marginBottom: "var(--space-4)" }}>
-              {lockType === "pin" ? "Introduce tu PIN de acceso" : "Introduce tu contraseña"}
+            <div className="text-xs text-slate-400" style={{ marginBottom: "var(--space-5)" }}>
+              {lockType === "pin" ? "Introduce tu código de acceso" : "Introduce tu contraseña"}
             </div>
 
-            {/* MODO A: PIN NUMÉRICO */}
+            {/* MODO A: PIN NUMÉRICO NATIVO iOS */}
             {lockType === "pin" && (
               <div className="flex flex-col items-center w-full">
                 {/* Indicadores de puntos (Dots) */}
                 <div
-                  className="flex items-center justify-center gap-3"
+                  className="flex items-center justify-center gap-3.5"
                   style={{
                     marginBottom: "var(--space-5)",
                     height: 28,
@@ -268,11 +284,11 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                           width: 14,
                           height: 14,
                           borderRadius: "50%",
-                          backgroundColor: filled ? "var(--color-brand)" : "rgba(255, 255, 255, 0.15)",
-                          border: `2px solid ${filled ? "var(--color-brand)" : "rgba(255, 255, 255, 0.3)"}`,
-                          boxShadow: filled ? "0 0 12px rgba(59, 130, 246, 0.6)" : "none",
+                          backgroundColor: filled ? "#30d158" : "rgba(255, 255, 255, 0.15)",
+                          border: `2px solid ${filled ? "#30d158" : "rgba(255, 255, 255, 0.3)"}`,
+                          boxShadow: filled ? "0 0 14px rgba(48, 209, 88, 0.7)" : "none",
                           transform: filled ? "scale(1.15)" : "scale(1)",
-                          transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                          transition: "all 0.15s cubic-bezier(0.2, 0.9, 0.2, 1)",
                         }}
                       />
                     );
@@ -284,7 +300,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                   style={{
                     height: 20,
                     marginBottom: "var(--space-3)",
-                    color: "var(--color-danger, #ef4444)",
+                    color: "var(--color-danger, #ff453a)",
                     fontSize: "0.78rem",
                     fontWeight: 600,
                     textAlign: "center",
@@ -293,12 +309,12 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                   {errorMessage}
                 </div>
 
-                {/* Teclado Numérico Táctil Optimizado para Móvil */}
+                {/* Teclado Numérico Táctil iOS HIG con Subtítulos */}
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: "12px",
+                    gap: "14px",
                     width: "100%",
                     maxWidth: 270,
                   }}
@@ -308,10 +324,15 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                       key={d}
                       type="button"
                       onClick={() => handlePinDigit(d)}
-                      className="keypad-btn"
+                      className="keypad-btn ios-press"
                       disabled={isVerifying}
                     >
-                      {d}
+                      <span className="keypad-num">{d}</span>
+                      {KEYPAD_LETTERS[d] ? (
+                        <span className="keypad-letters">{KEYPAD_LETTERS[d]}</span>
+                      ) : (
+                        <span className="keypad-letters-spacer" />
+                      )}
                     </button>
                   ))}
 
@@ -319,7 +340,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     onClick={handlePinClear}
-                    className="keypad-btn-secondary"
+                    className="keypad-btn-secondary ios-press"
                     title="Limpiar"
                     disabled={isVerifying || pinDigits.length === 0}
                   >
@@ -329,16 +350,17 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     onClick={() => handlePinDigit("0")}
-                    className="keypad-btn"
+                    className="keypad-btn ios-press"
                     disabled={isVerifying}
                   >
-                    0
+                    <span className="keypad-num">0</span>
+                    <span className="keypad-letters-spacer" />
                   </button>
 
                   <button
                     type="button"
                     onClick={handlePinBackspace}
-                    className="keypad-btn-secondary"
+                    className="keypad-btn-secondary ios-press"
                     title="Borrar"
                     disabled={isVerifying || pinDigits.length === 0}
                   >
@@ -420,35 +442,36 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Entrada Dinámica (Splash Screen Animada al Abrir la App) */}
+      {/* Entrada Dinámica (Splash Screen Animada al Abrir la App estilo Apple) */}
       {showSplash && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 99999,
-            backgroundColor: "#060911",
-            backgroundImage: "radial-gradient(ellipse at 50% 35%, rgba(59, 130, 246, 0.22) 0%, rgba(6, 9, 17, 1) 75%)",
+            backgroundColor: "#000000",
+            backgroundImage: "radial-gradient(ellipse at 50% 35%, rgba(48, 209, 88, 0.2) 0%, rgba(0, 0, 0, 1) 75%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
+            padding: "calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px))",
             opacity: splashFading ? 0 : 1,
-            transform: splashFading ? "scale(1.04)" : "scale(1)",
-            transition: "opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
+            transform: splashFading ? "scale(1.05)" : "scale(1)",
+            transition: "opacity 0.4s cubic-bezier(0.2, 0.9, 0.2, 1), transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1)",
             pointerEvents: splashFading ? "none" : "auto",
           }}
         >
-          {/* Logo animado con efecto pulso */}
+          {/* Logo animado con efecto pulso nativo */}
           <div
             style={{
               position: "relative",
-              width: 100,
-              height: 100,
+              width: 104,
+              height: 104,
               borderRadius: "28px",
               padding: 6,
-              background: "linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(37, 99, 235, 0.15) 100%)",
-              boxShadow: "0 0 50px rgba(59, 130, 246, 0.45)",
+              background: "linear-gradient(135deg, rgba(48, 209, 88, 0.5) 0%, rgba(28, 28, 30, 0.9) 100%)",
+              boxShadow: "0 0 50px rgba(48, 209, 88, 0.35)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -459,16 +482,16 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
             <Image
               src="/brand/logo-mark.png"
               alt="EntrenoApp Logo"
-              width={82}
-              height={82}
-              className="rounded-2xl"
+              width={86}
+              height={86}
+              className="rounded-2xl shadow-xl"
               priority
             />
           </div>
 
           <div
             style={{
-              fontSize: "1.75rem",
+              fontSize: "1.85rem",
               fontWeight: 800,
               letterSpacing: "-0.03em",
               color: "#ffffff",
@@ -482,22 +505,22 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
           <div
             style={{
               fontSize: "0.85rem",
-              color: "rgba(255, 255, 255, 0.6)",
+              color: "rgba(255, 255, 255, 0.65)",
               fontWeight: 500,
               letterSpacing: "0.02em",
               textAlign: "center",
               marginBottom: "var(--space-5)",
             }}
           >
-            Diseñada por Daniel Espinosa
+            Alto Rendimiento & Salud · Daniel Espinosa
           </div>
 
-          {/* Barra de progreso de carga sutil */}
+          {/* Barra de progreso de carga sutil estilo iOS */}
           <div
             style={{
               width: 140,
               height: 3,
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              backgroundColor: "rgba(255, 255, 255, 0.12)",
               borderRadius: 999,
               overflow: "hidden",
               position: "relative",
@@ -509,10 +532,10 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                 top: 0,
                 bottom: 0,
                 width: "45%",
-                backgroundColor: "var(--color-brand, #3b82f6)",
+                backgroundColor: "#30d158",
                 borderRadius: 999,
                 animation: "splashLoading 1.1s infinite ease-in-out",
-                boxShadow: "0 0 10px rgba(59, 130, 246, 0.8)",
+                boxShadow: "0 0 10px rgba(48, 209, 88, 0.8)",
               }}
             />
           </div>
@@ -524,11 +547,11 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
         @keyframes splashPulse {
           0%, 100% {
             transform: scale(1);
-            box-shadow: 0 0 35px rgba(59, 130, 246, 0.35);
+            box-shadow: 0 0 35px rgba(48, 209, 88, 0.25);
           }
           50% {
-            transform: scale(1.05);
-            box-shadow: 0 0 55px rgba(59, 130, 246, 0.65);
+            transform: scale(1.04);
+            box-shadow: 0 0 55px rgba(48, 209, 88, 0.55);
           }
         }
 
@@ -555,38 +578,59 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
         }
 
         .keypad-btn {
-          height: 60px;
+          height: 64px;
           border-radius: 50%;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
-          font-size: 1.35rem;
-          font-weight: 700;
+          justifyContent: center;
           color: #ffffff;
-          background-color: rgba(255, 255, 255, 0.06);
+          background-color: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.12);
           cursor: pointer;
           user-select: none;
+          -webkit-user-select: none;
           -webkit-tap-highlight-color: transparent;
-          transition: background-color 0.1s, transform 0.1s;
+          transition: background-color 0.12s, transform 0.1s cubic-bezier(0.2, 0.9, 0.2, 1);
+        }
+
+        .keypad-btn .keypad-num {
+          font-size: 1.45rem;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .keypad-btn .keypad-letters {
+          font-size: 0.58rem;
+          font-weight: 600;
+          letter-spacing: 0.14em;
+          color: rgba(255, 255, 255, 0.5);
+          margin-top: 2px;
+          line-height: 1;
+        }
+
+        .keypad-btn .keypad-letters-spacer {
+          height: 9px;
         }
 
         .keypad-btn:active {
-          background-color: var(--color-brand, #3b82f6);
+          background-color: rgba(48, 209, 88, 0.35);
+          border-color: #30d158;
           transform: scale(0.92);
         }
 
         .keypad-btn-secondary {
-          height: 60px;
+          height: 64px;
           border-radius: 50%;
           display: flex;
           align-items: center;
-          justify-content: center;
-          color: var(--color-text-muted, #94a3b8);
+          justifyContent: center;
+          color: #8e8e93;
           background-color: transparent;
           border: none;
           cursor: pointer;
           user-select: none;
+          -webkit-user-select: none;
           -webkit-tap-highlight-color: transparent;
           transition: color 0.15s, transform 0.1s;
         }

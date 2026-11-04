@@ -30,6 +30,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationBanner } from "@/components/push/push-notification-banner";
 import { ReportNotificationBanner } from "@/components/report-notification-banner";
 import { NotificationCenter } from "@/components/notifications/notification-center";
+import { haptics } from "@/lib/haptics";
 
 interface NavItemDef {
   href: string;
@@ -70,9 +71,9 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
 const BOTTOM_NAV: NavItemDef[] = [
   { href: "/hoy", label: "Hoy", icon: Sun },
   { href: "/plan-semanal", label: "Plan", icon: CalendarRange, aliases: ["/calendario"] },
+  { href: "/", label: "Métricas", icon: Activity, aliases: ["/progreso", "/objetivos"] },
   { href: "/marcas", label: "Pesos", icon: Trophy, aliases: ["/gimnasio"] },
   { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
-  { href: "/progreso", label: "Progreso", icon: TrendingUp, aliases: ["/objetivos"] },
 ];
 
 const LINKS = NAV_GROUPS.flatMap((g) => g.links);
@@ -242,36 +243,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Topbar móvil */}
+      {/* Topbar móvil nativo estilo Apple Navigation Bar con Glassmorphism */}
       <div className="md:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 40 }}>
         <div
-          className="backdrop-blur-md bg-slate-950/80 border-b border-white/10"
+          className="ios-glass border-b border-white/10"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: "calc(var(--space-2) + env(safe-area-inset-top, 0px)) var(--space-3) var(--space-2)",
-            minHeight: 52,
+            minHeight: "calc(52px + env(safe-area-inset-top, 0px))",
           }}
         >
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
-              className="btn btn-ghost btn-icon"
+              className="btn btn-ghost btn-icon ios-press"
               aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={mobileOpen}
-              onClick={() => setMobileOpen((v) => !v)}
-              style={{ width: 38, height: 38, minWidth: 38 }}
+              onClick={() => {
+                haptics.selection();
+                setMobileOpen((v) => !v);
+              }}
+              style={{ width: 38, height: 38, minWidth: 38, borderRadius: "50%" }}
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <Link href="/hoy" className="relative flex-shrink-0" title="Ir a Hoy">
-              <Image src="/brand/logo-mark.png" alt="" width={26} height={26} className="rounded-md" />
+            <Link
+              href="/hoy"
+              onClick={() => haptics.light()}
+              className="relative flex-shrink-0 ios-press"
+              title="Ir a Hoy"
+            >
+              <Image src="/brand/logo-mark.png" alt="" width={28} height={28} className="rounded-lg shadow-sm" />
             </Link>
             <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm leading-tight truncate text-foreground" style={{ letterSpacing: "-0.01em" }}>
+              <span className="font-bold text-sm leading-tight truncate text-white" style={{ letterSpacing: "-0.015em" }}>
                 {current?.label ?? "Hoy"}
               </span>
-              <span className="text-[11px] text-muted leading-tight truncate">
+              <span className="text-[11px] text-[#8e8e93] leading-tight truncate">
                 Daniel Espinosa · Maratón {raceDate}
               </span>
             </div>
@@ -280,13 +289,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <NotificationCenter variant="icon" />
             <button
-              onClick={triggerGlobalRefresh}
-              className="btn btn-ghost btn-icon"
+              onClick={() => {
+                haptics.medium();
+                triggerGlobalRefresh();
+              }}
+              className="btn btn-ghost btn-icon ios-press"
               aria-label="Refrescar datos"
               title="Refrescar métricas y consejos"
               style={{ width: 38, height: 38, minWidth: 38, borderRadius: "50%" }}
             >
-              <RefreshCw size={17} className={isGlobalRefreshing ? "animate-spin text-primary" : "text-muted"} />
+              <RefreshCw size={17} className={isGlobalRefreshing ? "animate-spin text-[#30d158]" : "text-[#8e8e93]"} />
             </button>
             <ThemeToggle />
           </div>
@@ -369,7 +381,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Barra de navegación inferior móvil flotante estilo Glass Island */}
+      {/* Barra de navegación inferior nativa iOS (Apple Human Interface Guidelines) */}
       <div
         className="md:hidden"
         style={{
@@ -378,18 +390,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           left: 0,
           right: 0,
           zIndex: 50,
-          pointerEvents: "none",
-          padding: "0 12px calc(10px + env(safe-area-inset-bottom, 0px))",
+          pointerEvents: "auto",
         }}
       >
         <nav
-          className="backdrop-blur-md bg-slate-950/85 border border-white/10 rounded-2xl shadow-2xl p-1.5 grid"
+          className="ios-glass"
           style={{
-            pointerEvents: "auto",
-            margin: "0 auto",
-            maxWidth: 460,
+            borderTop: "1px solid rgba(255, 255, 255, 0.12)",
+            paddingTop: "6px",
+            paddingBottom: "calc(6px + env(safe-area-inset-bottom, 0px))",
+            display: "grid",
             gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
-            gap: "4px",
+            alignItems: "center",
           }}
         >
           {BOTTOM_NAV.map((item) => {
@@ -399,17 +411,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => haptics.selection()}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center gap-1 min-h-[46px] py-1 px-1 rounded-xl transition-colors duration-150 no-underline relative overflow-hidden ${
-                  active
-                    ? "bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30"
-                    : "text-slate-400 hover:text-white hover:bg-white/5 font-medium"
-                }`}
+                className="ios-press flex flex-col items-center justify-center gap-1 py-1 no-underline relative select-none"
+                style={{
+                  minHeight: 48,
+                }}
               >
-                <Icon size={17} strokeWidth={active ? 2.5 : 1.8} />
+                <div className="relative">
+                  <Icon
+                    size={22}
+                    strokeWidth={active ? 2.4 : 1.7}
+                    className={active ? "text-[#30d158]" : "text-[#8e8e93]"}
+                  />
+                  {active && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: -4,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: 4,
+                        height: 4,
+                        borderRadius: "50%",
+                        backgroundColor: "#30d158",
+                        boxShadow: "0 0 6px #30d158",
+                      }}
+                    />
+                  )}
+                </div>
                 <span
-                  className="text-[10px] tracking-tight leading-none truncate max-w-full"
+                  className="text-[10px] leading-none truncate max-w-full tracking-tight"
                   style={{
+                    color: active ? "#30d158" : "#8e8e93",
                     fontWeight: active ? 700 : 500,
                   }}
                 >
@@ -457,8 +491,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-top, 0px))" }} />
           <ReportNotificationBanner />
           {children}
-          {/* Espaciador de seguridad para garantizar que nada se corte por abajo */}
-          <div className="md:hidden" style={{ height: "calc(100px + env(safe-area-inset-bottom, 24px))" }} />
+          {/* Espaciador de seguridad para garantizar que nada se corte por abajo con la Tab Bar iOS */}
+          <div className="md:hidden" style={{ height: "calc(80px + env(safe-area-inset-bottom, 20px))" }} />
           <div className="hidden md:block" style={{ height: "48px" }} />
         </div>
       </main>

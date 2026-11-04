@@ -29,6 +29,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CoachSummaryCard } from "@/components/coach-summary-card";
 import { FileDropzone } from "@/components/ui/file-dropzone";
+import { AppleFitnessRings } from "@/components/dashboard/apple-fitness-rings";
 import { useToast } from "@/components/ui/toast";
 import type { WeeklyCoachAssessment } from "@/lib/coach-assessment";
 
@@ -103,6 +104,7 @@ interface Recommendation {
   action: "mantener" | "reducir" | "alerta_medica";
   summary: string;
   flags: { severity: string; title: string }[];
+  acwr?: number | null;
 }
 
 const ACTION_BANNER: Record<Recommendation["action"], { tone: "success" | "warning" | "danger"; icon: React.ReactNode; label: string }> = {
@@ -288,6 +290,19 @@ export default function ResumenPage() {
 
       {!loading && summary && (
         <div className="animate-in grid gap-4 w-full overflow-hidden">
+          {/* Dashboard Ejecutivo Apple Fitness Rings & Telemetría ACWR */}
+          <AppleFitnessRings
+            loadTss={Math.round(summary.durationMin * ((summary.rpeAvg ?? 5) / 10) * 1.5) || 350}
+            targetLoadTss={450}
+            readinessScore={summary.readiness?.score ?? 85}
+            sleepHours={summary.sleepHoursAvg ?? 8.0}
+            targetSleepHours={8.0}
+            acwr={rec?.acwr ?? 1.05}
+            rpeAvg={summary.rpeAvg}
+            hrvMs={56}
+            rhrBpm={52}
+          />
+
           {coachAssessment && <CoachSummaryCard assessment={coachAssessment} />}
 
           {rec && rec.action !== "mantener" && (

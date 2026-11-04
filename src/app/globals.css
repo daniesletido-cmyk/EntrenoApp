@@ -7,50 +7,61 @@
 
 :root {
   /* ==========================================================
-     TEMA POR DEFECTO: MODO OSCURO (Obsidian Sport Studio — El Míster Edition)
+     TEMA POR DEFECTO: MODO OSCURO NATIVO APPLE (iOS HIG Fitness/Health)
+     Negros puros OLED #000000, fondos secundarios #1C1C1E, tarjetas #2C2C2E y elevados #3A3A3C
      ========================================================== */
-  --color-bg: #080a10;
-  --color-surface: #121624;
-  --color-surface-raised: #161b2c;
-  --color-surface-hover: #1c2237;
-  --color-surface-translucent: rgba(18, 22, 36, 0.92);
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.14);
+  --color-bg: #000000;
+  --color-surface: #1c1c1e;
+  --color-surface-raised: #2c2c2e;
+  --color-surface-hover: #3a3a3c;
+  --color-surface-translucent: rgba(28, 28, 30, 0.84);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
 
-  /* Tipografía y Textos */
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-text-faint: #64748b;
+  /* Tipografía y Textos iOS HIG */
+  --color-text: #ffffff;
+  --color-text-muted: #8e8e93;
+  --color-text-faint: #636366;
 
-  /* Acento de Marca — Esmeralda Pro Deportivo (#10b981) */
-  --color-brand: #10b981;
-  --color-brand-hover: #059669;
-  --color-brand-contrast: #080a10;
-  --color-brand-subtle: rgba(16, 185, 129, 0.14);
-  --color-accent: #f59e0b;
-  --gradient-brand: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  --gradient-brand-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  /* Acento de Marca — SF Green Fitness (#30D158 / #34C759) */
+  --color-brand: #30d158;
+  --color-brand-hover: #28b84d;
+  --color-brand-contrast: #000000;
+  --color-brand-subtle: rgba(48, 209, 88, 0.15);
+  --color-accent: #ff9f0a;
+  --gradient-brand: linear-gradient(135deg, #30d158 0%, #24a148 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #38e063 0%, #30d158 100%);
+  --gradient-accent: linear-gradient(135deg, #ff9f0a 0%, #d97706 100%);
+
+  /* Paleta Oficial Apple iOS HIG System Colors */
+  --color-ios-green: #30d158;
+  --color-ios-blue: #0a84ff;
+  --color-ios-red: #ff453a;
+  --color-ios-orange: #ff9f0a;
+  --color-ios-purple: #bf5af2;
+  --color-ios-teal: #64d2ff;
+  --color-ios-indigo: #5e5ce6;
+  --color-ios-yellow: #ffd60a;
 
   /* Estados semánticos */
-  --color-success: #10b981;
-  --color-success-bg: rgba(16, 185, 129, 0.12);
-  --color-warning: #f59e0b;
-  --color-warning-bg: rgba(245, 158, 11, 0.12);
-  --color-danger: #ef4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.12);
-  --color-info: #3b82f6;
-  --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-success: #30d158;
+  --color-success-bg: rgba(48, 209, 88, 0.14);
+  --color-warning: #ff9f0a;
+  --color-warning-bg: rgba(255, 159, 10, 0.14);
+  --color-danger: #ff453a;
+  --color-danger-bg: rgba(255, 69, 58, 0.14);
+  --color-info: #0a84ff;
+  --color-info-bg: rgba(10, 132, 255, 0.14);
 
-  /* Sombras suaves y resplandores discretos */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
-  --shadow-glow-brand: 0 0 32px rgba(16, 185, 129, 0.15);
-  --shadow-glow-success: 0 0 32px rgba(16, 185, 129, 0.15);
-  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-brand);
+  /* Sombras y elevaciones nativas iOS */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+  --shadow-glow-brand: 0 0 28px rgba(48, 209, 88, 0.22);
+  --shadow-glow-success: 0 0 28px rgba(48, 209, 88, 0.22);
+  --focus-ring: 0 0 0 2px #000000, 0 0 0 4px #30d158;
 
-  /* Tipografía */
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Tipografía del sistema Apple */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", system-ui, sans-serif;
   --text-xs: 0.75rem;     /* 12px */
   --text-sm: 0.875rem;    /* 14px */
   --text-base: 0.9375rem; /* 15px */
@@ -68,16 +79,17 @@
   --space-6: 1.5rem;      /* 24px */
   --space-8: 2rem;        /* 32px */
 
-  /* Radios suaves */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  /* Radios suaves estilo Apple (Squircle) */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
 
-  /* Transiciones */
+  /* Curvas de animación nativas de iOS (Spring & Fluid) */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 150ms;
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --duration-fast: 140ms;
   --duration-base: 220ms;
 }
 
@@ -128,6 +140,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -139,11 +152,71 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv11", "ss01", "tnum" 1;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01", "tnum" 1;
   overflow-x: hidden;
   max-width: 100vw;
   width: 100%;
+  
+  /* Comportamiento Nativo iOS: Bloquea rebotes residuales, selecciones accidentales y zoom */
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  
   transition: background-color var(--duration-base) var(--ease), color var(--duration-base) var(--ease);
+}
+
+/* Permitir selección de texto exclusivamente en campos de entrada y áreas con clase específica */
+input,
+textarea,
+[contenteditable="true"],
+.selectable-text {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Safe Area Insets iOS */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Clases de utilidad hápticas y táctiles nativas estilo iOS */
+.ios-press {
+  transition: transform var(--duration-fast) var(--ease-spring), opacity var(--duration-fast) var(--ease);
+  will-change: transform;
+}
+.ios-press:active {
+  transform: scale(0.96);
+  opacity: 0.88;
+}
+
+.ios-glass {
+  background: rgba(28, 28, 30, 0.82);
+  backdrop-filter: blur(25px) saturate(190%);
+  -webkit-backdrop-filter: blur(25px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ios-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.5);
+  transition: transform var(--duration-fast) var(--ease-spring), border-color var(--duration-fast) var(--ease);
+}
+.ios-card:active {
+  transform: scale(0.985);
+}
+
+.ios-segmented {
+  background: #1c1c1e;
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .tabular-nums {

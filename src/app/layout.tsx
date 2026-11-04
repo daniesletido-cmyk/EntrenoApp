@@ -10,7 +10,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AppLockGuard } from "@/components/auth/app-lock-guard";
 
 export const viewport: Viewport = {
-  themeColor: "#080a10",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -19,8 +19,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "EntrenoApp",
-  description: "Registro de entrenamiento y nutrición · Diseñada por Daniel Espinosa",
+  title: "EntrenoApp — Rendimiento & Salud",
+  description: "Registro de entrenamiento y nutrición de alto rendimiento · Diseñada por Daniel Espinosa",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -29,13 +29,14 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon-192.png?v=4", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png?v=4", sizes: "512x512", type: "image/png" },
-      { url: "/brand/logo-mark-512.png?v=4", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192.png?v=5", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png?v=5", sizes: "512x512", type: "image/png" },
+      { url: "/brand/logo-mark-512.png?v=5", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/icon-192.png?v=4",
+    shortcut: "/icon-192.png?v=5",
     apple: [
-      { url: "/apple-touch-icon.png?v=4", sizes: "512x512", type: "image/png" },
+      { url: "/apple-touch-icon.png?v=5", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png?v=5", sizes: "512x512", type: "image/png" },
     ],
   },
 };
