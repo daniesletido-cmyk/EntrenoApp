@@ -297,7 +297,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               title="Refrescar métricas y consejos"
               style={{ width: 38, height: 38, minWidth: 38, borderRadius: "50%" }}
             >
-              <RefreshCw size={17} className={isGlobalRefreshing ? "animate-spin text-[#30d158]" : "text-[#8e8e93]"} />
+              <RefreshCw size={17} className={isGlobalRefreshing ? "animate-spin text-[#00e599]" : "text-slate-400"} />
             </button>
             <ThemeToggle />
           </div>
@@ -421,7 +421,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Icon
                     size={22}
                     strokeWidth={active ? 2.4 : 1.7}
-                    className={active ? "text-[#30d158]" : "text-[#8e8e93]"}
+                    className={active ? "text-[#00e599]" : "text-slate-400"}
                   />
                   {active && (
                     <span
@@ -433,8 +433,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         width: 4,
                         height: 4,
                         borderRadius: "50%",
-                        backgroundColor: "#30d158",
-                        boxShadow: "0 0 6px #30d158",
+                        backgroundColor: "#00e599",
+                        boxShadow: "0 0 8px #00e599",
                       }}
                     />
                   )}
@@ -442,7 +442,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <span
                   className="text-[10px] leading-none truncate max-w-full tracking-tight"
                   style={{
-                    color: active ? "#30d158" : "#8e8e93",
+                    color: active ? "#00e599" : "#94a3b8",
                     fontWeight: active ? 700 : 500,
                   }}
                 >
