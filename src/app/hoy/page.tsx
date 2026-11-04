@@ -43,6 +43,7 @@ import type { DailyReadiness } from "@/lib/readiness";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
+import { AppleFitnessRings } from "@/components/dashboard/apple-fitness-rings";
 import { detectVamZoneForSession, VAM_TEST_PROFILE } from "@/lib/vam-zones";
 
 interface SessionRow {
@@ -446,173 +447,28 @@ export default function HoyPage() {
         </div>
       </section>
 
-      {/* 2. Recuperación Fisiológica (Whoop / Oura Luxury Gauge) */}
+      {/* 2. Recuperación Fisiológica (Anillos Apple Fitness con 3 Colores: Carga, Forma, Sueño) */}
       {readiness && (
-        <section className="space-y-3 mb-5">
-          <div
-            className="relative overflow-hidden surface p-5 animate-in"
-          >
-            {/* Diffused Subtle Ambient Glow */}
-            <div className="absolute right-0 top-0 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none overflow-hidden" />
-
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Recuperación Fisiológica
-                </span>
-              </div>
-              <span
-                className="px-3 py-1 rounded-full text-xs font-semibold"
-                style={{
-                  background:
-                    readiness.tone === "success"
-                      ? "rgba(16, 185, 129, 0.15)"
-                      : readiness.tone === "warning"
-                      ? "rgba(245, 158, 11, 0.15)"
-                      : "rgba(239, 68, 68, 0.15)",
-                  color:
-                    readiness.tone === "success"
-                      ? "var(--color-brand)"
-                      : readiness.tone === "warning"
-                      ? "var(--color-warning)"
-                      : "var(--color-danger)",
-                  border: `1px solid ${
-                    readiness.tone === "success"
-                      ? "rgba(16, 185, 129, 0.3)"
-                      : "rgba(245, 158, 11, 0.3)"
-                  }`,
-                }}
-              >
-                {readiness.verdict?.badgeLabel || readiness.levelLabel}
-              </span>
-            </div>
-
-            {/* Circular Gauge + Metrics Grid */}
-            <div className="grid grid-cols-12 items-center gap-4">
-              {/* Circular Minimal Gauge */}
-              <div className="col-span-5 relative flex items-center justify-center">
-                <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    fill="none"
-                    r="40"
-                    stroke="var(--color-border)"
-                    strokeWidth="7"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    fill="none"
-                    r="40"
-                    stroke={
-                      readiness.tone === "success"
-                        ? "var(--color-brand)"
-                        : readiness.tone === "warning"
-                        ? "var(--color-warning)"
-                        : "var(--color-danger)"
-                    }
-                    strokeDasharray="251.2"
-                    strokeDashoffset={251.2 - (251.2 * Math.max(10, Math.min(100, readiness.score))) / 100}
-                    strokeLinecap="round"
-                    strokeWidth="7"
-                    style={{ transition: "stroke-dashoffset 1s ease-out" }}
-                  />
-                </svg>
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <div className="flex items-baseline justify-center">
-                    <span className="text-xl font-bold tracking-tight text-foreground tabular-nums">
-                      {readiness.score}
-                    </span>
-                    <span className="text-xs font-semibold text-muted ml-0.5">%</span>
-                  </div>
-                  <span className="text-[10px] text-muted font-medium mt-0.5">Puntuación</span>
-                </div>
-              </div>
-
-              {/* Key Autonomic Breakdown */}
-              <div className="col-span-7 flex flex-col justify-between space-y-3 pl-3 border-l border-border">
-                <div>
-                  <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
-                    HRV Basal (RMSSD)
-                  </div>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-xl font-bold text-foreground tabular-nums">
-                      {readiness.factors[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value ?? "74"}
-                    </span>
-                    <span className="text-xs text-muted">ms</span>
-                    <span className="text-xs font-semibold text-emerald-500 ml-auto">
-                      +8% Óptimo
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-2.5 border-t border-border">
-                  <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
-                    Tiempo en Cama
-                  </div>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-xl font-bold text-foreground tabular-nums">
-                      {((sleep?.hours ?? 7.5) + (sleep?.nap_min ? sleep.nap_min / 60 : 0)).toFixed(1)}
-                    </span>
-                    <span className="text-xs text-muted">horas</span>
-                    <span className="text-xs font-medium text-muted ml-auto">
-                      {sleep?.score ? `${sleep.score} desc.` : "Descanso óptimo"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sleep Detailed Pills */}
-            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-muted">
-              <div className="flex items-center gap-1.5">
-                <Moon size={14} className="text-emerald-500" />
-                <span>{sleep?.hours ?? 7.5}h Sueño nocturno</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Sun size={14} className="text-amber-500" />
-                <span>{sleep?.nap_min && sleep.nap_min > 0 ? `+${sleep.nap_min}m Siesta reparadora` : "Calidad 4.8 / 5"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Strain & Carga Cardiovascular */}
-          <div
-            className="surface p-4 space-y-2.5"
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Flame size={16} className="text-amber-500" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Carga Cardiovascular (Strain)
-                </span>
-              </div>
-              <div className="text-xs font-medium">
-                <span className="text-amber-500 font-bold">
-                  {readiness.stats.last48hLoad > 0 ? (readiness.stats.last48hLoad / 25).toFixed(1) : "11.2"}
-                </span>
-                <span className="text-muted"> / 16.5 Objetivo</span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full h-2 rounded-full overflow-hidden p-[1px] bg-surface-raised border border-border">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${Math.min(100, Math.max(20, readiness.stats.last48hLoad > 0 ? (readiness.stats.last48hLoad / 25 / 16.5) * 100 : 68))}%`,
-                  background: "linear-gradient(90deg, #f59e0b 0%, #10b981 100%)",
-                }}
-              />
-            </div>
-            <div className="flex justify-between items-center text-[11px] text-muted pt-0.5">
-              <span>Capacidad cardiovascular disponible</span>
-              <span className="text-foreground font-medium">Zona Óptima</span>
-            </div>
-          </div>
+        <section className="mb-5 animate-in">
+          <AppleFitnessRings
+            loadTss={readiness.stats?.last48hLoad ? Math.round(readiness.stats.last48hLoad * 1.5) : 320}
+            targetLoadTss={450}
+            readinessScore={readiness.score}
+            sleepHours={(sleep?.hours ?? 7.5) + (sleep?.nap_min ? sleep.nap_min / 60 : 0)}
+            targetSleepHours={8.0}
+            acwr={
+              readiness.stats.prevWeekLoad > 0
+                ? Number(((readiness.stats.last48hLoad * 3.5) / readiness.stats.prevWeekLoad).toFixed(2))
+                : 1.05
+            }
+            rpeAvg={5.5}
+            hrvMs={
+              typeof readiness.factors?.[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value === "number"
+                ? Number(readiness.factors[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value)
+                : 74
+            }
+            rhrBpm={52}
+          />
         </section>
       )}
 

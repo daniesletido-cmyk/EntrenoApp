@@ -30,7 +30,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CoachSummaryCard } from "@/components/coach-summary-card";
 import { FileDropzone } from "@/components/ui/file-dropzone";
 import { AppleFitnessRings } from "@/components/dashboard/apple-fitness-rings";
-import { ReadinessDial } from "@/components/dashboard/readiness-dial";
 import { TrainingLoadChart } from "@/components/dashboard/training-load-chart";
 import { useToast } from "@/components/ui/toast";
 import type { WeeklyCoachAssessment } from "@/lib/coach-assessment";
@@ -277,28 +276,7 @@ export default function ResumenPage() {
 
       {!loading && summary && (
         <div className="animate-in grid gap-4 w-full overflow-hidden">
-          {/* 1. BioCharge & Readiness Dial (Whoop / Oura Athletic Look) */}
-          <ReadinessDial
-            score={summary.readiness?.score ?? 85}
-            level={summary.readiness?.level ?? "Óptimo para entrenar"}
-            description={
-              summary.readiness?.description ??
-              "Equilibrio cardiovascular y recuperación celular en rango óptimo para tolerar alta intensidad."
-            }
-            hrvMs={56}
-            rhrBpm={52}
-            sleepHours={summary.sleepHoursAvg ?? 8.1}
-            acwr={rec?.acwr ?? 1.05}
-            weeklyLoadUa={Math.round(summary.durationMin * (summary.rpeAvg ?? 5))}
-          />
-
-          {/* 2. Curva de Fatiga & Forma ATL / CTL (Banister Training Load) */}
-          <TrainingLoadChart
-            currentWeekTss={Math.round(summary.durationMin * ((summary.rpeAvg ?? 5) / 10) * 1.5) || 410}
-            acwr={rec?.acwr ?? 1.05}
-          />
-
-          {/* 3. Dashboard Ejecutivo Apple Fitness Rings & Telemetría ACWR */}
+          {/* Dashboard Ejecutivo Apple Fitness Rings & Telemetría ACWR (3 Anillos: Carga, Forma, Sueño) */}
           <AppleFitnessRings
             loadTss={Math.round(summary.durationMin * ((summary.rpeAvg ?? 5) / 10) * 1.5) || 350}
             targetLoadTss={450}
@@ -309,6 +287,12 @@ export default function ResumenPage() {
             rpeAvg={summary.rpeAvg}
             hrvMs={56}
             rhrBpm={52}
+          />
+
+          {/* Curva de Fatiga & Forma ATL / CTL (Banister Training Load) */}
+          <TrainingLoadChart
+            currentWeekTss={Math.round(summary.durationMin * ((summary.rpeAvg ?? 5) / 10) * 1.5) || 410}
+            acwr={rec?.acwr ?? 1.05}
           />
 
           {coachAssessment && <CoachSummaryCard assessment={coachAssessment} />}
