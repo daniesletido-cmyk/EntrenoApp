@@ -212,35 +212,20 @@ export default function ResumenPage() {
             : "Seguimiento y rendimiento semanal"
         }
         actions={
-          <div className="flex items-center gap-2">
-            <Link
-              href="/detalle"
-              className="btn btn-primary text-xs inline-flex items-center gap-1.5"
-              style={{
-                height: 38,
-                minHeight: 38,
-                borderRadius: "var(--radius-full)",
-                padding: "0 14px",
-              }}
-            >
-              <Activity size={14} />
-              <span>Ver Detalle Entreno</span>
-            </Link>
-            <button
-              className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
-              onClick={() => loadData(true)}
-              disabled={refreshing}
-              style={{
-                height: 38,
-                minHeight: 38,
-                borderRadius: "var(--radius-full)",
-                padding: "0 14px",
-              }}
-            >
-              <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
-              <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
-            </button>
-          </div>
+          <button
+            className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            style={{
+              height: 38,
+              minHeight: 38,
+              borderRadius: "var(--radius-full)",
+              padding: "0 14px",
+            }}
+          >
+            <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
+            <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+          </button>
         }
       />
 
@@ -272,7 +257,7 @@ export default function ResumenPage() {
             </div>
           </div>
           <Link
-            href="/objetivos"
+            href="/progreso"
             className="btn btn-secondary text-xs self-stretch sm:self-auto justify-center rounded-xl border border-white/10 hover:border-emerald-500/40 transition-colors duration-150"
             style={{ minHeight: 34, height: 34, padding: "0 14px", flexShrink: 0 }}
           >
@@ -333,7 +318,7 @@ export default function ResumenPage() {
                 </p>
               </div>
               <Link
-                href="/recomendaciones"
+                href="/entrenador"
                 className="btn btn-secondary text-xs rounded-xl border border-white/10 hover:border-emerald-500/40 transition-colors duration-150"
                 style={{ flexShrink: 0, height: 34, minHeight: 34 }}
               >
@@ -483,10 +468,7 @@ export default function ResumenPage() {
                     <Moon size={14} className="text-indigo-400" />
                     Recuperación de Sueño (Últimas noches)
                   </span>
-                  <Link href="/registro" className="text-xs text-emerald-400 hover:underline flex items-center gap-1">
-                    <span>Ver desglose</span>
-                    <ArrowRight size={12} />
-                  </Link>
+                  <span className="text-[11px] text-muted font-mono hidden sm:inline">Puntuación Zepp</span>
                 </div>
 
                 <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mt-3.5">
@@ -550,10 +532,7 @@ export default function ResumenPage() {
                   <Activity size={16} className="text-emerald-400" />
                   <span className="font-bold text-sm text-slate-100">Últimas Sesiones & Telemetría Suunto</span>
                 </div>
-                <Link href="/detalle" className="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-semibold">
-                  <span>Abrir analítica detallada</span>
-                  <ArrowRight size={13} />
-                </Link>
+                <span className="text-[11px] text-muted font-mono hidden sm:inline">Toca una sesión para ver telemetría</span>
               </div>
 
               <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -631,21 +610,6 @@ export default function ResumenPage() {
               }
             />
           )}
-
-          {/* Quick Actions */}
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Accesos directos
-            </div>
-            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              <QuickLink href="/hoy" title="Hoy" description="Entreno planificado y menú del día" />
-              <QuickLink href="/registro" title="Registrar entreno" description="RPE, sueño, sensaciones y molestias" />
-              <QuickLink href="/entrenador" title="Entrenador" description="Ajustes de carga, ritmos y preguntas" />
-              <QuickLink href="/progreso" title="Progreso y carga" description="Tendencias ACWR, volumen y evolución" />
-              <QuickLink href="/plan-semanal" title="Plan semanal" description="Revisa o modifica los entrenamientos" />
-              <QuickLink href="/menu" title="Nutrición" description="Plan de comidas y pautas por fase" />
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -700,37 +664,6 @@ function HomeSkeleton() {
           </div>
         ))}
       </div>
-
-      {/* Quick Links Skeleton */}
-      <div className="space-y-2 pt-2">
-        <div className="h-3.5 w-32 rounded bg-white/10" />
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-16 surface p-4 flex items-center justify-between">
-              <div className="space-y-1.5 flex-1">
-                <div className="h-3.5 w-24 rounded bg-white/10" />
-                <div className="h-2.5 w-40 rounded bg-white/5" />
-              </div>
-              <div className="h-4 w-4 rounded bg-white/10" />
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
-  );
-}
-
-function QuickLink({ href, title, description }: { href: string; title: string; description: string }) {
-  return (
-    <Link
-      href={href}
-      className="surface surface-interactive p-4 flex items-center justify-between no-underline group"
-    >
-      <div>
-        <div className="font-semibold text-sm text-foreground group-hover:text-emerald-400 transition-colors duration-150">{title}</div>
-        <div className="text-xs text-muted mt-0.5">{description}</div>
-      </div>
-      <ArrowRight size={15} className="text-muted group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all duration-150 shrink-0 ml-2" />
-    </Link>
   );
 }

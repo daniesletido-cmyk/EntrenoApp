@@ -45,25 +45,24 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
     links: [
       { href: "/hoy", label: "Hoy", icon: Sun },
       { href: "/plan-semanal", label: "Planificación", icon: CalendarRange, aliases: ["/calendario"] },
+      { href: "/", label: "Métricas & Carga", icon: Activity },
       { href: "/marcas", label: "Pesos & Marcas", icon: Trophy, aliases: ["/gimnasio"] },
       { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
-      { href: "/registro", label: "Registrar entreno", icon: ClipboardList },
     ],
   },
   {
-    title: "Rendimiento",
+    title: "Análisis & Coach",
     links: [
-      { href: "/informe-semanal", label: "Informe Semanal", icon: BarChart3 },
-      { href: "/progreso", label: "Progreso & Objetivos", icon: TrendingUp, aliases: ["/objetivos"] },
       { href: "/entrenador", label: "Entrenador IA", icon: Bot, aliases: ["/recomendaciones"] },
-      { href: "/", label: "Resumen Semanal", icon: LayoutDashboard },
+      { href: "/informe-semanal", label: "Informe Semanal", icon: BarChart3 },
+      { href: "/progreso", label: "Progreso Histórico", icon: TrendingUp, aliases: ["/objetivos"] },
     ],
   },
   {
-    title: "Más",
+    title: "Ajustes",
     links: [
-      { href: "/precios", label: "Planes & Pro", icon: Crown, aliases: ["/landing"] },
       { href: "/configuracion", label: "Configuración", icon: Settings },
+      { href: "/precios", label: "Planes & Pro", icon: Crown, aliases: ["/landing"] },
     ],
   },
 ];
