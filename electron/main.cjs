@@ -1,29 +1,55 @@
-// Proceso principal de Electron. Mismo patrón ya probado en FinanzasApp:
-// - DB_PATH / carpeta de datos en userData (nunca dentro de la carpeta de
-//   instalación, que puede ser de solo lectura).
+// Proceso principal de Electron para EntrenoApp:
+// - DB_PATH / carpeta de datos en <carpeta del proyecto>/data o userData.
 // - Arranca el servidor standalone de Next.js en el propio proceso.
 // - Splash mientras el servidor arranca (sondeo HTTP), luego ventana principal.
-// - contextIsolation true, nodeIntegration false, sandbox true, sin menú,
-//   sin barra de direcciones — nada de Node expuesto a la página.
+// - Single instance lock para evitar conflictos de puerto y cierres silenciosos.
+// - Captura global de unhandledRejection y render-process-gone para máxima estabilidad.
 const { app, BrowserWindow, session } = require("electron");
 const path = require("node:path");
 const http = require("node:http");
 const fs = require("node:fs");
 
+// Evitar múltiples instancias simultáneas en conflicto
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+  process.exit(0);
+}
+
 const PORT = 3211;
 let mainWindow = null;
 let splashWindow = null;
 
-// Esta app se ha usado casi siempre arrancándola con "Abrir EntrenoApp.bat"
-// (npm run dev), que guarda su base de datos en <carpeta del proyecto>/data
-// porque DB_PATH no está fijado ahí (ver resolveDbPath() en src/lib/db.ts).
-// Si el .exe empaquetado usara la carpeta userData de Windows como antes,
-// acabaríamos con DOS bases de datos separadas: el plan/entrenos de siempre
-// por un lado, y lo que se importe desde el .exe por otro. Para evitarlo,
-// el .exe apunta a la MISMA carpeta "data" del proyecto en este equipo.
-// Si esa carpeta no existiera o no se pudiera escribir (por ejemplo, en otro
-// PC, o si se mueve el proyecto), cae de vuelta a userData como haría
-// cualquier app instalada normal.
+app.on("second-instance", () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
+// Prevenir cierres abruptos por promesas rechazadas en segundo plano
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[EntrenoApp] Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[EntrenoApp] Uncaught Exception:", err);
+  if (!mainWindow && splashWindow) {
+    try {
+      splashWindow.close();
+    } catch {}
+    const errWindow = new BrowserWindow({ width: 700, height: 500 });
+    errWindow.loadURL(
+      "data:text/html," +
+        encodeURIComponent(
+          `<pre style="white-space:pre-wrap;font-family:monospace;padding:20px;">Error al arrancar EntrenoApp:\n\n${String(
+            (err && err.stack) || err
+          )}</pre>`
+        )
+    );
+  }
+});
+
 const PROJECT_DATA_DIR = "C:\\Users\\danie\\Desktop\\Aplicaciones\\EntrenoApp\\data";
 
 function getDataDir() {
@@ -51,8 +77,10 @@ function createSplash() {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1280,
+    height: 850,
+    minWidth: 900,
+    minHeight: 600,
     show: false,
     autoHideMenuBar: true,
     title: "EntrenoApp",
@@ -60,15 +88,31 @@ function createMainWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   mainWindow.setMenuBarVisibility(false);
+
   mainWindow.once("ready-to-show", () => {
-    if (splashWindow) splashWindow.close();
+    if (splashWindow) {
+      try {
+        splashWindow.close();
+      } catch {}
+    }
     mainWindow.show();
   });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 
-  // Diálogo nativo "Guardar como" para la copia de seguridad (igual que FinanzasApp).
+  // Evitar cierre por fallo de renderizado
+  mainWindow.webContents.on("render-process-gone", (event, detailed) => {
+    console.error("[EntrenoApp] Renderer process gone:", detailed.reason);
+    if (detailed.reason !== "clean-exit") {
+      setTimeout(() => {
+        if (mainWindow) mainWindow.loadURL(`http://127.0.0.1:${PORT}/hoy`);
+      }, 500);
+    }
+  });
+
+  // Diálogo nativo "Guardar como" para la copia de seguridad
   session.defaultSession.on("will-download", (event, item) => {
     const fileName = item.getFilename();
     const savePath = require("electron").dialog.showSaveDialogSync(mainWindow, {
@@ -119,15 +163,33 @@ function resolveServerPath() {
     }
   }
 
-  // 2. Si existe un bundle actualizado en userData, arrancar desde ahí
+  // 2. Comprobar bundle local del proyecto (si existe en este equipo, comparar para usar el más nuevo)
+  const localProjectServer = path.join(__dirname, "..", ".next", "standalone", "server.js");
   const userServer = path.join(userBundleDir, ".next", "standalone", "server.js");
+
+  if (fs.existsSync(localProjectServer)) {
+    if (!fs.existsSync(userServer)) {
+      console.log("[EntrenoApp] Cargando bundle local del proyecto:", localProjectServer);
+      process.env.ENTRENO_BUNDLE_SOURCE = "Proyecto Local";
+      return localProjectServer;
+    }
+    const localMtime = fs.statSync(localProjectServer).mtimeMs;
+    const userMtime = fs.statSync(userServer).mtimeMs;
+    if (localMtime >= userMtime) {
+      console.log("[EntrenoApp] Bundle del proyecto es más reciente:", localProjectServer);
+      process.env.ENTRENO_BUNDLE_SOURCE = "Proyecto Local Reciente";
+      return localProjectServer;
+    }
+  }
+
+  // 3. Si existe un bundle actualizado en userData, arrancar desde ahí
   if (fs.existsSync(userServer)) {
     console.log("[EntrenoApp] Cargando bundle actualizado (hot-update):", userServer);
     process.env.ENTRENO_BUNDLE_SOURCE = "Actualización local (Hot-Bundle)";
     return userServer;
   }
 
-  // 3. Si está empaquetado (.exe instalado), usar el servidor empaquetado en resources
+  // 4. Si está empaquetado (.exe instalado), usar el servidor empaquetado en resources
   if (app.isPackaged) {
     const packagedServer = path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone", "server.js");
     if (fs.existsSync(packagedServer)) {
@@ -137,15 +199,7 @@ function resolveServerPath() {
     }
   }
 
-  // 4. Modo desarrollo / fallback local
-  const devServer = path.join(__dirname, "..", ".next", "standalone", "server.js");
-  if (fs.existsSync(devServer)) {
-    console.log("[EntrenoApp] Cargando bundle de desarrollo local:", devServer);
-    process.env.ENTRENO_BUNDLE_SOURCE = "Desarrollo Local";
-    return devServer;
-  }
-
-  return path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone", "server.js");
+  return localProjectServer;
 }
 
 app.whenReady().then(async () => {
@@ -163,7 +217,11 @@ app.whenReady().then(async () => {
     createMainWindow();
     mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
   } catch (err) {
-    if (splashWindow) splashWindow.close();
+    if (splashWindow) {
+      try {
+        splashWindow.close();
+      } catch {}
+    }
     const errWindow = new BrowserWindow({ width: 700, height: 500 });
     errWindow.loadURL(
       "data:text/html," +
@@ -174,19 +232,6 @@ app.whenReady().then(async () => {
         )
     );
   }
-});
-
-process.on("uncaughtException", (err) => {
-  if (splashWindow) splashWindow.close();
-  const errWindow = new BrowserWindow({ width: 700, height: 500 });
-  errWindow.loadURL(
-    "data:text/html," +
-      encodeURIComponent(
-        `<pre style="white-space:pre-wrap;font-family:monospace;padding:20px;">Error inesperado:\n\n${String(
-          (err && err.stack) || err
-        )}</pre>`
-      )
-  );
 });
 
 app.on("window-all-closed", () => {

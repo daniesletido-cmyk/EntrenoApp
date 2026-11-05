@@ -522,7 +522,7 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
         className="flex items-center gap-3 min-w-0 flex-1 no-underline text-inherit hover:opacity-90 transition-opacity"
         title="Ir a Hoy"
       >
-        <div className="relative flex-shrink-0">
+        <div className="flex-shrink-0">
           <Image
             src="/brand/logo-mark.png"
             alt=""
@@ -530,33 +530,26 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
             height={32}
             className="rounded-lg shadow-sm"
           />
-          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 brand-dot-glow" />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span style={{ fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "var(--color-text)" }}>
-              ENTRENO
-            </span>
-            <span
-              style={{
-                fontSize: "0.62rem",
-                padding: "1px 6px",
-                borderRadius: "9999px",
-                background: "rgba(16, 185, 129, 0.14)",
-                color: "#10b981",
-                border: "1px solid rgba(16, 185, 129, 0.3)",
-                fontWeight: 800,
-                lineHeight: 1.2,
-                letterSpacing: "0.04em",
-              }}
-            >
-              PRO
-            </span>
-          </div>
-          <div className="text-xs text-slate-400 truncate flex items-center gap-1" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            <span>Plan Maratón 2027</span>
-          </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span style={{ fontWeight: 800, fontSize: "1.08rem", lineHeight: 1.1, letterSpacing: "-0.02em", color: "var(--color-text)" }}>
+            ENTRENO
+          </span>
+          <span
+            style={{
+              fontSize: "0.62rem",
+              padding: "1px 6px",
+              borderRadius: "9999px",
+              background: "rgba(16, 185, 129, 0.14)",
+              color: "#10b981",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              fontWeight: 800,
+              lineHeight: 1.2,
+              letterSpacing: "0.04em",
+            }}
+          >
+            PRO
+          </span>
         </div>
       </Link>
       {onCollapse && (
