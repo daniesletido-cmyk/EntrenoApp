@@ -496,7 +496,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {children}
           {/* Espaciador de seguridad para garantizar que nada se corte por abajo con la Tab Bar iOS */}
           <div className="md:hidden" style={{ height: "calc(80px + env(safe-area-inset-bottom, 20px))" }} />
-          <div className="hidden md:block" style={{ height: "48px" }} />
+          <div className="hidden md:block" style={{ height: "16px" }} />
         </div>
       </main>
     </div>

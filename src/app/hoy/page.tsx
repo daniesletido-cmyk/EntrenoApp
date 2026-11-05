@@ -75,6 +75,13 @@ interface SleepRow {
   hours: number | null;
   quality: number | null;
   score: number | null;
+  deep_min?: number | null;
+  light_min?: number | null;
+  rem_min?: number | null;
+  awake_min?: number | null;
+  hrv_rmssd?: number | null;
+  resting_hr?: number | null;
+  efficiency?: number | null;
   nap_min?: number | null;
   nap_count?: number | null;
   nap_notes?: string | null;
@@ -147,6 +154,16 @@ const MONTH_NAMES = [
 function formatToday(iso: string): string {
   const d = new Date(iso + "T00:00:00Z");
   return `${DAY_NAMES_LONG[d.getUTCDay()]}, ${d.getUTCDate()} de ${MONTH_NAMES[d.getUTCMonth()]}`;
+}
+
+function formatShortDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr + "T00:00:00Z");
+    const dayName = DAY_NAMES_LONG[d.getUTCDay()];
+    return `${dayName.slice(0, 3)}, ${d.getUTCDate()} de ${MONTH_NAMES[d.getUTCMonth()].slice(0, 3)}`;
+  } catch {
+    return dateStr;
+  }
 }
 
 function daysUntil(dateStr: string | undefined, from: string): number | null {
@@ -284,6 +301,8 @@ export default function HoyPage() {
 
   const raceDays = daysUntil(settings.goal_race_date, today);
   const trainingSessions = sessions.filter((s) => s.discipline !== "descanso");
+  const tomorrow = new Date(new Date(today + "T00:00:00Z").getTime() + 86400000).toISOString().split("T")[0];
+  const tomorrowSession = weekSessions.find((s) => s.date === tomorrow);
 
   if (loading) {
     return (
@@ -333,7 +352,7 @@ export default function HoyPage() {
 
       {/* 1. Microciclo Semanal (Minimalist 7-Day Strip) */}
       <section
-        className="surface p-4 mb-4 animate-in"
+        className="surface p-3 mb-3 animate-in"
       >
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
@@ -450,7 +469,7 @@ export default function HoyPage() {
 
       {/* 2. Recuperación Fisiológica (Anillos Apple Fitness con 3 Colores: Carga, Forma, Sueño) */}
       {readiness && (
-        <section className="mb-5 animate-in">
+        <section className="mb-3 animate-in">
           <AppleFitnessRings
             loadTss={readiness.stats?.last48hLoad ? Math.round(readiness.stats.last48hLoad * 1.5) : 320}
             targetLoadTss={450}
@@ -474,9 +493,9 @@ export default function HoyPage() {
       )}
 
       {/* 3. Nota del Entrenador (AI & Performance Staff) */}
-      <section className="mb-5">
+      <section className="mb-3">
         <div
-          className="surface p-4.5 relative overflow-hidden animate-in"
+          className="surface p-3.5 sm:p-4 relative overflow-hidden animate-in"
         >
           <div className="flex items-start gap-3">
             <div
@@ -606,9 +625,9 @@ export default function HoyPage() {
       </section>
 
       {/* 4. Sesión Principal de Hoy & Menú de Hoy */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full min-w-0">
-        {/* Columna Izquierda: Entrenamiento de Hoy */}
-        <div className="min-w-0 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full min-w-0">
+        {/* Columna Izquierda: Entrenamiento de Hoy (7 cols) */}
+        <div className="lg:col-span-7 min-w-0 w-full">
           <div className="flex justify-between items-baseline mb-3 px-1">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">
               Sesión Principal
@@ -886,71 +905,6 @@ export default function HoyPage() {
                         />
                       </div>
 
-                      {/* Callout destacado de Psicología Deportiva (para carrera y otras disciplinas) */}
-                      {(() => {
-                        if (s.discipline === "crossfit") return null;
-                        const noteText = s.notes || modInfo?.adjustedWorkout?.structure || "";
-                        const psychoMatch = noteText.match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
-                        let tipTitle = "Enfoque Psicológico & Fortaleza Mental";
-                        let tipBody = "Aceptación del esfuerzo y diálogo interno constructivo: concéntrate en los primeros metros de cada bloque y mantén la respiración rítmica para no anticipar fatiga.";
-
-                        if (psychoMatch) {
-                          const rawTip = psychoMatch[1].trim();
-                          const colonIdx = rawTip.indexOf(":");
-                          tipTitle = colonIdx > -1 ? rawTip.slice(0, colonIdx).trim() : "Enfoque Mental del Día";
-                          tipBody = colonIdx > -1 ? rawTip.slice(colonIdx + 1).trim() : rawTip;
-                        } else if (s.discipline === "carrera") {
-                          tipTitle = "Estrategia de Chunking (Fragmentación)";
-                          tipBody = "No pienses en la distancia completa; divide el entreno en bloques de 3-4 km. Tu cerebro siempre tiene energía para completar los próximos 15 minutos.";
-                        } else if (s.discipline === "crossfit") {
-                          tipTitle = "Foco Externo en Levantamientos";
-                          tipBody = "En levantamientos pesados piensa en 'hundir los talones en el suelo'. En los WODs aplica la regla de 3 segundos entre transiciones.";
-                        } else if (s.discipline === "descanso") {
-                          tipTitle = "Desactivación de la Culpa del Atleta";
-                          tipBody = "Tu cuerpo no mejora mientras entrenas; mejora mientras descansas y asimila la carga. Hoy estás construyendo mitocondrias de forma activa.";
-                        }
-
-                        return (
-                          <div
-                            className="mt-3 p-3.5 rounded-xl border flex items-start gap-3 shadow-xs"
-                            style={{
-                              backgroundColor: "rgba(147, 51, 234, 0.08)",
-                              borderColor: "rgba(168, 85, 247, 0.35)",
-                              borderLeft: "4px solid #a855f7",
-                            }}
-                          >
-                            <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                              style={{ backgroundColor: "rgba(168, 85, 247, 0.2)" }}
-                            >
-                              <Brain size={18} className="text-purple-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[11px] font-black uppercase tracking-wider text-purple-400">
-                                  Psicología Deportiva & Foco Mental
-                                </span>
-                                <Link
-                                  href="/psicologia"
-                                  className="text-[10px] font-bold text-purple-400 hover:text-purple-300 underline flex items-center gap-0.5"
-                                >
-                                  <span>Ver apartado completo</span>
-                                  <ArrowRight size={10} />
-                                </Link>
-                              </div>
-                              {tipTitle && (
-                                <div className="text-sm font-bold text-foreground mb-1 leading-snug">
-                                  {tipTitle}
-                                </div>
-                              )}
-                              <div className="text-xs sm:text-sm leading-relaxed text-muted-foreground font-sans">
-                                {tipBody}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
                       {/* Si está adaptada, damos un desplegable para ver la que estaba programada originalmente */}
                       {modInfo && modInfo.isModified && (
                         <details className="mt-2 text-xs">
@@ -1009,147 +963,296 @@ export default function HoyPage() {
           )}
         </div>
 
-        {/* Columna Derecha: Nutrición & Menú de Hoy */}
-        <div className="min-w-0 w-full">
-          <div className="flex justify-between items-baseline mb-3 px-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Nutrición &amp; Hidratación
-            </span>
-            <span className="text-xs text-muted">
-              Objetivo Día Activo
-            </span>
-          </div>
+        {/* Columna Derecha: Nutrición, Sueño & Foco Mental (5 cols) */}
+        <div className="lg:col-span-5 min-w-0 w-full space-y-3.5">
+          {/* 1. Nutrición & Hidratación */}
+          <div>
+            <div className="flex justify-between items-baseline mb-2 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Nutrición &amp; Hidratación
+              </span>
+              <span className="text-xs text-muted">
+                Objetivo Día Activo
+              </span>
+            </div>
 
-          {/* Calorie & Macro Target Card */}
-          <section
-            className="surface p-4.5 space-y-3.5 mb-4 animate-in"
-          >
-            <div className="flex justify-between items-baseline">
-              <div>
-                <div className="text-[11px] font-medium text-muted">Ingesta Planificada</div>
-                <div className="text-xl font-bold text-foreground mt-0.5">
-                  2.850 <span className="text-xs font-normal text-muted">/ 3.400 kcal</span>
+            {/* Calorie & Macro Target Card */}
+            <section
+              className="surface p-4 space-y-3 mb-2.5 animate-in"
+            >
+              <div className="flex justify-between items-baseline">
+                <div>
+                  <div className="text-[11px] font-medium text-muted">Ingesta Planificada</div>
+                  <div className="text-lg font-bold text-foreground mt-0.5">
+                    2.850 <span className="text-xs font-normal text-muted">/ 3.400 kcal</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs font-semibold text-blue-500">
+                  <Waves size={14} />
+                  <span>2.6L Agua</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-xs font-semibold text-blue-500">
-                <Waves size={15} />
-                <span>2.6L Agua</span>
-              </div>
-            </div>
 
-            {/* Macro Breakdown */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border text-center">
-              <div className="p-2.5 rounded-xl surface-raised border border-border">
-                <div className="text-[10px] font-medium text-muted uppercase">Carbohidratos</div>
-                <div className="text-base font-bold text-amber-500 mt-0.5">410g</div>
-                <div className="text-[10px] text-muted">82% cubierto</div>
+              {/* Macro Breakdown */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border text-center">
+                <div className="p-2 rounded-xl surface-raised border border-border">
+                  <div className="text-[10px] font-medium text-muted uppercase">Carbos</div>
+                  <div className="text-sm font-bold text-amber-500 mt-0.5">410g</div>
+                  <div className="text-[9px] text-muted">82% cubierto</div>
+                </div>
+                <div className="p-2 rounded-xl surface-raised border border-border">
+                  <div className="text-[10px] font-medium text-muted uppercase">Proteína</div>
+                  <div className="text-sm font-bold text-emerald-500 mt-0.5">175g</div>
+                  <div className="text-[9px] text-muted">95% cubierto</div>
+                </div>
+                <div className="p-2 rounded-xl surface-raised border border-border">
+                  <div className="text-[10px] font-medium text-muted uppercase">Grasas</div>
+                  <div className="text-sm font-bold text-foreground mt-0.5">68g</div>
+                  <div className="text-[9px] text-muted">Equilibrado</div>
+                </div>
               </div>
-              <div className="p-2.5 rounded-xl surface-raised border border-border">
-                <div className="text-[10px] font-medium text-muted uppercase">Proteína</div>
-                <div className="text-base font-bold text-emerald-500 mt-0.5">175g</div>
-                <div className="text-[10px] text-muted">95% cubierto</div>
-              </div>
-              <div className="p-2.5 rounded-xl surface-raised border border-border">
-                <div className="text-[10px] font-medium text-muted uppercase">Grasas</div>
-                <div className="text-base font-bold text-foreground mt-0.5">68g</div>
-                <div className="text-[10px] text-muted">Equilibrado</div>
-              </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Menú Timeline Cards */}
-          <div className="space-y-2.5">
-            {menu.length === 0 ? (
-              <EmptyState
-                icon={<UtensilsCrossed size={22} />}
-                title="Sin menú para hoy"
-                description="Importa o añade el menú de esta fase en la pestaña Menú."
-                action={
-                  <Link href="/menu" className="btn btn-primary">
-                    Ir a Menú
-                  </Link>
-                }
-              />
-            ) : (
-              <>
-                {menu.map((m) => {
-                  const isBreakfast = m.meal.toLowerCase().includes("desayuno");
-                  const isMidMorning = m.meal.toLowerCase().includes("almuerzo");
-                  const isLunch = !isMidMorning && m.meal.toLowerCase().includes("comida");
-                  const isSnack = m.meal.toLowerCase().includes("merienda") || m.meal.toLowerCase().includes("snack");
+            {/* Menú Timeline Cards */}
+            <div className="space-y-2">
+              {menu.length === 0 ? (
+                <EmptyState
+                  icon={<UtensilsCrossed size={20} />}
+                  title="Sin menú para hoy"
+                  description="Importa o añade el menú de esta fase en la pestaña Menú."
+                  action={
+                    <Link href="/menu" className="btn btn-primary">
+                      Ir a Menú
+                    </Link>
+                  }
+                />
+              ) : (
+                <>
+                  {menu.map((m) => {
+                    const isBreakfast = m.meal.toLowerCase().includes("desayuno");
+                    const isMidMorning = m.meal.toLowerCase().includes("almuerzo");
+                    const isLunch = !isMidMorning && m.meal.toLowerCase().includes("comida");
+                    const isSnack = m.meal.toLowerCase().includes("merienda") || m.meal.toLowerCase().includes("snack");
 
-                  return (
-                    <div
-                      key={m.id}
-                      className="surface p-4 flex items-start gap-3 transition-all"
-                    >
+                    return (
                       <div
-                        className="p-2.5 rounded-full shrink-0 mt-0.5"
-                        style={{
-                          background: isBreakfast
-                            ? "rgba(245, 158, 11, 0.15)"
-                            : isLunch
-                            ? "rgba(16, 185, 129, 0.15)"
-                            : isSnack
-                            ? "rgba(59, 130, 246, 0.15)"
-                            : "rgba(168, 85, 247, 0.15)",
-                          color: isBreakfast
-                            ? "#f59e0b"
-                            : isLunch
-                            ? "#10b981"
-                            : isSnack
-                            ? "#3b82f6"
-                            : "#c084fc",
-                        }}
+                        key={m.id}
+                        className="surface p-3 flex items-start gap-2.5 transition-all text-xs"
                       >
-                        {isBreakfast ? (
-                          <Sun size={17} />
-                        ) : isLunch ? (
-                          <UtensilsCrossed size={17} />
-                        ) : isSnack ? (
-                          <Flame size={17} />
-                        ) : (
-                          <Moon size={17} />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-baseline gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-sm font-semibold text-foreground truncate">
-                              {m.meal}
-                              {m.option_label ? ` · ${m.option_label}` : ""}
-                            </span>
-                            {isMidMorning && (
-                              <span className="badge text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                                13:30h vs Tarde
+                        <div
+                          className="p-2 rounded-full shrink-0 mt-0.5"
+                          style={{
+                            background: isBreakfast
+                              ? "rgba(245, 158, 11, 0.15)"
+                              : isLunch
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : isSnack
+                              ? "rgba(59, 130, 246, 0.15)"
+                              : "rgba(168, 85, 247, 0.15)",
+                            color: isBreakfast
+                              ? "#f59e0b"
+                              : isLunch
+                              ? "#10b981"
+                              : isSnack
+                              ? "#3b82f6"
+                              : "#c084fc",
+                          }}
+                        >
+                          {isBreakfast ? (
+                            <Sun size={15} />
+                          ) : isLunch ? (
+                            <UtensilsCrossed size={15} />
+                          ) : isSnack ? (
+                            <Flame size={15} />
+                          ) : (
+                            <Moon size={15} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-semibold text-foreground truncate">
+                                {m.meal}
+                                {m.option_label ? ` · ${m.option_label}` : ""}
+                              </span>
+                              {isMidMorning && (
+                                <span className="badge text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded">
+                                  13:30h vs Tarde
+                                </span>
+                              )}
+                            </div>
+                            {m.kcal != null && (
+                              <span className="text-xs font-semibold text-emerald-500 shrink-0 font-mono">
+                                {m.kcal} kcal
                               </span>
                             )}
                           </div>
-                          {m.kcal != null && (
-                            <span className="text-xs font-semibold text-emerald-500 shrink-0">
-                              {m.kcal} kcal
-                            </span>
+                          {m.foods_text && (
+                            <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                              {m.foods_text}
+                            </p>
                           )}
                         </div>
-                        {m.foods_text && (
-                          <p className="text-xs text-muted mt-1 leading-relaxed whitespace-pre-wrap">
-                            {m.foods_text}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  );
-                })}
-                <Link
-                  href="/menu"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 hover:text-emerald-600 pt-1"
-                >
-                  <span>Ver menú completo de la fase</span>
-                  <ArrowRight size={13} />
-                </Link>
-              </>
-            )}
+                    );
+                  })}
+                  <Link
+                    href="/menu"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 hover:text-emerald-400 pt-0.5"
+                  >
+                    <span>Ver menú completo de la fase</span>
+                    <ArrowRight size={12} />
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* 2. Telemetría de Sueño & Descanso Biológico (Zepp / Amazfit) */}
+          <section className="surface p-4 space-y-3 animate-in">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-sky-500/15 text-sky-400">
+                  <Moon size={15} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Sueño &amp; Telemetría Biológica
+                  </h3>
+                  <div className="text-[10px] text-muted">
+                    Descanso nocturno y regeneración celular
+                  </div>
+                </div>
+              </div>
+              <span className="badge badge-success text-[10px] font-bold">
+                {sleep?.score ?? 85}/100 Puntuación
+              </span>
+            </div>
+
+            {/* Métricas clave de sueño */}
+            <div className="grid grid-cols-3 gap-2 text-center pt-1">
+              <div className="p-2 rounded-xl surface-raised border border-border">
+                <div className="text-[9px] text-muted uppercase font-medium">Dormido</div>
+                <div className="text-sm font-bold text-foreground mt-0.5 font-mono">
+                  {(sleep?.hours ?? 7.5).toFixed(1)}h
+                </div>
+                <div className="text-[9px] text-emerald-400 font-medium">
+                  {sleep?.nap_min ? `+${sleep.nap_min}m siesta` : "Óptimo"}
+                </div>
+              </div>
+              <div className="p-2 rounded-xl surface-raised border border-border">
+                <div className="text-[9px] text-muted uppercase font-medium">VFC (HRV)</div>
+                <div className="text-sm font-bold text-emerald-400 mt-0.5 font-mono">
+                  {sleep?.hrv_rmssd ?? 74} <span className="text-[9px] font-normal text-muted">ms</span>
+                </div>
+                <div className="text-[9px] text-muted">rMSSD basal</div>
+              </div>
+              <div className="p-2 rounded-xl surface-raised border border-border">
+                <div className="text-[9px] text-muted uppercase font-medium">FC Reposo</div>
+                <div className="text-sm font-bold text-sky-400 mt-0.5 font-mono">
+                  {sleep?.resting_hr ?? 52} <span className="text-[9px] font-normal text-muted">lpm</span>
+                </div>
+                <div className="text-[9px] text-muted">Mínima noche</div>
+              </div>
+            </div>
+
+            {/* Barra visual de fases biológicas */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex justify-between items-center text-[10px] text-muted">
+                <span className="font-semibold text-slate-300">Fases Biológicas (Zepp / Amazfit)</span>
+                <span>Eficiencia {sleep?.efficiency ?? 94}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-900 border border-border">
+                <div style={{ width: "24%", backgroundColor: "#a855f7" }} title="Profundo: 24%" />
+                <div style={{ width: "22%", backgroundColor: "#06b6d4" }} title="REM: 22%" />
+                <div style={{ width: "50%", backgroundColor: "#10b981" }} title="Ligero: 50%" />
+                <div style={{ width: "4%", backgroundColor: "#64748b" }} title="Despierto: 4%" />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted pt-0.5">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Profundo (1h 48m)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> REM (1h 39m)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Ligero (3h 45m)
+                </span>
+              </div>
+            </div>
+
+            <Link
+              href="/sueno"
+              className="flex items-center justify-between pt-1 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+            >
+              <span>Ver análisis exhaustivo del sueño</span>
+              <ArrowRight size={12} />
+            </Link>
+          </section>
+
+          {/* 3. Psicología Deportiva & Enfoque Mental */}
+          <section className="surface p-4 space-y-2.5 animate-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400">
+                  <Brain size={15} />
+                </div>
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  Psicología Deportiva &amp; Foco Mental
+                </h3>
+              </div>
+              <Link
+                href="/psicologia"
+                className="text-[10px] font-bold text-purple-400 hover:underline flex items-center gap-0.5"
+              >
+                <span>Módulo</span>
+                <ArrowRight size={10} />
+              </Link>
+            </div>
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/25">
+              <div className="text-xs font-bold text-purple-300 mb-1">
+                {trainingSessions[0]?.discipline === "carrera"
+                  ? "Estrategia de Fragmentación (Chunking)"
+                  : trainingSessions[0]?.discipline === "crossfit"
+                  ? "Pacing Steady & Cadencia en Transiciones"
+                  : "Supercompensación & Asimilación Activa"}
+              </div>
+              <p className="text-xs text-muted leading-relaxed font-sans">
+                {trainingSessions[0]?.discipline === "carrera"
+                  ? "No visualices la distancia total; parte mentalmente la tirada en bloques de 3 km. El cerebro tolera con calma el esfuerzo cuando sabe que solo faltan minutos para el siguiente punto de control."
+                  : trainingSessions[0]?.discipline === "crossfit"
+                  ? "En el WOD no hagas sprints en la 1ª ronda. Mantén respiración nasal y cadencia uniforme para bajarte del ergómetro e iniciar repeticiones sin pausas muertas."
+                  : "El progreso fisiológico ocurre durante el reposo celular, no en el entreno. Acepta el descanso con satisfacción sabiendo que estás multiplicando mitocondrias."}
+              </p>
+            </div>
+          </section>
+
+          {/* 4. Próxima Sesión en el Plan (Mañana) */}
+          {tomorrowSession && (
+            <section className="surface p-3.5 animate-in">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+                    <Calendar size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider">
+                      Próxima Sesión · {formatShortDate(tomorrowSession.date)}
+                    </div>
+                    <div className="text-xs font-bold text-foreground truncate">
+                      {tomorrowSession.planned_code || tomorrowSession.discipline}
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  href="/plan-semanal"
+                  className="btn btn-ghost btn-sm text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 shrink-0"
+                >
+                  Ver plan →
+                </Link>
+              </div>
+            </section>
+          )}
         </div>
       </div>
 

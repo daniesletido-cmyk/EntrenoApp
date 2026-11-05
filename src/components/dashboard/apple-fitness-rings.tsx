@@ -86,7 +86,7 @@ export function AppleFitnessRings({
   }
 
   return (
-    <div className="ios-card p-4 sm:p-5 w-full mb-4 overflow-hidden border border-white/10">
+    <div className="ios-card p-4 sm:p-4.5 w-full overflow-hidden border border-white/10">
       {/* Cabecera estilo Apple Fitness */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

@@ -644,9 +644,9 @@ textarea.field {
 
 /* Contenedor principal con paddings mobile-first y desktop centrado */
 .main-content-container {
-  padding: var(--space-6) var(--space-6);
-  padding-bottom: 80px;
-  max-width: 1200px;
+  padding: var(--space-4) var(--space-5);
+  padding-bottom: 40px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 

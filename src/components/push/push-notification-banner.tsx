@@ -311,55 +311,47 @@ export function PushNotificationBanner({
     if (dismissed) return null;
 
     return (
-      <div className="w-full max-w-5xl mx-auto mb-4 px-3 sm:px-4 animate-in fade-in slide-in-from-top-2 duration-300">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950/80 to-slate-900 border border-indigo-500/30 p-4 shadow-xl backdrop-blur-md">
+      <div className="w-full mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-950/70 via-slate-900/80 to-indigo-950/70 border border-indigo-500/25 px-3 py-2 shadow-sm backdrop-blur-md">
           {justActivated ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 size={18} />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="text-sm font-bold text-white">¡Notificaciones móviles activadas!</h4>
-                  <p className="text-xs text-slate-300">Te saltarán los informes diarios y semanales con sonido y vibración.</p>
-                </div>
+            <div className="flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <span className="text-xs font-semibold text-white truncate">
+                  ¡Notificaciones móviles activadas! Te avisaremos al terminar tus entrenos.
+                </span>
               </div>
               <button
                 onClick={() => setJustActivated(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded-md text-slate-400 hover:text-white shrink-0"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 shadow-inner mt-0.5">
-                  <Bell size={20} className="animate-bounce" />
+            <div className="flex items-center justify-between gap-2.5 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                  <Bell size={13} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                      Notificaciones en tu móvil
-                    </span>
-                  </div>
-                  <h4 className="text-sm sm:text-base font-bold text-white tracking-tight mt-1">
-                    Activa los avisos de tus informes
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed mt-0.5">
-                    Te saltará un aviso con sonido y vibración de &ldquo;Tu informe del entreno de hoy está listo&rdquo; y &ldquo;Tu informe semanal está listo&rdquo;.
-                  </p>
+                <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-white whitespace-nowrap">
+                    Avisos en tu móvil:
+                  </span>
+                  <span className="text-xs text-slate-300 truncate">
+                    Recibe tu informe de entreno diario y alertas del coach
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
+              <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
                 <button
                   onClick={subscribeToPush}
                   disabled={loading}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-indigo-500/25 active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs transition-all shadow-sm active:scale-95"
                 >
-                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
-                  <span>Activar en este móvil</span>
+                  {loading ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />}
+                  <span>Activar</span>
                 </button>
                 <button
                   onClick={() => {
@@ -369,22 +361,13 @@ export function PushNotificationBanner({
                     } catch {}
                     if (onDismiss) onDismiss();
                   }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                  className="p-1 rounded-md text-slate-400 hover:text-white transition-colors"
                   title="Cerrar"
                   aria-label="Cerrar"
                 >
-                  <X size={18} />
+                  <X size={14} />
                 </button>
               </div>
-
-              {isIosWeb && (
-                <div className="w-full mt-2 pt-2 border-t border-indigo-500/20 text-xs text-sky-300 flex items-start gap-2">
-                  <Smartphone size={15} className="text-sky-400 shrink-0 mt-0.5" />
-                  <span>
-                    <strong>iPhone:</strong> Pulsa el icono de <em>Compartir</em> en Safari y elige <strong>"Añadir a pantalla de inicio"</strong>. Luego abre la app desde ese icono para recibir notificaciones en pantalla de bloqueo.
-                  </span>
-                </div>
-              )}
             </div>
           )}
         </div>

@@ -230,45 +230,47 @@ export default function ResumenPage() {
         }
       />
 
-      {raceDate && (
-        <div
-          className="surface flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in w-full p-4 mb-4 hover:border-emerald-500/30 transition-colors duration-150"
-        >
-          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-            <div
-              className="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-lg shadow-emerald-500/20 shrink-0 mt-0.5"
-            >
-              <Flag size={18} strokeWidth={2.4} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  Daniel Espinosa · Objetivo Principal
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  Maratón
-                </span>
-              </div>
-              <div className="font-extrabold text-sm sm:text-base leading-tight mt-1 text-foreground" style={{ wordBreak: "break-word" }}>
-                Faltan <span className="text-emerald-400 font-mono tabular-nums">{daysUntilRace(raceDate)} días</span>
-                <span className="text-xs sm:text-sm font-semibold text-muted ml-1.5 inline-block">
-                  ({new Date(raceDate + "T00:00:00Z").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })})
-                </span>
-              </div>
-            </div>
-          </div>
-          <Link
-            href="/progreso"
-            className="btn btn-secondary text-xs self-stretch sm:self-auto justify-center rounded-xl border border-white/10 hover:border-emerald-500/40 transition-colors duration-150"
-            style={{ minHeight: 34, height: 34, padding: "0 14px", flexShrink: 0 }}
+      {/* Grid superior compacto: Objetivo Maratón + Dropzone Drag & Drop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        {raceDate && (
+          <div
+            className="surface flex items-center justify-between gap-3 animate-in w-full p-3.5 hover:border-emerald-500/30 transition-colors duration-150"
           >
-            Ver objetivo
-          </Link>
-        </div>
-      )}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div
+                className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-emerald-500/20 shrink-0"
+              >
+                <Flag size={16} strokeWidth={2.4} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
+                    Objetivo Principal
+                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    Maratón
+                  </span>
+                </div>
+                <div className="font-extrabold text-sm leading-tight mt-0.5 text-foreground truncate">
+                  Faltan <span className="text-emerald-400 font-mono tabular-nums">{daysUntilRace(raceDate)} días</span>
+                  <span className="text-xs font-semibold text-muted ml-1 inline-block">
+                    ({new Date(raceDate + "T00:00:00Z").toLocaleDateString("es-ES", { day: "numeric", month: "short" })})
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/progreso"
+              className="btn btn-secondary text-xs rounded-xl border border-white/10 hover:border-emerald-500/40 shrink-0"
+              style={{ minHeight: 30, height: 30, padding: "0 10px" }}
+            >
+              Ver
+            </Link>
+          </div>
+        )}
 
-      {/* Ingesta Rápida Drag & Drop */}
-      <FileDropzone className="mb-4" onSuccess={() => loadData(true)} />
+        <FileDropzone className="" onSuccess={() => loadData(true)} />
+      </div>
 
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
