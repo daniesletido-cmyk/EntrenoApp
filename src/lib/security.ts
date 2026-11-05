@@ -28,7 +28,9 @@ export async function hashSecret(secret: string): Promise<string> {
 export function isAppLockEnabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return localStorage.getItem(STORAGE_KEY_ENABLED) === "true";
+    const isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) === "true";
+    const hasHash = !!localStorage.getItem(STORAGE_KEY_HASH);
+    return isEnabled && hasHash;
   } catch {
     return false;
   }

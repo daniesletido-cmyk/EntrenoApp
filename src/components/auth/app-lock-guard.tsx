@@ -73,13 +73,13 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
     window.addEventListener("entrenoapp:security_changed", handleSecChange);
     window.addEventListener("entrenoapp:lock", handleLock);
 
-    // Animación de entrada dinámica: dura 1.2s y luego se desvanece suavemente
+    // Animación de entrada dinámica: dura 0.8s y luego se desvanece suavemente
     const splashTimer = setTimeout(() => {
       setSplashFading(true);
       setTimeout(() => {
         setShowSplash(false);
-      }, 450);
-    }, 1100);
+      }, 300);
+    }, 700);
 
     return () => {
       window.removeEventListener("entrenoapp:security_changed", handleSecChange);
@@ -438,6 +438,19 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             )}
+
+            {/* Acceso directo sin bloqueo para que nunca se quede bloqueada la app */}
+            <button
+              type="button"
+              onClick={() => {
+                haptics.success();
+                unlockSession();
+                setLocked(false);
+              }}
+              className="mt-4 text-xs text-slate-400 hover:text-white transition-colors underline py-2 cursor-pointer"
+            >
+              Entrar directamente a la app
+            </button>
           </div>
         </div>
       )}
@@ -445,6 +458,8 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
       {/* Entrada Dinámica (Splash Screen Animada al Abrir la App estilo Apple) */}
       {showSplash && (
         <div
+          onClick={() => setShowSplash(false)}
+          title="Toca para entrar"
           style={{
             position: "fixed",
             inset: 0,
