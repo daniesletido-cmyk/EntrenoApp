@@ -143,7 +143,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html,
+html {
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100%;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
@@ -154,17 +159,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01", "tnum" 1;
   overflow-x: hidden;
+  overflow-y: visible;
   max-width: 100vw;
   width: 100%;
+  min-height: 100vh;
   
-  /* Comportamiento Nativo iOS: Bloquea rebotes residuales, selecciones accidentales y zoom */
-  overscroll-behavior-y: none;
-  touch-action: manipulation;
+  /* Permite scroll vertical fluido con ruleta de ratón, trackpad y gestos */
+  touch-action: pan-y pinch-zoom;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   
   transition: background-color var(--duration-base) var(--ease), color var(--duration-base) var(--ease);
+}
+
+/* Comportamiento específico para pantallas táctiles móviles (iOS/Android PWA) */
+@media (pointer: coarse) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+  }
 }
 
 /* Permitir selección de texto exclusivamente en campos de entrada y áreas con clase específica */
