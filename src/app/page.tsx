@@ -475,7 +475,13 @@ export default function ResumenPage() {
                     <Moon size={14} className="text-indigo-400" />
                     Recuperación de Sueño (Últimas noches)
                   </span>
-                  <span className="text-[11px] text-muted font-mono hidden sm:inline">Puntuación Zepp</span>
+                  <Link
+                    href="/sueno"
+                    className="text-[11px] text-indigo-400 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <span>Ver apartado de sueño</span>
+                    <ArrowRight size={11} />
+                  </Link>
                 </div>
 
                 <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mt-3.5">

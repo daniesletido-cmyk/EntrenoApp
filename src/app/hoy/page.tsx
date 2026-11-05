@@ -942,11 +942,24 @@ export default function HoyPage() {
                       {(() => {
                         const noteText = s.notes || modInfo?.adjustedWorkout?.structure || "";
                         const psychoMatch = noteText.match(/- Enfoque Psicológico & Tip Mental:\s*([^\n]+)/i);
-                        if (!psychoMatch) return null;
-                        const rawTip = psychoMatch[1].trim();
-                        const colonIdx = rawTip.indexOf(":");
-                        const tipTitle = colonIdx > -1 ? rawTip.slice(0, colonIdx).trim() : null;
-                        const tipBody = colonIdx > -1 ? rawTip.slice(colonIdx + 1).trim() : rawTip;
+                        let tipTitle = "Enfoque Psicológico & Fortaleza Mental";
+                        let tipBody = "Aceptación del esfuerzo y diálogo interno constructivo: concéntrate en los primeros metros de cada bloque y mantén la respiración rítmica para no anticipar fatiga.";
+
+                        if (psychoMatch) {
+                          const rawTip = psychoMatch[1].trim();
+                          const colonIdx = rawTip.indexOf(":");
+                          tipTitle = colonIdx > -1 ? rawTip.slice(0, colonIdx).trim() : "Enfoque Mental del Día";
+                          tipBody = colonIdx > -1 ? rawTip.slice(colonIdx + 1).trim() : rawTip;
+                        } else if (s.discipline === "carrera") {
+                          tipTitle = "Estrategia de Chunking (Fragmentación)";
+                          tipBody = "No pienses en la distancia completa; divide el entreno en bloques de 3-4 km. Tu cerebro siempre tiene energía para completar los próximos 15 minutos.";
+                        } else if (s.discipline === "crossfit") {
+                          tipTitle = "Foco Externo en Levantamientos";
+                          tipBody = "En levantamientos pesados piensa en 'hundir los talones en el suelo'. En los WODs aplica la regla de 3 segundos entre transiciones.";
+                        } else if (s.discipline === "descanso") {
+                          tipTitle = "Desactivación de la Culpa del Atleta";
+                          tipBody = "Tu cuerpo no mejora mientras entrenas; mejora mientras descansas y asimila la carga. Hoy estás construyendo mitocondrias de forma activa.";
+                        }
 
                         return (
                           <div
@@ -964,10 +977,17 @@ export default function HoyPage() {
                               <Brain size={18} className="text-purple-400" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center justify-between gap-2 mb-1">
                                 <span className="text-[11px] font-black uppercase tracking-wider text-purple-400">
                                   Psicología Deportiva & Foco Mental
                                 </span>
+                                <Link
+                                  href="/psicologia"
+                                  className="text-[10px] font-bold text-purple-400 hover:text-purple-300 underline flex items-center gap-0.5"
+                                >
+                                  <span>Ver apartado completo</span>
+                                  <ArrowRight size={10} />
+                                </Link>
                               </div>
                               {tipTitle && (
                                 <div className="text-sm font-bold text-foreground mb-1 leading-snug">

@@ -25,6 +25,8 @@ import {
   Trophy,
   BarChart3,
   Crown,
+  Moon,
+  Brain,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationBanner } from "@/components/push/push-notification-banner";
@@ -45,6 +47,7 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
     links: [
       { href: "/hoy", label: "Hoy", icon: Sun },
       { href: "/plan-semanal", label: "Planificación", icon: CalendarRange, aliases: ["/calendario"] },
+      { href: "/sueno", label: "Sueño", icon: Moon, aliases: ["/sleep"] },
       { href: "/", label: "Métricas & Carga", icon: Activity },
       { href: "/marcas", label: "Pesos & Marcas", icon: Trophy, aliases: ["/gimnasio"] },
       { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
@@ -53,6 +56,7 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
   {
     title: "Análisis & Coach",
     links: [
+      { href: "/psicologia", label: "Psicología Deportiva", icon: Brain, aliases: ["/mental", "/mindset"] },
       { href: "/entrenador", label: "Entrenador IA", icon: Bot, aliases: ["/recomendaciones"] },
       { href: "/informe-semanal", label: "Informe Semanal", icon: BarChart3 },
       { href: "/progreso", label: "Progreso Histórico", icon: TrendingUp, aliases: ["/objetivos"] },
@@ -70,8 +74,8 @@ const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
 const BOTTOM_NAV: NavItemDef[] = [
   { href: "/hoy", label: "Hoy", icon: Sun },
   { href: "/plan-semanal", label: "Plan", icon: CalendarRange, aliases: ["/calendario"] },
+  { href: "/sueno", label: "Sueño", icon: Moon, aliases: ["/sleep"] },
   { href: "/", label: "Métricas", icon: Activity, aliases: ["/progreso", "/objetivos"] },
-  { href: "/marcas", label: "Pesos", icon: Trophy, aliases: ["/gimnasio"] },
   { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
 ];
 

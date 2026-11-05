@@ -256,6 +256,25 @@ function createSchema(d: AppDb) {
       nap_min REAL,
       nap_count INTEGER DEFAULT 0,
       nap_notes TEXT,
+      hrv_rmssd REAL,
+      resting_hr REAL,
+      respiratory_rate REAL,
+      efficiency REAL,
+      sleep_start TEXT,
+      sleep_end TEXT,
+      latency_min REAL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS mental_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      motivation INTEGER,
+      mental_stress INTEGER,
+      mental_energy INTEGER,
+      focus_technique TEXT,
+      notes TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -475,6 +494,41 @@ function migrateSchema(d: AppDb) {
   if (!columnExists(d, "sleep_logs", "nap_notes")) {
     d.exec(`ALTER TABLE sleep_logs ADD COLUMN nap_notes TEXT;`);
   }
+  if (!columnExists(d, "sleep_logs", "hrv_rmssd")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN hrv_rmssd REAL;`);
+  }
+  if (!columnExists(d, "sleep_logs", "resting_hr")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN resting_hr REAL;`);
+  }
+  if (!columnExists(d, "sleep_logs", "respiratory_rate")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN respiratory_rate REAL;`);
+  }
+  if (!columnExists(d, "sleep_logs", "efficiency")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN efficiency REAL;`);
+  }
+  if (!columnExists(d, "sleep_logs", "sleep_start")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN sleep_start TEXT;`);
+  }
+  if (!columnExists(d, "sleep_logs", "sleep_end")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN sleep_end TEXT;`);
+  }
+  if (!columnExists(d, "sleep_logs", "latency_min")) {
+    d.exec(`ALTER TABLE sleep_logs ADD COLUMN latency_min REAL;`);
+  }
+
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS mental_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      motivation INTEGER,
+      mental_stress INTEGER,
+      mental_energy INTEGER,
+      focus_technique TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
 
   if (!columnExists(d, "gym_logs", "completed")) {
     d.exec(`ALTER TABLE gym_logs ADD COLUMN completed INTEGER DEFAULT 0;`);

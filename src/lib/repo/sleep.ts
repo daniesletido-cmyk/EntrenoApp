@@ -18,6 +18,13 @@ export interface SleepRow {
   nap_min: number | null; // Duración de siesta en minutos
   nap_count: number | null; // Número de siestas
   nap_notes: string | null; // Detalle horario de la siesta (ej. '15:30 - 16:15')
+  hrv_rmssd: number | null; // HRV basal nocturno en ms
+  resting_hr: number | null; // FC en reposo nocturna (lpm)
+  respiratory_rate: number | null; // Frecuencia respiratoria en rpm
+  efficiency: number | null; // Eficiencia de sueño en %
+  sleep_start: string | null; // Hora de acostarse (ej. '23:15')
+  sleep_end: string | null; // Hora de despertarse (ej. '07:15')
+  latency_min: number | null; // Latencia en minutos hasta conciliar el sueño
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +44,13 @@ export type SleepLogInput = Partial<
     | "nap_min"
     | "nap_count"
     | "nap_notes"
+    | "hrv_rmssd"
+    | "resting_hr"
+    | "respiratory_rate"
+    | "efficiency"
+    | "sleep_start"
+    | "sleep_end"
+    | "latency_min"
   >
 > & { date: string };
 
@@ -53,6 +67,13 @@ const MERGE_FIELDS = [
   "nap_min",
   "nap_count",
   "nap_notes",
+  "hrv_rmssd",
+  "resting_hr",
+  "respiratory_rate",
+  "efficiency",
+  "sleep_start",
+  "sleep_end",
+  "latency_min",
 ] as const;
 
 // Actualiza SOLO los campos presentes en `input` (aunque su valor sea null, p.ej.
@@ -71,7 +92,7 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
 
   if (existing) {
     db.prepare(
-      `UPDATE sleep_logs SET hours = ?, quality = ?, notes = ?, score = ?, deep_min = ?, light_min = ?, rem_min = ?, awake_min = ?, source = ?, nap_min = ?, nap_count = ?, nap_notes = ?, updated_at = ? WHERE date = ?`
+      `UPDATE sleep_logs SET hours = ?, quality = ?, notes = ?, score = ?, deep_min = ?, light_min = ?, rem_min = ?, awake_min = ?, source = ?, nap_min = ?, nap_count = ?, nap_notes = ?, hrv_rmssd = ?, resting_hr = ?, respiratory_rate = ?, efficiency = ?, sleep_start = ?, sleep_end = ?, latency_min = ?, updated_at = ? WHERE date = ?`
     ).run(
       merged.hours,
       merged.quality,
@@ -85,12 +106,19 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
       merged.nap_min,
       merged.nap_count,
       merged.nap_notes,
+      merged.hrv_rmssd,
+      merged.resting_hr,
+      merged.respiratory_rate,
+      merged.efficiency,
+      merged.sleep_start,
+      merged.sleep_end,
+      merged.latency_min,
       now,
       input.date
     );
   } else {
     db.prepare(
-      `INSERT INTO sleep_logs (date, hours, quality, notes, score, deep_min, light_min, rem_min, awake_min, source, nap_min, nap_count, nap_notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO sleep_logs (date, hours, quality, notes, score, deep_min, light_min, rem_min, awake_min, source, nap_min, nap_count, nap_notes, hrv_rmssd, resting_hr, respiratory_rate, efficiency, sleep_start, sleep_end, latency_min, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       input.date,
       merged.hours,
@@ -105,6 +133,13 @@ export function upsertSleepLog(input: SleepLogInput): SleepRow {
       merged.nap_min,
       merged.nap_count,
       merged.nap_notes,
+      merged.hrv_rmssd,
+      merged.resting_hr,
+      merged.respiratory_rate,
+      merged.efficiency,
+      merged.sleep_start,
+      merged.sleep_end,
+      merged.latency_min,
       now,
       now
     );

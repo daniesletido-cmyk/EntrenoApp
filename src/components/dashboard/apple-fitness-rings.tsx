@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Flame, HeartPulse, Moon, Sparkles, TrendingUp, ShieldCheck, AlertCircle, Info } from "lucide-react";
+import Link from "next/link";
+import { Activity, Flame, HeartPulse, Moon, Sparkles, TrendingUp, ShieldCheck, AlertCircle, Info, ArrowRight } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 
 interface AppleFitnessRingsProps {
@@ -275,7 +276,7 @@ export function AppleFitnessRings({
           {/* Card 4: Descanso & Zepp Sleep */}
           <div
             onClick={() => { haptics.selection(); setActiveMetric("sleep"); }}
-            className={`ios-press p-3.5 rounded-2xl border transition-all cursor-pointer ${
+            className={`ios-press p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
               activeMetric === "sleep" ? "bg-white/[0.08] border-[#64d2ff]/50" : "bg-black/30 border-white/5 hover:border-white/15"
             }`}
           >
@@ -291,8 +292,18 @@ export function AppleFitnessRings({
             <div className="text-xl font-black font-mono text-white mt-1.5">
               {sleepHours.toFixed(1)} <span className="text-xs font-normal text-[#8e8e93]">horas</span>
             </div>
-            <div className="text-[11px] text-[#8e8e93] mt-1 truncate">
-              Calidad regenerativa óptima
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-[11px] text-[#8e8e93] truncate">
+                Descanso reparador
+              </span>
+              <Link
+                href="/sueno"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[10px] font-bold text-[#64d2ff] hover:underline flex items-center gap-0.5"
+              >
+                <span>Detalle</span>
+                <ArrowRight size={10} />
+              </Link>
             </div>
           </div>
         </div>

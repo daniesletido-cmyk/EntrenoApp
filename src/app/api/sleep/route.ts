@@ -21,6 +21,13 @@ const OPTIONAL_FIELDS = [
   "nap_min",
   "nap_count",
   "nap_notes",
+  "hrv_rmssd",
+  "resting_hr",
+  "respiratory_rate",
+  "efficiency",
+  "sleep_start",
+  "sleep_end",
+  "latency_min",
 ] as const;
 
 export async function POST(req: NextRequest) {
