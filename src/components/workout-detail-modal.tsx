@@ -54,6 +54,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import { formatSecondsDetailed } from "@/lib/fit-feedback";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
@@ -1213,29 +1214,14 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     })()}
 
                     {session.notes ? (
-                      <div
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          fontSize: "var(--text-sm)",
-                          lineHeight: 1.6,
-                          color: "var(--color-text)",
-                          backgroundColor: "rgba(0,0,0,0.25)",
-                          padding: "var(--space-3)",
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        {session.notes
-                          .split("\n")
-                          .filter(
-                            (l: string) =>
-                              !l.includes("- Enfoque Psicológico & Tip Mental:") &&
-                              !l.includes("- Estrategia Nutrición (Media Mañana):") &&
-                              !l.trim().startsWith("• Si entrenas a las 13:30h") &&
-                              !l.trim().startsWith("• Si entrenas por la tarde")
-                          )
-                          .join("\n")
-                          .trim()}
+                      <div className="w-full mt-1">
+                        <WorkoutStructuredNotes
+                          notes={session.notes}
+                          discipline={session.discipline}
+                          themeColor="var(--color-brand)"
+                          distanceKm={session.distance_km}
+                          durationMin={session.duration_min}
+                        />
                       </div>
                     ) : (
                       <div className="text-sm text-faint italic">No hay notas registradas para esta sesión.</div>

@@ -13,6 +13,18 @@ import {
   Timer,
   Navigation,
   Gauge,
+  Dumbbell,
+  Clock,
+  MapPin,
+  UtensilsCrossed,
+  Target,
+  CheckCircle2,
+  Award,
+  Sparkles,
+  Waves,
+  ArrowRight,
+  ShieldCheck,
+  Footprints,
 } from "lucide-react";
 
 interface WorkoutStructuredNotesProps {
@@ -24,17 +36,24 @@ interface WorkoutStructuredNotesProps {
   className?: string;
 }
 
-interface ParsedWorkoutParts {
-  header?: string;
-  warmup?: string;
-  mainPart?: string;
-  cooldown?: string;
-  strategy?: string;
-  hydration?: string;
-  nutrition?: string;
-  mentalTip?: string;
-  extraTrailing?: string[];
-  isStructured: boolean;
+interface NutritionTimelineItem {
+  time?: string;
+  label: string;
+  text: string;
+  isPreWorkout?: boolean;
+  isIntra?: boolean;
+  isPost?: boolean;
+}
+
+interface CrossfitBlock {
+  type: "schedule" | "warmup" | "strength" | "wod" | "pacing" | "nutrition" | "general";
+  title: string;
+  badge?: string;
+  items?: string[];
+  exercises?: { name: string; reps?: string; details?: string }[];
+  scoreNote?: string;
+  text?: string;
+  timeline?: NutritionTimelineItem[];
 }
 
 function parseNumber(str: string | null | undefined): number | null {
@@ -51,7 +70,6 @@ function extractMetricsFromText(text: string | undefined): { dist: number | null
 
   if (!text) return { dist, time, pace };
 
-  // 1. Extraer ritmo si existe explícitamente: "Ritmo: 5:25 - 5:10 min/km..." o similar
   const paceExplicitMatch = text.match(/Ritmo:?\s*([^):]+)/i);
   if (paceExplicitMatch) {
     pace = paceExplicitMatch[1].trim();
@@ -62,12 +80,10 @@ function extractMetricsFromText(text: string | undefined): { dist: number | null
     }
   }
 
-  // 2. Distancia en km: ej "11.0 km", "1.5 km", "12k"
   const distMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(?:km|kms)\b/i);
   if (distMatch) {
     dist = parseNumber(distMatch[1]);
   } else {
-    // Buscar metros si son >= 150m (natación o carrera)
     const mMatch = text.match(/(\d{3,4})\s*(?:m|metros)\b/i);
     if (mMatch) {
       const meters = parseNumber(mMatch[1]);
@@ -75,7 +91,6 @@ function extractMetricsFromText(text: string | undefined): { dist: number | null
     }
   }
 
-  // 3. Tiempo en minutos: ej "57 min", "15-20 min", "9 min"
   const timeRangeMatch = text.match(/(\d+)\s*[-–]\s*(\d+)\s*(?:min|minutos)/i);
   if (timeRangeMatch) {
     const min1 = parseNumber(timeRangeMatch[1]);
@@ -91,15 +106,642 @@ function extractMetricsFromText(text: string | undefined): { dist: number | null
   return { dist, time, pace };
 }
 
-export function parseWorkoutNotes(notes: string, discipline: string): ParsedWorkoutParts {
+// ==========================================
+// PARSER ESPECÍFICO PARA CROSSFIT Y FUERZA
+// ==========================================
+function parseCrossfitNotes(notes: string): {
+  header: string;
+  schedule: string | null;
+  blocks: CrossfitBlock[];
+  nutritionTimeline: NutritionTimelineItem[];
+  mentalPacing: string | null;
+  extraTrailing: string[];
+} {
+  const blocks: CrossfitBlock[] = [];
+  const nutritionTimeline: NutritionTimelineItem[] = [];
+  const extraTrailing: string[] = [];
+  let schedule: string | null = null;
+  let mentalPacing: string | null = null;
+  let header = "";
+
+  let text = notes;
+  const lines = notes.split("\n");
+  if (lines.length > 0 && (lines[0].startsWith("CROSSFIT") || lines[0].startsWith("GIMNASIO") || lines[0].endsWith(":"))) {
+    header = lines[0].replace(/:$/, "").trim();
+    text = lines.slice(1).join("\n").trim();
+  }
+
+  // Dividir por bloques mayores indicados por "- " al inicio de línea
+  const rawSections = text.split(/\n(?=-\s*)/g).map((s) => s.trim()).filter(Boolean);
+
+  for (const sec of rawSections) {
+    const cleanSec = sec.replace(/^-\s*/, "").trim();
+
+    // 1. Horario de sesión
+    if (/^Horario de Sesión:/i.test(cleanSec)) {
+      schedule = cleanSec.replace(/^Horario de Sesión:\s*/i, "").trim();
+      continue;
+    }
+
+    // 2. Calentamiento específico
+    if (/^Calentamiento/i.test(cleanSec)) {
+      const firstLine = cleanSec.split("\n")[0];
+      const timeMatch = firstLine.match(/\(([^)]+)\)/);
+      const items = cleanSec
+        .split("\n")
+        .slice(1)
+        .map((l) => l.trim().replace(/^[•*\-\s]+/, ""))
+        .filter(Boolean);
+
+      blocks.push({
+        type: "warmup",
+        title: "Calentamiento Específico & Movilidad",
+        badge: timeMatch ? timeMatch[1] : "10-12 min",
+        items: items.length > 0 ? items : [cleanSec.replace(/^Calentamiento[^:]*:\s*/i, "")],
+      });
+      continue;
+    }
+
+    // 3. Bloque de Fuerza / STRENGTH / SKILL
+    if (/^(?:STRENGTH|Fuerza|SKILL|Halterofilia)/i.test(cleanSec)) {
+      const firstLine = cleanSec.split("\n")[0];
+      const setsMatch = firstLine.match(/\(([^)]+)\)/);
+      const items = cleanSec
+        .split("\n")
+        .slice(1)
+        .map((l) => l.trim().replace(/^[•*\-\s]+/, ""))
+        .filter(Boolean);
+
+      blocks.push({
+        type: "strength",
+        title: "Bloque de Fuerza · STRENGTH",
+        badge: setsMatch ? setsMatch[1] : "Fuerza Principal",
+        items: items.length > 0 ? items : [cleanSec.replace(/^(?:STRENGTH|Fuerza|SKILL)[^:]*:\s*/i, "")],
+      });
+      continue;
+    }
+
+    // 4. Bloque WOD / FREEDOM / METCON / AMRAP / FOR TIME / EMOM
+    if (/^(?:FREEDOM|WOD|AMRAP|FOR TIME|EMOM|METCON|Rondas)/i.test(cleanSec)) {
+      const linesInWod = cleanSec.split("\n");
+      const titleLine = linesInWod[0];
+      let scoreNote = "";
+
+      // Extraer duración / formato (ej: 20:00 AMRAP)
+      const formatMatch = titleLine.match(/(?:-\s*)?(\d+:\d{2}\s*AMRAP|\d+\s*min\s*AMRAP|FOR TIME|EMOM\s*\d+|AMRAP)/i);
+      const formatBadge = formatMatch ? formatMatch[1].trim() : "WOD Clave";
+
+      const exercises: { name: string; reps?: string; details?: string }[] = [];
+      const nonExItems: string[] = [];
+
+      for (const line of linesInWod.slice(1)) {
+        const tr = line.trim();
+        if (!tr) continue;
+        if (tr.startsWith("* Puntuación:") || tr.toLowerCase().includes("puntuación:")) {
+          scoreNote = tr.replace(/^\*\s*/, "").trim();
+          continue;
+        }
+
+        const cleanLine = tr.replace(/^[•*\-\s]+/, "");
+        // Detectar si empieza por repeticiones (ej: 15/12 Cal, 15 Box, 100 Double Unders)
+        const repMatch = cleanLine.match(/^(\d+(?:\/\d+)?(?:\s*Cal|\s*Calorie)?)\s+(.*)/i);
+        if (repMatch) {
+          let reps = repMatch[1].trim();
+          if (/^\d+$/.test(reps)) reps = `${reps} Reps`;
+          const rest = repMatch[2];
+          const parenMatch = rest.match(/\(([^)]+)\)/);
+          const name = rest.replace(/\([^)]+\)/g, "").replace(/[\s.,]+$/, "").trim();
+          const details = parenMatch ? parenMatch[1].replace(/[\s.,]+$/, "").trim() : undefined;
+          exercises.push({
+            name,
+            reps,
+            details,
+          });
+        } else {
+          nonExItems.push(cleanLine);
+        }
+      }
+
+      blocks.push({
+        type: "wod",
+        title: titleLine.replace(/-\s*\d+:\d{2}.*$/, "").replace(/:$/, "").trim() || "WOD Freedom (Metcon)",
+        badge: formatBadge,
+        exercises: exercises.length > 0 ? exercises : undefined,
+        items: nonExItems.length > 0 ? nonExItems : undefined,
+        scoreNote: scoreNote || undefined,
+      });
+      continue;
+    }
+
+    // 5. Enfoque Psicológico & Pacing
+    if (/^Enfoque Psicológico/i.test(cleanSec) || /^Pacing/i.test(cleanSec)) {
+      mentalPacing = cleanSec.replace(/^Enfoque Psicológico(?:\s*&\s*Pacing)?:\s*/i, "").trim();
+      continue;
+    }
+
+    // 6. Estrategia Nutrición Adaptada al Horario Laboral
+    if (/^ESTRATEGIA NUTRICIÓN/i.test(cleanSec) || /^Nutrición/i.test(cleanSec)) {
+      const mealLines = cleanSec.split("\n").slice(1);
+      for (const ml of mealLines) {
+        const tr = ml.trim().replace(/^[•*\-\s]+/, "");
+        if (!tr) continue;
+        // Detectar formato: 07:30h - 08:00h (Desayuno): Tostadas...
+        const timeMatch = tr.match(/^(\d{1,2}:\d{2}h?\s*[-–]\s*\d{1,2}:\d{2}h?)\s*\(([^)]+)\):\s*(.*)/i);
+        if (timeMatch) {
+          const time = timeMatch[1].trim();
+          const label = timeMatch[2].trim();
+          const text = timeMatch[3].trim();
+          const isPre = /merienda|pre-workout|pre\s*entreno/i.test(label);
+          const isIntra = /intra/i.test(label);
+          const isPost = /cena|post/i.test(label);
+          nutritionTimeline.push({ time, label, text, isPreWorkout: isPre, isIntra, isPost });
+        } else {
+          // Otro formato
+          const colonIdx = tr.indexOf(":");
+          if (colonIdx > -1) {
+            nutritionTimeline.push({
+              label: tr.slice(0, colonIdx).trim(),
+              text: tr.slice(colonIdx + 1).trim(),
+            });
+          } else {
+            nutritionTimeline.push({ label: "Pauta", text: tr });
+          }
+        }
+      }
+      continue;
+    }
+
+    // Metadatos residuales
+    if (cleanSec.includes("Importado desde") || cleanSec.includes("DATOS REALES") || cleanSec.includes("[Suunto Cloud]")) {
+      extraTrailing.push(cleanSec);
+      continue;
+    }
+
+    // Bloque general
+    const subLines = cleanSec.split("\n").map((l) => l.trim().replace(/^[•*\-\s]+/, "")).filter(Boolean);
+    if (subLines.length === 0) continue;
+    if (subLines.length === 1 && header && subLines[0].toLowerCase().includes(header.toLowerCase())) continue;
+    blocks.push({
+      type: "general",
+      title: subLines[0] || "Detalle de Ejecución",
+      items: subLines.slice(1),
+    });
+  }
+
+  return { header, schedule, blocks, nutritionTimeline, mentalPacing, extraTrailing };
+}
+
+// ==========================================
+// COMPONENTE PRINCIPAL
+// ==========================================
+export function WorkoutStructuredNotes({
+  notes,
+  discipline,
+  themeColor = "var(--color-brand)",
+  distanceKm,
+  durationMin,
+  className = "",
+}: WorkoutStructuredNotesProps) {
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [showMental, setShowMental] = useState(true);
+
+  const isCrossfit = discipline === "crossfit" || /crossfit|wod|strength deadlift|amrap/i.test(notes);
+
+  // 1. RENDERIZADO ESPECIAL PARA CROSSFIT / BOX WODS
+  const cfData = useMemo(() => {
+    if (!isCrossfit) return null;
+    return parseCrossfitNotes(notes);
+  }, [notes, isCrossfit]);
+
+  if (isCrossfit && cfData && (cfData.blocks.length > 0 || cfData.schedule)) {
+    return (
+      <div className={`w-full flex flex-col gap-3 text-xs sm:text-sm ${className}`}>
+        {/* Cabecera & Badge de Horario */}
+        <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Dumbbell size={15} />
+            </div>
+            <div>
+              <div className="text-xs font-black text-foreground uppercase tracking-wide">
+                {cfData.header || "CrossFit Box & WOD Freedom"}
+              </div>
+              <div className="text-[10px] text-muted">Sesión dirigida · Trabajo de alta demanda neuromuscular</div>
+            </div>
+          </div>
+
+          {cfData.schedule && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 font-mono text-[11px] font-bold">
+              <Clock size={12} className="text-amber-400" />
+              <span>{cfData.schedule}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Bloques Estructurados (Calentamiento, Strength, WOD) */}
+        <div className="space-y-3">
+          {cfData.blocks.map((b, idx) => {
+            if (b.type === "warmup") {
+              return (
+                <div key={idx} className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 font-black text-xs text-emerald-400 uppercase tracking-wider">
+                      <Flame size={15} className="text-emerald-400" />
+                      <span>{b.title}</span>
+                    </div>
+                    {b.badge && (
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {b.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    {b.items?.map((it, itIdx) => (
+                      <div key={itIdx} className="flex items-start gap-2 text-xs text-slate-200">
+                        <CheckCircle2 size={13} className="text-emerald-400/80 shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">{it}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            if (b.type === "strength") {
+              return (
+                <div key={idx} className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 font-black text-xs text-purple-400 uppercase tracking-wider">
+                      <Dumbbell size={15} className="text-purple-400" />
+                      <span>{b.title}</span>
+                    </div>
+                    {b.badge && (
+                      <span className="text-[11px] font-mono font-black px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/35">
+                        {b.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {b.items?.map((it, itIdx) => {
+                      let mainPart = it.trim();
+                      let detailPart = "";
+                      if (it.includes("·")) {
+                        const parts = it.split("·");
+                        mainPart = parts[0].replace(/\($/, "").trim();
+                        detailPart = parts.slice(1).join("·").replace(/\)$/, "").trim();
+                      }
+                      return (
+                        <div key={itIdx} className="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/20 text-xs text-slate-100">
+                          <div className="font-bold text-sm text-purple-200 mb-1 flex items-center gap-1.5">
+                            <Dumbbell size={15} className="text-purple-400 shrink-0" />
+                            <span>{mainPart}</span>
+                          </div>
+                          {detailPart && (
+                            <div className="text-[11px] text-purple-300/80 leading-relaxed font-sans pt-1 border-t border-purple-500/15">
+                              {detailPart}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            if (b.type === "wod") {
+              return (
+                <div key={idx} className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 font-black text-xs text-amber-400 uppercase tracking-wider">
+                      <Zap size={15} className="text-amber-400" />
+                      <span>{b.title}</span>
+                    </div>
+                    {b.badge && (
+                      <span className="text-xs font-mono font-black px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                        ⚡ {b.badge}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Rejilla de Estaciones / Ejercicios del WOD */}
+                  {b.exercises && b.exercises.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {b.exercises.map((ex, exIdx) => (
+                        <div
+                          key={exIdx}
+                          className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="text-xs font-mono font-black text-amber-400 uppercase tracking-wider">
+                              {ex.reps}
+                            </div>
+                            <div className="text-sm font-bold text-slate-100 mt-0.5 leading-snug">
+                              {ex.name}
+                            </div>
+                          </div>
+                          {ex.details && (
+                            <div className="text-[11px] text-slate-400 mt-2 pt-1.5 border-t border-slate-800 leading-tight">
+                              {ex.details}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Puntuación / Objetivo */}
+                  {b.scoreNote && (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-xs font-semibold text-amber-300">
+                      <Award size={14} className="text-amber-400 shrink-0" />
+                      <span>{b.scoreNote}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div key={idx} className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                <div className="font-bold text-slate-200 mb-1">{b.title}</div>
+                {b.items?.map((it, itIdx) => (
+                  <div key={itIdx} className="text-muted leading-relaxed">• {it}</div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Enfoque Psicológico & Pacing (Card Violeta) */}
+        {cfData.mentalPacing && (
+          <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0 text-purple-400 mt-0.5">
+              <Brain size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-black uppercase tracking-wider text-purple-400 mb-0.5">
+                Enfoque Psicológico & Pacing
+              </div>
+              <p className="text-xs leading-relaxed text-purple-100/90 font-sans">
+                {cfData.mentalPacing}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Crononutrición Adaptada al Horario Laboral (Timeline) */}
+        {cfData.nutritionTimeline.length > 0 && (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/10 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowNutrition(!showNutrition)}
+              className="w-full flex items-center justify-between p-3.5 text-xs text-foreground font-bold hover:bg-emerald-500/5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                  <UtensilsCrossed size={15} />
+                </div>
+                <div className="text-left">
+                  <div className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">
+                    Crononutrición Adaptada a tu Horario Laboral
+                  </div>
+                  <div className="text-[10px] text-muted font-normal">
+                    Pautas de comidas e hidratación para entrenar con el depósito lleno a las 19:00h
+                  </div>
+                </div>
+              </div>
+              <span className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-muted">
+                {showNutrition ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </span>
+            </button>
+
+            {showNutrition && (
+              <div className="p-4 pt-1 border-t border-emerald-500/20 space-y-2.5">
+                {cfData.nutritionTimeline.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 text-xs leading-relaxed ${
+                      item.isPreWorkout
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-100"
+                        : item.isIntra
+                        ? "bg-sky-500/10 border-sky-500/30 text-sky-100"
+                        : "bg-slate-900/70 border-slate-800 text-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.time && (
+                        <span className="font-mono font-bold text-emerald-400 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-emerald-500/30">
+                          {item.time}
+                        </span>
+                      )}
+                      <span className="font-bold text-slate-100">
+                        {item.label}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground font-sans">
+                      {item.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 2. RENDERIZADO PARA RUNNING (CARRERA A PIE) Y RESTO DE DISCIPLINAS
+  const parsed = parseWorkoutNotes(notes, discipline);
+  const metrics = calculateRunningMetrics(parsed, notes, discipline, distanceKm, durationMin);
+
+  return (
+    <div
+      className={`w-full flex flex-col gap-3 rounded-2xl overflow-hidden text-xs sm:text-sm ${className}`}
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        borderLeft: `4px solid ${themeColor}`,
+        padding: "14px 16px",
+      }}
+    >
+      {/* 0. Cabecera con Título y Barra de Volumen Total de la Sesión */}
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60 flex-wrap">
+        <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-muted">
+          <Activity size={14} style={{ color: themeColor }} />
+          <span>{parsed.header || "Estructura del Entrenamiento"}</span>
+        </div>
+        {metrics.totalDur && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-700/80 font-mono text-[11px] font-bold text-slate-200">
+            <span className="text-slate-400 font-sans font-medium text-[10px]">Total sesión:</span>
+            {metrics.totalDist && <span className="text-emerald-400">{metrics.totalDist}</span>}
+            {metrics.totalDist && <span className="text-slate-500">·</span>}
+            <span className="text-cyan-400">{metrics.totalDur} min</span>
+          </div>
+        )}
+      </div>
+
+      {/* BLOQUES ESTRUCTURADOS CON DISTANCIA, TIEMPO Y RITMO OBJETIVO */}
+      <div className="flex flex-col gap-3 pt-1">
+        {/* 1. CALENTAMIENTO */}
+        {parsed.warmup && (
+          <div className="p-3 sm:p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-slate-200">
+            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 font-bold text-[11px] sm:text-xs text-emerald-400 uppercase tracking-wider">
+                <Flame size={14} className="text-emerald-400 shrink-0" />
+                <span>1. Calentamiento & Activación</span>
+              </div>
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/35 font-mono text-[11px] font-extrabold">
+                <Timer size={11} className="opacity-80" />
+                <span>{metrics.warmup.badgeLabel}</span>
+              </div>
+            </div>
+
+            {/* RITMO OBJETIVO DEL CALENTAMIENTO */}
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400/90 mb-2 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/25">
+              <Gauge size={12} className="shrink-0 text-emerald-400" />
+              <span>Ritmo objetivo: {metrics.warmup.pace}</span>
+            </div>
+
+            <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
+              {parsed.warmup}
+            </div>
+          </div>
+        )}
+
+        {/* 2. PARTE PRINCIPAL (TRABAJO CLAVE ESPECÍFICO) */}
+        {parsed.mainPart && (
+          <div className="p-3.5 sm:p-4 rounded-xl bg-brand/10 border border-brand/35 text-slate-100 shadow-xs">
+            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 font-black text-[11px] sm:text-xs text-brand uppercase tracking-wider">
+                <Zap size={14} className="text-brand shrink-0" />
+                <span>2. Parte Principal (Trabajo Clave)</span>
+              </div>
+              <div className="inline-flex items-center gap-1 px-3 py-0.5 rounded-md bg-brand/25 text-brand border border-brand/45 font-mono text-[11px] font-black">
+                <Navigation size={11} className="opacity-80" />
+                <span>{metrics.main.badgeLabel}</span>
+              </div>
+            </div>
+
+            {/* RITMO OBJETIVO DE LA PARTE PRINCIPAL */}
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-300 mb-2 bg-brand/20 px-2.5 py-1 rounded-lg border border-brand/30">
+              <Gauge size={12} className="shrink-0 text-cyan-400" />
+              <span>Ritmo objetivo: {metrics.main.pace}</span>
+            </div>
+
+            <div className="text-xs sm:text-sm text-slate-100 font-medium leading-relaxed">
+              {parsed.mainPart}
+            </div>
+          </div>
+        )}
+
+        {/* 3. VUELTA A LA CALMA */}
+        {parsed.cooldown && (
+          <div className="p-3 sm:p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-slate-200">
+            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 font-bold text-[11px] sm:text-xs text-cyan-400 uppercase tracking-wider">
+                <Wind size={14} className="text-cyan-400 shrink-0" />
+                <span>3. Vuelta a la Calma & Recuperación</span>
+              </div>
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/35 font-mono text-[11px] font-extrabold">
+                <Timer size={11} className="opacity-80" />
+                <span>{metrics.cooldown.badgeLabel}</span>
+              </div>
+            </div>
+
+            {/* RITMO OBJETIVO DE LA VUELTA A LA CALMA */}
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-400/90 mb-2 bg-cyan-500/10 px-2.5 py-1 rounded-lg border border-cyan-500/25">
+              <Gauge size={12} className="shrink-0 text-cyan-400" />
+              <span>Ritmo objetivo: {metrics.cooldown.pace}</span>
+            </div>
+
+            <div className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+              {parsed.cooldown}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Clave estratégica o Hidratación */}
+      {parsed.strategy && (
+        <div className="text-xs p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 leading-relaxed">
+          <strong>Clave estratégica:</strong> {parsed.strategy}
+        </div>
+      )}
+
+      {parsed.hydration && (
+        <div className="text-xs p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-200 leading-relaxed">
+          <strong>Hidratación:</strong> {parsed.hydration}
+        </div>
+      )}
+
+      {/* SECCIÓN DESPLEGABLE: NUTRICIÓN */}
+      {parsed.nutrition && (
+        <div className="rounded-xl border border-border/70 overflow-hidden bg-surface-raised/40">
+          <button
+            type="button"
+            onClick={() => setShowNutrition(!showNutrition)}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs text-muted hover:text-foreground font-medium transition-colors"
+          >
+            <div className="flex items-center gap-1.5">
+              <Apple size={14} className="text-emerald-400" />
+              <span>Pautas de Nutrición (Media mañana / Pre-entreno)</span>
+            </div>
+            {showNutrition ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {showNutrition && (
+            <div className="px-3.5 py-2.5 text-xs text-slate-300 border-t border-border/50 leading-relaxed bg-surface/60 whitespace-pre-line">
+              {parsed.nutrition}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECCIÓN DESPLEGABLE: ENFOQUE MENTAL */}
+      {parsed.mentalTip && (
+        <div className="rounded-xl border border-purple-500/30 overflow-hidden bg-purple-950/15">
+          <button
+            type="button"
+            onClick={() => setShowMental(!showMental)}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs text-purple-300 hover:text-purple-200 font-bold transition-colors"
+          >
+            <div className="flex items-center gap-1.5">
+              <Brain size={14} className="text-purple-400" />
+              <span>Enfoque Psicológico & Tip Mental</span>
+            </div>
+            {showMental ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {showMental && (
+            <div className="px-3.5 py-2.5 text-xs text-purple-100/90 border-t border-purple-500/20 leading-relaxed bg-surface/60 whitespace-pre-line">
+              {parsed.mentalTip}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Metadatos extra (Suunto, adaptación, datos reales) */}
+      {parsed.extraTrailing && parsed.extraTrailing.length > 0 && (
+        <div className="text-[11px] text-muted flex flex-col gap-1 pt-1 border-t border-border/40">
+          {parsed.extraTrailing.map((t, idx) => (
+            <div key={idx} className="leading-snug opacity-90 whitespace-pre-line">
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper para running
+function parseWorkoutNotes(notes: string, discipline: string) {
   if (!notes || !notes.trim()) {
-    return { isStructured: false };
+    return { isStructured: false, header: "", warmup: "", mainPart: "", cooldown: "", strategy: "", hydration: "", nutrition: "", mentalTip: "", extraTrailing: [] };
   }
 
   let text = notes.trim();
-
-  // 1. Extraer colas o metadatos
   const extraTrailing: string[] = [];
+
   const suuntoMatch = text.match(/\|\s*\[Suunto Cloud\][^\n]*/);
   if (suuntoMatch) {
     extraTrailing.push(suuntoMatch[0].trim());
@@ -121,7 +763,6 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     text = text.substring(0, datosRealesMatch.index).trim();
   }
 
-  // 2. Extraer Enfoque Mental
   let mentalTip = "";
   const mentalMatch = text.match(/-\s*Enfoque Psicológico & Tip Mental:[^\n]*(?:\n\s+•[^\n]*|\n(?!\s*-)[^\n]*)*/i);
   if (mentalMatch) {
@@ -129,7 +770,6 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     text = text.replace(mentalMatch[0], "").trim();
   }
 
-  // 3. Extraer Estrategia Nutrición (soporta mayúsculas y minúsculas)
   let nutrition = "";
   const nutMatch = text.match(/-\s*(?:Estrategia )?Nutrición[^\n]*(?:\n\s+•[^\n]*|\n(?!\s*-)[^\n]*)*/i);
   if (nutMatch) {
@@ -137,7 +777,6 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     text = text.replace(nutMatch[0], "").trim();
   }
 
-  // 4. Extraer Hidratación
   let hydration = "";
   const hydMatch = text.match(/-\s*(?:Nutrición\/)?Hidratación:[^\n]*/i);
   if (hydMatch) {
@@ -145,7 +784,6 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     text = text.replace(hydMatch[0], "").trim();
   }
 
-  // 5. Extraer Clave estratégica
   let strategy = "";
   const stratMatch = text.match(/-\s*Clave estratégica:[^\n]*/i);
   if (stratMatch) {
@@ -153,10 +791,9 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     text = text.replace(stratMatch[0], "").trim();
   }
 
-  // 6. Extraer título / cabecera si existe
   let header = "";
   const rawLines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  if (rawLines.length > 0 && (rawLines[0].startsWith("RUNNING") || rawLines[0].startsWith("NATACIÓN") || rawLines[0].startsWith("CROSSFIT") || rawLines[0].startsWith("FUERZA") || rawLines[0].endsWith(":"))) {
+  if (rawLines.length > 0 && (rawLines[0].startsWith("RUNNING") || rawLines[0].startsWith("NATACIÓN") || rawLines[0].startsWith("GIMNASIO") || rawLines[0].endsWith(":"))) {
     header = rawLines[0].replace(/:$/, "").trim();
     text = rawLines.slice(1).join("\n").trim();
   }
@@ -209,8 +846,6 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     }
   }
 
-  const isStructured = !!(warmup || mainPart || cooldown);
-
   return {
     header,
     warmup,
@@ -221,373 +856,87 @@ export function parseWorkoutNotes(notes: string, discipline: string): ParsedWork
     nutrition,
     mentalTip,
     extraTrailing,
-    isStructured,
+    isStructured: !!(warmup || mainPart || cooldown),
   };
 }
 
-export function WorkoutStructuredNotes({
-  notes,
-  discipline,
-  themeColor = "var(--color-brand)",
-  distanceKm,
-  durationMin,
-  className = "",
-}: WorkoutStructuredNotesProps) {
-  const [showNutrition, setShowNutrition] = useState(true);
-  const [showMental, setShowMental] = useState(false);
+function calculateRunningMetrics(
+  parsed: any,
+  notes: string,
+  discipline: string,
+  distanceKm?: number | null,
+  durationMin?: number | null
+) {
+  const wRaw = extractMetricsFromText(parsed.warmup);
+  const mRaw = extractMetricsFromText(parsed.mainPart);
+  const cRaw = extractMetricsFromText(parsed.cooldown);
 
-  const parsed = useMemo(() => parseWorkoutNotes(notes, discipline), [notes, discipline]);
-
-  // Cálculo riguroso: El trabajo especificado (ej. 12 km o 11 km) ES LA PARTE PRINCIPAL
-  const metrics = useMemo(() => {
-    const wRaw = extractMetricsFromText(parsed.warmup);
-    const mRaw = extractMetricsFromText(parsed.mainPart);
-    const cRaw = extractMetricsFromText(parsed.cooldown);
-
-    if (discipline === "carrera") {
-      // 1. La parte principal es el trabajo clave (ej. 11 km, 12 km, 8 km)
-      let mDist = mRaw.dist;
-      if (mDist === null) {
-        mDist = distanceKm && distanceKm >= 4 ? distanceKm : 8.0;
-      }
-
-      // 2. Calentamiento (1.5 km o 2.0 km si >= 15k)
-      let wDist = wRaw.dist;
-      if (wDist === null) {
-        wDist = mDist >= 15 ? 2.0 : mDist >= 10 ? 1.5 : 1.0;
-      }
-      let wTime = wRaw.time ?? Math.round(wDist * 5.75);
-
-      // 3. Vuelta a la calma (1.0 km o 1.5 km si >= 15k)
-      let cDist = cRaw.dist;
-      if (cDist === null) {
-        cDist = mDist >= 15 ? 1.5 : 1.0;
-      }
-      let cTime = cRaw.time ?? Math.round(cDist * 6.0);
-
-      // Ritmos
-      const wPace = wRaw.pace || "5:45 - 5:30 min/km (Zona R0 trote suave)";
-      const cPace = cRaw.pace || "> 6:00 min/km (Trote suave / Caminata)";
-      let mPace = mRaw.pace;
-      if (!mPace) {
-        const full = `${notes} ${parsed.header || ""}`.toLowerCase();
-        if (full.includes("r3") || full.includes("series") || full.includes("umbral")) {
-          mPace = "4:18 - 4:20 min/km (Zona R3/R4 Umbral · Recup: 6:00/km)";
-        } else if (full.includes("cuestas")) {
-          mPace = "Aceleración elástica en subida (RPE 8-9) · Bajada al paso";
-        } else if (full.includes("r2") || full.includes("tempo") || full.includes("progresivo")) {
-          mPace = "4:59 - 4:35 min/km (Zona R2 Tempo crucero)";
-        } else if (full.includes("r5") || full.includes("tirada") || full.includes("larga")) {
-          mPace = "5:25 - 5:10 min/km (Cierre últimos 3 km a 5:05/km Ritmo Maratón)";
-        } else if (full.includes("r0") || full.includes("regenerativo")) {
-          mPace = "> 5:25 - 5:45 min/km (Zona R0 regenerativa · FC < 140 lpm)";
-        } else {
-          mPace = "5:25 - 4:59 min/km (Zona R1 aeróbica conversacional)";
-        }
-      }
-
-      // Tiempo de la parte principal según ritmo medio
-      let mTime = mRaw.time;
-      if (mTime === null) {
-        let paceNum = 5.15;
-        if (mPace.includes("4:18") || mPace.includes("4:20")) paceNum = 4.3;
-        else if (mPace.includes("4:59") || mPace.includes("4:35")) paceNum = 4.75;
-        else if (mPace.includes("5:25") || mPace.includes("5:10")) paceNum = 5.2;
-        else if (mPace.includes("5:45")) paceNum = 5.5;
-        mTime = Math.round(mDist * paceNum);
-      }
-
-      // Total sesión real = Calentamiento + Trabajo Principal + Vuelta a la Calma
-      const totDist = Number((wDist + mDist + cDist).toFixed(1));
-      const totDur = wTime + mTime + cTime;
-
-      return {
-        totalDist: `${totDist.toFixed(1)} km`,
-        totalDur: totDur,
-        mainDistNum: mDist,
-        warmup: {
-          distLabel: `${wDist.toFixed(1)} km`,
-          timeLabel: `${wTime} min`,
-          badgeLabel: `${wDist.toFixed(1)} km · ${wTime} min`,
-          pace: wPace,
-        },
-        main: {
-          distLabel: `${mDist.toFixed(1)} km`,
-          timeLabel: `${mTime} min`,
-          badgeLabel: `${mDist.toFixed(1)} km · ${mTime} min`,
-          pace: mPace,
-        },
-        cooldown: {
-          distLabel: `${cDist.toFixed(1)} km`,
-          timeLabel: `${cTime} min`,
-          badgeLabel: `${cDist.toFixed(1)} km · ${cTime} min`,
-          pace: cPace,
-        },
-      };
+  if (discipline === "carrera") {
+    let mDist = mRaw.dist;
+    if (mDist === null) {
+      mDist = distanceKm && distanceKm >= 4 ? distanceKm : 8.0;
     }
 
-    if (discipline === "natacion") {
-      const totM = distanceKm ? Math.round(distanceKm * 1000) : 1800;
-      const wM = wRaw.dist ? Math.round(wRaw.dist * 1000) : 350;
-      const cM = cRaw.dist ? Math.round(cRaw.dist * 1000) : 200;
-      const mM = Math.max(400, totM - wM - cM);
+    let wDist = wRaw.dist;
+    if (wDist === null) {
+      wDist = mDist >= 15 ? 2.0 : mDist >= 10 ? 1.5 : 1.0;
+    }
+    let wTime = wRaw.time ?? Math.round(wDist * 5.75);
 
-      const wT = wRaw.time ?? Math.round(wM / 50);
-      const cT = cRaw.time ?? Math.round(cM / 45);
-      const mT = Math.max(10, (durationMin ?? 45) - wT - cT);
+    let cDist = cRaw.dist;
+    if (cDist === null) {
+      cDist = mDist >= 15 ? 1.5 : 1.0;
+    }
+    let cTime = cRaw.time ?? Math.round(cDist * 6.0);
 
-      return {
-        totalDist: `${totM}m`,
-        totalDur: durationMin ?? 45,
-        mainDistNum: mM,
-        warmup: {
-          distLabel: `${wM}m`,
-          timeLabel: `${wT} min`,
-          badgeLabel: `${wM}m · ${wT} min`,
-          pace: "Nado suave y activación articular",
-        },
-        main: {
-          distLabel: `${mM}m`,
-          timeLabel: `${mT} min`,
-          badgeLabel: `${mM}m · ${mT} min`,
-          pace: "Ritmo crucero RPE 5-6 con pull-buoy",
-        },
-        cooldown: {
-          distLabel: `${cM}m`,
-          timeLabel: `${cT} min`,
-          badgeLabel: `${cM}m · ${cT} min`,
-          pace: "Espalda suave y descompresión",
-        },
-      };
+    const wPace = wRaw.pace || "5:45 - 5:30 min/km (Zona R0 trote suave)";
+    const cPace = cRaw.pace || "> 6:00 min/km (Trote suave / Caminata)";
+    let mPace = mRaw.pace;
+    if (!mPace) {
+      const full = `${notes} ${parsed.header || ""}`.toLowerCase();
+      if (full.includes("r3") || full.includes("series") || full.includes("umbral")) {
+        mPace = "4:18 - 4:20 min/km (Zona R3/R4 Umbral · Recup: 6:00/km)";
+      } else if (full.includes("cuestas")) {
+        mPace = "Aceleración elástica en subida (RPE 8-9) · Bajada al paso";
+      } else if (full.includes("r2") || full.includes("tempo") || full.includes("progresivo")) {
+        mPace = "4:59 - 4:35 min/km (Zona R2 Tempo crucero)";
+      } else if (full.includes("r5") || full.includes("tirada") || full.includes("larga")) {
+        mPace = "5:25 - 5:10 min/km (Cierre últimos 3 km a 5:05/km Ritmo Maratón)";
+      } else if (full.includes("r0") || full.includes("regenerativo")) {
+        mPace = "> 5:25 - 5:45 min/km (Zona R0 regenerativa · FC < 140 lpm)";
+      } else {
+        mPace = "5:25 - 4:59 min/km (Zona R1 aeróbica conversacional)";
+      }
     }
 
-    // Disciplinas de tiempo (Gimnasio, CrossFit)
-    const totMin = durationMin ?? 50;
-    const wT = wRaw.time ?? 12;
-    const cT = cRaw.time ?? 8;
-    const mT = Math.max(15, totMin - wT - cT);
+    let mTime = mRaw.time;
+    if (mTime === null) {
+      let paceNum = 5.15;
+      if (mPace.includes("4:18") || mPace.includes("4:20")) paceNum = 4.3;
+      else if (mPace.includes("4:59") || mPace.includes("4:35")) paceNum = 4.75;
+      else if (mPace.includes("5:25") || mPace.includes("5:10")) paceNum = 5.2;
+      else if (mPace.includes("5:45")) paceNum = 5.5;
+      mTime = Math.round(mDist * paceNum);
+    }
+
+    const totDist = Number((wDist + mDist + cDist).toFixed(1));
+    const totDur = wTime + mTime + cTime;
 
     return {
-      totalDist: null,
-      totalDur: totMin,
-      mainDistNum: null,
-      warmup: {
-        distLabel: "",
-        timeLabel: `${wT} min`,
-        badgeLabel: `${wT} min`,
-        pace: "Movilidad dinámica & activación neuromuscular",
-      },
-      main: {
-        distLabel: "",
-        timeLabel: `${mT} min`,
-        badgeLabel: `${mT} min`,
-        pace: "Intensidad programada RPE 7-8",
-      },
-      cooldown: {
-        distLabel: "",
-        timeLabel: `${cT} min`,
-        badgeLabel: `${cT} min`,
-        pace: "Estiramientos & descarga",
-      },
+      totalDist: `${totDist.toFixed(1)} km`,
+      totalDur: totDur,
+      warmup: { badgeLabel: `${wDist.toFixed(1)} km · ${wTime} min`, pace: wPace },
+      main: { badgeLabel: `${mDist.toFixed(1)} km · ${mTime} min`, pace: mPace },
+      cooldown: { badgeLabel: `${cDist.toFixed(1)} km · ${cTime} min`, pace: cPace },
     };
-  }, [parsed, discipline, distanceKm, durationMin, notes]);
-
-  // Si no se pudo estructurar, mostrar vista limpia
-  if (!parsed.isStructured) {
-    return (
-      <div
-        className={`w-full text-xs sm:text-sm ${className}`}
-        style={{
-          padding: "10px 12px",
-          background: "var(--color-surface)",
-          borderRadius: "var(--radius-md)",
-          borderLeft: `4px solid ${themeColor}`,
-          whiteSpace: "pre-wrap",
-          lineHeight: 1.6,
-          wordBreak: "break-word",
-          overflowWrap: "anywhere",
-          color: "var(--color-text)",
-        }}
-      >
-        {notes}
-      </div>
-    );
   }
 
-  return (
-    <div
-      className={`w-full flex flex-col gap-2 rounded-xl overflow-hidden text-xs sm:text-sm ${className}`}
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderLeft: `4px solid ${themeColor}`,
-        padding: "12px 14px",
-      }}
-    >
-      {/* 0. Cabecera con Título y Barra de Volumen Total de la Sesión */}
-      <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/60 flex-wrap">
-        <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-muted">
-          <Activity size={13} style={{ color: themeColor }} />
-          <span>{parsed.header || "Estructura del Entrenamiento"}</span>
-        </div>
-        {metrics.totalDur && (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700/80 font-mono text-[11px] font-bold text-slate-200">
-            <span className="text-slate-400 font-sans font-medium text-[10px]">Total sesión:</span>
-            {metrics.totalDist && <span className="text-emerald-400">{metrics.totalDist}</span>}
-            {metrics.totalDist && <span className="text-slate-500">·</span>}
-            <span className="text-cyan-400">{metrics.totalDur} min</span>
-          </div>
-        )}
-      </div>
-
-      {/* BLOQUES ESTRUCTURADOS CON DISTANCIA, TIEMPO Y RITMO OBJETIVO */}
-      <div className="flex flex-col gap-2.5 pt-1">
-        {/* 1. CALENTAMIENTO */}
-        {parsed.warmup && (
-          <div className="p-2.5 sm:p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-slate-200">
-            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-              <div className="flex items-center gap-1.5 font-bold text-[11px] sm:text-xs text-emerald-400 uppercase tracking-wider">
-                <Flame size={13} className="text-emerald-400 shrink-0" />
-                <span>1. Calentamiento</span>
-              </div>
-              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/35 font-mono text-[11px] font-extrabold">
-                <Timer size={11} className="opacity-80" />
-                <span>{metrics.warmup.badgeLabel}</span>
-              </div>
-            </div>
-
-            {/* RITMO OBJETIVO DEL CALENTAMIENTO */}
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400/90 mb-1.5 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              <Gauge size={12} className="shrink-0 text-emerald-400" />
-              <span>Ritmo objetivo: {metrics.warmup.pace}</span>
-            </div>
-
-            <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
-              {parsed.warmup}
-            </div>
-          </div>
-        )}
-
-        {/* 2. PARTE PRINCIPAL (TRABAJO CLAVE ESPECÍFICO) */}
-        {parsed.mainPart && (
-          <div className="p-2.5 sm:p-3 rounded-lg bg-brand/10 border border-brand/35 text-slate-100">
-            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-              <div className="flex items-center gap-1.5 font-extrabold text-[11px] sm:text-xs text-brand uppercase tracking-wider">
-                <Zap size={13} className="text-brand shrink-0" />
-                <span>2. Parte Principal (Trabajo Clave)</span>
-              </div>
-              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-brand/25 text-brand border border-brand/45 font-mono text-[11px] font-black">
-                <Navigation size={11} className="opacity-80" />
-                <span>{metrics.main.badgeLabel}</span>
-              </div>
-            </div>
-
-            {/* RITMO OBJETIVO DE LA PARTE PRINCIPAL */}
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-300 mb-1.5 bg-brand/15 px-2 py-0.5 rounded border border-brand/25">
-              <Gauge size={12} className="shrink-0 text-cyan-400" />
-              <span>Ritmo objetivo: {metrics.main.pace}</span>
-            </div>
-
-            <div className="text-xs sm:text-sm text-slate-100 font-medium leading-relaxed">
-              {parsed.mainPart}
-            </div>
-          </div>
-        )}
-
-        {/* 3. VUELTA A LA CALMA */}
-        {parsed.cooldown && (
-          <div className="p-2.5 sm:p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-slate-200">
-            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-              <div className="flex items-center gap-1.5 font-bold text-[11px] sm:text-xs text-cyan-400 uppercase tracking-wider">
-                <Wind size={13} className="text-cyan-400 shrink-0" />
-                <span>3. Vuelta a la calma</span>
-              </div>
-              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/35 font-mono text-[11px] font-extrabold">
-                <Timer size={11} className="opacity-80" />
-                <span>{metrics.cooldown.badgeLabel}</span>
-              </div>
-            </div>
-
-            {/* RITMO OBJETIVO DE LA VUELTA A LA CALMA */}
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-400/90 mb-1.5 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-              <Gauge size={12} className="shrink-0 text-cyan-400" />
-              <span>Ritmo objetivo: {metrics.cooldown.pace}</span>
-            </div>
-
-            <div className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
-              {parsed.cooldown}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Clave estratégica o Hidratación específica */}
-      {parsed.strategy && (
-        <div className="text-xs p-2 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-200 leading-relaxed">
-          <strong>Clave estratégica:</strong> {parsed.strategy}
-        </div>
-      )}
-
-      {parsed.hydration && (
-        <div className="text-xs p-2 rounded-md bg-sky-500/10 border border-sky-500/25 text-sky-200 leading-relaxed">
-          <strong>Hidratación:</strong> {parsed.hydration}
-        </div>
-      )}
-
-      {/* SECCIÓN DESPLEGABLE: NUTRICIÓN */}
-      {parsed.nutrition && (
-        <div className="rounded-lg border border-border/70 overflow-hidden bg-surface-raised/40">
-          <button
-            type="button"
-            onClick={() => setShowNutrition(!showNutrition)}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-muted hover:text-foreground font-medium transition-colors"
-          >
-            <div className="flex items-center gap-1.5">
-              <Apple size={13} className="text-emerald-400" />
-              <span>Pautas de Nutrición (Media mañana / Pre-entreno)</span>
-            </div>
-            {showNutrition ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          {showNutrition && (
-            <div className="px-3 py-2 text-xs text-slate-300 border-t border-border/50 leading-relaxed bg-surface/60 whitespace-pre-line">
-              {parsed.nutrition}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SECCIÓN DESPLEGABLE: ENFOQUE MENTAL */}
-      {parsed.mentalTip && (
-        <div className="rounded-lg border border-border/70 overflow-hidden bg-surface-raised/40">
-          <button
-            type="button"
-            onClick={() => setShowMental(!showMental)}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-muted hover:text-foreground font-medium transition-colors"
-          >
-            <div className="flex items-center gap-1.5">
-              <Brain size={13} className="text-purple-400" />
-              <span>Enfoque Psicológico & Tip Mental</span>
-            </div>
-            {showMental ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          {showMental && (
-            <div className="px-3 py-2 text-xs text-slate-300 border-t border-border/50 leading-relaxed bg-surface/60 whitespace-pre-line">
-              {parsed.mentalTip}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Metadatos extra (Suunto, adaptación, datos reales) */}
-      {parsed.extraTrailing && parsed.extraTrailing.length > 0 && (
-        <div className="text-[11px] text-muted flex flex-col gap-1 pt-1 border-t border-border/40">
-          {parsed.extraTrailing.map((t, idx) => (
-            <div key={idx} className="leading-snug opacity-90 whitespace-pre-line">
-              {t}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  // Fallback genérico
+  return {
+    totalDist: distanceKm ? `${distanceKm} km` : null,
+    totalDur: durationMin ?? 50,
+    warmup: { badgeLabel: "10 min", pace: "Activación dinámica" },
+    main: { badgeLabel: `${durationMin ?? 40} min`, pace: "Intensidad objetivo" },
+    cooldown: { badgeLabel: "5 min", pace: "Vuelta a la calma" },
+  };
 }
