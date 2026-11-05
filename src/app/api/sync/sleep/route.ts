@@ -6,13 +6,22 @@ import { toLocalISODate } from "@/lib/dates";
  * Endpoint de sincronización automatizada de sueño de Zepp / Amazfit
  */
 export async function GET(req: NextRequest) {
+  // Blindaje forzado de sincronización con ZeppBridge
+  let syncResult: { success: boolean; count: number; message?: string } | null = null;
+  try {
+    const { autoSyncZepp } = await import("@/lib/zepp-auto-sync");
+    syncResult = autoSyncZepp(true);
+  } catch (err) {
+    syncResult = { success: false, count: 0, message: String(err) };
+  }
+
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
   if (from && to) {
     const list = listRecoveryBetween(from, to);
-    return NextResponse.json({ recovery: list, count: list.length });
+    return NextResponse.json({ recovery: list, count: list.length, syncResult });
   }
 
   const latest = getLatestRecovery();
@@ -20,6 +29,7 @@ export async function GET(req: NextRequest) {
     latest,
     status: "ready",
     timestamp: new Date().toISOString(),
+    syncResult,
   });
 }
 

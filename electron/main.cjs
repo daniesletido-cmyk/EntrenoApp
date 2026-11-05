@@ -144,6 +144,19 @@ function waitForServer(url, timeoutMs = 30000) {
   });
 }
 
+function setupBackgroundShield(port) {
+  const triggerSync = () => {
+    http
+      .get(`http://127.0.0.1:${port}/api/sync/sleep`, (res) => {
+        res.resume();
+      })
+      .on("error", () => {});
+  };
+
+  setTimeout(triggerSync, 4000);
+  setInterval(triggerSync, 10 * 60 * 1000);
+}
+
 function resolveServerPath() {
   const userDataDir = app.getPath("userData");
   const userBundleDir = path.join(userDataDir, "app-bundle");
@@ -216,6 +229,9 @@ app.whenReady().then(async () => {
 
     createMainWindow();
     mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
+
+    // Blindaje de fondo: sincronización automatizada continua cada 10 minutos
+    setupBackgroundShield(PORT);
   } catch (err) {
     if (splashWindow) {
       try {

@@ -27,7 +27,7 @@ function resolveDbPath(): string {
 
   const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
 
-  if (!fs.existsSync(targetPath)) {
+  if (!fs.existsSync(targetPath) || (fs.existsSync(targetPath) && fs.statSync(targetPath).size < 1000 && fs.existsSync(seedPath) && fs.statSync(seedPath).size > 1000)) {
     if (fs.existsSync(seedPath)) {
       try {
         fs.copyFileSync(seedPath, targetPath);
@@ -120,16 +120,35 @@ export function triggerDataPersistence(): void {
       const dbPath = activeDbPath || resolveDbPath();
       if (!fs.existsSync(dbPath)) return;
 
-      // 1. En desarrollo local o servidor dedicado: sincronizar con seed/entrenoapp.db
-      // para que cualquier commit a git o despliegue en la nube contenga los datos actuales.
+      // 1. Blindaje Multi-Target: En entorno local o de escritorio, sincronizar
+      // idénticamente con seed/entrenoapp.db, data/entrenoapp.db y réplicas de Electron.
       if (!process.env.VERCEL) {
         const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
-        try {
-          const seedDir = path.dirname(seedPath);
-          if (!fs.existsSync(seedDir)) fs.mkdirSync(seedDir, { recursive: true });
-          fs.copyFileSync(dbPath, seedPath);
-        } catch (e) {
-          console.warn("[DB] Fallo silencioso al sincronizar seed:", e);
+        const dataPath = path.join(process.cwd(), "data", "entrenoapp.db");
+
+        const targetPaths = new Set<string>();
+        targetPaths.add(seedPath);
+        targetPaths.add(dataPath);
+
+        // App de escritorio (%APPDATA%/EntrenoApp)
+        const appData = process.env.APPDATA;
+        if (appData) {
+          const desktopDb1 = path.join(appData, "EntrenoApp", "entrenoapp.db");
+          const desktopDb2 = path.join(appData, "EntrenoApp", "data", "entrenoapp.db");
+          if (fs.existsSync(path.dirname(desktopDb1))) targetPaths.add(desktopDb1);
+          if (fs.existsSync(path.dirname(desktopDb2))) targetPaths.add(desktopDb2);
+        }
+
+        // Replicar en todos los destinos para blindar contra cualquier desincronización
+        for (const target of targetPaths) {
+          if (path.resolve(target) === path.resolve(dbPath)) continue;
+          try {
+            const dir = path.dirname(target);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.copyFileSync(dbPath, target);
+          } catch (e) {
+            console.warn(`[DB] Fallo al replicar en ${target}:`, e);
+          }
         }
 
         // Crear copia de seguridad rotativa periódica (máximo cada 1 hora)
@@ -162,20 +181,20 @@ export function triggerDataPersistence(): void {
 
 function rotateLocalBackup(dbPath: string): void {
   try {
-    const backupDir = path.join(path.dirname(dbPath), "tmp-backups");
+    const backupDir = path.join(process.cwd(), "data", "backups");
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
     const backupFile = path.join(backupDir, `entrenoapp-backup-${stamp}.db`);
     fs.copyFileSync(dbPath, backupFile);
 
-    // Mantener como máximo los 7 backups más recientes
+    // Mantener como máximo los 14 backups más recientes (2 semanas de rotación)
     const files = fs
       .readdirSync(backupDir)
       .filter((f) => f.startsWith("entrenoapp-backup-") && f.endsWith(".db"))
       .sort();
 
-    while (files.length > 7) {
+    while (files.length > 14) {
       const oldest = files.shift();
       if (oldest) {
         try {
@@ -692,6 +711,19 @@ export function getDb(): AppDb {
   const wrapped = wrap(db);
   createSchema(wrapped);
   migrateSchema(wrapped);
+
+  // Blindaje de arranque: auto-sincronizar ZeppBridge en segundo plano sin ralentizar el arranque
+  if (!process.env.VERCEL) {
+    setTimeout(async () => {
+      try {
+        const { autoSyncZepp } = await import("@/lib/zepp-auto-sync");
+        autoSyncZepp(false);
+      } catch (e) {
+        // Ignorar si no está configurado en este entorno
+      }
+    }, 1200);
+  }
+
   return wrapped;
 }
 

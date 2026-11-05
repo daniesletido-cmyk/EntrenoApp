@@ -5,6 +5,13 @@ export async function GET(req: NextRequest) {
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
   if (!from || !to) return NextResponse.json({ error: "from y to son obligatorios" }, { status: 400 });
+
+  // Blindaje automático: auto-sincronizar con ZeppBridge si está disponible en segundo plano
+  try {
+    const { autoSyncZepp } = await import("@/lib/zepp-auto-sync");
+    autoSyncZepp(false);
+  } catch {}
+
   return NextResponse.json({ logs: listSleepBetween(from, to) });
 }
 
