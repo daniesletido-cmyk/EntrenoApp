@@ -58,56 +58,71 @@
     <div class="status" id="status">Arrancando el servidor local, un momento…</div>
     <div class="bar"><div class="bar-fill"></div></div>
     <div class="manual" id="manual" style="display:none">
-      <p style="margin:0 0 6px 0; color:#cbd5e1;">El servidor ya debería estar listo:</p>
-      <a href="http://localhost:3210" id="manualLink">Entrar a EntrenoApp &rarr;</a>
+      <p style="margin:0 0 6px 0; color:#cbd5e1;">Acceso directo disponible:</p>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <a href="https://entrenoapp-blond.vercel.app" style="background:#10b981;">Entrar Directo (Online 24/7) &rarr;</a>
+        <a href="http://localhost:3210" id="manualLink" style="background:#3b82f6;">Entrar Servidor Local &rarr;</a>
+      </div>
     </div>
   </div>
   <script>
-    const APP_URL = "http://localhost:3210";
+    const LOCAL_URL = "http://localhost:3210";
+    const CLOUD_URL = "https://entrenoapp-blond.vercel.app";
     const phrases = [
-      "Arrancando el servidor local, un momento…",
+      "Arrancando EntrenoApp, un momento…",
       "Preparando tu plan de entrenamiento…",
-      "Cargando tus datos…",
-      "Ya casi está…",
+      "Cargando tus datos y telemetría…",
+      "Ya casi está listo…",
     ];
     let i = 0;
     const statusEl = document.getElementById("status");
     setInterval(() => {
       i = (i + 1) % phrases.length;
       statusEl.textContent = phrases[i];
-    }, 1800);
+    }, 1500);
 
     let attempts = 0;
     let redirected = false;
 
-    function go() {
+    function go(target) {
       if (redirected) return;
       redirected = true;
-      window.location.href = APP_URL;
+      window.location.href = target || LOCAL_URL;
     }
 
     function checkServer() {
+      if (redirected) return;
       attempts++;
-      if (attempts >= 4) {
+      if (attempts >= 3) {
         document.getElementById("manual").style.display = "block";
       }
 
-      // 1. Probar fetch estándar
-      fetch(APP_URL, { mode: "no-cors", cache: "no-store" })
-        .then(() => go())
+      // Probar conexión al servidor local
+      fetch(LOCAL_URL, { mode: "no-cors", cache: "no-store" })
+        .then(() => go(LOCAL_URL))
         .catch(() => {
-          // 2. Fallback de sonda por imagen (por si CORS/PNA bloquea fetch)
+          // Sonda con imagen para verificar si el servidor local ya levantó
           const probe = new Image();
-          probe.onload = probe.onerror = () => go();
-          probe.src = APP_URL + "/favicon.ico?t=" + Date.now();
-          setTimeout(checkServer, 700);
+          probe.onload = () => go(LOCAL_URL);
+          probe.onerror = () => {
+            // Si tras 4 intentos el servidor local no responde, derivar a la versión Cloud 24/7
+            if (attempts >= 6) {
+              go(CLOUD_URL);
+            } else {
+              setTimeout(checkServer, 600);
+            }
+          };
+          probe.src = LOCAL_URL + "/favicon.ico?t=" + Date.now();
         });
     }
 
-    // Tras 6 segundos, auto-redirigir si aún no ha entrado
+    // Tras 4.5 segundos, si el servidor local no ha respondido, redirigir a Cloud para no hacer esperar al usuario
     setTimeout(() => {
-      document.getElementById("manual").style.display = "block";
-    }, 3000);
+      if (!redirected) {
+        document.getElementById("status").textContent = "Abriendo EntrenoApp...";
+        go(CLOUD_URL);
+      }
+    }, 4500);
 
     checkServer();
   </script>
