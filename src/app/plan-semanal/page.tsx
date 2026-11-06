@@ -26,6 +26,8 @@ import {
   CalendarRange,
   Gauge,
   FileText,
+  Activity,
+  Eye,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -773,7 +775,12 @@ export default function PlanSemanalPage() {
                               <Icon size={20} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="font-extrabold text-sm sm:text-base tracking-tight leading-snug break-words" style={{ color: "var(--color-text)", overflowWrap: "anywhere" }}>
+                              <div
+                                className="font-extrabold text-sm sm:text-base tracking-tight leading-snug break-words cursor-pointer hover:underline"
+                                style={{ color: "var(--color-text)", overflowWrap: "anywhere" }}
+                                onClick={() => setDetailSessionId(s.id)}
+                                title="Ver ficha y métricas completas"
+                              >
                                 {meta.label} {s.planned_code ? `· ${s.planned_code}` : ""}
                               </div>
                               <div className="flex items-center gap-1.5 flex-wrap" style={{ marginTop: 4 }}>
@@ -819,6 +826,15 @@ export default function PlanSemanalPage() {
                           </div>
 
                           <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 self-start pt-0.5">
+                            <button
+                              className="btn btn-ghost"
+                              style={{ width: 32, height: 32, padding: 0, borderRadius: "var(--radius-sm)" }}
+                              aria-label="Ver ficha detallada"
+                              title="Ver ficha, métricas y gráficas"
+                              onClick={() => setDetailSessionId(s.id)}
+                            >
+                              <Activity size={15} style={{ color: "var(--color-primary, #10b981)" }} />
+                            </button>
                             <button
                               className="btn btn-ghost"
                               style={{ width: 32, height: 32, padding: 0, borderRadius: "var(--radius-sm)" }}
