@@ -14,6 +14,13 @@ function resolveDbPath(): string {
   let targetPath = path.join(process.cwd(), "data", "entrenoapp.db");
   if (process.env.VERCEL) {
     targetPath = path.join("/tmp", "entrenoapp.db");
+    // En Vercel: intentar descargar primero la base de datos persistente desde Vercel Blob
+    try {
+      const { syncDownFromBlobSync } = require("@/lib/blob-sync");
+      syncDownFromBlobSync(targetPath);
+    } catch (e) {
+      console.warn("[DB] Fallback al seed en Vercel:", e);
+    }
   } else if (process.env.DB_PATH) {
     targetPath = process.env.DB_PATH;
   } else if (process.env.ENTRENO_DATA_DIR) {
@@ -34,26 +41,6 @@ function resolveDbPath(): string {
       } catch (e) {
         console.error("[DB] Error al inicializar desde seed:", e);
       }
-    }
-  } else if (process.env.VERCEL) {
-    // En Vercel, si existe seed con un hash diferente al actualmente activo y no hay persistencia en Blob,
-    // comprobar si se necesita actualizar.
-    try {
-      if (fs.existsSync(seedPath)) {
-        const hashFile = path.join(dir, ".seed_hash");
-        const seedBuffer = fs.readFileSync(seedPath);
-        const seedHash = crypto.createHash("md5").update(seedBuffer).digest("hex");
-        let activeHash = "";
-        if (fs.existsSync(hashFile)) {
-          activeHash = fs.readFileSync(hashFile, "utf8").trim();
-        }
-        if (activeHash !== seedHash && !fs.existsSync(targetPath)) {
-          fs.writeFileSync(targetPath, seedBuffer);
-          fs.writeFileSync(hashFile, seedHash, "utf8");
-        }
-      }
-    } catch (e) {
-      console.error("[DB] Error de verificación de seed en Vercel:", e);
     }
   }
 
@@ -111,18 +98,27 @@ function wrap(raw: DatabaseSync): AppDb {
 }
 
 export function triggerDataPersistence(): void {
-  if (syncScheduled) return;
-  syncScheduled = true;
+  const dbPath = activeDbPath || resolveDbPath();
 
-  setTimeout(async () => {
-    syncScheduled = false;
+  // 1. En Vercel: persistencia garantizada en Vercel Blob usando la API after() de Next.js
+  if (process.env.VERCEL || process.env.BLOB_READ_WRITE_TOKEN) {
     try {
-      const dbPath = activeDbPath || resolveDbPath();
-      if (!fs.existsSync(dbPath)) return;
+      const { scheduleDbSyncToBlob } = require("@/lib/blob-sync");
+      scheduleDbSyncToBlob(dbPath, db);
+    } catch (err) {
+      console.warn("[DB] Error programando sync a Vercel Blob:", err);
+    }
+  }
 
-      // 1. Blindaje Multi-Target: En entorno local o de escritorio, sincronizar
-      // idénticamente con seed/entrenoapp.db, data/entrenoapp.db y réplicas de Electron.
-      if (!process.env.VERCEL) {
+  // 2. En local: replicar a seed/entrenoapp.db, data/entrenoapp.db y Electron
+  if (!process.env.VERCEL) {
+    if (syncScheduled) return;
+    syncScheduled = true;
+
+    setTimeout(() => {
+      syncScheduled = false;
+      try {
+        if (!fs.existsSync(dbPath)) return;
         const seedPath = path.join(process.cwd(), "seed", "entrenoapp.db");
         const dataPath = path.join(process.cwd(), "data", "entrenoapp.db");
 
@@ -157,26 +153,11 @@ export function triggerDataPersistence(): void {
           lastCloudSyncTime = now;
           rotateLocalBackup(dbPath);
         }
-      } else {
-        // 2. En Vercel: si existe BLOB_READ_WRITE_TOKEN, subir snapshot persistente a Vercel Blob
-        if (process.env.BLOB_READ_WRITE_TOKEN) {
-          try {
-            const { put } = await import("@vercel/blob");
-            const buffer = fs.readFileSync(dbPath);
-            await put("entrenoapp-db/entrenoapp.db", buffer, {
-              access: "public",
-              addRandomSuffix: false,
-            });
-            lastCloudSyncTime = Date.now();
-          } catch (e) {
-            console.warn("[DB] Error sincronizando con Vercel Blob:", e);
-          }
-        }
+      } catch (err) {
+        console.warn("[DB] Error en persistencia de datos local:", err);
       }
-    } catch (err) {
-      console.warn("[DB] Error en persistencia de datos:", err);
-    }
-  }, 1000);
+    }, 1000);
+  }
 }
 
 function rotateLocalBackup(dbPath: string): void {

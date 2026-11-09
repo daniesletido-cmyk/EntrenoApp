@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllSettings, setSettings } from "@/lib/repo/settings";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { isBlobSyncEnabled } from "@/lib/blob-sync";
 
 function publicSettings() {
   const all = getAllSettings();
@@ -11,6 +12,7 @@ function publicSettings() {
     has_gemini_api_key: !!(gemini_api_key || process.env.GEMINI_API_KEY),
     has_any_ai_key: !!(anthropic_api_key || gemini_api_key || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY),
     has_supabase: isSupabaseConfigured(),
+    has_blob_sync: isBlobSyncEnabled(),
   };
 }
 

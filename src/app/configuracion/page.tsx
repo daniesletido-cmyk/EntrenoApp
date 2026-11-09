@@ -567,7 +567,12 @@ export default function ConfiguracionPage() {
                 <HardDrive size={11} />
                 IndexedDB Activo
               </span>
-              {settings.has_supabase ? (
+              {settings.has_blob_sync ? (
+                <span className="badge badge-brand flex items-center gap-1">
+                  <Cloud size={11} />
+                  Vercel Blob 24/7 Conectado
+                </span>
+              ) : settings.has_supabase ? (
                 <span className="badge badge-brand flex items-center gap-1">
                   <Cloud size={11} />
                   Supabase Conectado
