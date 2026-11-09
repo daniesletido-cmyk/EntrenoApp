@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, isoDayOfWeek } from "@/lib/dates";
+import { reconcileSessions, reconcileSleep, saveLocalSession, saveLocalSleep } from "@/lib/client-persistence";
 import WeekSwitcher from "@/components/week-switcher";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -355,12 +356,27 @@ export default function RegistroPage() {
   const load = useCallback(() => {
     fetch(`/api/sessions?week=${weekStart}`)
       .then((r) => r.json())
-      .then((d) => setSessions(d.sessions ?? []));
+      .then(async (d) => {
+        const merged = await reconcileSessions(d.sessions ?? [], weekStart);
+        setSessions(merged);
+      })
+      .catch(async () => {
+        const local = await reconcileSessions([], weekStart);
+        setSessions(local);
+      });
+
     fetch(`/api/sleep?from=${weekStart}&to=${weekEnd}`)
       .then((r) => r.json())
-      .then((d) => {
+      .then(async (d) => {
+        const merged = await reconcileSleep(d.logs ?? [], weekStart, weekEnd);
         const map: Record<string, SleepRow> = {};
-        for (const l of d.logs ?? []) map[l.date] = l;
+        for (const l of merged) map[l.date] = l;
+        setSleepByDate(map);
+      })
+      .catch(async () => {
+        const local = await reconcileSleep([], weekStart, weekEnd);
+        const map: Record<string, SleepRow> = {};
+        for (const l of local) map[l.date] = l;
         setSleepByDate(map);
       });
   }, [weekStart, weekEnd]);
@@ -417,6 +433,7 @@ export default function RegistroPage() {
 
   async function saveSession(s: SessionRow) {
     setSavingId(s.id);
+    await saveLocalSession(s as never);
     try {
       const res = await fetch(`/api/sessions/${s.id}`, {
         method: "PATCH",
@@ -438,13 +455,13 @@ export default function RegistroPage() {
           `🎉 ¡Semana cerrada! La siguiente semana (${data.autoAdapted.nextWeekStart}) se ha adaptado al completo según tu carga real (${data.autoAdapted.strategyTitle}).`
         );
       } else {
-        toast.push("success", "Sesión guardada");
+        toast.push("success", "Sesión guardada (en la nube y local)");
       }
       if (s.status === "realizada" || s.status === "parcial") {
         evaluateReadinessFeedback(s.date);
       }
     } catch {
-      toast.push("error", "No se pudo guardar la sesión");
+      toast.push("info", "Sesión guardada en tu dispositivo (se sincronizará al reconectar)");
     } finally {
       setSavingId(null);
     }
@@ -507,11 +524,18 @@ export default function RegistroPage() {
   }
 
   async function saveSleep(date: string, sleep: Partial<SleepRow>) {
-    await fetch("/api/sleep", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, ...sleep }),
-    });
+    await saveLocalSleep({ date, ...sleep } as never);
+    try {
+      const res = await fetch("/api/sleep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, ...sleep }),
+      });
+      if (!res.ok) throw new Error();
+      toast.push("success", "Sueño guardado (en la nube y local)");
+    } catch {
+      toast.push("info", "Sueño guardado en tu dispositivo");
+    }
     load();
     evaluateReadinessFeedback(date);
   }

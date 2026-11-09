@@ -46,6 +46,7 @@ import { SessionFeedbackCard } from "@/components/session-feedback-card";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import type { SessionRow } from "@/lib/repo/sessions";
+import { reconcileSessions, saveLocalSession, saveLocalSessions } from "@/lib/client-persistence";
 
 interface PlanPreviewRow {
   date: string;
@@ -125,9 +126,11 @@ export default function PlanSemanalPage() {
     try {
       const res = await fetch(`/api/sessions?week=${weekStart}&t=${Date.now()}`, { cache: "no-store" });
       const d = await res.json();
-      setSessions(d.sessions ?? []);
+      const merged = await reconcileSessions(d.sessions ?? [], weekStart);
+      setSessions(merged);
     } catch {
-      // silencioso al refrescar
+      const local = await reconcileSessions([], weekStart);
+      setSessions(local);
     } finally {
       setRefreshing(false);
     }

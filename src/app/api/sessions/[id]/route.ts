@@ -118,6 +118,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
   }
 
+  // Persistencia garantizada en Supabase
+  try {
+    const { isSupabaseConfigured, upsertSessionToSupabase } = await import("@/lib/supabase");
+    if (isSupabaseConfigured()) {
+      await upsertSessionToSupabase(session);
+    }
+  } catch (err) {
+    console.warn("[Session PATCH] Error replicando en Supabase:", err);
+  }
+
   // Si la sesión completada es del domingo (cierre de semana), adaptar automáticamente la semana siguiente al completo
   let autoAdaptedInfo = null;
   if (session.status === "realizada") {
@@ -168,5 +178,18 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const sessionId = Number(id);
   if (!Number.isFinite(sessionId)) return NextResponse.json({ error: "id inválido" }, { status: 400 });
   deleteSession(sessionId);
+
+  try {
+    const { isSupabaseConfigured, getSupabase } = await import("@/lib/supabase");
+    if (isSupabaseConfigured()) {
+      const sb = getSupabase();
+      if (sb) {
+        await sb.from("workouts").delete().or(`id.eq.${sessionId},client_id.eq.${sessionId}`);
+      }
+    }
+  } catch (err) {
+    console.warn("[Session DELETE] Error eliminando en Supabase:", err);
+  }
+
   return NextResponse.json({ ok: true });
 }

@@ -1,14 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPlannedSession, bulkCreateSessions, listSessionsForWeek, listSessionsBetween, Discipline } from "@/lib/repo/sessions";
+import {
+  createPlannedSession,
+  bulkCreateSessions,
+  listSessionsForWeek,
+  listSessionsBetween,
+  Discipline,
+} from "@/lib/repo/sessions";
 import { weekStartOf, todayISO } from "@/lib/dates";
+import { isSupabaseConfigured, upsertSessionToSupabase, fetchSessionsFromSupabase } from "@/lib/supabase";
+
+const VALID_DISCIPLINES = new Set([
+  "carrera",
+  "gimnasio",
+  "natacion",
+  "crossfit",
+  "ciclismo",
+  "caminata",
+  "remo",
+  "otro",
+  "descanso",
+]);
+
+function validateSessionPayload(data: Record<string, unknown>): { valid: boolean; error?: string } {
+  if (!data.date || typeof data.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+    return { valid: false, error: "La fecha debe tener formato YYYY-MM-DD" };
+  }
+
+  if (!data.discipline || typeof data.discipline !== "string" || !VALID_DISCIPLINES.has(data.discipline)) {
+    return { valid: false, error: "La disciplina seleccionada no es válida" };
+  }
+
+  if (data.duration_min != null && data.duration_min !== "") {
+    const d = Number(data.duration_min);
+    if (isNaN(d) || d < 0) {
+      return { valid: false, error: "La duración en minutos no puede ser negativa" };
+    }
+  }
+
+  if (data.distance_km != null && data.distance_km !== "") {
+    const k = Number(data.distance_km);
+    if (isNaN(k) || k < 0) {
+      return { valid: false, error: "La distancia en kilómetros no puede ser negativa" };
+    }
+  }
+
+  if (data.rpe != null && data.rpe !== "") {
+    const r = Number(data.rpe);
+    if (isNaN(r) || r < 1 || r > 10) {
+      return { valid: false, error: "El RPE debe estar comprendido entre 1 y 10" };
+    }
+  }
+
+  return { valid: true };
+}
 
 export async function GET(req: NextRequest) {
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
+  const week = req.nextUrl.searchParams.get("week") ?? weekStartOf(todayISO());
+
+  // Si Supabase está configurado, recuperar de Supabase (persistencia definitiva en la nube)
+  if (isSupabaseConfigured()) {
+    try {
+      const fromDate = from || (week ? weekStartOf(week) : undefined);
+      const toDate = to || undefined;
+      const cloudSessions = await fetchSessionsFromSupabase(fromDate, toDate);
+      if (cloudSessions && cloudSessions.length > 0) {
+        if (from && to) {
+          return NextResponse.json({ sessions: cloudSessions });
+        }
+        return NextResponse.json({ weekStart: weekStartOf(week), sessions: cloudSessions });
+      }
+    } catch (e) {
+      console.warn("[Sessions GET] Error consultando Supabase, usando SQLite fallback:", e);
+    }
+  }
+
   if (from && to) {
     return NextResponse.json({ sessions: listSessionsBetween(from, to) });
   }
-  const week = req.nextUrl.searchParams.get("week") ?? weekStartOf(todayISO());
+
   const sessions = listSessionsForWeek(weekStartOf(week));
   return NextResponse.json({ weekStart: weekStartOf(week), sessions });
 }
@@ -19,17 +90,28 @@ export async function POST(req: NextRequest) {
   // Soporte para inserción en lote atómica
   if (Array.isArray(body) || Array.isArray(body.sessions)) {
     const items = Array.isArray(body) ? body : body.sessions;
-    const valid = items.filter((b: { date?: string; discipline?: string }) => b.date && b.discipline);
+    const valid = items.filter((b: Record<string, unknown>) => validateSessionPayload(b).valid);
     if (valid.length === 0) {
       return NextResponse.json({ error: "Ninguna sesión válida para crear" }, { status: 400 });
     }
     const created = bulkCreateSessions(valid);
+
+    // Persistencia simultánea en Supabase si está activo
+    if (isSupabaseConfigured()) {
+      for (const s of created) {
+        await upsertSessionToSupabase(s).catch(() => {});
+      }
+    }
+
     return NextResponse.json({ sessions: created, count: created.length }, { status: 201 });
   }
 
-  if (!body.date || !body.discipline) {
-    return NextResponse.json({ error: "date y discipline son obligatorios" }, { status: 400 });
+  // Validación individual
+  const check = validateSessionPayload(body);
+  if (!check.valid) {
+    return NextResponse.json({ error: check.error }, { status: 400 });
   }
+
   let session = createPlannedSession({
     date: body.date,
     discipline: body.discipline as Discipline,
@@ -66,6 +148,11 @@ export async function POST(req: NextRequest) {
         console.warn("[Session Push] Error al notificar nueva sesión realizada:", pushErr);
       }
     }
+  }
+
+  // Persistencia garantizada en Supabase
+  if (isSupabaseConfigured()) {
+    await upsertSessionToSupabase(session).catch(() => {});
   }
 
   return NextResponse.json({ session }, { status: 201 });

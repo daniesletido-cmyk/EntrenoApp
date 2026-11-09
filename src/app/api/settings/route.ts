@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllSettings, setSettings } from "@/lib/repo/settings";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
-// La clave de API de Anthropic nunca se devuelve al cliente (igual que los
-// hashes de contraseña en FinanzasApp) — solo se usa en el servidor.
 function publicSettings() {
   const all = getAllSettings();
   const { anthropic_api_key, gemini_api_key, ...rest } = all;
@@ -11,6 +10,7 @@ function publicSettings() {
     has_anthropic_api_key: !!(anthropic_api_key || process.env.ANTHROPIC_API_KEY),
     has_gemini_api_key: !!(gemini_api_key || process.env.GEMINI_API_KEY),
     has_any_ai_key: !!(anthropic_api_key || gemini_api_key || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY),
+    has_supabase: isSupabaseConfigured(),
   };
 }
 
@@ -19,9 +19,10 @@ export async function GET() {
     settings: publicSettings(),
     app_info: {
       version: "0.1.0",
-      bundle_source: process.env.ENTRENO_BUNDLE_SOURCE || "Desarrollo Local",
+      bundle_source: process.env.ENTRENO_BUNDLE_SOURCE || (process.env.VERCEL ? "Vercel Serverless" : "Desarrollo Local"),
       node_env: process.env.NODE_ENV || "development",
       port: process.env.PORT || "3210",
+      supabase_connected: isSupabaseConfigured(),
     },
   });
 }

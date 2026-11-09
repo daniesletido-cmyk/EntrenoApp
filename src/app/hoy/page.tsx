@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { todayISO, isoDayOfWeek, weekStartOf, weekDates } from "@/lib/dates";
+import { reconcileSessions, reconcileSleep } from "@/lib/client-persistence";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -230,12 +231,20 @@ export default function HoyPage() {
 
       const s: Record<string, string> = settingsRes.settings ?? {};
       setSettings(s);
-      setSessions(sessionsRes.sessions ?? []);
-      setWeekSessions(weekSessionsRes.sessions ?? []);
+
+      // Reconciliación blindada con IndexedDB
+      const reconciledToday = await reconcileSessions(sessionsRes.sessions ?? []);
+      setSessions(reconciledToday.filter((x) => x.date === today));
+
+      const reconciledWeek = await reconcileSessions(weekSessionsRes.sessions ?? [], currentWeekStart);
+      setWeekSessions(reconciledWeek);
+
       setRec(recRes);
       setReadiness(readinessRes.readiness ?? null);
+
       const sleepLogs: SleepRow[] = sleepRes.logs ?? sleepRes.sleepLogs ?? [];
-      setSleep(sleepLogs.find((l) => l.date === today) ?? null);
+      const reconciledSleep = await reconcileSleep(sleepLogs as never, today, today);
+      setSleep((reconciledSleep.find((l) => l.date === today) as never) ?? null);
 
       const phase = phaseForDate(today, s);
       const menuRes = await fetch(`/api/menu?phase=${phase}&t=${t}`, { cache: "no-store" }).then((r) => r.json());

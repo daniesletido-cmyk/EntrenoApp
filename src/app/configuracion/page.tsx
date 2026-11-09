@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink } from "lucide-react";
+import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink, Database, Cloud, HardDrive, Copy, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SecuritySettingsModal } from "@/components/auth/security-settings-modal";
 import { isAppLockEnabled, getAppLockType } from "@/lib/security";
 import { PushNotificationBanner } from "@/components/push/push-notification-banner";
+import { downloadJSONBackupFile, importDataFromJSON } from "@/lib/client-persistence";
+import { SUPABASE_SQL_SCHEMA } from "@/lib/supabase";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -195,6 +197,63 @@ export default function ConfiguracionPage() {
     } catch {
       toast.push("error", "No se pudo conectar con el portal de facturación.");
     }
+  }
+
+  const [exportingJSON, setExportingJSON] = useState(false);
+  const [restoringJSON, setRestoringJSON] = useState(false);
+  const [copiedSchema, setCopiedSchema] = useState(false);
+
+  async function handleDownloadJSONBackup() {
+    setExportingJSON(true);
+    try {
+      const filename = await downloadJSONBackupFile();
+      toast.push("success", `Copia de seguridad descargada: ${filename}`);
+    } catch {
+      toast.push("error", "Error al exportar la copia de seguridad JSON");
+    } finally {
+      setExportingJSON(false);
+    }
+  }
+
+  function handleRestoreJSON(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+
+      setConfirmState({
+        open: true,
+        title: `¿Restaurar copia de seguridad "${file.name}"?`,
+        description: "Se importarán todos tus entrenamientos y registros de sueño tanto a la base de datos como a la memoria local protegida (IndexedDB).",
+        confirmLabel: "Restaurar ahora",
+        tone: "warning",
+        onConfirm: async () => {
+          setConfirmState((prev) => ({ ...prev, open: false }));
+          setRestoringJSON(true);
+          try {
+            const res = await importDataFromJSON(content);
+            toast.push("success", `¡Restauración completada! ${res.sessionsCount} sesiones y ${res.sleepCount} noches de sueño cargadas con éxito.`);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Error al restaurar JSON";
+            toast.push("error", msg);
+          } finally {
+            setRestoringJSON(false);
+          }
+        },
+      });
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function copySupabaseSchema() {
+    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
+    setCopiedSchema(true);
+    toast.push("success", "Script SQL de Supabase copiado al portapapeles");
+    setTimeout(() => setCopiedSchema(false), 3000);
   }
 
   function handleRestore(e: React.ChangeEvent<HTMLInputElement>) {
@@ -496,28 +555,118 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
+        {/* SECCIÓN PERSISTENCIA Y COPIAS DE SEGURIDAD (JSON & SUPABASE) */}
         <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-2)" }}>
-            Copia de seguridad
-          </div>
-          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
-            Crea una copia de tu base de datos cuando quieras y guárdala donde tú decidas (por ejemplo, una carpeta
-            de tu Google Drive de escritorio). La app nunca sube ni sincroniza nada por su cuenta.
-          </p>
-          <a href="/api/backup/export" className="btn btn-primary" style={{ display: "inline-flex", marginBottom: "var(--space-4)" }}>
-            <Download size={15} />
-            Crear copia de seguridad
-          </a>
-
-          <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-3)" }}>
-            <div className="text-sm font-medium" style={{ marginBottom: "var(--space-2)" }}>
-              Restaurar una copia
+          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Database size={16} className="text-emerald-400" />
+              Persistencia Blindada & Copias de Seguridad
             </div>
-            <label className="btn btn-secondary" style={{ display: "inline-flex", cursor: "pointer" }}>
-              <Upload size={15} />
-              {restoring ? "Restaurando…" : "Elegir archivo .db"}
-              <input type="file" accept=".db" onChange={handleRestore} disabled={restoring} style={{ display: "none" }} />
-            </label>
+            <div className="flex items-center gap-2">
+              <span className="badge badge-success flex items-center gap-1">
+                <HardDrive size={11} />
+                IndexedDB Activo
+              </span>
+              {settings.has_supabase ? (
+                <span className="badge badge-brand flex items-center gap-1">
+                  <Cloud size={11} />
+                  Supabase Conectado
+                </span>
+              ) : (
+                <span className="badge badge-neutral flex items-center gap-1">
+                  <Cloud size={11} />
+                  Nube SQLite
+                </span>
+              )}
+            </div>
+          </div>
+
+          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-4)" }}>
+            Tus entrenamientos y registros de sueño cuentan con <strong>doble blindaje</strong>: almacenamiento local en <strong>IndexedDB</strong> en tu navegador (a prueba de recargas y reinicios de servidor) y sincronización con base de datos permanente.
+          </p>
+
+          {/* ACCIONES DE RESPALDO JSON UNIVERSALES */}
+          <div
+            style={{
+              background: "var(--color-bg-subtle)",
+              padding: "var(--space-3)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border)",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            <div className="text-xs font-semibold" style={{ marginBottom: "var(--space-2)", color: "var(--color-brand)" }}>
+              RESPALDO UNIVERSAL JSON (INDEPENDIENTE DEL SERVIDOR)
+            </div>
+            <p className="text-xs text-muted" style={{ marginBottom: "var(--space-3)" }}>
+              Exporta tu historial completo de entrenamientos y sueños en un archivo JSON portable, o restaúralo en cualquier dispositivo o navegador en 1 segundo.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="primary"
+                loading={exportingJSON}
+                onClick={handleDownloadJSONBackup}
+              >
+                <Download size={14} />
+                <span>Descargar copia de seguridad (JSON)</span>
+              </Button>
+
+              <label className="btn btn-secondary" style={{ display: "inline-flex", cursor: "pointer", gap: 6, margin: 0 }}>
+                <Upload size={14} />
+                <span>{restoringJSON ? "Restaurando…" : "Restaurar datos (JSON)"}</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleRestoreJSON}
+                  disabled={restoringJSON}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* PERSISTENCIA EN LA NUBE SUPABASE */}
+          <div
+            style={{
+              background: "var(--color-bg-subtle)",
+              padding: "var(--space-3)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border)",
+              marginBottom: "var(--space-3)",
+            }}
+          >
+            <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-1)" }}>
+              <div className="text-xs font-semibold flex items-center gap-1.5">
+                <Cloud size={13} className="text-sky-400" />
+                Persistencia en Supabase (PostgreSQL en la Nube)
+              </div>
+              <Button variant="ghost" onClick={copySupabaseSchema}>
+                {copiedSchema ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                <span>{copiedSchema ? "SQL Copiado" : "Copiar SQL para Supabase"}</span>
+              </Button>
+            </div>
+            <p className="text-xs text-muted">
+              {settings.has_supabase
+                ? "Conexión activa con Supabase. Cada sesión y registro de sueño se escribe simultáneamente en PostgreSQL en la nube."
+                : "Para persistencia permanente en Vercel, añade NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en los Environment Variables de tu proyecto en Vercel."}
+            </p>
+          </div>
+
+          {/* COPIA NATIVA .DB */}
+          <div className="flex items-center justify-between pt-2 text-xs text-muted">
+            <span>Copia de base de datos SQLite (.db clásica):</span>
+            <div className="flex items-center gap-2">
+              <a href="/api/backup/export" className="btn btn-ghost" style={{ fontSize: "11px", padding: "4px 8px" }}>
+                <Download size={12} />
+                Exportar .db
+              </a>
+              <label className="btn btn-ghost" style={{ fontSize: "11px", padding: "4px 8px", cursor: "pointer", margin: 0 }}>
+                <Upload size={12} />
+                {restoring ? "…" : "Restaurar .db"}
+                <input type="file" accept=".db" onChange={handleRestore} disabled={restoring} style={{ display: "none" }} />
+              </label>
+            </div>
           </div>
         </div>
 

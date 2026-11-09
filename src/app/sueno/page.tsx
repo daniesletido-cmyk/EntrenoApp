@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { todayISO, addDays, weekDates } from "@/lib/dates";
+import { reconcileSleep, saveLocalSleep } from "@/lib/client-persistence";
 import { haptics } from "@/lib/haptics";
 import type { SleepRow } from "@/lib/repo/sleep";
 
@@ -90,13 +91,20 @@ export default function SuenoPage() {
       setLoading(true);
       const from = addDays(todayISO(), -35);
       const to = addDays(todayISO(), 3);
-      const res = await fetch(`/api/sleep?from=${from}&to=${to}`);
-      if (!res.ok) throw new Error("Error cargando datos de sueño");
-      const data = await res.json();
-      setLogs(data.logs || []);
+      const res = await fetch(`/api/sleep?from=${from}&to=${to}`).catch(() => null);
+      let serverLogs: SleepRow[] = [];
+      if (res && res.ok) {
+        const data = await res.json();
+        serverLogs = data.logs || [];
+      }
+      // Reconciliación con persistencia blindada en IndexedDB
+      const merged = await reconcileSleep(serverLogs, from, to);
+      setLogs(merged);
     } catch (e) {
       console.error(e);
-      toast.push("error", "Error conectando con la base de datos de sueño");
+      // Fallback a IndexedDB local en caso de error
+      const local = await reconcileSleep([], addDays(todayISO(), -35), addDays(todayISO(), 3));
+      setLogs(local);
     } finally {
       setLoading(false);
     }
@@ -219,18 +227,33 @@ export default function SuenoPage() {
     return list;
   }, [logs, selectedDate, historyDays]);
 
-  // Guardar datos en modal
+  // Guardar datos en modal con validaciones y doble persistencia
   const handleSaveModal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const hoursNum = parseFloat(formData.hours);
+      if (isNaN(hoursNum) || hoursNum < 0 || hoursNum > 24) {
+        toast.push("error", "Las horas de sueño deben ser un número válido entre 0 y 24");
+        return;
+      }
+
+      const qualityNum = parseInt(formData.quality, 10);
+      if (isNaN(qualityNum) || qualityNum < 1 || qualityNum > 5) {
+        toast.push("error", "La calidad debe estar entre 1 y 5 estrellas");
+        return;
+      }
+
       const deepNum = parseFloat(formData.deep_min) || 0;
       const remNum = parseFloat(formData.rem_min) || 0;
       const lightNum = parseFloat(formData.light_min) || 0;
       const awakeNum = parseFloat(formData.awake_min) || 0;
       const napNum = parseFloat(formData.nap_min) || 0;
-      const scoreNum = parseInt(formData.score, 10) || Math.round(hoursNum * 11);
-      const qualityNum = parseInt(formData.quality, 10) || 4;
+      const scoreNum = parseInt(formData.score, 10) || Math.min(100, Math.round(hoursNum * 11 + qualityNum * 3));
+
+      if (scoreNum < 0 || scoreNum > 100) {
+        toast.push("error", "La puntuación de sueño debe estar entre 0 y 100");
+        return;
+      }
 
       const payload = {
         date: formData.date,
@@ -255,15 +278,22 @@ export default function SuenoPage() {
         source: "manual",
       };
 
+      // 1. Guardar de inmediato en IndexedDB del navegador (blindaje contra recargas o reinicios)
+      await saveLocalSleep(payload as unknown as SleepRow);
+
+      // 2. Enviar a la API del servidor (SQLite + Supabase)
       const res = await fetch("/api/sleep", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Fallo al guardar registro de sueño");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Fallo al guardar en el servidor");
+      }
 
-      toast.push("success", "Registro de sueño guardado con éxito");
+      toast.push("success", "Registro de sueño guardado con éxito (en la nube y en tu dispositivo)");
       setIsModalOpen(false);
       await loadSleepData();
     } catch (err: unknown) {
