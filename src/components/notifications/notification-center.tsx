@@ -83,7 +83,7 @@ function extractSubscriptionPayload(sub: PushSubscription) {
       endpoint: sub.endpoint,
       keys: { p256dh, auth },
     },
-    deviceType: "mobile",
+    deviceType: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "mobile" : "desktop",
   };
 }
 

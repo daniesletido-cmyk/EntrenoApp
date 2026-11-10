@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
     try {
       pushResult = await sendWorkoutLoadedPush({
         id: savedWorkout.id,
+        fecha: savedWorkout.fecha,
         tipo: savedWorkout.tipo,
         distancia: savedWorkout.distancia,
         duracion: savedWorkout.duracion,

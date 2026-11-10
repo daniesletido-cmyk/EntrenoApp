@@ -336,10 +336,10 @@ export function PushNotificationBanner({
                 </div>
                 <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-bold text-white whitespace-nowrap">
-                    Avisos en tu móvil:
+                    Avisos en móvil y PC:
                   </span>
                   <span className="text-xs text-slate-300 truncate">
-                    Recibe tu informe de entreno diario y alertas del coach
+                    Recibe feedback completo al cargar entrenos y sueño
                   </span>
                 </div>
               </div>

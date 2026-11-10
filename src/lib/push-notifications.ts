@@ -2,9 +2,12 @@ import webpush from "web-push";
 import {
   getAllPushSubscriptions,
   deletePushSubscription,
-  PushSubscriptionRow,
 } from "@/lib/repo/push-subscriptions";
 import { createNotification } from "@/lib/repo/notifications";
+import { getSessionById, listSessionsBetween } from "@/lib/repo/sessions";
+import { computeDailyReadiness } from "@/lib/readiness";
+import { buildStructuredFitDiagnostics } from "@/lib/fit-feedback";
+import { sessionLoad } from "@/lib/recommendations";
 
 // Fallback de desarrollo para que nunca falle la inicialización si aún no se configuran las VAPID en .env
 const DEFAULT_VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:entrenoapp@danielespinosa.es";
@@ -114,28 +117,43 @@ export async function sendPushToAll(payload: PushNotificationPayload): Promise<{
 }
 
 /**
- * Envía notificación push instantánea cuando se procesa un entrenamiento
+ * Envía notificación push instantánea cuando se procesa un entrenamiento desde Suunto/Intervals
  */
 export async function sendWorkoutLoadedPush(workout: {
   id: number;
+  fecha?: string;
+  sessionId?: number;
   tipo: string;
   distancia?: number | null;
   duracion: number;
   carga_tss?: number | null;
 }) {
   const sportName = workout.tipo.charAt(0).toUpperCase() + workout.tipo.slice(1);
-  const distText = workout.distancia != null ? `${Number(workout.distancia).toFixed(1)} km` : `${workout.duracion} min`;
+  const distText = workout.distancia != null ? `${Number(workout.distancia).toFixed(2)} km` : `${workout.duracion} min`;
   const tssText = workout.carga_tss != null ? `${Math.round(workout.carga_tss)} TSS` : "";
-  const metricsLine = [distText, tssText].filter(Boolean).join(" · ");
+  const metricsLine = [distText, `${workout.duracion} min`, tssText].filter(Boolean).join(" · ");
 
-  const title = `Entrenamiento analizado`;
-  const body = `${sportName}: ${metricsLine}. Métricas y carga disponibles.`;
+  let targetUrl = workout.fecha ? `/detalle?date=${workout.fecha}` : `/detalle`;
+  if (workout.sessionId) {
+    targetUrl = `/detalle?id=${workout.sessionId}${workout.fecha ? `&date=${workout.fecha}` : ""}`;
+  } else if (workout.fecha) {
+    try {
+      const sameDay = listSessionsBetween(workout.fecha, workout.fecha);
+      const match = sameDay.find((s) => s.discipline === workout.tipo) || sameDay[0];
+      if (match) {
+        targetUrl = `/detalle?id=${match.id}&date=${match.date}`;
+      }
+    } catch {}
+  }
+
+  const title = `🏅 ${sportName} sincronizado y analizado`;
+  const body = `${metricsLine}.\nPulsa para ver el feedback técnico, zonas de pulso y carga.`;
 
   try {
     createNotification({
       title,
       body,
-      url: `/entrenos/${workout.id}`,
+      url: targetUrl,
       category: "workout",
     });
   } catch {}
@@ -143,18 +161,18 @@ export async function sendWorkoutLoadedPush(workout: {
   return sendPushToAll({
     title,
     body,
-    data: {
-      url: `/entrenos/${workout.id}`,
-    },
-    tag: `workout-${workout.id}`,
+    data: { url: targetUrl },
+    tag: `workout-${workout.sessionId || workout.id}`,
   });
 }
 
 /**
  * Envía notificación push instantánea cuando el informe diario de un entreno está listo
+ * Lleva directamente al feedback completo del entreno (/detalle?id=...&date=...)
  */
 export async function sendDailyReportPush(session: {
   id: number;
+  date?: string | null;
   discipline: string;
   distance_km?: number | null;
   duration_min?: number | null;
@@ -163,32 +181,72 @@ export async function sendDailyReportPush(session: {
   carga_tss?: number | null;
   pace?: string | null;
 }) {
-  const sportName = session.discipline.charAt(0).toUpperCase() + session.discipline.slice(1);
-  const distText = session.distance_km != null && session.distance_km > 0
-    ? `${Number(session.distance_km).toFixed(1)} km`
-    : "";
-  const durationText = session.duration_min != null && session.duration_min > 0
-    ? `${session.duration_min} min`
-    : "";
+  const fullSession = getSessionById(session.id);
+  const dateStr = session.date || fullSession?.date || "";
+  const discipline = fullSession?.discipline || session.discipline;
+  const distVal = fullSession?.distance_km ?? session.distance_km;
+  const durVal = fullSession?.duration_min ?? session.duration_min;
+
+  const sportLabelMap: Record<string, string> = {
+    carrera: "🏃 Carrera",
+    natacion: "🏊 Natación",
+    crossfit: "🏋️ CrossFit",
+    gimnasio: "💪 Gimnasio",
+    ciclismo: "🚴 Ciclismo",
+    caminata: "🥾 Caminata",
+    remo: "🚣 Remo",
+  };
+  const sportName = sportLabelMap[discipline] || (discipline.charAt(0).toUpperCase() + discipline.slice(1));
+
+  const distText = distVal != null && distVal > 0 ? `${Number(distVal).toFixed(2)} km` : "";
+  const durationText = durVal != null && durVal > 0 ? `${Math.round(durVal)} min` : "";
   let paceText = session.pace ? session.pace : "";
-  if (!paceText && session.distance_km && session.distance_km > 0 && session.duration_min && session.duration_min > 0 && session.discipline.toLowerCase().includes("carrer")) {
-    const minPerKm = session.duration_min / session.distance_km;
+  let verdict = "Completado";
+  let feedbackSummary = "Pulsa para abrir el feedback completo: zonas, métricas Suunto y carga.";
+  let extraMetrics = "";
+
+  if (fullSession) {
+    const fLoad = sessionLoad(fullSession);
+    if (fullSession.fit_data) {
+      try {
+        const fitObj = JSON.parse(fullSession.fit_data);
+        const diag = buildStructuredFitDiagnostics(fitObj, fullSession);
+        if (diag.complianceVerdict) verdict = diag.complianceVerdict;
+        if (diag.summary) feedbackSummary = diag.summary;
+
+        if (!paceText && discipline === "natacion" && fitObj.deepAnalysis?.swimmingMetrics?.pacePer100mFormatted) {
+          paceText = fitObj.deepAnalysis.swimmingMetrics.pacePer100mFormatted;
+        }
+        const avgHr = fitObj.avgHeartRate ? `${Math.round(fitObj.avgHeartRate)} lpm` : "";
+        const pte = diag.suuntoReport?.pte ?? fitObj.pte;
+        const pteTxt = pte != null ? `PTE ${Number(pte).toFixed(1)}` : "";
+        const loadTxt = fLoad > 0 ? `${Math.round(fLoad)} UA` : "";
+        extraMetrics = [avgHr, pteTxt, loadTxt].filter(Boolean).join(" · ");
+      } catch {}
+    } else if (fLoad > 0) {
+      extraMetrics = `${Math.round(fLoad)} UA`;
+    }
+  }
+
+  if (!paceText && distVal && distVal > 0 && durVal && durVal > 0 && discipline.toLowerCase().includes("carrer")) {
+    const minPerKm = durVal / distVal;
     const mins = Math.floor(minPerKm);
     const secs = Math.round((minPerKm - mins) * 60);
     paceText = `${mins}:${secs.toString().padStart(2, "0")}/km`;
   }
   const tssText = session.carga_tss != null ? `${Math.round(session.carga_tss)} TSS` : "";
 
-  const metrics = [distText, durationText, paceText, tssText].filter(Boolean).join(" · ") || session.planned_code || "Completado";
+  const metrics = [distText, durationText, paceText, extraMetrics || tssText].filter(Boolean).join(" · ") || session.planned_code || "Completado";
 
-  const title = `Informe de hoy listo`;
-  const body = `${sportName}: ${metrics}.\nAnálisis de carga y conclusiones preparados.`;
+  const title = `${sportName} analizada · ${verdict}`;
+  const body = `${metrics}\n${feedbackSummary} Pulsa para ver el feedback completo.`;
+  const targetUrl = `/detalle?id=${session.id}${dateStr ? `&date=${dateStr}` : ""}`;
 
   try {
     createNotification({
       title,
       body,
-      url: `/entrenos/${session.id}`,
+      url: targetUrl,
       category: "daily_report",
     });
   } catch {}
@@ -196,15 +254,13 @@ export async function sendDailyReportPush(session: {
   return sendPushToAll({
     title,
     body,
-    data: {
-      url: `/entrenos/${session.id}`,
-    },
+    data: { url: targetUrl },
     tag: `daily-report-${session.id}`,
   });
 }
 
 /**
- * Envía notificación push cuando el informe semanal está listo
+ * Envía notificación push instantánea cuando el informe semanal está listo
  */
 export async function sendWeeklyReportPush(weekStart: string, summary?: { totalKm?: number; totalTss?: number; sessionsCount?: number }) {
   const kmText = summary?.totalKm ? `${summary.totalKm.toFixed(1)} km` : "";
@@ -212,7 +268,7 @@ export async function sendWeeklyReportPush(weekStart: string, summary?: { totalK
   const sessionsText = summary?.sessionsCount ? `${summary.sessionsCount} sesiones` : "";
   const statsLine = [kmText, sessionsText, tssText].filter(Boolean).join(" · ") || "Semana cerrada";
 
-  const title = `Informe semanal listo`;
+  const title = `📊 Informe semanal listo`;
   const body = `${statsLine}.\nBalance de carga y adaptaciones disponibles.`;
 
   try {
@@ -235,26 +291,60 @@ export async function sendWeeklyReportPush(weekStart: string, summary?: { totalK
 }
 
 /**
- * Envía notificación push instantánea cuando se registra o sincroniza el sueño
+ * Envía notificación push instantánea cuando se registra o sincroniza el sueño con análisis de Readiness
  */
 export async function sendSleepRecordedPush(sleep: {
   date: string;
   hours?: number | null;
   score?: number | null;
   quality?: number | null;
+  deep_min?: number | null;
+  rem_min?: number | null;
+  hrv_rmssd?: number | null;
+  resting_hr?: number | null;
 }) {
-  const hoursText = sleep.hours != null ? `${Number(sleep.hours).toFixed(1)}h de sueño` : "Sueño registrado";
-  const scoreText = sleep.score != null ? `Puntuación ${sleep.score}/100` : "";
-  const metrics = [hoursText, scoreText].filter(Boolean).join(" · ");
+  const hoursText = sleep.hours != null ? `${Number(sleep.hours).toFixed(1)}h` : "Sueño";
+  const stages = [
+    sleep.deep_min != null ? `${Math.round(sleep.deep_min)}m prof` : "",
+    sleep.rem_min != null ? `${Math.round(sleep.rem_min)}m REM` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const scoreText = sleep.score != null ? `Score ${sleep.score}/100` : "";
+  const bioText = [
+    sleep.hrv_rmssd != null ? `HRV ${Math.round(sleep.hrv_rmssd)} ms` : "",
+    sleep.resting_hr != null ? `FC ${Math.round(sleep.resting_hr)} lpm` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  const title = `Sueño registrado`;
-  const body = `${metrics}.\nMétricas de recuperación y readiness actualizadas.`;
+  let readinessBadge = "";
+  let readinessAdvice = "Pulsa para ver fases del sueño, HRV y recomendación de carga.";
+  try {
+    const r = computeDailyReadiness(sleep.date);
+    if (r?.score) {
+      readinessBadge = ` · Readiness ${r.score}/100`;
+      readinessAdvice = `${r.headline}. Pulsa para ver el feedback completo.`;
+    }
+  } catch {}
+
+  const metrics = [
+    stages ? `${hoursText} (${stages})` : hoursText,
+    scoreText,
+    bioText,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const title = `😴 Sueño sincronizado${readinessBadge}`;
+  const body = `${metrics}\n${readinessAdvice}`;
+  const targetUrl = `/sueno?date=${sleep.date}`;
 
   try {
     createNotification({
       title,
       body,
-      url: `/hoy`,
+      url: targetUrl,
       category: "sleep",
     });
   } catch {}
@@ -262,9 +352,7 @@ export async function sendSleepRecordedPush(sleep: {
   return sendPushToAll({
     title,
     body,
-    data: {
-      url: `/hoy`,
-    },
+    data: { url: targetUrl },
     tag: `sleep-${sleep.date}`,
   });
 }

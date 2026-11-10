@@ -111,6 +111,13 @@ export default function SuenoPage() {
   };
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlDate = params.get("date");
+      if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)) {
+        setSelectedDate(urlDate);
+      }
+    } catch {}
     loadSleepData();
   }, []);
 

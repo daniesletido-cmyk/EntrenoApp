@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
         const { sendDailyReportPush } = await import("@/lib/push-notifications");
         await sendDailyReportPush({
           id: session.id,
+          date: session.date,
           discipline: session.discipline,
           distance_km: session.distance_km,
           duration_min: session.duration_min,

@@ -209,6 +209,7 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
       const rpe = estimateRpe(avgHr, act.icu_rpe);
       const summaryNote = `${act.name || sport}: ${durationMin} min${distanceKm ? `, ${distanceKm} km` : ""}${avgHr ? `, FC media ${avgHr} ppm` : ""}${maxHr ? `, máx ${maxHr} ppm` : ""}. ${marker}`;
 
+      let targetSessionId: number | null = null;
       const alreadyDoneMatch = findMatchingCompletedWithoutFit(existingSessions, date, sport, durationMin);
       if (alreadyDoneMatch) {
         if (alreadyDoneMatch.fit_data) {
@@ -225,6 +226,7 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
             : summaryNote,
         });
         if (updated) {
+          targetSessionId = updated.id;
           const idx = existingSessions.findIndex((s) => s.id === updated.id);
           if (idx >= 0) existingSessions[idx] = updated;
         }
@@ -241,7 +243,10 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
             fit_data: fitDataJson,
             user_notes: match.user_notes ? `${match.user_notes}\n${summaryNote}` : summaryNote,
           });
-          if (updated) existingSessions.push(updated);
+          if (updated) {
+            targetSessionId = updated.id;
+            existingSessions.push(updated);
+          }
         } else {
           const created = createPlannedSession({
             date,
@@ -258,11 +263,14 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
             fit_data: fitDataJson,
             user_notes: summaryNote,
           });
-          if (updated) existingSessions.push(updated);
+          if (updated) {
+            targetSessionId = updated.id;
+            existingSessions.push(updated);
+          }
         }
       }
 
-      // Registrar también en tabla `workouts` con carga TSS/TRIMP
+      // Registrar también en tabla `workouts` con carga TSS/TRIMP y enviar Push al móvil/PC
       try {
         const load = calculateSessionLoad({
           durationMin: Math.round(durationMin),
@@ -283,6 +291,18 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
           rpe,
           raw_data: JSON.stringify(act),
         });
+
+        if (targetSessionId) {
+          const { sendDailyReportPush } = await import("@/lib/push-notifications");
+          await sendDailyReportPush({
+            id: targetSessionId,
+            date,
+            discipline: sport,
+            distance_km: distanceKm,
+            duration_min: Math.round(durationMin),
+            carga_tss: load.tss,
+          });
+        }
       } catch {}
 
       importedCount++;

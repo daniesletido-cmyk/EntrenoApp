@@ -49,6 +49,21 @@ export async function POST(req: NextRequest) {
         results.push(saved);
       }
 
+      try {
+        const latest = results.slice().sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+        if (latest) {
+          const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
+          await sendSleepRecordedPush({
+            date: latest.fecha,
+            hours: latest.sleep_duration,
+            score: latest.recovery_score,
+            deep_min: latest.deep_sleep_min,
+            rem_min: latest.rem_min,
+            resting_hr: latest.resting_hr,
+          });
+        }
+      } catch {}
+
       return NextResponse.json({
         success: true,
         count: results.length,
@@ -63,6 +78,18 @@ export async function POST(req: NextRequest) {
     }
 
     const saved = upsertRecovery(normalized);
+
+    try {
+      const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
+      await sendSleepRecordedPush({
+        date: saved.fecha,
+        hours: saved.sleep_duration,
+        score: saved.recovery_score,
+        deep_min: saved.deep_sleep_min,
+        rem_min: saved.rem_min,
+        resting_hr: saved.resting_hr,
+      });
+    } catch {}
 
     return NextResponse.json({
       success: true,
