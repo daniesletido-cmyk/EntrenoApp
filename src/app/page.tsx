@@ -576,7 +576,7 @@ export default function ResumenPage() {
                             {isDone ? "Completado" : "Pendiente"}
                           </span>
                         </div>
-                        <div className="font-semibold text-xs sm:text-sm text-slate-100 group-hover:text-emerald-400 transition-colors mt-1.5 line-clamp-1">
+                        <div className="font-semibold text-xs sm:text-sm text-slate-100 group-hover:text-emerald-400 transition-colors mt-1.5 leading-snug break-words">
                           {ses.planned_code || ses.discipline}
                         </div>
                       </div>
