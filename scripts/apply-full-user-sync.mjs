@@ -62,7 +62,7 @@ for (const dbPath of DB_PATHS) {
     console.log(`[OK] Actualizada sesión 08/11/2026 (id ${nov8.id}) a realizada.`);
   }
 
-  // 4. Lunes 09/11/2026: Natación 13:30h (AYER - COMPLETADA)
+  // 4. Lunes 09/11/2026: Natación 13:30h (pendiente hasta que el usuario registre/suba su entreno real)
   const nov9 = db.prepare("SELECT id FROM sessions WHERE date = '2026-11-09' LIMIT 1").get();
   if (nov9) {
     db.prepare(`
@@ -71,9 +71,9 @@ for (const dbPath of DB_PATHS) {
         planned_code = 'Natación 13:30h (Técnica & Descarga Aeróbica · 1.900m)',
         duration_min = 45,
         distance_km = 1.9,
-        status = 'realizada',
-        rpe = 6,
-        user_notes = 'Sesión de natación compensatoria completada a las 13:30h (1.900m, 45 min). Descarga articular perfecta tras la tirada larga del domingo.',
+        status = 'pendiente',
+        rpe = NULL,
+        user_notes = NULL,
         notes = 'NATACIÓN EN PISCINA (13:30h · Descarga y Técnica · ~1.900m · RPE 6):
 - 350m calentamiento suave combinado (crol/espalda).
 - Bloque principal con pull-buoy para aislamiento de tren inferior y flotabilidad, permitiendo descarga miofascial tras la tirada larga del domingo (14 km).
@@ -83,7 +83,7 @@ for (const dbPath of DB_PATHS) {
         updated_at = datetime('now')
       WHERE id = ?
     `).run(nov9.id);
-    console.log(`[OK] Actualizado Lunes 09/11/2026 (id ${nov9.id}): Natación 13:30h REALIZADA.`);
+    console.log(`[OK] Actualizado Lunes 09/11/2026 (id ${nov9.id}): Natación 13:30h (pendiente de registro por el usuario).`);
   }
 
   // 5. Martes 10/11/2026: CrossFit 19:00h (Tabatas + WOD 800m Run, 50 GHD, 800m Run, 50 T2B)
