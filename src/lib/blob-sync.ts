@@ -34,20 +34,25 @@ export function syncDownFromBlobSync(targetPath: string): boolean {
       if (Date.now() - stat.mtimeMs < 30000) return true;
     }
 
+    const tmpDownloadPath = `${targetPath}.blob_tmp`;
     console.log(`[BlobSync] Sincronizando BD desde Vercel Blob hacia ${targetPath}...`);
     execFileSync("curl", [
       "-s",
       "-f",
       "--max-time",
-      "5",
+      "8",
       "-H",
       `Authorization: Bearer ${token}`,
       BLOB_URL,
       "-o",
-      targetPath,
+      tmpDownloadPath,
     ]);
 
-    // Limpiar archivos auxiliares de WAL para evitar bloqueos
+    if (!fs.existsSync(tmpDownloadPath) || fs.statSync(tmpDownloadPath).size < 1000) {
+      throw new Error("Archivo descargado desde Blob inválido o vacío");
+    }
+
+    // Limpiar archivos auxiliares de WAL antes de reemplazar
     for (const ext of ["-wal", "-shm"]) {
       const sidecar = `${targetPath}${ext}`;
       if (fs.existsSync(sidecar)) {
@@ -55,6 +60,7 @@ export function syncDownFromBlobSync(targetPath: string): boolean {
       }
     }
 
+    fs.renameSync(tmpDownloadPath, targetPath);
     fs.writeFileSync(stampFile, String(Date.now()));
     console.log(`[BlobSync] BD descargada con éxito (${fs.statSync(targetPath).size} bytes)`);
     return true;

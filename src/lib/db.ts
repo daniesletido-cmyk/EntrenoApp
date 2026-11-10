@@ -4,11 +4,23 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { ensureAnnualPlanPopulated } from "@/lib/annual-plan-seed";
 import { DEFAULT_EXERCISES } from "@/lib/prs-catalog";
+import { syncDownFromBlobSync, scheduleDbSyncToBlob } from "@/lib/blob-sync";
 
 let db: DatabaseSync | null = null;
 let activeDbPath: string | null = null;
 let lastCloudSyncTime = 0;
 let syncScheduled = false;
+let isInitializing = false;
+
+function isWriteStatement(sql: string): boolean {
+  const head = sql.trimStart().slice(0, 10).toUpperCase();
+  return (
+    head.startsWith("INSERT") ||
+    head.startsWith("UPDATE") ||
+    head.startsWith("DELETE") ||
+    head.startsWith("REPLACE")
+  );
+}
 
 function resolveDbPath(): string {
   let targetPath = path.join(process.cwd(), "data", "entrenoapp.db");
@@ -16,7 +28,6 @@ function resolveDbPath(): string {
     targetPath = path.join("/tmp", "entrenoapp.db");
     // En Vercel: intentar descargar primero la base de datos persistente desde Vercel Blob
     try {
-      const { syncDownFromBlobSync } = require("@/lib/blob-sync");
       syncDownFromBlobSync(targetPath);
     } catch (e) {
       console.warn("[DB] Fallback al seed en Vercel:", e);
@@ -69,7 +80,9 @@ function wrap(raw: DatabaseSync): AppDb {
       return {
         run: (...params: unknown[]) => {
           const res = stmt.run(...(params as never[]));
-          triggerDataPersistence();
+          if (!isInitializing && isWriteStatement(sql)) {
+            triggerDataPersistence();
+          }
           return { lastInsertRowid: res.lastInsertRowid, changes: Number(res.changes) };
         },
         get: (...params: unknown[]) => toPlainObject(stmt.get(...(params as never[])) as T | undefined),
@@ -78,7 +91,9 @@ function wrap(raw: DatabaseSync): AppDb {
     },
     exec(sql: string) {
       raw.exec(sql);
-      triggerDataPersistence();
+      if (!isInitializing && isWriteStatement(sql)) {
+        triggerDataPersistence();
+      }
     },
     transaction<T>(fn: () => T) {
       return () => {
@@ -86,7 +101,9 @@ function wrap(raw: DatabaseSync): AppDb {
         try {
           const result = fn();
           raw.exec("COMMIT");
-          triggerDataPersistence();
+          if (!isInitializing) {
+            triggerDataPersistence();
+          }
           return result;
         } catch (err) {
           raw.exec("ROLLBACK");
@@ -98,13 +115,13 @@ function wrap(raw: DatabaseSync): AppDb {
 }
 
 export function triggerDataPersistence(): void {
+  if (isInitializing) return;
   const dbPath = activeDbPath || resolveDbPath();
 
   // 1. En Vercel: persistencia garantizada en Vercel Blob usando la API after() de Next.js
   if (process.env.VERCEL || process.env.BLOB_READ_WRITE_TOKEN) {
     try {
-      const { scheduleDbSyncToBlob } = require("@/lib/blob-sync");
-      scheduleDbSyncToBlob(dbPath, db);
+      scheduleDbSyncToBlob(dbPath, db ?? undefined);
     } catch (err) {
       console.warn("[DB] Error programando sync a Vercel Blob:", err);
     }
@@ -690,8 +707,13 @@ export function getDb(): AppDb {
   db.exec("PRAGMA synchronous = NORMAL;");
 
   const wrapped = wrap(db);
-  createSchema(wrapped);
-  migrateSchema(wrapped);
+  isInitializing = true;
+  try {
+    createSchema(wrapped);
+    migrateSchema(wrapped);
+  } finally {
+    isInitializing = false;
+  }
 
   // Blindaje de arranque: auto-sincronizar ZeppBridge en segundo plano sin ralentizar el arranque
   if (!process.env.VERCEL) {
