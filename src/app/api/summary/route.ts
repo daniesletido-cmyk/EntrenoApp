@@ -34,6 +34,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
+  try {
+    const { maybeAutoSyncIntervals } = await import("@/lib/intervals-sync");
+    await maybeAutoSyncIntervals();
+  } catch {}
   const weekParam = req.nextUrl.searchParams.get("week") ?? todayISO();
   const weekStart = weekStartOf(weekParam);
   const weekEnd = addDays(weekStart, 6);

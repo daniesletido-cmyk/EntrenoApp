@@ -67,8 +67,8 @@ let lastAutoSyncMs = 0;
 const AUTO_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
 
 export async function maybeAutoSyncIntervals(): Promise<void> {
-  const athleteId = getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID;
-  const apiKey = getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY;
+  const athleteId = (getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID || "").trim();
+  const apiKey = (getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY || "").trim();
   if (!athleteId || !apiKey) return;
 
   const now = Date.now();
@@ -83,8 +83,8 @@ export async function maybeAutoSyncIntervals(): Promise<void> {
 }
 
 export async function syncIntervalsWorkouts(daysLookback = 14): Promise<IntervalsSyncResult> {
-  const athleteId = getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID;
-  const apiKey = getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY;
+  const athleteId = (getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID || "").trim();
+  const apiKey = (getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY || "").trim();
 
   if (!athleteId || !apiKey) {
     return {
