@@ -59,6 +59,12 @@ export async function GET(req: NextRequest) {
   const to = req.nextUrl.searchParams.get("to");
   const week = req.nextUrl.searchParams.get("week") ?? weekStartOf(todayISO());
 
+  // Auto-sincronización silenciosa con Suunto / Intervals.icu si está vinculado (cada 10 min máx.)
+  try {
+    const { maybeAutoSyncIntervals } = await import("@/lib/intervals-sync");
+    await maybeAutoSyncIntervals();
+  } catch {}
+
   // Si Supabase está configurado, recuperar de Supabase (persistencia definitiva en la nube)
   if (isSupabaseConfigured()) {
     try {

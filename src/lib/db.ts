@@ -466,6 +466,23 @@ function createSchema(d: AppDb) {
     );
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+
+    CREATE TABLE IF NOT EXISTS ai_logs (
+      id TEXT PRIMARY KEY,
+      feature TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('ok','error')),
+      latency_ms INTEGER NOT NULL,
+      input_tokens INTEGER,
+      output_tokens INTEGER,
+      estimated_cost_usd REAL,
+      error_message TEXT,
+      metadata TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_logs_created_at ON ai_logs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_ai_logs_feature ON ai_logs(feature);
   `);
 }
 

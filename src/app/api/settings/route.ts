@@ -5,12 +5,14 @@ import { isBlobSyncEnabled } from "@/lib/blob-sync";
 
 function publicSettings() {
   const all = getAllSettings();
-  const { anthropic_api_key, gemini_api_key, ...rest } = all;
+  const { anthropic_api_key, gemini_api_key, intervals_api_key, ...rest } = all;
   return {
     ...rest,
     has_anthropic_api_key: !!(anthropic_api_key || process.env.ANTHROPIC_API_KEY),
     has_gemini_api_key: !!(gemini_api_key || process.env.GEMINI_API_KEY),
     has_any_ai_key: !!(anthropic_api_key || gemini_api_key || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY),
+    has_intervals_api_key: !!(intervals_api_key || process.env.INTERVALS_API_KEY),
+    intervals_athlete_id: rest.intervals_athlete_id || process.env.INTERVALS_ATHLETE_ID || "",
     has_supabase: isSupabaseConfigured(),
     has_blob_sync: isBlobSyncEnabled(),
   };

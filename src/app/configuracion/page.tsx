@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink, Database, Cloud, HardDrive, Copy, Check } from "lucide-react";
+import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink, Database, Cloud, HardDrive, Copy, Check, Watch } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,12 @@ export default function ConfiguracionPage() {
   const [geminiKeyInput, setGeminiKeyInput] = useState("");
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [savingGeminiKey, setSavingGeminiKey] = useState(false);
+
+  const [intervalsAthleteId, setIntervalsAthleteId] = useState("");
+  const [intervalsApiKeyInput, setIntervalsApiKeyInput] = useState("");
+  const [hasIntervalsKey, setHasIntervalsKey] = useState(false);
+  const [savingIntervals, setSavingIntervals] = useState(false);
+  const [syncingIntervals, setSyncingIntervals] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -89,6 +95,8 @@ export default function ConfiguracionPage() {
         setSettings(d.settings ?? {});
         setHasAnthropicKey(!!d.settings?.has_anthropic_api_key);
         setHasGeminiKey(!!d.settings?.has_gemini_api_key);
+        setHasIntervalsKey(!!d.settings?.has_intervals_api_key);
+        setIntervalsAthleteId(d.settings?.intervals_athlete_id ?? "");
         if (d.app_info) setAppInfo(d.app_info);
       });
   }, []);
@@ -165,6 +173,49 @@ export default function ConfiguracionPage() {
         toast.push("info", "Clave de Gemini eliminada");
       },
     });
+  }
+
+  async function saveIntervalsConfig() {
+    if (!intervalsAthleteId.trim() || (!intervalsApiKeyInput.trim() && !hasIntervalsKey)) return;
+    setSavingIntervals(true);
+    try {
+      const payload: Record<string, string> = { intervals_athlete_id: intervalsAthleteId.trim() };
+      if (intervalsApiKeyInput.trim()) {
+        payload.intervals_api_key = intervalsApiKeyInput.trim();
+      }
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setHasIntervalsKey(true);
+      setIntervalsApiKeyInput("");
+      toast.push("success", "Conexión Suunto / Intervals.icu guardada");
+      await runIntervalsSync();
+    } finally {
+      setSavingIntervals(false);
+    }
+  }
+
+  async function runIntervalsSync() {
+    setSyncingIntervals(true);
+    try {
+      const res = await fetch("/api/sync/intervals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 21 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.push("success", data.message || "Sincronización completada");
+      } else {
+        toast.push("error", data.message || "No se pudo sincronizar con Intervals.icu");
+      }
+    } catch {
+      toast.push("error", "Error conectando con el servidor");
+    } finally {
+      setSyncingIntervals(false);
+    }
   }
 
   async function saveSettings() {
@@ -552,6 +603,70 @@ export default function ConfiguracionPage() {
                 <span>Activar PIN o Contraseña</span>
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* SECCIÓN SINCRONIZACIÓN AUTOMÁTICA DE DISPOSITIVOS (SUUNTO & AMAZFIT HELIO) */}
+        <div className="surface" style={{ padding: "var(--space-4)" }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Watch size={16} className="text-brand" />
+              <span>Sincronización Automática (Reloj Suunto & Pulsera Amazfit)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="badge badge-success">Amazfit Helio (ZeppBridge): Activa</span>
+              {hasIntervalsKey ? (
+                <span className="badge badge-success">Suunto / Intervals.icu: Conectado</span>
+              ) : (
+                <span className="badge badge-warning">Suunto Auto-Pull: Pendiente de clave</span>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
+            Olvídate de exportar archivos <code>.fit</code> manualmente. Conecta tu reloj <strong>Suunto</strong> mediante <strong>Intervals.icu</strong> (gratis, 1 minuto en la app Suunto → Ajustes → Servicios asociados → Intervals.icu) para que EntrenoApp descargue tus entrenos automáticamente en la nube.
+          </p>
+
+          <div
+            style={{
+              background: "var(--color-bg-subtle)",
+              padding: "var(--space-3)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: "var(--space-3)" }}>
+              <Input
+                label="Athlete ID (Intervals.icu)"
+                placeholder="Ej: i123456"
+                value={intervalsAthleteId}
+                onChange={(e) => setIntervalsAthleteId(e.target.value)}
+              />
+              <Input
+                label={hasIntervalsKey ? "API Key (ya guardada — escribe para reemplazar)" : "API Key (Intervals.icu → Settings → API Key)"}
+                type="password"
+                placeholder="Tu clave API personal de Intervals.icu"
+                value={intervalsApiKeyInput}
+                onChange={(e) => setIntervalsApiKeyInput(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="primary"
+                loading={savingIntervals}
+                disabled={!intervalsAthleteId.trim() || (!intervalsApiKeyInput.trim() && !hasIntervalsKey)}
+                onClick={saveIntervalsConfig}
+              >
+                <Save size={15} />
+                <span>Guardar y Vincular Suunto</span>
+              </Button>
+              {hasIntervalsKey && (
+                <Button variant="secondary" loading={syncingIntervals} onClick={runIntervalsSync}>
+                  <RefreshCw size={15} />
+                  <span>Sincronizar Suunto Ahora</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
