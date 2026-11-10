@@ -51,6 +51,22 @@ function estimateRpe(avgHr?: number | null, rpe?: number | null): number {
   return 5;
 }
 
+function findMatchingCompletedWithoutFit(sessions: SessionRow[], date: string, sport: Discipline, durationMin: number): SessionRow | null {
+  const completed = sessions.filter(
+    (s) => s.date === date && (s.status === "realizada" || s.status === "parcial")
+  );
+  for (const s of completed) {
+    const sameSport =
+      s.discipline === sport ||
+      ((s.discipline === "crossfit" || s.discipline === "gimnasio") && (sport === "crossfit" || sport === "gimnasio"));
+    const closeDuration = s.duration_min != null && Math.abs(s.duration_min - durationMin) <= 8;
+    if (sameSport || closeDuration) {
+      return s;
+    }
+  }
+  return null;
+}
+
 function findMatchingPendingSession(sessions: SessionRow[], date: string, sport: Discipline): SessionRow | null {
   const daySessions = sessions.filter((s) => s.date === date && s.status === "pendiente");
   const exact = daySessions.find((s) => s.discipline === sport);
@@ -193,36 +209,57 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
       const rpe = estimateRpe(avgHr, act.icu_rpe);
       const summaryNote = `${act.name || sport}: ${durationMin} min${distanceKm ? `, ${distanceKm} km` : ""}${avgHr ? `, FC media ${avgHr} ppm` : ""}${maxHr ? `, máx ${maxHr} ppm` : ""}. ${marker}`;
 
-      const match = findMatchingPendingSession(existingSessions, date, sport);
-      if (match) {
-        const updated = updateSession(match.id, {
-          discipline: match.discipline === "descanso" ? sport : match.discipline,
-          status: "realizada",
-          duration_min: Math.round(durationMin),
-          distance_km: distanceKm,
-          rpe,
-          fitImport: true,
+      const alreadyDoneMatch = findMatchingCompletedWithoutFit(existingSessions, date, sport, durationMin);
+      if (alreadyDoneMatch) {
+        if (alreadyDoneMatch.fit_data) {
+          // Ya completada y con telemetría .fit — solo evitar duplicados
+          skippedCount++;
+          activitiesLog.push({ id: act.id, date, name: act.name || sport, status: "skipped", detail: "Ya registrada previamente" });
+          continue;
+        }
+        // Enriquecer sesión ya completada con su archivo .fit y marcador de Intervals
+        const updated = updateSession(alreadyDoneMatch.id, {
           fit_data: fitDataJson,
-          user_notes: match.user_notes ? `${match.user_notes}\n${summaryNote}` : summaryNote,
+          user_notes: alreadyDoneMatch.user_notes
+            ? `${alreadyDoneMatch.user_notes} ${marker}`
+            : summaryNote,
         });
-        if (updated) existingSessions.push(updated);
+        if (updated) {
+          const idx = existingSessions.findIndex((s) => s.id === updated.id);
+          if (idx >= 0) existingSessions[idx] = updated;
+        }
       } else {
-        const created = createPlannedSession({
-          date,
-          discipline: sport,
-          planned_code: act.name || `Suunto (${sport})`,
-          is_extra: true,
-        });
-        const updated = updateSession(created.id, {
-          status: "realizada",
-          duration_min: Math.round(durationMin),
-          distance_km: distanceKm,
-          rpe,
-          fitImport: true,
-          fit_data: fitDataJson,
-          user_notes: summaryNote,
-        });
-        if (updated) existingSessions.push(updated);
+        const match = findMatchingPendingSession(existingSessions, date, sport);
+        if (match) {
+          const updated = updateSession(match.id, {
+            discipline: match.discipline === "descanso" ? sport : match.discipline,
+            status: "realizada",
+            duration_min: Math.round(durationMin),
+            distance_km: distanceKm,
+            rpe,
+            fitImport: true,
+            fit_data: fitDataJson,
+            user_notes: match.user_notes ? `${match.user_notes}\n${summaryNote}` : summaryNote,
+          });
+          if (updated) existingSessions.push(updated);
+        } else {
+          const created = createPlannedSession({
+            date,
+            discipline: sport,
+            planned_code: act.name || `Suunto (${sport})`,
+            is_extra: true,
+          });
+          const updated = updateSession(created.id, {
+            status: "realizada",
+            duration_min: Math.round(durationMin),
+            distance_km: distanceKm,
+            rpe,
+            fitImport: true,
+            fit_data: fitDataJson,
+            user_notes: summaryNote,
+          });
+          if (updated) existingSessions.push(updated);
+        }
       }
 
       // Registrar también en tabla `workouts` con carga TSS/TRIMP
