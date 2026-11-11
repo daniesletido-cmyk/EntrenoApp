@@ -68,13 +68,13 @@ interface ExerciseItem {
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "Halterofilia": { bg: "rgba(6, 182, 212, 0.12)", text: "#06b6d4", border: "rgba(6, 182, 212, 0.3)" },
-  "Fuerza & Powerlifting": { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981", border: "rgba(16, 185, 129, 0.3)" },
-  "Gimnásticos": { bg: "rgba(245, 158, 11, 0.12)", text: "#f59e0b", border: "rgba(245, 158, 11, 0.3)" },
-  "Mancuernas": { bg: "rgba(168, 85, 247, 0.12)", text: "#a855f7", border: "rgba(168, 85, 247, 0.3)" },
-  "Kettlebells & Funcional": { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444", border: "rgba(239, 68, 68, 0.3)" },
-  "Ergómetros & Benchmarks": { bg: "rgba(59, 130, 246, 0.12)", text: "#3b82f6", border: "rgba(59, 130, 246, 0.3)" },
-  "Accesorios": { bg: "rgba(148, 163, 184, 0.12)", text: "#94a3b8", border: "rgba(148, 163, 184, 0.3)" },
+  "Halterofilia": { bg: "var(--color-brand-subtle)", text: "var(--color-brand)", border: "rgba(37, 99, 235, 0.25)" },
+  "Fuerza & Powerlifting": { bg: "var(--color-brand-subtle)", text: "var(--color-brand)", border: "rgba(37, 99, 235, 0.25)" },
+  "Gimnásticos": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
+  "Mancuernas": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
+  "Kettlebells & Funcional": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
+  "Ergómetros & Benchmarks": { bg: "var(--color-brand-subtle)", text: "var(--color-brand)", border: "rgba(37, 99, 235, 0.25)" },
+  "Accesorios": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
 };
 
 function formatDate(iso: string) {
@@ -336,7 +336,7 @@ export default function MarcasPage() {
         <div className="surface p-4 rounded-2xl flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--color-warning-bg)", color: "var(--color-warning)" }}
+            style={{ background: "var(--color-brand-subtle)", color: "var(--color-brand)" }}
           >
             <Flame size={20} />
           </div>

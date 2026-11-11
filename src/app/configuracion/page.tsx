@@ -421,9 +421,36 @@ export default function ConfiguracionPage() {
 
   return (
     <div>
-      <PageHeader title="Configuración" description="Perfil usado por el motor de recomendaciones y copia de seguridad de tus datos." />
+      <PageHeader title="Perfil & Ajustes" description="Datos del atleta, sincronización Suunto/.FIT, preferencias y herramientas." />
 
       <div className="grid gap-5">
+        {/* Módulos complementarios consolidados dentro de Perfil */}
+        <div className="surface p-4 sm:p-5">
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--color-text)" }}>
+            Herramientas y Módulos
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {[
+              { href: "/menu", label: "Nutrición / Menú" },
+              { href: "/entrenador", label: "Entrenador IA" },
+              { href: "/psicologia", label: "Psicología Deportiva" },
+              { href: "/calendario", label: "Calendario Mensual" },
+              { href: "/informe-semanal", label: "Informe Semanal" },
+              { href: "/objetivos", label: "Objetivos y Maratón" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="btn btn-secondary text-xs justify-between no-underline harbiz-press"
+                style={{ minHeight: 44 }}
+              >
+                <span className="truncate">{item.label}</span>
+                <ExternalLink size={13} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {/* SECCIÓN APARIENCIA & TEMA */}
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>

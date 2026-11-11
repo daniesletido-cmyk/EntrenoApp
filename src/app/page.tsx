@@ -4,35 +4,23 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   CalendarCheck2,
-  Gauge,
   Moon,
-  XCircle,
-  AlertTriangle,
-  ShieldAlert,
-  CheckCircle2,
   ArrowRight,
   Route,
   Timer,
   Flag,
-  Footprints,
   RefreshCw,
   Activity,
-  HeartPulse,
-  Flame,
-  Zap,
-  Sparkles,
+  UploadCloud,
 } from "lucide-react";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CoachSummaryCard } from "@/components/coach-summary-card";
+import { Modal } from "@/components/ui/modal";
 import { FileDropzone } from "@/components/ui/file-dropzone";
-import { AppleFitnessRings } from "@/components/dashboard/apple-fitness-rings";
 import { TrainingLoadChart } from "@/components/dashboard/training-load-chart";
-import { useToast } from "@/components/ui/toast";
-import type { WeeklyCoachAssessment } from "@/lib/coach-assessment";
 
 interface RecentSession {
   id: number;
@@ -44,11 +32,6 @@ interface RecentSession {
   distance_km: number | null;
   rpe: number | null;
   hasFit: boolean;
-  suuntoMetrics?: {
-    pte?: number | null;
-    epoc?: number | null;
-    recoveryTimeHours?: number | null;
-  } | null;
 }
 
 interface RecentSleepItem {
@@ -57,7 +40,6 @@ interface RecentSleepItem {
   quality: number | null;
   score: number | null;
   deep_min: number | null;
-  rem_min: number | null;
 }
 
 interface Summary {
@@ -69,72 +51,34 @@ interface Summary {
   noRealizadas: number;
   pendientes: number;
   compliancePct: number | null;
-  extrasTotal?: number;
-  extrasRealizadas?: number;
   rpeAvg: number | null;
   sleepHoursAvg: number | null;
   sleepQualityAvg: number | null;
   distanceKm: number;
   durationMin: number;
-  runDistanceKm?: number;
-  runDurationMin?: number;
-  runAvgPaceMinKm?: number | null;
-  runCount?: number;
-  walkDistanceKm?: number;
-  walkDurationMin?: number;
-  walkAvgPaceMinKm?: number | null;
-  walkCount?: number;
-  avgPaceMinKm: number | null;
   recentSessions?: RecentSession[];
   recentSleep?: RecentSleepItem[];
-  readiness?: {
-    score: number;
-    level: string;
-    description: string;
-  } | null;
-}
-
-interface Goal {
-  id: number;
-  title: string;
-  target_date: string | null;
-  status: "activo" | "cumplido" | "abandonado";
 }
 
 interface Recommendation {
   action: "mantener" | "reducir" | "alerta_medica";
   summary: string;
-  flags: { severity: string; title: string }[];
   acwr?: number | null;
 }
-
-const ACTION_BANNER: Record<Recommendation["action"], { tone: "success" | "warning" | "danger"; icon: React.ReactNode; label: string }> = {
-  mantener: { tone: "success", icon: <CheckCircle2 size={20} />, label: "Sin señales de alarma" },
-  reducir: { tone: "warning", icon: <AlertTriangle size={20} />, label: "Conviene ajustar la carga" },
-  alerta_medica: { tone: "danger", icon: <ShieldAlert size={20} />, label: "Para y consulta médicamente" },
-};
-
-const BANNER_STYLE = {
-  success: { bg: "var(--color-success-bg)", color: "var(--color-success)" },
-  warning: { bg: "var(--color-warning-bg)", color: "var(--color-warning)" },
-  danger: { bg: "var(--color-danger-bg)", color: "var(--color-danger)" },
-};
 
 function daysUntilRace(raceDate: string): number {
   const diff = new Date(raceDate + "T00:00:00Z").getTime() - new Date(todayISO() + "T00:00:00Z").getTime();
   return Math.round(diff / 86400000);
 }
 
-export default function ResumenPage() {
+export default function ProgresoSaludPage() {
   const [weekStart, setWeekStart] = useState(weekStartOf(todayISO()));
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [raceDate, setRaceDate] = useState<string | null>(null);
-  const [nextGoal, setNextGoal] = useState<Goal | null>(null);
-  const [coachAssessment, setCoachAssessment] = useState<WeeklyCoachAssessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const toast = useToast();
+  const [importOpen, setImportOpen] = useState(false);
 
   const loadData = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -142,24 +86,17 @@ export default function ResumenPage() {
 
     try {
       const t = Date.now();
-      const [s, r, cfg, g, ca] = await Promise.all([
+      const [s, r, cfg] = await Promise.all([
         fetch(`/api/summary?week=${weekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/recommendations?week=${weekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/settings?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/goals?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/coach-assessment?week=${weekStart}&t=${t}`, { cache: "no-store" })
-          .then((r) => r.json())
-          .catch(() => ({ assessment: null })),
       ]);
 
       setSummary(s);
       setRec(r);
       setRaceDate(cfg.settings?.goal_race_date ?? null);
-      const activos: Goal[] = (g.goals ?? []).filter((x: Goal) => x.status === "activo" && x.target_date);
-      setNextGoal(activos.length > 0 ? activos[0] : null);
-      setCoachAssessment(ca?.assessment ?? null);
     } catch {
-      // silencioso al refrescar
+      // silent
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -179,516 +116,268 @@ export default function ResumenPage() {
   }, [loadData]);
 
   const fmt = (n: number | null, suffix = "") => (n === null ? "—" : `${n.toFixed(1)}${suffix}`);
-  const fmtPace = (minPerKm: number | null) => {
-    if (minPerKm === null) return "—";
-    const min = Math.floor(minPerKm);
-    const sec = Math.round((minPerKm - min) * 60);
-    return `${min}:${String(sec).padStart(2, "0")}/km`;
-  };
   const fmtDuration = (totalMin: number) => {
     if (totalMin <= 0) return "0h 00m";
     const h = Math.floor(totalMin / 60);
     const m = Math.round(totalMin % 60);
     return `${h}h ${String(m).padStart(2, "0")}m`;
   };
-  const daysUntilGoal = (dateStr: string) => {
-    const diff = new Date(dateStr + "T00:00:00Z").getTime() - new Date(todayISO() + "T00:00:00Z").getTime();
-    return Math.round(diff / 86400000);
-  };
-  const complianceTone = summary?.compliancePct === null || summary?.compliancePct === undefined
-    ? "neutral"
-    : summary.compliancePct >= 80
-    ? "success"
-    : summary.compliancePct >= 50
-    ? "warning"
-    : "danger";
+
+  const complianceTone =
+    summary?.compliancePct === null || summary?.compliancePct === undefined
+      ? "neutral"
+      : summary.compliancePct >= 80
+      ? "success"
+      : "brand";
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
-        title="Resumen"
-        description={
-          summary?.weekStart
-            ? `Semana del ${summary.weekStart} · Carga y rendimiento`
-            : "Seguimiento y rendimiento semanal"
-        }
+        title="Progreso & Salud"
+        description={summary?.weekStart ? `Semana del ${summary.weekStart}` : "Carga, sueño y evolución"}
         actions={
-          <button
-            className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            style={{
-              height: 38,
-              minHeight: 38,
-              borderRadius: "var(--radius-full)",
-              padding: "0 14px",
-            }}
-          >
-            <RefreshCw size={14} className={refreshing ? "spinner" : ""} />
-            <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="btn btn-secondary btn-sm harbiz-press"
+              style={{ minHeight: 44 }}
+            >
+              <UploadCloud size={16} style={{ color: "var(--color-brand)" }} />
+              <span>Cargar sesión</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadData(true)}
+              disabled={refreshing}
+              className="btn btn-ghost btn-icon harbiz-press hidden sm:inline-flex"
+              aria-label="Actualizar"
+            >
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            </button>
+          </div>
         }
       />
 
-      {/* Grid superior compacto: Objetivo Maratón + Dropzone Drag & Drop */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-        {raceDate && (
-          <div
-            className="surface flex items-center justify-between gap-3 animate-in w-full p-3.5 hover:border-emerald-500/30 transition-colors duration-150"
-          >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div
-                className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-emerald-500/20 shrink-0"
-              >
-                <Flag size={16} strokeWidth={2.4} />
+      {raceDate && (
+        <div className="surface p-4 sm:p-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-brand-subtle)", color: "var(--color-brand)" }}
+            >
+              <Flag size={18} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+                Próximo objetivo
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                    Objetivo Principal
-                  </span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    Maratón
-                  </span>
-                </div>
-                <div className="font-extrabold text-sm leading-tight mt-0.5 text-foreground truncate">
-                  Faltan <span className="text-emerald-400 font-mono tabular-nums">{daysUntilRace(raceDate)} días</span>
-                  <span className="text-xs font-semibold text-muted ml-1 inline-block">
-                    ({new Date(raceDate + "T00:00:00Z").toLocaleDateString("es-ES", { day: "numeric", month: "short" })})
-                  </span>
-                </div>
+              <div className="text-sm sm:text-base font-bold truncate" style={{ color: "var(--color-text)" }}>
+                Maratón · Faltan{" "}
+                <span className="tabular-nums" style={{ color: "var(--color-brand)" }}>
+                  {daysUntilRace(raceDate)} días
+                </span>
               </div>
             </div>
-            <Link
-              href="/progreso"
-              className="btn btn-secondary text-xs rounded-xl border border-white/10 hover:border-emerald-500/40 shrink-0"
-              style={{ minHeight: 30, height: 30, padding: "0 10px" }}
-            >
-              Ver
-            </Link>
           </div>
-        )}
-
-        <FileDropzone className="" onSuccess={() => loadData(true)} />
-      </div>
+          <Link href="/progreso" className="btn btn-secondary btn-sm harbiz-press no-underline">
+            Histórico
+          </Link>
+        </div>
+      )}
 
       <WeekSwitcher weekStart={weekStart} onChange={setWeekStart} />
 
-      {loading && <HomeSkeleton />}
+      {loading && <ProgressSkeleton />}
 
       {!loading && summary && (
-        <div className="animate-in grid gap-4 w-full overflow-hidden">
-          {/* Dashboard Ejecutivo Apple Fitness Rings & Telemetría ACWR (3 Anillos: Carga, Forma, Sueño) */}
-          <AppleFitnessRings
-            loadTss={Math.round(summary.durationMin * ((summary.rpeAvg ?? 5) / 10) * 1.5) || 350}
-            targetLoadTss={450}
-            readinessScore={summary.readiness?.score ?? 85}
-            sleepHours={summary.sleepHoursAvg ?? 8.0}
-            targetSleepHours={8.0}
-            acwr={rec?.acwr ?? 1.05}
-            rpeAvg={summary.rpeAvg}
-            hrvMs={56}
-            rhrBpm={52}
-          />
+        <div className="space-y-5 animate-in">
+          {/* 4 métricas clave en tarjetas limpias */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <StatCard
+              label="Cumplimiento"
+              value={summary.compliancePct !== null ? `${summary.compliancePct.toFixed(0)}%` : "—"}
+              icon={<CalendarCheck2 size={17} />}
+              tone={complianceTone}
+              sublabel={`${summary.realizadas + summary.parciales} de ${summary.planificadas} sesiones`}
+            />
+            <StatCard
+              label="Distancia semanal"
+              value={`${summary.distanceKm.toFixed(1)} km`}
+              icon={<Route size={17} />}
+              tone="brand"
+              sublabel="Volumen acumulado"
+            />
+            <StatCard
+              label="Tiempo entrenado"
+              value={fmtDuration(summary.durationMin)}
+              icon={<Timer size={17} />}
+              sublabel={summary.rpeAvg ? `RPE medio ${summary.rpeAvg.toFixed(1)}` : "Duración total"}
+            />
+            <StatCard
+              label="Sueño medio"
+              value={fmt(summary.sleepHoursAvg, "h")}
+              icon={<Moon size={17} />}
+              sublabel={summary.sleepQualityAvg ? `Calidad ${fmt(summary.sleepQualityAvg)}/5` : "Descanso nocturno"}
+            />
+          </div>
 
-          {/* Curva de Fatiga & Forma ATL / CTL (Banister Training Load) */}
+          {/* Gráfico único principal de carga y recuperación */}
           <TrainingLoadChart
             currentWeekTss={Math.round(summary.durationMin * ((summary.rpeAvg ?? 5) / 10) * 1.5) || 410}
             acwr={rec?.acwr ?? 1.05}
           />
 
-          {coachAssessment && <CoachSummaryCard assessment={coachAssessment} />}
-
-          {rec && rec.action !== "mantener" && (
-            <div
-              className="surface flex items-start gap-3.5 w-full p-4"
-              style={{
-                borderLeft: `4px solid ${BANNER_STYLE[ACTION_BANNER[rec.action].tone].color}`,
-              }}
-            >
-              <span
-                style={{
-                  color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color,
-                  flexShrink: 0,
-                  marginTop: 2,
-                }}
-              >
-                {ACTION_BANNER[rec.action].icon}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  className="font-semibold text-sm"
-                  style={{ color: BANNER_STYLE[ACTION_BANNER[rec.action].tone].color }}
-                >
-                  {ACTION_BANNER[rec.action].label}
-                </div>
-                <p className="text-xs sm:text-sm text-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
-                  {rec.summary}
-                </p>
+          {/* Sueño últimas noches */}
+          <div className="surface p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Moon size={17} style={{ color: "var(--color-brand)" }} />
+                <span className="text-sm font-bold" style={{ color: "var(--color-text)" }}>
+                  Sueño (Últimas noches)
+                </span>
               </div>
               <Link
-                href="/entrenador"
-                className="btn btn-secondary text-xs rounded-xl border border-white/10 hover:border-emerald-500/40 transition-colors duration-150"
-                style={{ flexShrink: 0, height: 34, minHeight: 34 }}
+                href="/sueno"
+                className="text-xs font-semibold flex items-center gap-1 hover:underline"
+                style={{ color: "var(--color-brand)" }}
               >
-                Ver detalle
+                <span>Ver detalle</span>
                 <ArrowRight size={13} />
               </Link>
             </div>
-          )}
 
-          {/* Core Week Metrics Grid */}
-          <div className="w-full">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                Métricas de la semana
-              </span>
-              {summary.compliancePct !== null && (
-                <span className="text-xs text-muted font-mono tabular-nums">
-                  {summary.realizadas + summary.parciales} de {summary.planificadas} sesiones
-                  {summary.extrasRealizadas && summary.extrasRealizadas > 0
-                    ? ` (+${summary.extrasRealizadas} extra)`
-                    : ""}
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full">
-              <StatCard
-                label="Cumplimiento"
-                value={summary.compliancePct !== null ? `${summary.compliancePct.toFixed(0)}%` : "—"}
-                icon={<CalendarCheck2 size={16} />}
-                tone={complianceTone}
-                sublabel={
-                  summary.noRealizadas > 0
-                    ? `${summary.noRealizadas} no realizada${summary.noRealizadas > 1 ? "s" : ""}`
-                    : "Todo al día"
-                }
-              />
-              <StatCard
-                label="Distancia total"
-                value={`${summary.distanceKm.toFixed(1)} km`}
-                icon={<Route size={16} />}
-                sublabel={
-                  (summary.runDistanceKm ?? 0) > 0 && (summary.walkDistanceKm ?? 0) > 0
-                    ? `${summary.runDistanceKm?.toFixed(1)} km run · ${summary.walkDistanceKm?.toFixed(1)} km walk`
-                    : "Suma semanal"
-                }
-              />
-              <StatCard
-                label="Tiempo total"
-                value={fmtDuration(summary.durationMin)}
-                icon={<Timer size={16} />}
-                sublabel={
-                  summary.extrasRealizadas && summary.extrasRealizadas > 0
-                    ? `+${summary.extrasRealizadas} extra`
-                    : "Tiempo entrenado"
-                }
-              />
-              <StatCard
-                label="Sueño medio"
-                value={fmt(summary.sleepHoursAvg, "h")}
-                icon={<Moon size={16} />}
-                sublabel={summary.sleepQualityAvg ? `Calidad ${fmt(summary.sleepQualityAvg)}/5` : "Descanso"}
-              />
-            </div>
-          </div>
-
-          {/* Secondary stats: Pace & Goals */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full">
-            <StatCard
-              label="Ritmo medio carrera"
-              value={fmtPace(summary.runAvgPaceMinKm ?? null)}
-              icon={<Gauge size={16} />}
-              sublabel={
-                (summary.runDistanceKm ?? 0) > 0
-                  ? `${summary.runDistanceKm?.toFixed(1)} km en ${summary.runCount} sesión${(summary.runCount ?? 0) > 1 ? "es" : ""}`
-                  : "Sin carrera registrada"
-              }
-            />
-            <StatCard
-              label="Ritmo caminata"
-              value={fmtPace(summary.walkAvgPaceMinKm ?? null)}
-              icon={<Footprints size={16} />}
-              sublabel={
-                (summary.walkDistanceKm ?? 0) > 0
-                  ? `${summary.walkDistanceKm?.toFixed(1)} km en ${summary.walkCount} sesión${(summary.walkCount ?? 0) > 1 ? "es" : ""}`
-                  : "Sin caminatas registradas"
-              }
-            />
-            <StatCard
-              label="Esfuerzo medio"
-              value={fmt(summary.rpeAvg)}
-              icon={<Gauge size={16} />}
-              sublabel="RPE escala 0–10"
-            />
-            {nextGoal && (
-              <StatCard
-                label="Próximo objetivo"
-                value={nextGoal.target_date ? `${daysUntilGoal(nextGoal.target_date)} días` : "—"}
-                icon={<Flag size={16} />}
-                tone="brand"
-                sublabel={nextGoal.title}
-              />
+            {summary.recentSleep && summary.recentSleep.length > 0 ? (
+              <div className="snap-carousel gap-2.5 pb-1">
+                {summary.recentSleep.slice(0, 7).reverse().map((sl, idx) => (
+                  <div
+                    key={idx}
+                    className="snap-item flex-1 min-w-[68px] flex flex-col items-center rounded-xl p-3 text-center"
+                    style={{
+                      background: "var(--color-surface-raised)",
+                      border: "1px solid var(--color-border)",
+                    }}
+                  >
+                    <span className="text-xs tabular-nums" style={{ color: "var(--color-text-muted)" }}>
+                      {sl.date.slice(5)}
+                    </span>
+                    <span
+                      className="text-base font-bold tabular-nums mt-1"
+                      style={{
+                        color: (sl.score ?? 0) >= 80 ? "var(--color-success)" : "var(--color-brand)",
+                      }}
+                    >
+                      {sl.score ?? "—"}
+                    </span>
+                    <span className="text-xs tabular-nums mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      {sl.hours ? `${Number(sl.hours).toFixed(1)}h` : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                Sin registros de sueño esta semana.
+              </p>
             )}
           </div>
 
-          {/* Panel Estado de Forma & Recuperación */}
-          <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-3 w-full">
-            {/* Widget Readiness */}
-            <div className="surface p-4 sm:p-5 flex flex-col justify-between rounded-2xl">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
-                    <HeartPulse size={14} className="text-emerald-500" />
-                    Estado de Forma &amp; Disposición
-                  </span>
-                  <span className="badge badge-success">Readiness</span>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-foreground tabular-nums">
-                    {summary.readiness?.score ?? 85}
-                  </span>
-                  <span className="text-xs text-muted font-semibold">/ 100</span>
-                  <span className="text-xs font-bold ml-auto" style={{ color: "var(--color-success)" }}>
-                    {summary.readiness?.level ?? "Óptimo para entrenar"}
-                  </span>
-                </div>
-                <p className="text-xs text-muted mt-2 leading-relaxed">
-                  {summary.readiness?.description ??
-                    "Equilibrio cardiovascular y recuperación celular en rango excelente para tolerar alta intensidad."}
-                </p>
-              </div>
-              <div
-                className="mt-3 pt-3 flex items-center justify-between text-xs text-muted"
-                style={{ borderTop: "1px solid var(--color-border)" }}
-              >
-                <span>Carga semanal estimada</span>
-                <span className="font-bold tabular-nums text-foreground">
-                  {Math.round(summary.durationMin * (summary.rpeAvg ?? 5))} UA
-                </span>
-              </div>
-            </div>
-
-            {/* Widget Recuperación de Sueño (Últimos 7 días) */}
-            <div className="surface p-4 sm:p-5 flex flex-col justify-between rounded-2xl lg:col-span-2">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
-                    <Moon size={14} className="text-brand" />
-                    Recuperación de Sueño (Últimas noches)
-                  </span>
-                  <Link
-                    href="/sueno"
-                    className="text-xs font-semibold hover:underline flex items-center gap-1"
-                    style={{ color: "var(--color-brand)" }}
-                  >
-                    <span>Ver apartado de sueño</span>
-                    <ArrowRight size={12} />
-                  </Link>
-                </div>
-
-                <div className="snap-carousel gap-2 mt-3.5 pb-1">
-                  {(summary.recentSleep && summary.recentSleep.length > 0
-                    ? summary.recentSleep.slice(0, 7).reverse()
-                    : [
-                        { date: "23/10", hours: 8.4, score: 86, deep_min: 79 },
-                        { date: "24/10", hours: 7.4, score: 84, deep_min: 80 },
-                        { date: "25/10", hours: 7.8, score: 78, deep_min: 51 },
-                        { date: "26/10", hours: 7.9, score: 86, deep_min: 86 },
-                        { date: "27/10", hours: 8.2, score: 88, deep_min: 93 },
-                        { date: "28/10", hours: 7.7, score: 81, deep_min: 45 },
-                        { date: "29/10", hours: 8.1, score: 76, deep_min: 50 },
-                      ]
-                  ).map((sl: any, idx: number) => {
-                    const dayLabel = sl.date ? sl.date.slice(5) : `D${idx + 1}`;
-                    const score = sl.score ?? Math.round((sl.hours ?? 7.5) * 11);
-                    const isHigh = score >= 85;
-                    const isGood = score >= 75;
-                    return (
-                      <div
-                        key={idx}
-                        className="snap-item flex-1 min-w-[54px] flex flex-col items-center rounded-xl p-2 text-center"
-                        style={{
-                          background: "var(--color-surface-raised)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        <span className="text-[10px] text-muted tabular-nums">{dayLabel}</span>
-                        <span
-                          className="text-xs font-extrabold tabular-nums mt-1"
-                          style={{
-                            color: isHigh ? "var(--color-success)" : isGood ? "var(--color-brand)" : "var(--color-warning)",
-                          }}
-                        >
-                          {score}
-                        </span>
-                        <span className="text-[10px] text-muted tabular-nums mt-0.5">
-                          {sl.hours ? `${Number(sl.hours).toFixed(1)}h` : "—"}
-                        </span>
-                        {sl.deep_min != null && (
-                          <span className="text-[9px] font-medium tabular-nums mt-0.5" style={{ color: "var(--color-brand)" }}>
-                            {sl.deep_min}m prof
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div
-                className="mt-3 pt-3 flex items-center justify-between text-xs text-muted"
-                style={{ borderTop: "1px solid var(--color-border)" }}
-              >
-                <span>Puntuación media de descanso</span>
-                <span className="font-semibold" style={{ color: "var(--color-success)" }}>
-                  {summary.sleepHoursAvg ? `${summary.sleepHoursAvg.toFixed(1)}h por noche` : "8.0h"} · Calidad óptima
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Panel Últimas Sesiones & Telemetría Suunto */}
-          {summary.recentSessions && summary.recentSessions.length > 0 && (
-            <div className="surface p-4 sm:p-5 rounded-2xl border border-slate-800 w-full">
-              <div className="flex items-center justify-between mb-3.5">
+          {/* Últimas sesiones */}
+          {summary.recentSessions && summary.recentSessions.length > 0 ? (
+            <div className="surface p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
-                  <Activity size={16} className="text-emerald-400" />
-                  <span className="font-bold text-sm text-slate-100">Últimas Sesiones & Telemetría Suunto</span>
+                  <Activity size={17} style={{ color: "var(--color-brand)" }} />
+                  <span className="text-sm font-bold" style={{ color: "var(--color-text)" }}>
+                    Últimas Sesiones
+                  </span>
                 </div>
-                <span className="text-[11px] text-muted font-mono hidden sm:inline">Toca una sesión para ver telemetría</span>
               </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {summary.recentSessions.slice(0, 6).map((ses) => {
                   const isDone = ses.status === "realizada" || ses.status === "completado";
-                  const pte = ses.suuntoMetrics?.pte;
-                  const epoc = ses.suuntoMetrics?.epoc;
                   return (
                     <Link
                       key={ses.id}
                       href={`/detalle?id=${ses.id}&date=${ses.date}`}
-                      className="p-3.5 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800/80 hover:border-emerald-500/30 transition-all flex flex-col justify-between group no-underline text-slate-200"
+                      className="p-4 rounded-xl transition-all flex flex-col justify-between no-underline harbiz-press"
+                      style={{
+                        background: "var(--color-surface-raised)",
+                        border: "1px solid var(--color-border)",
+                        color: "var(--color-text)",
+                      }}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-mono text-muted uppercase tracking-wider font-semibold">
+                          <span className="text-xs tabular-nums" style={{ color: "var(--color-text-muted)" }}>
                             {ses.date} · {ses.discipline}
                           </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isDone
-                                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
-                            }`}
-                          >
+                          <span className={isDone ? "badge badge-success" : "badge badge-neutral"}>
                             {isDone ? "Completado" : "Pendiente"}
                           </span>
                         </div>
-                        <div className="font-semibold text-xs sm:text-sm text-slate-100 group-hover:text-emerald-400 transition-colors mt-1.5 leading-snug break-words">
+                        <div className="font-semibold text-sm mt-2 leading-snug break-words">
                           {ses.planned_code || ses.discipline}
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-300">
-                          {ses.duration_min ? <span>{ses.duration_min}m</span> : null}
-                          {ses.distance_km ? <span>· {ses.distance_km}k</span> : null}
+                      {(ses.duration_min || ses.distance_km || ses.rpe) && (
+                        <div
+                          className="mt-3 pt-2.5 flex items-center gap-2 text-xs tabular-nums"
+                          style={{
+                            borderTop: "1px solid var(--color-border)",
+                            color: "var(--color-text-muted)",
+                          }}
+                        >
+                          {ses.duration_min ? <span>{ses.duration_min} min</span> : null}
+                          {ses.distance_km ? <span>· {ses.distance_km} km</span> : null}
                           {ses.rpe ? <span>· RPE {ses.rpe}</span> : null}
                         </div>
-
-                        <div className="flex items-center gap-1">
-                          {pte != null && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">
-                              PTE {pte}
-                            </span>
-                          )}
-                          {epoc != null && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
-                              {epoc} ml
-                            </span>
-                          )}
-                          {ses.hasFit && (
-                            <span className="text-[9px] font-bold px-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                              .FIT
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      )}
                     </Link>
                   );
                 })}
               </div>
             </div>
-          )}
-
-          {summary.planificadas === 0 && (
+          ) : (
             <EmptyState
               icon={<CalendarCheck2 size={22} />}
-              title="Todavía no hay nada planificado esta semana"
-              description="Añade las sesiones de esta semana en Plan semanal para poder registrar resultados y ver el resumen."
+              title="Sin sesiones registradas esta semana"
+              description="Planifica o registra tu entrenamiento desde Hoy / Plan."
               action={
-                <Link href="/plan-semanal" className="btn btn-primary">
-                  Ir a Plan semanal
+                <Link href="/hoy" className="btn btn-primary">
+                  Ir a Hoy / Plan
                 </Link>
               }
             />
           )}
         </div>
       )}
+
+      {importOpen && (
+        <Modal title="Importar sesión (.FIT) o sueño" onClose={() => setImportOpen(false)}>
+          <FileDropzone
+            onSuccess={() => {
+              setImportOpen(false);
+              loadData(true);
+            }}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
 
-function HomeSkeleton() {
+function ProgressSkeleton() {
   return (
-    <div className="space-y-4 w-full animate-pulse mt-4">
-      {/* Coach summary card skeleton */}
-      <div className="h-28 w-full surface p-4 flex flex-col justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-white/10 shrink-0" />
-          <div className="space-y-1.5 flex-1">
-            <div className="h-4 w-40 rounded bg-white/10" />
-            <div className="h-3 w-64 rounded bg-white/5" />
-          </div>
-        </div>
-        <div className="h-3 w-full rounded bg-white/5" />
-      </div>
-
-      {/* Primary Metrics Grid Skeleton */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="h-3.5 w-36 rounded bg-white/10" />
-          <div className="h-3 w-28 rounded bg-white/5" />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 surface p-4 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <div className="h-3 w-20 rounded bg-white/10" />
-                <div className="h-5 w-5 rounded-full bg-white/10" />
-              </div>
-              <div className="h-8 w-24 rounded bg-white/10" />
-              <div className="h-3 w-16 rounded bg-white/5" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Secondary Metrics Grid Skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+    <div className="space-y-4 w-full animate-pulse">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-32 surface p-4 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div className="h-3 w-20 rounded bg-white/10" />
-              <div className="h-5 w-5 rounded-full bg-white/10" />
-            </div>
-            <div className="h-8 w-24 rounded bg-white/10" />
-            <div className="h-3 w-16 rounded bg-white/5" />
-          </div>
+          <div key={i} className="h-28 surface p-5" />
         ))}
       </div>
+      <div className="h-64 surface p-5" />
     </div>
   );
 }

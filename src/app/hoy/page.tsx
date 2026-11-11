@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
-  Sun,
   Footprints,
   Dumbbell,
   Waves,
@@ -10,44 +10,33 @@ import {
   MoreHorizontal,
   BedDouble,
   UtensilsCrossed,
-  Flag,
   CheckCircle2,
-  AlertTriangle,
-  ShieldAlert,
   ArrowRight,
   Moon,
   Copy,
   Check,
   Zap,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
   Activity,
-  TrendingUp,
   RefreshCw,
-  Gauge,
-  Sliders,
-  RotateCcw,
-  ShieldCheck,
   Calendar,
-  Brain,
+  UploadCloud,
+  CalendarRange,
 } from "lucide-react";
-import Link from "next/link";
-import { todayISO, isoDayOfWeek, weekStartOf, weekDates } from "@/lib/dates";
+import { todayISO, weekStartOf, weekDates } from "@/lib/dates";
 import { reconcileSessions, reconcileSleep } from "@/lib/client-persistence";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import type { DailyReadiness } from "@/lib/readiness";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
-import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
-import { AppleFitnessRings } from "@/components/dashboard/apple-fitness-rings";
 import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
-import { detectVamZoneForSession, VAM_TEST_PROFILE } from "@/lib/vam-zones";
+import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
+import { detectVamZoneForSession } from "@/lib/vam-zones";
 
 interface SessionRow {
   id: number;
@@ -63,157 +52,52 @@ interface SessionRow {
   notes: string | null;
 }
 
-interface MenuItem {
-  id: number;
-  day_of_week: number;
-  meal: string;
-  option_label: string | null;
-  foods_text: string | null;
-  kcal: number | null;
-}
-
 interface SleepRow {
   date: string;
   hours: number | null;
   quality: number | null;
   score: number | null;
-  deep_min?: number | null;
-  light_min?: number | null;
-  rem_min?: number | null;
-  awake_min?: number | null;
-  hrv_rmssd?: number | null;
   resting_hr?: number | null;
-  efficiency?: number | null;
+  hrv_rmssd?: number | null;
   nap_min?: number | null;
-  nap_count?: number | null;
-  nap_notes?: string | null;
 }
 
-interface Recommendation {
-  action: "mantener" | "reducir" | "alerta_medica";
-  summary: string;
-}
-
-const DISCIPLINE_META: Record<string, { label: string; Icon: React.ComponentType<{ size?: number }>; color: string; bg: string }> = {
-  carrera: { label: "Carrera", Icon: Footprints, color: "var(--color-success)", bg: "var(--color-success-bg)" },
-  gimnasio: { label: "Gimnasio", Icon: Dumbbell, color: "#a855f7", bg: "rgba(168, 85, 247, 0.14)" },
-  natacion: { label: "Natación", Icon: Waves, color: "var(--color-info)", bg: "var(--color-info-bg)" },
-  crossfit: { label: "CrossFit", Icon: Flame, color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
-  otro: { label: "Otro", Icon: MoreHorizontal, color: "var(--color-brand)", bg: "var(--color-brand-subtle)" },
-  descanso: { label: "Descanso", Icon: BedDouble, color: "var(--color-text-muted)", bg: "var(--color-surface-raised)" },
+const DISCIPLINE_LABEL: Record<string, { label: string; Icon: React.ComponentType<{ size?: number }> }> = {
+  carrera: { label: "Carrera", Icon: Footprints },
+  gimnasio: { label: "Gimnasio", Icon: Dumbbell },
+  natacion: { label: "Natación", Icon: Waves },
+  crossfit: { label: "CrossFit", Icon: Flame },
+  caminata: { label: "Caminata", Icon: Footprints },
+  otro: { label: "Entrenamiento", Icon: MoreHorizontal },
+  descanso: { label: "Descanso", Icon: BedDouble },
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  pendiente: "Pendiente",
-  realizada: "Realizada",
-  parcial: "Parcial",
-  no_realizada: "No realizada",
-};
-
-const STATUS_TONE: Record<string, "neutral" | "success" | "warning"> = {
-  pendiente: "neutral",
-  realizada: "success",
-  parcial: "warning",
-  no_realizada: "warning",
-};
-
-const ACTION_META: Record<Recommendation["action"], { tone: "success" | "warning" | "danger"; icon: React.ReactNode; label: string }> = {
-  mantener: { tone: "success", icon: <CheckCircle2 size={18} />, label: "Todo en orden" },
-  reducir: { tone: "warning", icon: <AlertTriangle size={18} />, label: "Conviene ajustar carga esta semana" },
-  alerta_medica: { tone: "danger", icon: <ShieldAlert size={18} />, label: "Parar y consultar médicamente" },
-};
-
-const TONE_STYLE = {
-  success: { bg: "var(--color-success-bg)", color: "var(--color-success)" },
-  warning: { bg: "var(--color-warning-bg)", color: "var(--color-warning)" },
-  danger: { bg: "var(--color-danger-bg)", color: "var(--color-danger)" },
-};
-
-function phaseForDate(date: string, settings: Record<string, string>): number {
-  for (let p = 1; p <= 4; p++) {
-    const start = settings[`phase_${p}_start`];
-    const end = settings[`phase_${p}_end`];
-    if (start && end && date >= start && date <= end) return p;
-  }
-  const fallback = parseInt(settings.current_phase ?? "1", 10);
-  return Number.isFinite(fallback) && fallback >= 1 && fallback <= 4 ? fallback : 1;
-}
-
-const DAY_NAMES_LONG = [
-  "domingo",
-  "lunes",
-  "martes",
-  "miércoles",
-  "jueves",
-  "viernes",
-  "sábado",
-];
+const DAY_NAMES_LONG = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const MONTH_NAMES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-function formatToday(iso: string): string {
+function formatDateLabel(iso: string): string {
   const d = new Date(iso + "T00:00:00Z");
-  return `${DAY_NAMES_LONG[d.getUTCDay()]}, ${d.getUTCDate()} de ${MONTH_NAMES[d.getUTCMonth()]}`;
-}
-
-function formatShortDate(dateStr: string): string {
-  try {
-    const d = new Date(dateStr + "T00:00:00Z");
-    const dayName = DAY_NAMES_LONG[d.getUTCDay()];
-    return `${dayName.slice(0, 3)}, ${d.getUTCDate()} de ${MONTH_NAMES[d.getUTCMonth()].slice(0, 3)}`;
-  } catch {
-    return dateStr;
-  }
-}
-
-function daysUntil(dateStr: string | undefined, from: string): number | null {
-  if (!dateStr) return null;
-  const diff = new Date(dateStr + "T00:00:00Z").getTime() - new Date(from + "T00:00:00Z").getTime();
-  return Math.round(diff / 86400000);
+  const name = DAY_NAMES_LONG[d.getUTCDay()];
+  return `${name.charAt(0).toUpperCase() + name.slice(1)}, ${d.getUTCDate()} de ${MONTH_NAMES[d.getUTCMonth()]}`;
 }
 
 export default function HoyPage() {
+  const today = todayISO();
+  const [selectedDate, setSelectedDate] = useState(today);
   const [loading, setLoading] = useState(true);
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [settings, setSettings] = useState<Record<string, string>>({});
-  const [sleep, setSleep] = useState<SleepRow | null>(null);
-  const [rec, setRec] = useState<Recommendation | null>(null);
-  const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [weekSessions, setWeekSessions] = useState<SessionRow[]>([]);
-  const [showReadinessDetail, setShowReadinessDetail] = useState(false);
+  const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
+  const [sleep, setSleep] = useState<SleepRow | null>(null);
+  const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [applyingAdjustment, setApplyingAdjustment] = useState(false);
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
-  const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const toast = useToast();
-
-  const today = todayISO();
-
-  async function copySession(s: SessionRow) {
-    const ok = await copyWorkoutToClipboard({
-      date: s.date,
-      discipline: s.discipline,
-      planned_code: s.planned_code,
-      is_long_run: s.is_long_run,
-      status: s.status,
-      rpe: s.rpe,
-      duration_min: s.duration_min,
-      distance_km: s.distance_km,
-      notes: s.notes,
-    });
-    if (ok) {
-      setCopiedId(s.id);
-      toast.push("success", "Entreno copiado — pégalo en Notas");
-      setTimeout(() => setCopiedId(null), 2500);
-    } else {
-      toast.push("error", "No se pudo copiar automáticamente");
-    }
-  }
-
-  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -222,39 +106,22 @@ export default function HoyPage() {
     try {
       const t = Date.now();
       const currentWeekStart = weekStartOf(today);
-      const [settingsRes, sessionsRes, weekSessionsRes, recRes, sleepRes, readinessRes] = await Promise.all([
-        fetch(`/api/settings?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/sessions?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ sessions: [] })),
-        fetch(`/api/recommendations?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+      const [weekSessionsRes, sleepRes, readinessRes] = await Promise.all([
+        fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ logs: [] })),
         fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
       ]);
 
-      const s: Record<string, string> = settingsRes.settings ?? {};
-      setSettings(s);
-
-      // Reconciliación blindada con IndexedDB
-      const reconciledToday = await reconcileSessions(sessionsRes.sessions ?? []);
-      setSessions(reconciledToday.filter((x) => x.date === today));
-      setSuuntoSyncMap(sessionsRes.suuntoSyncMap ?? {});
-
       const reconciledWeek = await reconcileSessions(weekSessionsRes.sessions ?? [], currentWeekStart);
       setWeekSessions(reconciledWeek);
-
-      setRec(recRes);
+      setSuuntoSyncMap(weekSessionsRes.suuntoSyncMap ?? {});
       setReadiness(readinessRes.readiness ?? null);
 
       const sleepLogs: SleepRow[] = sleepRes.logs ?? sleepRes.sleepLogs ?? [];
       const reconciledSleep = await reconcileSleep(sleepLogs as never, today, today);
       setSleep((reconciledSleep.find((l) => l.date === today) as never) ?? null);
-
-      const phase = phaseForDate(today, s);
-      const menuRes = await fetch(`/api/menu?phase=${phase}&t=${t}`, { cache: "no-store" }).then((r) => r.json());
-      const dow = isoDayOfWeek(today);
-      setMenu((menuRes.items ?? []).filter((m: MenuItem) => m.day_of_week === dow));
     } catch {
-      // silencioso al refrescar
+      // silent
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -273,20 +140,39 @@ export default function HoyPage() {
     return () => window.removeEventListener("entrenoapp:refresh", onGlobalRefresh);
   }, [load]);
 
+  async function copySession(s: SessionRow) {
+    const ok = await copyWorkoutToClipboard({
+      date: s.date,
+      discipline: s.discipline,
+      planned_code: s.planned_code,
+      is_long_run: s.is_long_run,
+      status: s.status,
+      rpe: s.rpe,
+      duration_min: s.duration_min,
+      distance_km: s.distance_km,
+      notes: s.notes,
+    });
+    if (ok) {
+      setCopiedId(s.id);
+      toast.push("success", "Entreno copiado");
+      setTimeout(() => setCopiedId(null), 2200);
+    }
+  }
+
   async function handleApplyAdjustment(sessionId?: number) {
     setApplyingAdjustment(true);
     try {
       const res = await fetch("/api/readiness/adjust", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: today, sessionId }),
+        body: JSON.stringify({ date: selectedDate, sessionId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error aplicando ajuste");
-      toast.push("success", `Adaptación inteligente aplicada (${data.appliedCount} sesión/es modificada/s)`);
+      toast.push("success", "Sesión adaptada correctamente");
       load(false);
     } catch (err: any) {
-      toast.push("error", err?.message ?? "No se pudo aplicar la adaptación");
+      toast.push("error", err?.message ?? "No se pudo adaptar");
     } finally {
       setApplyingAdjustment(false);
     }
@@ -298,990 +184,375 @@ export default function HoyPage() {
       const res = await fetch("/api/readiness/adjust", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: today, sessionId, action: "revert" }),
+        body: JSON.stringify({ date: selectedDate, sessionId, action: "revert" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error revirtiendo");
-      toast.push("success", "Ajuste revertido correctamente");
+      toast.push("success", "Plan original restaurado");
       load(false);
     } catch (err: any) {
-      toast.push("error", err?.message ?? "No se pudo revertir el ajuste");
+      toast.push("error", err?.message ?? "No se pudo revertir");
     } finally {
       setApplyingAdjustment(false);
     }
   }
 
-  const raceDays = daysUntil(settings.goal_race_date, today);
-  const trainingSessions = sessions.filter((s) => s.discipline !== "descanso");
-  const tomorrow = new Date(new Date(today + "T00:00:00Z").getTime() + 86400000).toISOString().split("T")[0];
-  const tomorrowSession = weekSessions.find((s) => s.date === tomorrow);
+  const weekDays = weekDates(weekStartOf(today));
+  const daySessions = weekSessions.filter((s) => s.date === selectedDate && s.discipline !== "descanso");
 
   if (loading) {
     return (
-      <div>
-        <PageHeader
-          title="Hoy"
-          description="Daniel Espinosa · Panel de rendimiento diario"
-        />
+      <div className="space-y-4">
+        <PageHeader title="Hoy" description={formatDateLabel(selectedDate)} />
         <HoySkeleton />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
-        title="Hoy"
-        description={`Daniel Espinosa · ${formatToday(today).replace(/^\w/, (c) => c.toUpperCase())}`}
+        title={selectedDate === today ? "Hoy" : "Plan del día"}
+        description={formatDateLabel(selectedDate)}
         actions={
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {raceDays !== null && (
-              <span
-                className="badge badge-info inline-flex"
-                style={{ fontSize: "0.74rem", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-full)" }}
-              >
-                <Flag size={12} style={{ marginRight: 5, flexShrink: 0 }} />
-                {raceDays >= 0 ? `Maratón en ${raceDays} días` : `Maratón hace ${-raceDays} d`}
-              </span>
-            )}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              className="btn btn-secondary text-xs inline-flex items-center gap-1.5"
+              type="button"
+              onClick={() => setImportModalOpen(true)}
+              className="btn btn-secondary btn-sm harbiz-press"
+              style={{ minHeight: 44 }}
+            >
+              <UploadCloud size={16} style={{ color: "var(--color-brand)" }} />
+              <span>Cargar sesión</span>
+            </button>
+            <Link
+              href="/plan-semanal"
+              className="btn btn-secondary btn-sm harbiz-press no-underline"
+              style={{ minHeight: 44 }}
+            >
+              <CalendarRange size={16} style={{ color: "var(--color-text-muted)" }} />
+              <span>Semana completa</span>
+            </Link>
+            <button
+              type="button"
               onClick={() => load(true)}
               disabled={refreshing}
-              style={{
-                height: 36,
-                minHeight: 36,
-                borderRadius: "var(--radius-full)",
-                padding: "0 13px",
-              }}
+              className="btn btn-ghost btn-icon harbiz-press hidden sm:inline-flex"
+              aria-label="Actualizar"
             >
-              <RefreshCw size={13} className={refreshing ? "spinner" : ""} />
-              <span>{refreshing ? "Actualizando…" : "Refrescar"}</span>
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             </button>
           </div>
         }
       />
 
-      {/* 1. Microciclo Semanal (Minimalist 7-Day Strip) */}
-      <section
-        className="surface p-3 mb-3 animate-in"
-      >
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Microciclo Semanal · Fase {phaseForDate(today, settings)}
-            </span>
-          </div>
-          <Link
-            href="/plan-semanal"
-            className="flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400 transition-colors"
-          >
-            <span>Plan semanal</span>
-            <ArrowRight size={13} />
-          </Link>
-        </div>
-
-        {/* Banner de Adaptación Semanal / Aviso de Cierre de Domingo */}
-        {settings.last_adaptive_plan && (() => {
-          try {
-            const p = JSON.parse(settings.last_adaptive_plan);
-            return (
-              <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-foreground mb-3 animate-in">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Sparkles size={14} className="text-emerald-400 flex-shrink-0" />
-                  <span className="truncate">
-                    <strong>Plan adaptativo:</strong> Próxima semana adaptada al completo · <em>{p.strategyTitle}</em>
-                  </span>
-                </div>
-                <Link href="/plan-semanal" className="text-emerald-400 hover:underline font-semibold flex items-center gap-1 text-[11px] flex-shrink-0">
-                  Ver plan <ArrowRight size={11} />
-                </Link>
-              </div>
-            );
-          } catch {
-            return null;
-          }
-        })()}
-
-        {isoDayOfWeek(today) === 7 && (
-          <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-foreground mb-3 animate-in">
-            <div className="flex items-center gap-2">
-              <Zap size={14} className="text-amber-400 flex-shrink-0" />
-              <span>
-                <strong>Cierre de semana:</strong> Al registrar tu entreno de hoy, el plan a largo plazo adaptará automáticamente la siguiente semana según tu carga real.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* 7-Day Swipeable Harbiz Carousel */}
-        <div className="snap-carousel gap-2 pb-1 text-center">
-          {weekDates(weekStartOf(today)).map((dIso, idx) => {
+      {/* 1. Calendario Semanal Deslizable (Lunes a Domingo) */}
+      <section className="surface p-4">
+        <div className="snap-carousel gap-2 text-center">
+          {weekDays.map((dIso, idx) => {
+            const isSelected = dIso === selectedDate;
             const isDayToday = dIso === today;
             const dayNum = parseInt(dIso.slice(8), 10);
             const letters = ["L", "M", "X", "J", "V", "S", "D"];
-            const daySession = weekSessions.find((s) => s.date === dIso);
+            const daySession = weekSessions.find((s) => s.date === dIso && s.discipline !== "descanso");
             const isCompleted = daySession && (daySession.status === "realizada" || daySession.status === "parcial");
-            const isRest = daySession?.discipline === "descanso";
 
             return (
-              <Link
+              <button
                 key={dIso}
-                href={`/plan-semanal`}
-                className="snap-item flex-1 min-w-[52px] min-h-[68px] flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl relative transition-all harbiz-press no-underline"
+                type="button"
+                onClick={() => setSelectedDate(dIso)}
+                className="snap-item flex-1 min-w-[48px] min-h-[68px] flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all harbiz-press cursor-pointer"
                 style={{
-                  background: isDayToday
+                  background: isSelected
                     ? "var(--color-brand)"
-                    : isCompleted
-                    ? "var(--color-success-bg)"
                     : "var(--color-surface-raised)",
-                  border: isDayToday
+                  border: isSelected
+                    ? "1px solid var(--color-brand)"
+                    : isDayToday
                     ? "1.5px solid var(--color-brand)"
-                    : isCompleted
-                    ? "1px solid rgba(16, 185, 129, 0.35)"
                     : "1px solid var(--color-border)",
-                  color: isDayToday ? "#ffffff" : "var(--color-text)",
-                  boxShadow: isDayToday ? "var(--shadow-glow-brand)" : undefined,
-                  opacity: isDayToday || isCompleted || (daySession && !isRest) ? 1 : 0.72,
+                  color: isSelected ? "#ffffff" : "var(--color-text)",
                 }}
               >
                 <span
-                  className="text-[11px] font-bold uppercase tracking-tight"
-                  style={{ color: isDayToday ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)" }}
+                  className="text-xs font-semibold uppercase"
+                  style={{
+                    color: isSelected ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
+                  }}
                 >
                   {letters[idx]}
                 </span>
-                <span className="text-base font-extrabold mt-0.5 leading-none tabular-nums">
+                <span className="text-base font-bold mt-0.5 tabular-nums leading-none">
                   {dayNum}
                 </span>
                 <span
                   className="w-1.5 h-1.5 rounded-full mt-2"
                   style={{
-                    background: isDayToday
+                    background: isSelected
                       ? "#ffffff"
                       : isCompleted
                       ? "var(--color-success)"
-                      : daySession && !isRest
+                      : daySession
                       ? "var(--color-brand)"
-                      : isRest
-                      ? "var(--color-warning)"
                       : "transparent",
                   }}
                 />
-              </Link>
+              </button>
             );
           })}
         </div>
       </section>
 
-      {/* 2. Recuperación Fisiológica (Anillos Apple Fitness con 3 Colores: Carga, Forma, Sueño) */}
-      {readiness && (
-        <section className="mb-3 animate-in">
-          <AppleFitnessRings
-            loadTss={readiness.stats?.last48hLoad ? Math.round(readiness.stats.last48hLoad * 1.5) : 320}
-            targetLoadTss={450}
-            readinessScore={readiness.score}
-            sleepHours={(sleep?.hours ?? 7.5) + (sleep?.nap_min ? sleep.nap_min / 60 : 0)}
-            targetSleepHours={8.0}
-            acwr={
-              readiness.stats.prevWeekLoad > 0
-                ? Number(((readiness.stats.last48hLoad * 3.5) / readiness.stats.prevWeekLoad).toFixed(2))
-                : 1.05
-            }
-            rpeAvg={5.5}
-            hrvMs={
-              typeof readiness.factors?.[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value === "number"
-                ? Number(readiness.factors[0]?.metrics?.find((m) => m.label.includes("HRV"))?.value)
-                : 74
-            }
-            rhrBpm={52}
-          />
-        </section>
-      )}
+      {/* 2. Sesión Programada del Día (Protagonista, sin saturación) */}
+      {daySessions.length === 0 ? (
+        <EmptyState
+          icon={<BedDouble size={24} />}
+          title="Día de descanso programado"
+          description="No hay entrenamientos asignados para este día. Aprovecha para recuperar."
+          action={
+            <Link href="/plan-semanal" className="btn btn-secondary">
+              Gestionar plan semanal
+            </Link>
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {daySessions.map((s) => {
+            const meta = DISCIPLINE_LABEL[s.discipline] ?? DISCIPLINE_LABEL.otro;
+            const Icon = meta.Icon;
+            const modInfo = parseWorkoutModification(s, readiness?.proposedMicroAdjustments);
+            const isCompleted = s.status === "realizada";
+            const vamZone = s.discipline === "carrera" ? detectVamZoneForSession(s) : null;
 
-      {/* 3. Nota del Entrenador (AI & Performance Staff) */}
-      <section className="mb-3">
-        <div
-          className="surface p-3.5 sm:p-4 relative overflow-hidden animate-in"
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className="p-2.5 rounded-xl text-emerald-500 shrink-0"
-              style={{ background: "var(--color-brand-subtle)" }}
-            >
-              <Sparkles size={20} />
-            </div>
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Nota del Entrenador
-                </h3>
-                <span className="text-[11px] font-medium text-emerald-500">
-                  Actualizado hoy
-                </span>
-              </div>
-              <p className="text-xs text-muted leading-relaxed">
-                {readiness?.verdict?.actionGuidance || readiness?.coachAdvice ||
-                  "Tus niveles de HRV y descanso nocturno están en su punto más alto del mes (+12%). En las series principales mantén el ritmo controlado sin exceder zona 4 temprana para proteger la sobrecarga muscular de cara a la tirada del domingo."}
-              </p>
+            const cleanNotes = s.notes
+              ? s.notes
+                  .split("\n")
+                  .filter(
+                    (line) =>
+                      !line.includes("[Ajuste inteligente]") &&
+                      !line.includes("- Enfoque Psicológico & Tip Mental:")
+                  )
+                  .join("\n")
+                  .trim()
+              : "";
 
-              {/* Adaptaciones de carga: Comparación explícita Plan Programado vs Plan a Realizar */}
-              {readiness?.proposedMicroAdjustments && readiness.proposedMicroAdjustments.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-border space-y-3">
-                  {readiness.proposedMicroAdjustments.map((adj) => (
+            return (
+              <section key={s.id} className="surface p-5 sm:p-6 space-y-5 animate-in">
+                {modInfo && (modInfo.isModified || modInfo.isPendingProposal) && (
+                  <WorkoutModificationBanner
+                    info={modInfo}
+                    onRevert={() => handleRevertAdjustment(s.id)}
+                    onApply={() => handleApplyAdjustment(s.id)}
+                    reverting={applyingAdjustment}
+                    applying={applyingAdjustment}
+                  />
+                )}
+
+                {/* Cabecera limpia de la sesión */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3.5 min-w-0">
                     <div
-                      key={adj.sessionId}
-                      className="rounded-xl p-3.5 space-y-3"
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                       style={{
-                        background: adj.isApplied ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
-                        border: adj.isApplied ? "1px solid rgba(16, 185, 129, 0.28)" : "1px solid rgba(245, 158, 11, 0.28)",
+                        background: isCompleted ? "var(--color-success-bg)" : "var(--color-brand-subtle)",
+                        color: isCompleted ? "var(--color-success)" : "var(--color-brand)",
                       }}
                     >
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span
-                          className="badge text-[11px] font-bold uppercase tracking-wider"
-                          style={{
-                            background: adj.isApplied ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)",
-                            color: adj.isApplied ? "var(--color-success)" : "var(--color-warning)",
-                            border: `1px solid ${adj.isApplied ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
-                          }}
-                        >
-                          {adj.isApplied ? "✅ Carga Adaptada en el Plan" : "⚡ Adaptación de Carga Sugerida"} · {adj.date}
+                      <Icon size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={isCompleted ? "badge badge-success" : "badge badge-brand"}>
+                          {isCompleted ? "Completado" : meta.label}
                         </span>
-                        {adj.isApplied ? (
-                          <button
-                            className="btn btn-ghost btn-sm text-xs"
-                            disabled={applyingAdjustment}
-                            onClick={() => handleRevertAdjustment(adj.sessionId)}
-                            style={{ height: 28, padding: "0 8px" }}
-                          >
-                            <RotateCcw size={12} />
-                            <span>Revertir al plan original</span>
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn-primary btn-sm text-xs font-semibold"
-                            disabled={applyingAdjustment}
-                            onClick={() => handleApplyAdjustment(adj.sessionId)}
-                            style={{ height: 28, padding: "0 10px" }}
-                          >
-                            <Zap size={12} />
-                            <span>Aplicar esta adaptación</span>
-                          </button>
+                        {vamZone && (
+                          <span className="badge badge-neutral tabular-nums">
+                            Objetivo {vamZone.rangeLabel}
+                          </span>
                         )}
                       </div>
-
-                      {/* Comparativa clara solicitada por el usuario */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                        {/* 1. Plan Programado */}
-                        <div
-                          className="p-3 rounded-xl flex flex-col justify-between"
-                          style={{
-                            background: "var(--color-surface-raised)",
-                            border: "1px solid var(--color-border)",
-                          }}
-                        >
-                          <div className="text-[11px] uppercase tracking-wider font-bold text-muted flex items-center gap-1.5 mb-1.5">
-                            <Calendar size={13} className="text-muted" />
-                            <span>ESTE ES EL PLAN PROGRAMADO</span>
-                          </div>
-                          <div
-                            className="font-semibold text-sm text-foreground"
-                            style={{ textDecoration: adj.isApplied ? "line-through" : "none", opacity: adj.isApplied ? 0.75 : 1 }}
-                          >
-                            {adj.originalPlannedCode || adj.discipline}
-                          </div>
-                          <div className="text-xs text-muted mt-1">
-                            Planificación inicial prevista en el calendario.
-                          </div>
-                        </div>
-
-                        {/* 2. Plan a Realizar para Adaptar la Carga */}
-                        <div
-                          className="p-3 rounded-lg flex flex-col justify-between"
-                          style={{
-                            background: "rgba(16, 185, 129, 0.12)",
-                            border: "1.5px solid rgba(16, 185, 129, 0.4)",
-                          }}
-                        >
-                          <div className="text-[11px] uppercase tracking-wider font-bold text-emerald-400 flex items-center gap-1.5 mb-1.5">
-                            <Zap size={13} className="text-emerald-400" />
-                            <span>ESTE ES EL QUE TIENES QUE HACER PARA ADAPTAR LA CARGA</span>
-                          </div>
-                          <div className="font-bold text-sm text-emerald-300">
-                            {adj.suggestedPlannedCode || adj.suggestedDiscipline || "Descanso activo"}
-                          </div>
-                          {adj.suggestedPaceGuidance && (
-                            <div className="text-xs text-emerald-400 font-medium mt-1">
-                              Ritmo/Pauta: {adj.suggestedPaceGuidance}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-muted leading-relaxed">
-                        <strong>Motivo:</strong> {adj.reason}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Sesión Principal de Hoy & Menú de Hoy */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full min-w-0">
-        {/* Columna Izquierda: Entrenamiento de Hoy (7 cols) */}
-        <div className="lg:col-span-7 min-w-0 w-full">
-          <div className="flex justify-between items-baseline mb-3 px-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Sesión Principal
-            </span>
-            <span className="text-xs font-semibold text-emerald-400">
-              Fase Clave
-            </span>
-          </div>
-
-          {trainingSessions.length === 0 ? (
-            <div
-              className="surface p-6 text-center"
-            >
-              <BedDouble size={28} className="mx-auto text-muted mb-2 opacity-60" />
-              <h3 className="text-base font-semibold text-foreground">Día de descanso programado</h3>
-              <p className="text-xs text-muted mt-1 max-w-sm mx-auto leading-relaxed">
-                No hay sesiones intensivas asignadas para hoy. Día destinado a supercompensación, recarga de glucógeno y descanso activo.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {trainingSessions.map((s) => {
-                const meta = DISCIPLINE_META[s.discipline] ?? DISCIPLINE_META.otro;
-                const Icon = meta.Icon;
-                const modInfo = parseWorkoutModification(s, readiness?.proposedMicroAdjustments);
-
-                const cleanNotes = s.notes
-                  ? s.notes
-                      .split("\n")
-                      .filter(
-                        (line) =>
-                          !line.includes("[Ajuste inteligente]") &&
-                          !line.includes("- Enfoque Psicológico & Tip Mental:") &&
-                          !line.includes("- Estrategia Nutrición (Media Mañana):") &&
-                          !line.trim().startsWith("• Si entrenas a las 13:30h") &&
-                          !line.trim().startsWith("• Si entrenas por la tarde")
-                      )
-                      .join("\n")
-                      .trim()
-                  : "";
-
-                const durationEst = s.duration_min ?? 55;
-                const rpeEst = s.rpe ? `RPE ${s.rpe}` : "RPE 8.0";
-                const distEst = s.distance_km ? `${s.distance_km} km` : `${durationEst} min`;
-
-                return (
-                  <section
-                    key={s.id}
-                    className="surface p-5 space-y-4 animate-in"
-                  >
-                    {/* Estado de carga & Comparativa explícita solicitada por el usuario */}
-                    {modInfo && (modInfo.isModified || modInfo.isPendingProposal) ? (
-                      <WorkoutModificationBanner
-                        info={modInfo}
-                        onRevert={() => handleRevertAdjustment(s.id)}
-                        onApply={() => handleApplyAdjustment(s.id)}
-                        reverting={applyingAdjustment}
-                        applying={applyingAdjustment}
-                      />
-                    ) : (
-                      <div
-                        className="rounded-xl p-3 mb-2 animate-in"
-                        style={{
-                          background: "rgba(16, 185, 129, 0.05)",
-                          border: "1px solid rgba(16, 185, 129, 0.2)",
-                        }}
+                      <h2
+                        className="text-lg sm:text-xl font-bold tracking-tight mt-1.5 leading-snug break-words"
+                        style={{ color: "var(--color-text)" }}
                       >
-                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                          <span
-                            className="badge text-[11px] font-bold uppercase tracking-wider"
-                            style={{
-                              background: "rgba(16, 185, 129, 0.15)",
-                              color: "var(--color-success)",
-                              border: "1px solid rgba(16, 185, 129, 0.3)",
-                            }}
-                          >
-                            <CheckCircle2 size={12} />
-                            Plan Programado Activo al 100%
-                          </span>
-                          <button
-                            className="btn btn-ghost btn-sm text-xs font-semibold"
-                            disabled={applyingAdjustment}
-                            onClick={() => handleApplyAdjustment(s.id)}
-                            title="Modula este entrenamiento a regenerativo si hoy te notas fatigado o has descansado poco"
-                            style={{ height: 26, padding: "0 8px", color: "var(--color-text-muted)" }}
-                          >
-                            <Zap size={12} className="text-amber-500" />
-                            <span>Adaptar carga hoy por fatiga</span>
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                          <div className="p-2.5 rounded-xl" style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}>
-                            <div className="text-[10px] uppercase font-bold text-muted mb-0.5 flex items-center gap-1">
-                              <Calendar size={11} />
-                              <span>ESTE ES EL PLAN PROGRAMADO</span>
-                            </div>
-                            <div className="font-semibold text-foreground">
-                              {s.planned_code || meta.label}
-                            </div>
-                          </div>
-                          <div className="p-2.5 rounded-xl" style={{ background: "var(--color-success-bg)", border: "1px solid rgba(16, 185, 129, 0.28)" }}>
-                            <div className="text-[10px] uppercase font-bold mb-0.5 flex items-center gap-1" style={{ color: "var(--color-success)" }}>
-                              <CheckCircle2 size={11} />
-                              <span>ESTADO DE CARGA</span>
-                            </div>
-                            <div className="font-semibold" style={{ color: "var(--color-success)" }}>
-                              Sin fatiga limitante · Cumple el plan programado
-                            </div>
-                          </div>
+                        {s.planned_code || meta.label}
+                      </h2>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chips clave limpios (Distancia / Duración / RPE) */}
+                {(s.distance_km != null || s.duration_min != null || s.rpe != null) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {s.distance_km != null && (
+                      <div
+                        className="p-3 rounded-xl"
+                        style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
+                      >
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Distancia</div>
+                        <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
+                          {s.distance_km} km
                         </div>
                       </div>
                     )}
-
-                    {/* Title & Category Header */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="text-lg font-bold text-foreground tracking-tight leading-tight">
-                          {s.planned_code ? `${s.planned_code} · ` : ""}{meta.label}
-                        </h2>
-                        <p className="text-xs text-muted mt-0.5">
-                          Bloque Pre-Competición · Semana {phaseForDate(today, settings)}
-                        </p>
-                      </div>
+                    {s.duration_min != null && (
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: meta.bg, color: meta.color }}
+                        className="p-3 rounded-xl"
+                        style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
-                        <Icon size={20} />
-                      </div>
-                    </div>
-
-                    {/* Tarjeta de Ritmo Objetivo basado en Test VAM 3:59 */}
-                    {s.discipline === "carrera" && (() => {
-                      const vamZone = detectVamZoneForSession(s);
-                      if (!vamZone) return null;
-                      return (
-                        <div
-                          className="p-3.5 rounded-xl border animate-in"
-                          style={{
-                            backgroundColor: "rgba(16, 185, 129, 0.08)",
-                            borderColor: "rgba(16, 185, 129, 0.35)",
-                            boxShadow: "0 2px 14px rgba(16, 185, 129, 0.08)",
-                          }}
-                        >
-                          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full"
-                                style={{
-                                  backgroundColor: "rgba(16, 185, 129, 0.22)",
-                                  color: "var(--color-success, #10b981)",
-                                  border: "1px solid rgba(16, 185, 129, 0.45)",
-                                }}
-                              >
-                                🎯 RITMO OBJETIVO · TEST VAM {VAM_TEST_PROFILE.pace}
-                              </span>
-                              <span className="text-xs font-bold text-foreground">
-                                {vamZone.name}
-                              </span>
-                            </div>
-
-                            <span className="text-[11px] text-muted font-semibold">
-                              {vamZone.pctVam} · {vamZone.targetRpe}
-                            </span>
-                          </div>
-
-                          <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                            <div className="flex items-baseline gap-2 flex-wrap">
-                              <span className="text-2xl font-black text-emerald-400 tracking-tight">
-                                {vamZone.rangeLabel}
-                              </span>
-                              {modInfo && modInfo.isModified && modInfo.suggestedPace && (
-                                <span className="text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/35 px-2 py-0.5 rounded-md">
-                                  Pauta adaptada: {modInfo.suggestedPace}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-muted max-w-sm leading-relaxed">
-                              {vamZone.description}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Metric Pill Chips */}
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <div
-                        className="surface-raised rounded-xl px-3 py-2 border border-border"
-                      >
-                        <div className="text-[11px] font-medium text-muted">Distancia</div>
-                        <div className="text-sm font-bold text-foreground mt-0.5">{distEst}</div>
-                      </div>
-                      <div
-                        className="surface-raised rounded-xl px-3 py-2 border border-border"
-                      >
-                        <div className="text-[11px] font-medium text-muted">Duración</div>
-                        <div className="text-sm font-bold text-foreground mt-0.5">{durationEst} min</div>
-                      </div>
-                      <div
-                        className="surface-raised rounded-xl px-3 py-2 border border-border"
-                      >
-                        <div className="text-[11px] font-medium text-muted">Intensidad</div>
-                        <div className="text-sm font-bold text-emerald-500 mt-0.5">{rpeEst}</div>
-                      </div>
-                      <div
-                        className="surface-raised rounded-xl px-3 py-2 border border-border"
-                      >
-                        <div className="text-[11px] font-medium text-muted">Carga</div>
-                        <div className="text-sm font-bold text-amber-500 mt-0.5">
-                          {Math.round(durationEst * 2.2)} AU
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Duración</div>
+                        <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
+                          {s.duration_min} min
                         </div>
                       </div>
-                    </div>
-
-                    {/* Structure / Notes */}
-                    <div className="pt-2 border-t border-border">
-                      {/* Cabecera distintiva indicando inequívocamente si es el adaptado o el programado */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
-                            Estructura de la sesión
-                          </span>
-
-                          {modInfo && modInfo.isModified ? (
-                            <span
-                              className="badge text-[11px] font-extrabold uppercase tracking-wide inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md"
-                              style={{
-                                backgroundColor: "rgba(16, 185, 129, 0.2)",
-                                color: "var(--color-success, #10b981)",
-                                border: "1.5px solid rgba(16, 185, 129, 0.5)",
-                              }}
-                            >
-                              <Zap size={13} className="text-emerald-400" />
-                              ADAPTADA POR CARGA (A REALIZAR HOY)
-                            </span>
-                          ) : (
-                            <span
-                              className="badge text-[11px] font-extrabold uppercase tracking-wide inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md"
-                              style={{
-                                backgroundColor: "rgba(59, 130, 246, 0.15)",
-                                color: "var(--color-brand, #38bdf8)",
-                                border: "1.5px solid rgba(59, 130, 246, 0.4)",
-                              }}
-                            >
-                              <CheckCircle2 size={13} className="text-sky-400" />
-                              PLAN PROGRAMADO ORIGINAL (A REALIZAR HOY)
-                            </span>
-                          )}
-                        </div>
-
-                        {modInfo && modInfo.isModified ? (
-                          <span className="text-[11px] text-emerald-400 font-semibold">
-                            {modInfo.suggestedPace ? `⚡ Pauta activa: ${modInfo.suggestedPace}` : "⚡ Adaptada a tu recuperación"}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-sky-300 font-semibold">
-                            📋 Siguiendo el plan fijado
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Estructura Visual y Desglosada del Entrenamiento */}
-                      <div className="w-full mt-2">
-                        <WorkoutStructuredNotes
-                          notes={
-                            modInfo && modInfo.isModified && modInfo.adjustedWorkout?.structure
-                              ? modInfo.adjustedWorkout.structure
-                              : s.notes || ""
-                          }
-                          discipline={s.discipline}
-                          themeColor={meta.color}
-                          distanceKm={s.distance_km}
-                          durationMin={s.duration_min}
-                        />
-                      </div>
-
-                      {/* Si está adaptada, damos un desplegable para ver la que estaba programada originalmente */}
-                      {modInfo && modInfo.isModified && (
-                        <details className="mt-2 text-xs">
-                          <summary className="cursor-pointer text-muted hover:text-foreground font-semibold inline-flex items-center gap-1.5 select-none py-1">
-                            <Calendar size={13} />
-                            <span>Ver la estructura que estaba programada originalmente</span>
-                          </summary>
-                          <div className="mt-1.5 p-3 rounded-xl border border-white/10 bg-black/30 text-muted leading-relaxed whitespace-pre-wrap font-sans">
-                            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
-                              Estructura fijada inicialmente en el calendario:
-                            </div>
-                            {modInfo.originalWorkout?.structure || cleanNotes || "Estructura estándar del calendario."}
-                          </div>
-                        </details>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="space-y-2.5 pt-2">
+                    )}
+                    {s.rpe != null && (
                       <div
-                        className="p-3 rounded-2xl flex items-center justify-between gap-2 flex-wrap"
-                        style={{
-                          background: "var(--color-surface-raised)",
-                          border: "1px solid var(--color-border)",
-                        }}
+                        className="p-3 rounded-xl"
+                        style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
-                        <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                          Reloj Suunto
-                        </span>
-                        <SuuntoPushButton
-                          sessionId={s.id}
-                          discipline={s.discipline}
-                          status={s.status}
-                          initialSync={suuntoSyncMap[s.id] ?? null}
-                          showFitDownload
-                        />
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Esfuerzo</div>
+                        <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
+                          RPE {s.rpe}
+                        </div>
                       </div>
+                    )}
+                  </div>
+                )}
 
-                      <Link
-                        href="/registro"
-                        className="w-full btn btn-primary flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-bold text-sm transition-all shadow-md harbiz-press"
-                        style={{ textDecoration: "none", minHeight: 48 }}
-                      >
-                        <Zap size={17} />
-                        <span>{s.status === "realizada" ? "Ver / Editar Registro" : "Comenzar entreno"}</span>
-                      </Link>
+                {/* Desglose estructurado de bloques */}
+                {cleanNotes && (
+                  <div className="pt-4" style={{ borderTop: "1px solid var(--color-border)" }}>
+                    <WorkoutStructuredNotes
+                      notes={cleanNotes}
+                      discipline={s.discipline}
+                      distanceKm={s.distance_km}
+                      durationMin={s.duration_min}
+                    />
+                  </div>
+                )}
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl harbiz-press"
-                          onClick={() => setDetailSessionId(s.id)}
-                          style={{ minHeight: 44 }}
-                        >
-                          <Activity size={15} />
-                          <span>Detalle completo</span>
-                        </button>
-                        <button
-                          className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl harbiz-press"
-                          onClick={() => copySession(s)}
-                          style={{ minHeight: 44 }}
-                        >
-                          {copiedId === s.id ? (
-                            <Check size={15} className="text-emerald-500" />
-                          ) : (
-                            <Copy size={15} />
-                          )}
-                          <span>{copiedId === s.id ? "Copiado" : "Copiar"}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                {/* Fila Suunto + Acciones principales */}
+                <div className="space-y-3 pt-2">
+                  <div
+                    className="p-3 rounded-xl flex items-center justify-between gap-2 flex-wrap"
+                    style={{
+                      background: "var(--color-surface-raised)",
+                      border: "1px solid var(--color-border)",
+                    }}
+                  >
+                    <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+                      Sincronización Suunto
+                    </span>
+                    <SuuntoPushButton
+                      sessionId={s.id}
+                      discipline={s.discipline}
+                      status={s.status}
+                      initialSync={suuntoSyncMap[s.id] ?? null}
+                      showFitDownload
+                    />
+                  </div>
 
-        {/* Columna Derecha: Nutrición, Sueño & Foco Mental (5 cols) */}
-        <div className="lg:col-span-5 min-w-0 w-full space-y-3.5">
-          {/* 1. Nutrición & Hidratación */}
-          <div>
-            <div className="flex justify-between items-baseline mb-2 px-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                Nutrición &amp; Hidratación
-              </span>
-              <span className="text-xs text-muted">
-                Objetivo Día Activo
-              </span>
-            </div>
+                  <Link
+                    href="/registro"
+                    className="w-full btn btn-primary flex items-center justify-center gap-2 rounded-xl font-bold text-sm"
+                    style={{ textDecoration: "none", minHeight: 48 }}
+                  >
+                    {isCompleted ? <CheckCircle2 size={18} /> : <Zap size={18} />}
+                    <span>{isCompleted ? "Ver / editar registro" : "Comenzar entreno"}</span>
+                  </Link>
 
-            {/* Calorie & Macro Target Card */}
-            <section
-              className="surface p-4 space-y-3 mb-2.5 animate-in"
-            >
-              <div className="flex justify-between items-baseline">
-                <div>
-                  <div className="text-[11px] font-medium text-muted">Ingesta Planificada</div>
-                  <div className="text-lg font-bold text-foreground mt-0.5">
-                    2.850 <span className="text-xs font-normal text-muted">/ 3.400 kcal</span>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-xs flex-1"
+                      onClick={() => setDetailSessionId(s.id)}
+                    >
+                      <Activity size={15} />
+                      <span>Detalle</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-xs flex-1"
+                      onClick={() => copySession(s)}
+                    >
+                      {copiedId === s.id ? <Check size={15} style={{ color: "var(--color-success)" }} /> : <Copy size={15} />}
+                      <span>{copiedId === s.id ? "Copiado" : "Copiar"}</span>
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs font-semibold text-blue-500">
-                  <Waves size={14} />
-                  <span>2.6L Agua</span>
-                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3. Resumen secundario limpio y espaciado (Sueño & Accesos) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link
+          href="/"
+          className="surface p-5 flex items-center justify-between gap-4 no-underline harbiz-press"
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-brand-subtle)", color: "var(--color-brand)" }}
+            >
+              <Moon size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+                Sueño &amp; Recuperación
               </div>
-
-              {/* Macro Breakdown */}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border text-center">
-                <div className="p-2 rounded-xl surface-raised border border-border">
-                  <div className="text-[10px] font-medium text-muted uppercase">Carbos</div>
-                  <div className="text-sm font-bold text-amber-500 mt-0.5">410g</div>
-                  <div className="text-[9px] text-muted">82% cubierto</div>
-                </div>
-                <div className="p-2 rounded-xl surface-raised border border-border">
-                  <div className="text-[10px] font-medium text-muted uppercase">Proteína</div>
-                  <div className="text-sm font-bold text-emerald-500 mt-0.5">175g</div>
-                  <div className="text-[9px] text-muted">95% cubierto</div>
-                </div>
-                <div className="p-2 rounded-xl surface-raised border border-border">
-                  <div className="text-[10px] font-medium text-muted uppercase">Grasas</div>
-                  <div className="text-sm font-bold text-foreground mt-0.5">68g</div>
-                  <div className="text-[9px] text-muted">Equilibrado</div>
-                </div>
+              <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
+                {sleep?.hours ? `${sleep.hours.toFixed(1)} h` : "Ver estado de forma"}
+                {sleep?.score != null && (
+                  <span className="text-xs font-semibold ml-2" style={{ color: "var(--color-success)" }}>
+                    {sleep.score}/100
+                  </span>
+                )}
               </div>
-            </section>
-
-            {/* Menú Timeline Cards */}
-            <div className="space-y-2">
-              {menu.length === 0 ? (
-                <EmptyState
-                  icon={<UtensilsCrossed size={20} />}
-                  title="Sin menú para hoy"
-                  description="Importa o añade el menú de esta fase en la pestaña Menú."
-                  action={
-                    <Link href="/menu" className="btn btn-primary">
-                      Ir a Menú
-                    </Link>
-                  }
-                />
-              ) : (
-                <>
-                  {menu.map((m) => {
-                    const isBreakfast = m.meal.toLowerCase().includes("desayuno");
-                    const isMidMorning = m.meal.toLowerCase().includes("almuerzo");
-                    const isLunch = !isMidMorning && m.meal.toLowerCase().includes("comida");
-                    const isSnack = m.meal.toLowerCase().includes("merienda") || m.meal.toLowerCase().includes("snack");
-
-                    return (
-                      <div
-                        key={m.id}
-                        className="surface p-3 flex items-start gap-2.5 transition-all text-xs"
-                      >
-                        <div
-                          className="p-2 rounded-full shrink-0 mt-0.5"
-                          style={{
-                            background: isBreakfast
-                              ? "rgba(245, 158, 11, 0.15)"
-                              : isLunch
-                              ? "rgba(16, 185, 129, 0.15)"
-                              : isSnack
-                              ? "rgba(59, 130, 246, 0.15)"
-                              : "rgba(168, 85, 247, 0.15)",
-                            color: isBreakfast
-                              ? "#f59e0b"
-                              : isLunch
-                              ? "#10b981"
-                              : isSnack
-                              ? "#3b82f6"
-                              : "#c084fc",
-                          }}
-                        >
-                          {isBreakfast ? (
-                            <Sun size={15} />
-                          ) : isLunch ? (
-                            <UtensilsCrossed size={15} />
-                          ) : isSnack ? (
-                            <Flame size={15} />
-                          ) : (
-                            <Moon size={15} />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-xs font-semibold text-foreground truncate">
-                                {m.meal}
-                                {m.option_label ? ` · ${m.option_label}` : ""}
-                              </span>
-                              {isMidMorning && (
-                                <span className="badge text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded">
-                                  13:30h vs Tarde
-                                </span>
-                              )}
-                            </div>
-                            {m.kcal != null && (
-                              <span className="text-xs font-semibold text-emerald-500 shrink-0 font-mono">
-                                {m.kcal} kcal
-                              </span>
-                            )}
-                          </div>
-                          {m.foods_text && (
-                            <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                              {m.foods_text}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <Link
-                    href="/menu"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 hover:text-emerald-400 pt-0.5"
-                  >
-                    <span>Ver menú completo de la fase</span>
-                    <ArrowRight size={12} />
-                  </Link>
-                </>
-              )}
             </div>
           </div>
+          <ArrowRight size={18} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+        </Link>
 
-          {/* 2. Telemetría de Sueño & Descanso Biológico (Zepp / Amazfit) */}
-          <section className="surface p-4 space-y-3 animate-in">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-sky-500/15 text-sky-400">
-                  <Moon size={15} />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Sueño &amp; Telemetría Biológica
-                  </h3>
-                  <div className="text-[10px] text-muted">
-                    Descanso nocturno y regeneración celular
-                  </div>
-                </div>
-              </div>
-              <span className="badge badge-success text-[10px] font-bold">
-                {sleep?.score ?? 85}/100 Puntuación
-              </span>
-            </div>
-
-            {/* Métricas clave de sueño */}
-            <div className="grid grid-cols-3 gap-2 text-center pt-1">
-              <div className="p-2 rounded-xl surface-raised border border-border">
-                <div className="text-[9px] text-muted uppercase font-medium">Dormido</div>
-                <div className="text-sm font-bold text-foreground mt-0.5 font-mono">
-                  {(sleep?.hours ?? 7.5).toFixed(1)}h
-                </div>
-                <div className="text-[9px] text-emerald-400 font-medium">
-                  {sleep?.nap_min ? `+${sleep.nap_min}m siesta` : "Óptimo"}
-                </div>
-              </div>
-              <div className="p-2 rounded-xl surface-raised border border-border">
-                <div className="text-[9px] text-muted uppercase font-medium">VFC (HRV)</div>
-                <div className="text-sm font-bold text-emerald-400 mt-0.5 font-mono">
-                  {sleep?.hrv_rmssd ?? 74} <span className="text-[9px] font-normal text-muted">ms</span>
-                </div>
-                <div className="text-[9px] text-muted">rMSSD basal</div>
-              </div>
-              <div className="p-2 rounded-xl surface-raised border border-border">
-                <div className="text-[9px] text-muted uppercase font-medium">FC Reposo</div>
-                <div className="text-sm font-bold text-sky-400 mt-0.5 font-mono">
-                  {sleep?.resting_hr ?? 52} <span className="text-[9px] font-normal text-muted">lpm</span>
-                </div>
-                <div className="text-[9px] text-muted">Mínima noche</div>
-              </div>
-            </div>
-
-            {/* Barra visual de fases biológicas */}
-            <div className="space-y-1.5 pt-1">
-              <div className="flex justify-between items-center text-[10px] text-muted">
-                <span className="font-semibold text-slate-300">Fases Biológicas (Zepp / Amazfit)</span>
-                <span>Eficiencia {sleep?.efficiency ?? 94}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-900 border border-border">
-                <div style={{ width: "24%", backgroundColor: "#a855f7" }} title="Profundo: 24%" />
-                <div style={{ width: "22%", backgroundColor: "#06b6d4" }} title="REM: 22%" />
-                <div style={{ width: "50%", backgroundColor: "#10b981" }} title="Ligero: 50%" />
-                <div style={{ width: "4%", backgroundColor: "#64748b" }} title="Despierto: 4%" />
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-muted pt-0.5">
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Profundo (1h 48m)
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> REM (1h 39m)
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Ligero (3h 45m)
-                </span>
-              </div>
-            </div>
-
-            <Link
-              href="/sueno"
-              className="flex items-center justify-between pt-1 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+        <Link
+          href="/menu"
+          className="surface p-5 flex items-center justify-between gap-4 no-underline harbiz-press"
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-surface-raised)", color: "var(--color-text)" }}
             >
-              <span>Ver análisis exhaustivo del sueño</span>
-              <ArrowRight size={12} />
-            </Link>
-          </section>
-
-          {/* 3. Psicología Deportiva & Enfoque Mental */}
-          <section className="surface p-4 space-y-2.5 animate-in">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400">
-                  <Brain size={15} />
-                </div>
-                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Psicología Deportiva &amp; Foco Mental
-                </h3>
-              </div>
-              <Link
-                href="/psicologia"
-                className="text-[10px] font-bold text-purple-400 hover:underline flex items-center gap-0.5"
-              >
-                <span>Módulo</span>
-                <ArrowRight size={10} />
-              </Link>
+              <UtensilsCrossed size={20} />
             </div>
-            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/25">
-              <div className="text-xs font-bold text-purple-300 mb-1">
-                {trainingSessions[0]?.discipline === "carrera"
-                  ? "Estrategia de Fragmentación (Chunking)"
-                  : trainingSessions[0]?.discipline === "crossfit"
-                  ? "Pacing Steady & Cadencia en Transiciones"
-                  : "Supercompensación & Asimilación Activa"}
+            <div className="min-w-0">
+              <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+                Nutrición de hoy
               </div>
-              <p className="text-xs text-muted leading-relaxed font-sans">
-                {trainingSessions[0]?.discipline === "carrera"
-                  ? "No visualices la distancia total; parte mentalmente la tirada en bloques de 3 km. El cerebro tolera con calma el esfuerzo cuando sabe que solo faltan minutos para el siguiente punto de control."
-                  : trainingSessions[0]?.discipline === "crossfit"
-                  ? "En el WOD no hagas sprints en la 1ª ronda. Mantén respiración nasal y cadencia uniforme para bajarte del ergómetro e iniciar repeticiones sin pausas muertas."
-                  : "El progreso fisiológico ocurre durante el reposo celular, no en el entreno. Acepta el descanso con satisfacción sabiendo que estás multiplicando mitocondrias."}
-              </p>
+              <div className="text-base font-bold mt-0.5" style={{ color: "var(--color-text)" }}>
+                Plan de comidas y pautas
+              </div>
             </div>
-          </section>
-
-          {/* 4. Próxima Sesión en el Plan (Mañana) */}
-          {tomorrowSession && (
-            <section className="surface p-3.5 animate-in">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
-                    <Calendar size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider">
-                      Próxima Sesión · {formatShortDate(tomorrowSession.date)}
-                    </div>
-                    <div className="text-xs font-bold text-foreground truncate">
-                      {tomorrowSession.planned_code || tomorrowSession.discipline}
-                    </div>
-                  </div>
-                </div>
-                <Link
-                  href="/plan-semanal"
-                  className="btn btn-ghost btn-sm text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 shrink-0"
-                >
-                  Ver plan →
-                </Link>
-              </div>
-            </section>
-          )}
-        </div>
+          </div>
+          <ArrowRight size={18} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+        </Link>
       </div>
+
+      {/* Modal limpio "+ Cargar sesión (.FIT / CSV)" */}
+      {importModalOpen && (
+        <Modal title="Cargar sesión o sueño" onClose={() => setImportModalOpen(false)}>
+          <FileDropzone
+            onSuccess={() => {
+              setImportModalOpen(false);
+              load(true);
+            }}
+          />
+        </Modal>
+      )}
 
       {detailSessionId && (
         <WorkoutDetailModal
@@ -1295,49 +566,18 @@ export default function HoyPage() {
 
 function HoySkeleton() {
   return (
-    <div className="space-y-4 animate-pulse w-full mt-4">
-      {/* 7-day strip skeleton */}
+    <div className="space-y-4 animate-pulse w-full">
       <div className="surface p-4">
-        <div className="h-4 w-48 rounded bg-white/10 mb-3" />
         <div className="grid grid-cols-7 gap-2">
           {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-white/5 border border-white/5" />
+            <div key={i} className="h-16 rounded-2xl" style={{ background: "var(--color-surface-raised)" }} />
           ))}
         </div>
       </div>
-
-      {/* Physiological Recovery Gauge skeleton */}
-      <div className="surface p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-44 rounded bg-white/10" />
-          <div className="h-6 w-24 rounded-full bg-white/10" />
-        </div>
-        <div className="grid grid-cols-12 gap-4 items-center">
-          <div className="col-span-5 flex justify-center">
-            <div className="w-28 h-28 rounded-full bg-white/10" />
-          </div>
-          <div className="col-span-7 space-y-3">
-            <div className="h-8 w-3/4 rounded bg-white/10" />
-            <div className="h-8 w-2/3 rounded bg-white/10" />
-          </div>
-        </div>
-      </div>
-
-      {/* Main workout & nutrition cards skeleton */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0">
-        <div className="surface p-5 space-y-3">
-          <div className="h-6 w-1/2 rounded bg-white/10" />
-          <div className="h-20 rounded-xl bg-white/5" />
-          <div className="grid grid-cols-4 gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-12 rounded-lg bg-white/5" />
-            ))}
-          </div>
-        </div>
-        <div className="surface p-5 space-y-3">
-          <div className="h-6 w-1/2 rounded bg-white/10" />
-          <div className="h-28 rounded-xl bg-white/5" />
-        </div>
+      <div className="surface p-6 space-y-4">
+        <div className="h-6 w-2/3 rounded-lg" style={{ background: "var(--color-surface-raised)" }} />
+        <div className="h-24 rounded-xl" style={{ background: "var(--color-surface-raised)" }} />
+        <div className="h-12 rounded-xl" style={{ background: "var(--color-surface-raised)" }} />
       </div>
     </div>
   );

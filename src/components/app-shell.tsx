@@ -5,103 +5,56 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  CalendarRange,
-  Activity,
-  TrendingUp,
-  UtensilsCrossed,
-  Settings,
-  Menu,
-  X,
-  Sun,
   Dumbbell,
-  Bot,
+  BookOpen,
+  TrendingUp,
+  User,
   RefreshCw,
   PanelLeftClose,
   PanelLeftOpen,
-  Trophy,
-  BarChart3,
-  Crown,
-  Moon,
-  Brain,
-  User,
-  BookOpen,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { ReportNotificationBanner } from "@/components/report-notification-banner";
-import { NotificationCenter } from "@/components/notifications/notification-center";
 import { haptics } from "@/lib/haptics";
 
 interface NavItemDef {
   href: string;
   label: string;
+  mobileLabel: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string; style?: React.CSSProperties }>;
   aliases?: string[];
 }
 
-const NAV_GROUPS: { title: string; links: NavItemDef[] }[] = [
-  {
-    title: "Entrenamiento",
-    links: [
-      { href: "/hoy", label: "Entrenamientos · Hoy", icon: Sun, aliases: ["/registro", "/detalle"] },
-      { href: "/plan-semanal", label: "Plan Semanal", icon: CalendarRange, aliases: ["/calendario"] },
-      { href: "/marcas", label: "Biblioteca & Marcas", icon: Dumbbell, aliases: ["/gimnasio"] },
-    ],
-  },
-  {
-    title: "Progreso & Salud",
-    links: [
-      { href: "/", label: "Métricas & Carga", icon: Activity },
-      { href: "/sueno", label: "Sueño & Descanso", icon: Moon, aliases: ["/sleep"] },
-      { href: "/informe-semanal", label: "Informe Semanal", icon: BarChart3 },
-      { href: "/progreso", label: "Progreso Histórico", icon: TrendingUp, aliases: ["/objetivos"] },
-    ],
-  },
-  {
-    title: "Coach & Nutrición",
-    links: [
-      { href: "/menu", label: "Nutrición", icon: UtensilsCrossed },
-      { href: "/entrenador", label: "Entrenador IA", icon: Bot, aliases: ["/recomendaciones"] },
-      { href: "/psicologia", label: "Psicología Deportiva", icon: Brain, aliases: ["/mental", "/mindset"] },
-    ],
-  },
-  {
-    title: "Perfil",
-    links: [
-      { href: "/configuracion", label: "Perfil & Ajustes", icon: Settings },
-      { href: "/precios", label: "Planes & Pro", icon: Crown, aliases: ["/landing"] },
-    ],
-  },
-];
-
-// Barra de navegación inferior Harbiz Mobile-First: Entrenamientos, Biblioteca, Progreso, Perfil
-const BOTTOM_NAV: NavItemDef[] = [
+// Únicamente 4 secciones principales consolidadas (Arquitectura Harbiz)
+const MAIN_NAV: NavItemDef[] = [
   {
     href: "/hoy",
-    label: "Entrenos",
+    label: "Hoy / Plan",
+    mobileLabel: "Hoy",
     icon: Dumbbell,
-    aliases: ["/plan-semanal", "/calendario", "/registro", "/detalle"],
+    aliases: ["/plan-semanal", "/calendario", "/registro", "/detalle", "/entrenos"],
   },
   {
     href: "/marcas",
-    label: "Biblioteca",
+    label: "Biblioteca & Ejercicios",
+    mobileLabel: "Biblioteca",
     icon: BookOpen,
     aliases: ["/gimnasio"],
   },
   {
     href: "/",
-    label: "Progreso",
+    label: "Progreso & Salud",
+    mobileLabel: "Progreso",
     icon: TrendingUp,
-    aliases: ["/progreso", "/informe-semanal", "/sueno", "/objetivos"],
+    aliases: ["/progreso", "/sueno", "/informe-semanal", "/objetivos"],
   },
   {
     href: "/configuracion",
-    label: "Perfil",
+    label: "Perfil & Ajustes",
+    mobileLabel: "Perfil",
     icon: User,
     aliases: ["/menu", "/entrenador", "/psicologia", "/precios", "/recomendaciones"],
   },
 ];
-
-const LINKS = NAV_GROUPS.flatMap((g) => g.links);
 
 function isNavActive(pathname: string, item: NavItemDef): boolean {
   if (pathname === item.href) return true;
@@ -113,26 +66,11 @@ function isNavActive(pathname: string, item: NavItemDef): boolean {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [raceDate, setRaceDate] = useState("26/04/2027");
-  const current =
-    LINKS.find((l) => isNavActive(pathname, l)) ??
-    (pathname === "/calendario"
-      ? { label: "Calendario" }
-      : pathname === "/objetivos"
-      ? { label: "Objetivos" }
-      : pathname === "/marcas" || pathname === "/gimnasio"
-      ? { label: "Biblioteca & Marcas" }
-      : pathname === "/detalle" || pathname.startsWith("/entrenos/")
-      ? { label: "Detalle Entreno" }
-      : pathname === "/registro"
-      ? { label: "Registrar Sesión" }
-      : pathname === "/recomendaciones"
-      ? { label: "Recomendaciones" }
-      : undefined);
-
   const [isGlobalRefreshing, setIsGlobalRefreshing] = useState(false);
+
+  const current = MAIN_NAV.find((item) => isNavActive(pathname, item)) ?? MAIN_NAV[0];
 
   useEffect(() => {
     try {
@@ -154,7 +92,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setIsGlobalRefreshing(true);
     window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
     router.refresh();
-    setTimeout(() => setIsGlobalRefreshing(false), 900);
+    setTimeout(() => setIsGlobalRefreshing(false), 800);
   };
 
   useEffect(() => {
@@ -170,143 +108,105 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [pathname]);
 
-  useEffect(() => {
-    if (!mobileOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setMobileOpen(false);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [mobileOpen]);
-
   return (
     <div style={{ display: "flex", minHeight: "100dvh", position: "relative" }}>
-      {/* Sidebar — Escritorio & Tablet (>= 768px): colapsable, estilo Harbiz SaaS */}
+      {/* Sidebar delgada y limpia para Tablet / Escritorio (>= 768px) */}
       <aside
         className={`hidden md:flex fixed inset-y-0 left-0 z-30 flex-col overflow-hidden transition-all duration-200 ${
-          sidebarCollapsed ? "w-0 invisible pointer-events-none" : "w-64 visible"
+          sidebarCollapsed ? "w-0 invisible pointer-events-none" : "w-60 visible"
         }`}
         style={{
-          width: sidebarCollapsed ? 0 : 256,
+          width: sidebarCollapsed ? 0 : 240,
           background: "var(--color-surface)",
           borderRight: sidebarCollapsed ? "none" : "1px solid var(--color-border)",
         }}
       >
-        <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+        <div style={{ width: 240, height: "100%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
           <Brand onCollapse={() => toggleSidebar(true)} />
+
           <nav
+            aria-label="Navegación principal"
             style={{
-              padding: "12px",
+              padding: "16px 12px",
               display: "flex",
               flexDirection: "column",
-              gap: "14px",
+              gap: "6px",
               flex: "1 1 0%",
               minHeight: 0,
               overflowY: "auto",
             }}
           >
-            {NAV_GROUPS.map((group) => (
-              <div key={group.title}>
-                <div
-                  className="font-bold uppercase tracking-wider"
-                  style={{
-                    color: "var(--color-text-faint)",
-                    fontSize: "0.68rem",
-                    letterSpacing: "0.08em",
-                    padding: "0 0.75rem",
-                    marginBottom: 6,
-                  }}
-                >
-                  {group.title}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {group.links.map((l) => (
-                    <NavItem
-                      key={l.href}
-                      href={l.href}
-                      label={l.label}
-                      Icon={l.icon}
-                      active={isNavActive(pathname, l)}
-                    />
-                  ))}
-                </div>
-              </div>
+            {MAIN_NAV.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                Icon={item.icon}
+                active={isNavActive(pathname, item)}
+              />
             ))}
           </nav>
 
-          {/* Footer del sidebar: ficha de atleta + controles rápidos */}
+          {/* Perfil del usuario anclado abajo */}
           <div
             className="flex-shrink-0"
             style={{
               borderTop: "1px solid var(--color-border)",
-              background: "var(--color-surface-raised)",
-              padding: "12px 14px calc(14px + env(safe-area-inset-bottom, 0px))",
+              padding: "14px 12px calc(14px + env(safe-area-inset-bottom, 0px))",
               display: "flex",
               flexDirection: "column",
               gap: "10px",
             }}
           >
-            <div
-              className="flex items-center gap-2.5 p-2.5 rounded-xl transition-all duration-150"
+            <Link
+              href="/configuracion"
+              className="flex items-center gap-2.5 p-2.5 rounded-xl no-underline transition-colors harbiz-press"
               style={{
-                background: "var(--color-surface)",
+                background: "var(--color-surface-raised)",
                 border: "1px solid var(--color-border)",
               }}
             >
               <div
-                className="relative w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0"
+                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0"
                 style={{
                   background: "var(--color-brand-subtle)",
                   color: "var(--color-brand)",
-                  border: "1px solid rgba(37, 99, 235, 0.28)",
                 }}
               >
                 DE
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
-                  style={{
-                    background: "var(--color-success)",
-                    border: "2px solid var(--color-surface)",
-                  }}
-                />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold truncate leading-tight" style={{ color: "var(--color-text)" }}>
+                <div className="text-xs font-bold truncate" style={{ color: "var(--color-text)" }}>
                   Daniel Espinosa
                 </div>
-                <div className="text-[11px] truncate flex items-center gap-1 mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                  <span>Maratón</span>
-                  <span>·</span>
-                  <span className="font-semibold tabular-nums" style={{ color: "var(--color-brand)" }}>
-                    {raceDate}
-                  </span>
+                <div className="text-[11px] truncate tabular-nums" style={{ color: "var(--color-text-muted)" }}>
+                  Maratón · {raceDate}
                 </div>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center justify-between gap-2">
               <button
                 onClick={triggerGlobalRefresh}
-                className="flex-1 flex items-center justify-center gap-1.5 min-h-[40px] px-2.5 rounded-xl text-xs font-semibold transition-colors harbiz-press cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 rounded-xl text-xs font-semibold transition-colors harbiz-press cursor-pointer"
                 style={{
-                  background: "var(--color-surface)",
+                  background: "var(--color-surface-raised)",
                   border: "1px solid var(--color-border)",
-                  color: "var(--color-text)",
+                  color: "var(--color-text-muted)",
                 }}
-                title="Refrescar métricas, cargas y sincronización"
+                title="Actualizar datos"
               >
-                <RefreshCw size={14} className={isGlobalRefreshing ? "animate-spin text-brand" : "text-muted"} />
-                <span className="truncate">{isGlobalRefreshing ? "Actualizando..." : "Refrescar"}</span>
+                <RefreshCw size={14} className={isGlobalRefreshing ? "animate-spin text-brand" : ""} />
+                <span>{isGlobalRefreshing ? "Actualizando…" : "Actualizar"}</span>
               </button>
-              <NotificationCenter variant="icon" />
               <ThemeToggle />
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Topbar móvil Mobile-First con Safe Area Insets iOS/Android */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40">
+      {/* Topbar móvil minimalista con Safe Area Inset Top */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40">
         <div
           className="harbiz-glass"
           style={{
@@ -319,55 +219,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             justifyContent: "space-between",
             paddingTop: "calc(8px + env(safe-area-inset-top, 0px))",
             paddingBottom: "8px",
-            paddingLeft: "calc(12px + env(safe-area-inset-left, 0px))",
-            paddingRight: "calc(12px + env(safe-area-inset-right, 0px))",
+            paddingLeft: "calc(14px + env(safe-area-inset-left, 0px))",
+            paddingRight: "calc(14px + env(safe-area-inset-right, 0px))",
             minHeight: "calc(56px + env(safe-area-inset-top, 0px))",
           }}
         >
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <button
-              className="btn-ghost btn-icon harbiz-press rounded-xl flex items-center justify-center"
-              aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
-              aria-expanded={mobileOpen}
-              onClick={() => {
-                haptics.selection();
-                setMobileOpen((v) => !v);
-              }}
-              style={{ minWidth: 44, minHeight: 44, color: "var(--color-text)" }}
-            >
-              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            <Link
-              href="/hoy"
-              onClick={() => haptics.light()}
-              className="relative flex-shrink-0 harbiz-press"
-              title="Ir a Hoy"
-            >
-              <Image src="/brand/logo-mark.png" alt="EntrenoApp" width={30} height={30} className="rounded-xl shadow-xs" />
-            </Link>
+          <Link
+            href="/hoy"
+            onClick={() => haptics.light()}
+            className="flex items-center gap-2.5 min-w-0 no-underline harbiz-press"
+          >
+            <Image src="/brand/logo-mark.png" alt="EntrenoApp" width={30} height={30} className="rounded-xl" />
             <div className="flex flex-col min-w-0">
               <span
                 className="font-bold text-sm leading-tight truncate"
                 style={{ color: "var(--color-text)", letterSpacing: "-0.015em" }}
               >
-                {current?.label ?? "Entrenamientos"}
+                {current.label}
               </span>
               <span className="text-[11px] leading-tight truncate" style={{ color: "var(--color-text-muted)" }}>
-                Daniel Espinosa · Maratón {raceDate}
+                Daniel Espinosa
               </span>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-1 flex-shrink-0">
-            <NotificationCenter variant="icon" />
             <button
               onClick={() => {
                 haptics.medium();
                 triggerGlobalRefresh();
               }}
               className="btn-ghost btn-icon harbiz-press rounded-xl flex items-center justify-center"
-              aria-label="Refrescar datos"
-              title="Refrescar métricas y consejos"
+              aria-label="Actualizar"
               style={{ minWidth: 44, minHeight: 44 }}
             >
               <RefreshCw
@@ -379,84 +262,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </div>
+      </header>
 
-        {/* Drawer / Hoja de navegación completa móvil */}
-        {mobileOpen && (
-          <>
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(15, 23, 42, 0.55)",
-                backdropFilter: "blur(4px)",
-                zIndex: -1,
-              }}
-              aria-hidden="true"
-              onClick={() => setMobileOpen(false)}
-            />
-            <nav
-              className="animate-in rounded-b-3xl shadow-2xl"
-              style={{
-                background: "var(--color-surface)",
-                borderBottom: "1px solid var(--color-border)",
-                padding: "14px 14px 20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-                maxHeight: "calc(100dvh - 130px)",
-                overflowY: "auto",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              {NAV_GROUPS.map((group) => (
-                <div key={group.title}>
-                  <div
-                    style={{
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      color: "var(--color-text-faint)",
-                      padding: "0 10px",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {group.title}
-                  </div>
-                  <div className="grid grid-cols-1 gap-1">
-                    {group.links.map((l) => (
-                      <NavItem
-                        key={l.href}
-                        href={l.href}
-                        label={l.label}
-                        Icon={l.icon}
-                        active={isNavActive(pathname, l)}
-                        onClick={() => setMobileOpen(false)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <div
-                className="flex items-center justify-between pt-3 px-2"
-                style={{ borderTop: "1px solid var(--color-border)" }}
-              >
-                <div>
-                  <div className="text-xs font-bold" style={{ color: "var(--color-text)" }}>
-                    Daniel Espinosa
-                  </div>
-                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                    Maratón · {raceDate}
-                  </div>
-                </div>
-                <ThemeToggle showLabel />
-              </div>
-            </nav>
-          </>
-        )}
-      </div>
-
-      {/* Bottom Tab Bar Harbiz (< 768px) con Safe Area iOS/Android & Blur */}
+      {/* Bottom Tab Bar limpia (< 768px): 4 accesos directos con iconos 24px y text-xs */}
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{
@@ -475,11 +283,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             paddingTop: "6px",
             paddingBottom: "calc(6px + env(safe-area-inset-bottom, 0px))",
             display: "grid",
-            gridTemplateColumns: `repeat(${BOTTOM_NAV.length}, 1fr)`,
+            gridTemplateColumns: "repeat(4, 1fr)",
             alignItems: "center",
           }}
         >
-          {BOTTOM_NAV.map((item) => {
+          {MAIN_NAV.map((item) => {
             const active = isNavActive(pathname, item);
             const Icon = item.icon;
             return (
@@ -494,40 +302,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   minWidth: 44,
                 }}
               >
-                {active && (
-                  <span
-                    className="rounded-full"
-                    style={{
-                      position: "absolute",
-                      top: -6,
-                      width: 24,
-                      height: 3,
-                      backgroundColor: "var(--color-brand)",
-                    }}
-                  />
-                )}
-                <div
-                  className="flex items-center justify-center rounded-xl px-3 py-1 transition-colors"
+                <Icon
+                  size={24}
+                  strokeWidth={active ? 2.2 : 1.75}
                   style={{
-                    background: active ? "var(--color-brand-subtle)" : "transparent",
+                    color: active ? "var(--color-brand)" : "var(--color-text-muted)",
                   }}
-                >
-                  <Icon
-                    size={21}
-                    strokeWidth={active ? 2.4 : 1.8}
-                    style={{
-                      color: active ? "var(--color-brand)" : "var(--color-text-muted)",
-                    }}
-                  />
-                </div>
+                />
                 <span
-                  className="text-[11px] leading-none truncate max-w-full tracking-tight"
+                  className="text-xs leading-none truncate max-w-full"
                   style={{
                     color: active ? "var(--color-brand)" : "var(--color-text-muted)",
                     fontWeight: active ? 700 : 500,
                   }}
                 >
-                  {item.label}
+                  {item.mobileLabel}
                 </span>
               </Link>
             );
@@ -538,7 +327,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Área de contenido principal */}
       <main
         className={`flex-1 min-w-0 transition-[margin] duration-200 ${
-          sidebarCollapsed ? "md:ml-0" : "md:ml-64"
+          sidebarCollapsed ? "md:ml-0" : "md:ml-60"
         }`}
         style={{ flex: 1, minWidth: 0 }}
       >
@@ -546,8 +335,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => toggleSidebar(false)}
             className="btn-ghost hidden md:flex items-center justify-center animate-in harbiz-press cursor-pointer"
-            title="Mostrar barra lateral"
-            aria-label="Mostrar barra lateral"
+            title="Mostrar menú"
+            aria-label="Mostrar menú"
             style={{
               position: "fixed",
               top: 16,
@@ -567,10 +356,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <div className="main-content-container">
           <div className="md:hidden" style={{ height: "calc(60px + env(safe-area-inset-top, 0px))" }} />
-          <ReportNotificationBanner />
           {children}
           <div className="md:hidden" style={{ height: "calc(80px + env(safe-area-inset-bottom, 16px))" }} />
-          <div className="hidden md:block" style={{ height: "20px" }} />
+          <div className="hidden md:block" style={{ height: "24px" }} />
         </div>
       </main>
     </div>
@@ -588,52 +376,26 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
       <Link
         href="/hoy"
         className="flex items-center gap-2.5 min-w-0 flex-1 no-underline text-inherit hover:opacity-90 transition-opacity"
-        title="Ir a Entrenamientos"
       >
-        <div className="flex-shrink-0">
-          <Image
-            src="/brand/logo-mark.png"
-            alt="EntrenoApp"
-            width={34}
-            height={34}
-            className="rounded-xl shadow-xs"
-          />
-        </div>
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span
-            style={{
-              fontWeight: 800,
-              fontSize: "1.05rem",
-              lineHeight: 1.1,
-              letterSpacing: "-0.025em",
-              color: "var(--color-text)",
-            }}
-          >
-            ENTRENO
-          </span>
-          <span
-            style={{
-              fontSize: "0.62rem",
-              padding: "2px 7px",
-              borderRadius: "9999px",
-              background: "var(--color-brand-subtle)",
-              color: "var(--color-brand)",
-              border: "1px solid rgba(37, 99, 235, 0.25)",
-              fontWeight: 800,
-              lineHeight: 1.2,
-              letterSpacing: "0.04em",
-            }}
-          >
-            PRO
-          </span>
-        </div>
+        <Image src="/brand/logo-mark.png" alt="EntrenoApp" width={32} height={32} className="rounded-xl flex-shrink-0" />
+        <span
+          style={{
+            fontWeight: 800,
+            fontSize: "1.05rem",
+            lineHeight: 1.1,
+            letterSpacing: "-0.025em",
+            color: "var(--color-text)",
+          }}
+        >
+          EntrenoApp
+        </span>
       </Link>
       {onCollapse && (
         <button
           onClick={onCollapse}
           className="btn-ghost flex items-center justify-center rounded-xl harbiz-press cursor-pointer"
-          title="Ocultar barra lateral"
-          aria-label="Ocultar barra lateral"
+          title="Ocultar menú"
+          aria-label="Ocultar menú"
           style={{
             width: 36,
             height: 36,
@@ -652,39 +414,29 @@ function NavItem({
   label,
   Icon,
   active,
-  onClick,
 }: {
   href: string;
   label: string;
   Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string; style?: React.CSSProperties }>;
   active: boolean;
-  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
-      onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-all duration-150 no-underline min-h-[44px] harbiz-press"
+      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-150 no-underline min-h-[44px] harbiz-press"
       style={{
         background: active ? "var(--color-brand-subtle)" : "transparent",
         color: active ? "var(--color-brand)" : "var(--color-text-muted)",
         fontWeight: active ? 700 : 500,
-        border: active ? "1px solid rgba(37, 99, 235, 0.25)" : "1px solid transparent",
       }}
     >
       <Icon
-        size={18}
-        strokeWidth={active ? 2.3 : 1.8}
+        size={20}
+        strokeWidth={active ? 2.2 : 1.75}
         style={{ color: active ? "var(--color-brand)" : "var(--color-text-muted)", flexShrink: 0 }}
       />
       <span className="truncate">{label}</span>
-      {active && (
-        <span
-          className="ml-auto w-2 h-2 rounded-full flex-shrink-0"
-          style={{ background: "var(--color-brand)" }}
-        />
-      )}
     </Link>
   );
 }
