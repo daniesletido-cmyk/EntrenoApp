@@ -76,9 +76,16 @@ function extractMetricsFromText(text: string | undefined): {
 
   if (!text) return { dist, meters, time, pace };
 
-  const paceExplicitMatch = text.match(/Ritmo:?\s*([^\n)]+(?:\([^)]*\))?)/i);
+  const paceExplicitMatch = text.match(/Ritmo:\s*([^\n]+)/i);
   if (paceExplicitMatch) {
-    pace = paceExplicitMatch[1].trim();
+    let rawPace = paceExplicitMatch[1].trim();
+    // Si quedó algún paréntesis sin abrir al final o prefijo suelto, limpiarlo
+    const opens = (rawPace.match(/\(/g) || []).length;
+    const closes = (rawPace.match(/\)/g) || []).length;
+    if (closes > opens) {
+      rawPace = rawPace.replace(/\)+$/, "").trim();
+    }
+    pace = rawPace;
   } else {
     const pacePatternMatch = text.match(/(\d:\d{2}\s*[-–]\s*\d:\d{2}\s*(?:min\/km|\/km)?(?:\s*\([^)]*\))?)/i);
     if (pacePatternMatch) {
@@ -391,22 +398,22 @@ export function WorkoutStructuredNotes({
     return (
       <div className={`w-full flex flex-col gap-3 text-xs sm:text-sm ${className}`}>
         {/* Cabecera & Badge de Horario */}
-        <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+        <div className="flex items-center justify-between gap-2 p-3.5 rounded-2xl bg-white border border-zinc-200 flex-wrap shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 flex items-center justify-center text-red-600">
               <Dumbbell size={15} />
             </div>
             <div>
-              <div className="text-xs font-black text-foreground uppercase tracking-wide">
+              <div className="text-xs font-bold text-zinc-900 uppercase tracking-wide">
                 {cfData.header || "CrossFit Box & WOD Freedom"}
               </div>
-              <div className="text-[10px] text-muted">Sesión completa · Fuerza + Acondicionamiento Metabólico</div>
+              <div className="text-[11px] text-zinc-500">Sesión completa · Fuerza + Acondicionamiento Metabólico</div>
             </div>
           </div>
 
           {cfData.schedule && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 font-mono text-[11px] font-bold">
-              <Clock size={12} className="text-amber-400" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700 font-mono text-xs font-medium">
+              <Clock size={12} className="text-zinc-600" />
               <span>{cfData.schedule}</span>
             </div>
           )}
@@ -417,22 +424,22 @@ export function WorkoutStructuredNotes({
           {cfData.blocks.map((b, idx) => {
             if (b.type === "warmup") {
               return (
-                <div key={idx} className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-2">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-blue-500 space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 font-black text-xs text-emerald-400 uppercase tracking-wider">
-                      <Flame size={15} className="text-emerald-400" />
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
+                      <Flame size={15} className="text-blue-600 shrink-0" />
                       <span>{b.title}</span>
                     </div>
                     {b.badge && (
-                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700">
                         {b.badge}
                       </span>
                     )}
                   </div>
                   <div className="space-y-1.5">
                     {b.items?.map((it, itIdx) => (
-                      <div key={itIdx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-200">
-                        <CheckCircle2 size={14} className="text-emerald-400/80 shrink-0 mt-0.5" />
+                      <div key={itIdx} className="flex items-start gap-2 text-sm text-zinc-600">
+                        <CheckCircle2 size={14} className="text-zinc-400 shrink-0 mt-1" />
                         <span className="leading-relaxed">{it}</span>
                       </div>
                     ))}
@@ -443,22 +450,22 @@ export function WorkoutStructuredNotes({
 
             if (b.type === "strength") {
               return (
-                <div key={idx} className="p-3.5 sm:p-4 rounded-2xl bg-purple-500/5 border border-purple-500/25 space-y-2.5">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-zinc-700 space-y-2.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 font-black text-xs text-purple-400 uppercase tracking-wider">
-                      <Dumbbell size={15} className="text-purple-400" />
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
+                      <Dumbbell size={15} className="text-zinc-700 shrink-0" />
                       <span>{b.title}</span>
                     </div>
                     {b.badge && (
-                      <span className="text-[11px] font-mono font-black px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/35">
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700">
                         {b.badge}
                       </span>
                     )}
                   </div>
                   <div className="space-y-2">
                     {b.items?.map((it, itIdx) => (
-                      <div key={itIdx} className="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 text-xs sm:text-sm text-slate-100 leading-relaxed flex items-start gap-2">
-                        <span className="text-purple-400 font-bold shrink-0">•</span>
+                      <div key={itIdx} className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-700 leading-relaxed flex items-start gap-2">
+                        <span className="text-zinc-500 font-bold shrink-0">•</span>
                         <span>{it}</span>
                       </div>
                     ))}
@@ -472,15 +479,15 @@ export function WorkoutStructuredNotes({
               const noteSteps = b.steps?.filter((s) => s.kind === "note") ?? [];
 
               return (
-                <div key={idx} className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-3 shadow-xs">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-red-600 space-y-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 font-black text-xs text-amber-400 uppercase tracking-wider">
-                      <Zap size={15} className="text-amber-400" />
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
+                      <Zap size={15} className="text-red-600 shrink-0" />
                       <span>{b.title}</span>
                     </div>
                     {b.badge && (
-                      <span className="text-xs font-mono font-black px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                        ⚡ {b.badge}
+                      <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-800">
+                        {b.badge}
                       </span>
                     )}
                   </div>
@@ -491,23 +498,23 @@ export function WorkoutStructuredNotes({
                       {exerciseSteps.map((ex, exIdx) => (
                         <div
                           key={exIdx}
-                          className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between"
+                          className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col justify-between"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-mono font-black text-amber-400 uppercase tracking-wider">
+                              <span className="text-xs font-mono font-bold text-red-600 uppercase tracking-wider">
                                 {ex.reps}
                               </span>
-                              <span className="text-[10px] font-mono text-slate-500 font-bold">
+                              <span className="text-[11px] font-mono text-zinc-400 font-semibold">
                                 #{exIdx + 1}
                               </span>
                             </div>
-                            <div className="text-sm font-bold text-slate-100 mt-1 leading-snug">
+                            <div className="text-sm font-semibold text-zinc-900 mt-1 leading-snug">
                               {ex.name}
                             </div>
                           </div>
                           {ex.details && (
-                            <div className="text-[11px] text-slate-400 mt-2 pt-1.5 border-t border-slate-800 leading-tight">
+                            <div className="text-xs text-zinc-500 mt-2 pt-1.5 border-t border-zinc-200 leading-tight">
                               {ex.details}
                             </div>
                           )}
@@ -522,9 +529,9 @@ export function WorkoutStructuredNotes({
                       {noteSteps.map((ns, nIdx) => (
                         <div
                           key={nIdx}
-                          className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed flex items-start gap-2"
+                          className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-600 leading-relaxed flex items-start gap-2"
                         >
-                          <span className="text-amber-400 font-bold shrink-0">→</span>
+                          <span className="text-red-600 font-bold shrink-0">→</span>
                           <span>{ns.name}</span>
                         </div>
                       ))}
@@ -533,8 +540,8 @@ export function WorkoutStructuredNotes({
 
                   {/* Puntuación / Objetivo */}
                   {b.scoreNote && (
-                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-xs font-semibold text-amber-300">
-                      <Award size={14} className="text-amber-400 shrink-0" />
+                    <div className="p-2.5 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center gap-2 text-xs font-semibold text-zinc-800">
+                      <Award size={14} className="text-red-600 shrink-0" />
                       <span>{b.scoreNote}</span>
                     </div>
                   )}
@@ -543,10 +550,10 @@ export function WorkoutStructuredNotes({
             }
 
             return (
-              <div key={idx} className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm">
-                <div className="font-bold text-slate-200 mb-1">{b.title}</div>
+              <div key={idx} className="p-3.5 rounded-xl bg-white border border-zinc-200 text-sm">
+                <div className="font-bold text-zinc-900 mb-1">{b.title}</div>
                 {b.items?.map((it, itIdx) => (
-                  <div key={itIdx} className="text-muted leading-relaxed">• {it}</div>
+                  <div key={itIdx} className="text-zinc-600 leading-relaxed">• {it}</div>
                 ))}
               </div>
             );
@@ -555,15 +562,15 @@ export function WorkoutStructuredNotes({
 
         {/* Enfoque Psicológico & Pacing */}
         {cfData.mentalPacing && (
-          <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0 text-purple-400 mt-0.5">
-              <Brain size={18} />
+          <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center shrink-0 text-zinc-700 mt-0.5">
+              <Brain size={16} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-black uppercase tracking-wider text-purple-400 mb-0.5">
+              <div className="text-xs font-bold uppercase tracking-wide text-zinc-900 mb-0.5">
                 Enfoque Psicológico & Pacing
               </div>
-              <p className="text-xs leading-relaxed text-purple-100/90 font-sans">
+              <p className="text-xs font-medium leading-relaxed text-zinc-600 font-sans">
                 {cfData.mentalPacing}
               </p>
             </div>
@@ -572,34 +579,32 @@ export function WorkoutStructuredNotes({
 
         {/* Nutrición / Hidratación (Completa y visible) */}
         {cfData.nutritionTimeline.length > 0 && (
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/10 overflow-hidden">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 overflow-hidden">
             <button
               type="button"
               onClick={() => setShowNutrition(!showNutrition)}
-              className="w-full flex items-center justify-between p-3 text-xs text-foreground font-bold hover:bg-emerald-500/5 transition-colors"
+              className="w-full flex items-center justify-between p-3.5 text-xs text-zinc-900 font-bold hover:bg-zinc-100/70 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
-                  <UtensilsCrossed size={14} />
-                </div>
-                <span className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">
+                <UtensilsCrossed size={14} className="text-zinc-700" />
+                <span className="font-bold text-zinc-900 tracking-wide text-xs">
                   Nutrición & Hidratación
                 </span>
               </div>
-              <span className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-muted">
+              <span className="p-1 rounded-lg bg-white border border-zinc-200 text-zinc-600">
                 {showNutrition ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </span>
             </button>
 
             {showNutrition && (
-              <div className="px-3.5 pb-3 pt-1 border-t border-emerald-500/20 space-y-2">
+              <div className="px-3.5 pb-3.5 pt-2 border-t border-zinc-200 space-y-2">
                 {cfData.nutritionTimeline.map((item, idx) => (
-                  <div key={idx} className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-200 leading-relaxed">
+                  <div key={idx} className="p-2.5 rounded-lg bg-white border border-zinc-200 text-xs leading-relaxed">
                     {item.time && (
-                      <span className="font-mono font-bold text-emerald-400 mr-2">{item.time}</span>
+                      <span className="font-mono font-semibold text-zinc-900 mr-2">{item.time}</span>
                     )}
-                    <span className="font-bold text-emerald-300">{item.label}: </span>
-                    <span className="text-slate-300">{item.text}</span>
+                    <span className="font-semibold text-zinc-800">{item.label}: </span>
+                    <span className="text-zinc-600 font-medium">{item.text}</span>
                   </div>
                 ))}
               </div>
@@ -618,63 +623,57 @@ export function WorkoutStructuredNotes({
 
   return (
     <div
-      className={`w-full flex flex-col gap-3 rounded-2xl overflow-hidden text-xs sm:text-sm ${className}`}
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderLeft: `4px solid ${themeColor}`,
-        padding: "14px 16px",
-      }}
+      className={`w-full flex flex-col gap-3.5 rounded-2xl bg-white border border-zinc-200 shadow-xs p-3.5 sm:p-4 overflow-hidden text-sm ${className}`}
     >
       {/* Cabecera */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60 flex-wrap">
-        <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-muted">
+      <div className="flex items-center justify-between gap-2 pb-3 border-b border-zinc-200 flex-wrap">
+        <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-zinc-700">
           {isSwim ? (
-            <Waves size={14} style={{ color: themeColor }} />
+            <Waves size={15} style={{ color: themeColor }} />
           ) : isRest ? (
-            <HeartPulse size={14} style={{ color: themeColor }} />
+            <HeartPulse size={15} style={{ color: themeColor }} />
           ) : (
-            <Activity size={14} style={{ color: themeColor }} />
+            <Activity size={15} style={{ color: themeColor }} />
           )}
           <span>{parsed.header || "Estructura del Entrenamiento"}</span>
         </div>
         {metrics.totalBadge && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-700/80 font-mono text-[11px] font-bold text-slate-200">
-            <span className="text-slate-400 font-sans font-medium text-[10px]">Total sesión:</span>
-            <span className="text-emerald-400">{metrics.totalBadge}</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 font-mono text-xs font-semibold text-zinc-800">
+            <span className="text-zinc-500 font-sans font-medium text-[11px]">Total sesión:</span>
+            <span className="text-zinc-900 font-bold">{metrics.totalBadge}</span>
           </div>
         )}
       </div>
 
       {/* Bloques Estructurados */}
-      <div className="flex flex-col gap-3 pt-0.5">
+      <div className="flex flex-col gap-3">
         {/* 1. CALENTAMIENTO */}
         {parsed.warmupLines.length > 0 && (
-          <div className="p-3 sm:p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-slate-200">
-            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5 font-bold text-[11px] sm:text-xs text-emerald-400 uppercase tracking-wider">
-                <Flame size={14} className="text-emerald-400 shrink-0" />
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-blue-500">
+            <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+              <div className="flex items-center gap-1.5 text-zinc-900 font-bold text-sm tracking-wide">
+                <Flame size={15} className="text-blue-600 shrink-0" />
                 <span>1. Calentamiento & Activación</span>
               </div>
               {metrics.warmup.badgeLabel && (
-                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/35 font-mono text-[11px] font-extrabold">
-                  <Timer size={11} className="opacity-80" />
+                <div className="inline-flex items-center gap-1 bg-zinc-100 border border-zinc-200 text-zinc-700 font-medium text-xs rounded-full px-2.5 py-1">
+                  <Timer size={12} className="text-zinc-500 shrink-0" />
                   <span>{metrics.warmup.badgeLabel}</span>
                 </div>
               )}
             </div>
 
             {metrics.warmup.pace && (
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400/90 mb-2 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/25">
-                <Gauge size={12} className="shrink-0 text-emerald-400" />
-                <span>Ritmo objetivo: {metrics.warmup.pace}</span>
+              <div className="inline-flex items-center gap-1.5 bg-zinc-100 border border-zinc-200 text-zinc-800 font-mono text-xs font-semibold px-2.5 py-1.5 rounded-lg mb-2.5 max-w-full">
+                <Gauge size={13} className="shrink-0 text-zinc-600" />
+                <span className="leading-snug">Ritmo objetivo: {metrics.warmup.pace}</span>
               </div>
             )}
 
-            <div className="space-y-1.5 text-xs sm:text-sm text-slate-200 leading-relaxed">
+            <div className="space-y-1.5 text-zinc-600 font-normal text-sm leading-relaxed">
               {parsed.warmupLines.map((l, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  {parsed.warmupLines.length > 1 && <span className="text-emerald-400 font-bold">•</span>}
+                  {parsed.warmupLines.length > 1 && <span className="text-zinc-400 font-bold">•</span>}
                   <span>{l}</span>
                 </div>
               ))}
@@ -684,13 +683,13 @@ export function WorkoutStructuredNotes({
 
         {/* 2. PARTE PRINCIPAL / MOVILIDAD / BLOQUE CLAVE */}
         {parsed.mainLines.length > 0 && (
-          <div className="p-3.5 sm:p-4 rounded-xl bg-brand/10 border border-brand/35 text-slate-100 shadow-xs">
-            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5 font-black text-[11px] sm:text-xs text-brand uppercase tracking-wider">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-red-600">
+            <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+              <div className="flex items-center gap-1.5 text-zinc-900 font-bold text-sm tracking-wide">
                 {isRest ? (
-                  <HeartPulse size={14} className="text-brand shrink-0" />
+                  <HeartPulse size={15} className="text-red-600 shrink-0" />
                 ) : (
-                  <Zap size={14} className="text-brand shrink-0" />
+                  <Zap size={15} className="text-red-600 shrink-0" />
                 )}
                 <span>
                   {isRest
@@ -701,24 +700,24 @@ export function WorkoutStructuredNotes({
                 </span>
               </div>
               {metrics.main.badgeLabel && (
-                <div className="inline-flex items-center gap-1 px-3 py-0.5 rounded-md bg-brand/25 text-brand border border-brand/45 font-mono text-[11px] font-black">
-                  <Navigation size={11} className="opacity-80" />
+                <div className="inline-flex items-center gap-1 bg-zinc-100 border border-zinc-200 text-zinc-700 font-medium text-xs rounded-full px-2.5 py-1">
+                  <Navigation size={12} className="text-red-600 shrink-0" />
                   <span>{metrics.main.badgeLabel}</span>
                 </div>
               )}
             </div>
 
             {metrics.main.pace && (
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-300 mb-2 bg-brand/20 px-2.5 py-1 rounded-lg border border-brand/30">
-                <Gauge size={12} className="shrink-0 text-cyan-400" />
-                <span>{isSwim ? "Objetivo técnico:" : "Ritmo objetivo:"} {metrics.main.pace}</span>
+              <div className="inline-flex items-center gap-1.5 bg-zinc-100 border border-zinc-200 text-zinc-800 font-mono text-xs font-semibold px-2.5 py-1.5 rounded-lg mb-2.5 max-w-full">
+                <Gauge size={13} className="shrink-0 text-red-600" />
+                <span className="leading-snug">{isSwim ? "Objetivo técnico:" : "Ritmo objetivo:"} {metrics.main.pace}</span>
               </div>
             )}
 
-            <div className="space-y-1.5 text-xs sm:text-sm text-slate-100 font-medium leading-relaxed">
+            <div className="space-y-1.5 text-zinc-600 font-normal text-sm leading-relaxed">
               {parsed.mainLines.map((l, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  {parsed.mainLines.length > 1 && <span className="text-brand font-bold">•</span>}
+                  {parsed.mainLines.length > 1 && <span className="text-red-600 font-bold">•</span>}
                   <span>{l}</span>
                 </div>
               ))}
@@ -728,31 +727,31 @@ export function WorkoutStructuredNotes({
 
         {/* 3. VUELTA A LA CALMA */}
         {parsed.cooldownLines.length > 0 && (
-          <div className="p-3 sm:p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-slate-200">
-            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5 font-bold text-[11px] sm:text-xs text-cyan-400 uppercase tracking-wider">
-                <Wind size={14} className="text-cyan-400 shrink-0" />
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-slate-400">
+            <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+              <div className="flex items-center gap-1.5 text-zinc-900 font-bold text-sm tracking-wide">
+                <Wind size={15} className="text-slate-500 shrink-0" />
                 <span>3. Vuelta a la Calma & Recuperación</span>
               </div>
               {metrics.cooldown.badgeLabel && (
-                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/35 font-mono text-[11px] font-extrabold">
-                  <Timer size={11} className="opacity-80" />
+                <div className="inline-flex items-center gap-1 bg-zinc-100 border border-zinc-200 text-zinc-700 font-medium text-xs rounded-full px-2.5 py-1">
+                  <Timer size={12} className="text-zinc-500 shrink-0" />
                   <span>{metrics.cooldown.badgeLabel}</span>
                 </div>
               )}
             </div>
 
             {metrics.cooldown.pace && (
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-400/90 mb-2 bg-cyan-500/10 px-2.5 py-1 rounded-lg border border-cyan-500/25">
-                <Gauge size={12} className="shrink-0 text-cyan-400" />
-                <span>Ritmo objetivo: {metrics.cooldown.pace}</span>
+              <div className="inline-flex items-center gap-1.5 bg-zinc-100 border border-zinc-200 text-zinc-800 font-mono text-xs font-semibold px-2.5 py-1.5 rounded-lg mb-2.5 max-w-full">
+                <Gauge size={13} className="shrink-0 text-slate-500" />
+                <span className="leading-snug">Ritmo objetivo: {metrics.cooldown.pace}</span>
               </div>
             )}
 
-            <div className="space-y-1.5 text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <div className="space-y-1.5 text-zinc-600 font-normal text-sm leading-relaxed">
               {parsed.cooldownLines.map((l, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  {parsed.cooldownLines.length > 1 && <span className="text-cyan-400 font-bold">•</span>}
+                  {parsed.cooldownLines.length > 1 && <span className="text-slate-400 font-bold">•</span>}
                   <span>{l}</span>
                 </div>
               ))}
@@ -763,34 +762,38 @@ export function WorkoutStructuredNotes({
 
       {/* Clave estratégica */}
       {parsed.strategy && (
-        <div className="text-xs p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 leading-relaxed">
-          <strong>Clave estratégica:</strong> {parsed.strategy}
+        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 text-zinc-600 text-xs font-medium leading-relaxed">
+          <strong className="text-zinc-900 font-semibold">Clave estratégica:</strong> {parsed.strategy}
         </div>
       )}
 
       {/* Hidratación */}
       {parsed.hydration && (
-        <div className="text-xs p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-200 leading-relaxed">
-          <strong>Hidratación:</strong> {parsed.hydration}
+        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 text-zinc-600 text-xs font-medium leading-relaxed">
+          <strong className="text-zinc-900 font-semibold">Hidratación:</strong> {parsed.hydration}
         </div>
       )}
 
       {/* Nutrición (abierta por defecto para que salga completa sin esconder nada) */}
       {parsed.nutrition && (
-        <div className="rounded-xl border border-emerald-500/30 overflow-hidden bg-emerald-950/10">
+        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5">
           <button
             type="button"
             onClick={() => setShowNutrition(!showNutrition)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs text-emerald-300 hover:text-emerald-200 font-bold transition-colors"
+            className="w-full flex items-center justify-between text-xs text-zinc-900 hover:text-zinc-700 font-bold transition-colors"
           >
             <div className="flex items-center gap-1.5">
-              <Apple size={14} className="text-emerald-400" />
+              <Apple size={14} className="text-zinc-700 shrink-0" />
               <span>Nutrición & Estrategia Energética</span>
             </div>
-            {showNutrition ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showNutrition ? (
+              <ChevronUp size={14} className="text-zinc-500" />
+            ) : (
+              <ChevronDown size={14} className="text-zinc-500" />
+            )}
           </button>
           {showNutrition && (
-            <div className="px-3.5 py-2.5 text-xs text-slate-300 border-t border-emerald-500/20 leading-relaxed bg-surface/60 whitespace-pre-line">
+            <div className="pt-2.5 mt-2.5 border-t border-zinc-200 text-zinc-600 text-xs font-medium leading-relaxed whitespace-pre-line">
               {parsed.nutrition}
             </div>
           )}
@@ -799,20 +802,24 @@ export function WorkoutStructuredNotes({
 
       {/* Enfoque Mental */}
       {parsed.mentalTip && (
-        <div className="rounded-xl border border-purple-500/30 overflow-hidden bg-purple-950/15">
+        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3.5">
           <button
             type="button"
             onClick={() => setShowMental(!showMental)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs text-purple-300 hover:text-purple-200 font-bold transition-colors"
+            className="w-full flex items-center justify-between text-xs text-zinc-900 hover:text-zinc-700 font-bold transition-colors"
           >
             <div className="flex items-center gap-1.5">
-              <Brain size={14} className="text-purple-400" />
+              <Brain size={14} className="text-zinc-700 shrink-0" />
               <span>Enfoque Psicológico & Tip Mental</span>
             </div>
-            {showMental ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showMental ? (
+              <ChevronUp size={14} className="text-zinc-500" />
+            ) : (
+              <ChevronDown size={14} className="text-zinc-500" />
+            )}
           </button>
           {showMental && (
-            <div className="px-3.5 py-2.5 text-xs text-purple-100/90 border-t border-purple-500/20 leading-relaxed bg-surface/60 whitespace-pre-line">
+            <div className="pt-2.5 mt-2.5 border-t border-zinc-200 text-zinc-600 text-xs font-medium leading-relaxed whitespace-pre-line">
               {parsed.mentalTip}
             </div>
           )}
@@ -821,9 +828,9 @@ export function WorkoutStructuredNotes({
 
       {/* Metadatos extra */}
       {parsed.extraTrailing.length > 0 && (
-        <div className="text-[11px] text-muted flex flex-col gap-1 pt-1 border-t border-border/40">
+        <div className="text-[11px] text-zinc-500 flex flex-col gap-1 pt-2 border-t border-zinc-200">
           {parsed.extraTrailing.map((t, idx) => (
-            <div key={idx} className="leading-snug opacity-90 whitespace-pre-line">
+            <div key={idx} className="leading-snug whitespace-pre-line">
               {t}
             </div>
           ))}
@@ -836,9 +843,41 @@ export function WorkoutStructuredNotes({
 // ==========================================
 // PARSER UNIVERSAL DE NOTAS (RUNNING / NATACIÓN / DESCANSO)
 // ==========================================
-function stripEmojiAndLabel(line: string, labelRegex: RegExp): string {
-  const noLeadingEmoji = line.replace(/^[🟢⚡🔵🟡🟣🔴🏊🏃🏋️🧘•*\-\s]+/u, "").trim();
-  return noLeadingEmoji.replace(labelRegex, "").trim();
+function extractBlockMetaAndBody(
+  line: string,
+  labelRegex: RegExp
+): { meta: string; body: string } {
+  const noEmoji = line.replace(/^[🟢⚡🔵🟡🟣🔴🏊🏃🏋️🧘•*\-\s]+/u, "").trim();
+  const match = noEmoji.match(labelRegex);
+  if (!match) {
+    return { meta: "", body: noEmoji.replace(/^[:)\-–\s]+/, "").trim() };
+  }
+
+  let rest = noEmoji.slice(match[0].length).trim();
+  let meta = "";
+
+  if (rest.startsWith("(")) {
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = 0; i < rest.length; i++) {
+      const ch = rest[i];
+      if (ch === "(") depth++;
+      else if (ch === ")") {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+    if (endIdx !== -1) {
+      meta = rest.slice(1, endIdx).trim();
+      rest = rest.slice(endIdx + 1).trim();
+    }
+  }
+
+  const body = rest.replace(/^[:)\-–\s]+/, "").trim();
+  return { meta, body: body || noEmoji };
 }
 
 function parseWorkoutNotes(notes: string, discipline: string) {
@@ -846,6 +885,9 @@ function parseWorkoutNotes(notes: string, discipline: string) {
     return {
       isStructured: false,
       header: "",
+      warmupMeta: "",
+      mainMeta: "",
+      cooldownMeta: "",
       warmupLines: [] as string[],
       mainLines: [] as string[],
       cooldownLines: [] as string[],
@@ -926,6 +968,9 @@ function parseWorkoutNotes(notes: string, discipline: string) {
   const warmupLines: string[] = [];
   const mainLines: string[] = [];
   const cooldownLines: string[] = [];
+  const warmupMetas: string[] = [];
+  const mainMetas: string[] = [];
+  const cooldownMetas: string[] = [];
 
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
 
@@ -934,23 +979,26 @@ function parseWorkoutNotes(notes: string, discipline: string) {
     const noEmoji = clean.replace(/^[🟢⚡🔵🟡🟣🔴🏊🏃🏋️🧘\s]+/u, "").trim();
 
     if (/calentamiento/i.test(noEmoji) && !/vuelta a la calma/i.test(noEmoji)) {
-      const stripped = stripEmojiAndLabel(clean, /^calentamiento(?:\s*\([^)]*\))?:?\s*/i);
-      warmupLines.push(stripped || noEmoji);
+      const { meta, body } = extractBlockMetaAndBody(clean, /^calentamiento\b/i);
+      if (meta) warmupMetas.push(meta);
+      warmupLines.push(body);
     } else if (/vuelta a la calma/i.test(noEmoji)) {
-      const stripped = stripEmojiAndLabel(clean, /^vuelta a la calma(?:\s*\([^)]*\))?:?\s*/i);
-      cooldownLines.push(stripped || noEmoji);
+      const { meta, body } = extractBlockMetaAndBody(clean, /^vuelta a la calma\b/i);
+      if (meta) cooldownMetas.push(meta);
+      cooldownLines.push(body);
     } else if (
       /^(?:bloque principal|parte principal|cuerpo|bloque de volumen|bloque tempo|bloque de cuestas|rodaje continuo|base aeróbica)/i.test(
         noEmoji
       )
     ) {
-      const stripped = stripEmojiAndLabel(
+      const { meta, body } = extractBlockMetaAndBody(
         clean,
-        /^(?:bloque principal|parte principal|cuerpo|bloque de volumen|bloque tempo|bloque de cuestas|rodaje continuo|base aeróbica)(?:\s*\([^)]*\))?:?\s*/i
+        /^(?:bloque principal|parte principal|cuerpo|bloque de volumen|bloque tempo|bloque de cuestas|rodaje continuo|base aeróbica)\b/i
       );
-      mainLines.push(stripped || noEmoji);
+      if (meta) mainMetas.push(meta);
+      mainLines.push(body);
     } else {
-      mainLines.push(noEmoji);
+      mainLines.push(noEmoji.replace(/^[:)\-–\s]+/, "").trim());
     }
   }
 
@@ -968,6 +1016,9 @@ function parseWorkoutNotes(notes: string, discipline: string) {
 
   return {
     header,
+    warmupMeta: warmupMetas.join(" "),
+    mainMeta: mainMetas.join(" "),
+    cooldownMeta: cooldownMetas.join(" "),
     warmupLines,
     mainLines,
     cooldownLines,
@@ -987,9 +1038,9 @@ function calculateSessionMetrics(
   distanceKm?: number | null,
   durationMin?: number | null
 ) {
-  const warmupText = parsed.warmupLines.join(" ");
-  const mainText = parsed.mainLines.join(" ");
-  const cooldownText = parsed.cooldownLines.join(" ");
+  const warmupText = parsed.warmupMeta || parsed.warmupLines.join(" ");
+  const mainText = parsed.mainMeta || parsed.mainLines.join(" ");
+  const cooldownText = parsed.cooldownMeta || parsed.cooldownLines.join(" ");
 
   const wRaw = extractMetricsFromText(warmupText);
   const mRaw = extractMetricsFromText(mainText);

@@ -208,15 +208,8 @@ export function SuuntoPushButton({
         </div>
 
         {(successMsg || isSynced) && !errorMsg && (
-          <div
-            className="text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-xl"
-            style={{
-              background: "var(--color-success-bg)",
-              color: "var(--color-success)",
-              border: "1px solid rgba(22, 163, 74, 0.25)",
-            }}
-          >
-            <CheckCircle2 size={14} />
+          <div className="text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
             <span>{successMsg || "Sesión lista para sincronizar con tu reloj Suunto"}</span>
           </div>
         )}
