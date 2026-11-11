@@ -57,17 +57,7 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descId}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(2px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 250,
-        padding: "var(--space-4)",
-      }}
+      className="fixed inset-0 z-[250] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-950/60 backdrop-blur-sm animate-in"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) {
           onCancel();
@@ -77,16 +67,17 @@ export function ConfirmDialog({
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="surface animate-in"
+        className="w-full md:max-w-[460px] flex flex-col rounded-t-3xl md:rounded-2xl overflow-hidden outline-none animate-sheet"
         style={{
-          width: "min(480px, 100%)",
-          display: "flex",
-          flexDirection: "column",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          color: "var(--color-text)",
           boxShadow: "var(--shadow-md)",
-          outline: "none",
-          overflow: "hidden",
         }}
       >
+        <div className="md:hidden flex justify-center pt-2.5 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: "var(--color-border-strong)" }} />
+        </div>
         <div
           style={{
             display: "flex",
@@ -123,7 +114,7 @@ export function ConfirmDialog({
 
         <div
           style={{
-            padding: "var(--space-3) var(--space-4)",
+            padding: "var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px))",
             borderTop: "1px solid var(--color-border)",
             background: "var(--color-surface-raised)",
             display: "flex",

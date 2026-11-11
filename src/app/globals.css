@@ -1,67 +1,65 @@
 @import "tailwindcss";
 
 /* ============================================================
-   ENTRENOAPP — SISTEMA DE DISEÑO MINIMALISTA & RESPONSIVO
-   Tokens centralizados con soporte nativo de Modo Claro / Modo Oscuro.
+   ENTRENOAPP — SISTEMA DE DISEÑO HARBIZ PERFORMANCE (MOBILE-FIRST)
+   Colores limpios, Cobalt Electric (#2563EB), Emerald (#10B981), Amber (#F59E0B)
+   Soporte completo Claro / Oscuro, Safe Areas iOS/Android & Ergonomía Táctil 44px+
    ============================================================ */
 
 :root {
-  /* ==========================================================
-     TEMA POR DEFECTO: MODO OSCURO DEPORTIVO DE ALTO RENDIMIENTO (Whoop / Garmin / Oura / Apple)
-     Negros profundos #07090E / #090D16, superficies #0F1523, tarjetas elevadas #151C2E
-     ========================================================== */
-  --color-bg: #07090e;
-  --color-surface: #0e1422;
-  --color-surface-raised: #141b2c;
-  --color-surface-hover: #1b243b;
-  --color-surface-translucent: rgba(14, 20, 34, 0.88);
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
+  /* MODO OSCURO POR DEFECTO (Slate profundo Harbiz Dark) */
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-raised: #162032;
+  --color-surface-hover: #273549;
+  --color-surface-translucent: rgba(15, 23, 42, 0.88);
+  --color-border: #334155;
+  --color-border-strong: #475569;
 
-  /* Tipografía y Textos de Alto Rendimiento */
+  /* Tipografía y Textos */
   --color-text: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-text-faint: #64748b;
 
-  /* Acento de Marca — Neon Volt Athletic (#00E599 / #10B981) */
-  --color-brand: #00e599;
-  --color-brand-hover: #00cc88;
-  --color-brand-contrast: #07090e;
-  --color-brand-subtle: rgba(0, 229, 153, 0.14);
-  --color-accent: #ff8a00;
-  --gradient-brand: linear-gradient(135deg, #00e599 0%, #00b377 100%);
-  --gradient-brand-hover: linear-gradient(135deg, #1affaa 0%, #00e599 100%);
-  --gradient-accent: linear-gradient(135deg, #ff8a00 0%, #e07000 100%);
+  /* Color Primario Harbiz — Azul Eléctrico Cobalto (#2563EB) */
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-contrast: #ffffff;
+  --color-brand-subtle: rgba(37, 99, 235, 0.16);
+  --color-accent: #f59e0b;
+  --gradient-brand: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 
-  /* Paleta Atlética de Alto Impacto */
-  --color-ios-green: #00e599;
-  --color-ios-blue: #00d2ff;
-  --color-ios-red: #ff3b30;
-  --color-ios-orange: #ff8a00;
-  --color-ios-purple: #a855f7;
-  --color-ios-teal: #00f2fe;
-  --color-ios-indigo: #6366f1;
-  --color-ios-yellow: #facc15;
+  /* Paleta Atlética & Acentos Funcionales */
+  --color-ios-green: #10b981;
+  --color-ios-blue: #2563eb;
+  --color-ios-red: #ef4444;
+  --color-ios-orange: #f59e0b;
+  --color-ios-purple: #8b5cf6;
+  --color-ios-teal: #06b6d4;
+  --color-ios-indigo: #4f46e5;
+  --color-ios-yellow: #eab308;
 
   /* Estados semánticos */
-  --color-success: #00e599;
-  --color-success-bg: rgba(0, 229, 153, 0.14);
-  --color-warning: #ff8a00;
-  --color-warning-bg: rgba(255, 138, 0, 0.14);
-  --color-danger: #ff3b30;
-  --color-danger-bg: rgba(255, 59, 48, 0.14);
-  --color-info: #00d2ff;
-  --color-info-bg: rgba(0, 210, 255, 0.14);
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.14);
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.14);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.14);
 
-  /* Sombras y elevaciones nativas deportivas */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 10px 30px -4px rgba(0, 0, 0, 0.7);
-  --shadow-glow-brand: 0 0 28px rgba(0, 229, 153, 0.22);
-  --shadow-glow-success: 0 0 28px rgba(0, 229, 153, 0.22);
-  --focus-ring: 0 0 0 2px #07090e, 0 0 0 4px #00e599;
+  /* Sombras sutiles de elevación SaaS */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.28), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 4px 10px -4px rgba(0, 0, 0, 0.28);
+  --shadow-glow-brand: 0 6px 20px -2px rgba(37, 99, 235, 0.35);
+  --shadow-glow-success: 0 6px 20px -2px rgba(16, 185, 129, 0.3);
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px #2563eb;
 
-  /* Tipografía del sistema Apple */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", system-ui, sans-serif;
+  /* Tipografía moderna sin serifa */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --text-xs: 0.75rem;     /* 12px */
   --text-sm: 0.875rem;    /* 14px */
   --text-base: 0.9375rem; /* 15px */
@@ -79,63 +77,75 @@
   --space-6: 1.5rem;      /* 24px */
   --space-8: 2rem;        /* 32px */
 
-  /* Radios suaves estilo Apple (Squircle) */
+  /* Radios modernos constantes Harbiz (12px - 16px - 20px) */
   --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
-  /* Curvas de animación nativas de iOS (Spring & Fluid) */
+  /* Curvas de animación fluidas */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 140ms;
   --duration-base: 220ms;
+
+  /* Safe Area Insets iOS / Android */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 /* ============================================================
-   MODO CLARO (Limpio, nítido y de alto contraste)
+   MODO CLARO HARBIZ (#F8FAFC base, #FFFFFF tarjetas, #E2E8F0 bordes)
    ============================================================ */
 [data-theme="light"] {
-  --color-bg: #f1f5f9;
+  --color-bg: #f8fafc;
   --color-surface: #ffffff;
-  --color-surface-raised: #f8fafc;
+  --color-surface-raised: #f1f5f9;
   --color-surface-hover: #e2e8f0;
-  --color-surface-translucent: rgba(255, 255, 255, 0.94);
-  --color-border: #cbd5e1;
-  --color-border-strong: #94a3b8;
+  --color-surface-translucent: rgba(255, 255, 255, 0.9);
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
 
-  /* Tipografía y Textos — Máximo contraste y legibilidad */
   --color-text: #0f172a;
-  --color-text-muted: #475569;
-  --color-text-faint: #64748b;
+  --color-text-muted: #64748b;
+  --color-text-faint: #94a3b8;
 
-  /* Acento de Marca — Esmeralda Deportivo Atlántico Puro */
-  --color-brand: #059669;
-  --color-brand-hover: #047857;
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
   --color-brand-contrast: #ffffff;
-  --color-brand-subtle: rgba(5, 150, 105, 0.12);
-  --color-accent: #d97706;
-  --gradient-brand: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  --gradient-brand-hover: linear-gradient(135deg, #047857 0%, #059669 100%);
-  --gradient-accent: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  --color-brand-subtle: rgba(37, 99, 235, 0.10);
+  --color-accent: #f59e0b;
+  --gradient-brand: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 
-  /* Estados semánticos */
-  --color-success: #059669;
-  --color-success-bg: rgba(5, 150, 105, 0.12);
-  --color-warning: #b45309;
-  --color-warning-bg: rgba(180, 83, 9, 0.12);
-  --color-danger: #dc2626;
-  --color-danger-bg: rgba(220, 38, 38, 0.12);
-  --color-info: #0284c7;
-  --color-info-bg: rgba(2, 132, 199, 0.12);
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-warning: #d97706;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.10);
+  --color-info: #2563eb;
+  --color-info-bg: rgba(37, 99, 235, 0.10);
 
-  /* Sombras limpias y definidas */
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 14px -2px rgba(15, 23, 42, 0.1), 0 2px 6px -1px rgba(15, 23, 42, 0.06);
-  --shadow-glow-brand: 0 4px 16px rgba(5, 150, 105, 0.22);
-  --shadow-glow-success: 0 4px 16px rgba(5, 150, 105, 0.22);
-  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-brand);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -4px rgba(15, 23, 42, 0.04);
+  --shadow-glow-brand: 0 6px 20px -2px rgba(37, 99, 235, 0.25);
+  --shadow-glow-success: 0 6px 20px -2px rgba(16, 185, 129, 0.22);
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #2563eb;
+}
+
+/* Mapeo de utilidades Tailwind para compatibilidad Light/Dark automática */
+@theme inline {
+  --color-foreground: var(--color-text);
+  --color-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-brand: var(--color-brand);
 }
 
 * {
@@ -147,6 +157,7 @@ html {
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -157,32 +168,34 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01", "tnum" 1;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" 1;
   overflow-x: hidden;
-  overflow-y: visible;
   max-width: 100vw;
   width: 100%;
-  min-height: 100vh;
-  
-  /* Permite scroll vertical fluido con ruleta de ratón, trackpad y gestos */
-  touch-action: pan-y pinch-zoom;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  
+  min-height: 100dvh;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
   transition: background-color var(--duration-base) var(--ease), color var(--duration-base) var(--ease);
 }
 
-/* Comportamiento específico para pantallas táctiles móviles (iOS/Android PWA) */
+/* Eliminación de retraso de 300ms y ergonomía móvil */
+button,
+a,
+[role="button"],
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+
 @media (pointer: coarse) {
   html,
   body {
-    overscroll-behavior-y: none;
-    touch-action: manipulation;
+    overscroll-behavior-y: contain;
   }
 }
 
-/* Permitir selección de texto exclusivamente en campos de entrada y áreas con clase específica */
 input,
 textarea,
 [contenteditable="true"],
@@ -191,47 +204,66 @@ textarea,
   -webkit-user-select: text;
 }
 
-/* Safe Area Insets iOS */
-:root {
-  --sat: env(safe-area-inset-top, 0px);
-  --sab: env(safe-area-inset-bottom, 0px);
-  --sal: env(safe-area-inset-left, 0px);
-  --sar: env(safe-area-inset-right, 0px);
+/* Bloqueo estricto de auto-zoom en Safari iOS (font-size >= 16px) */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .field {
+    font-size: 16px !important;
+  }
 }
 
-/* Clases de utilidad hápticas y táctiles nativas estilo iOS */
-.ios-press {
-  transition: transform var(--duration-fast) var(--ease-spring), opacity var(--duration-fast) var(--ease);
+/* Scroll horizontal táctil fluido con Scroll Snap */
+.snap-carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+.snap-carousel::-webkit-scrollbar {
+  display: none;
+}
+.snap-item {
+  scroll-snap-align: center;
+  flex-shrink: 0;
+}
+
+/* Microinteracciones nativas táctiles */
+.ios-press,
+.harbiz-press {
+  transition: transform var(--duration-fast) var(--ease-spring), opacity var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
   will-change: transform;
 }
-.ios-press:active {
-  transform: scale(0.96);
-  opacity: 0.88;
+.ios-press:active,
+.harbiz-press:active {
+  transform: scale(0.97);
+  opacity: 0.92;
 }
 
-.ios-glass {
-  background: rgba(14, 20, 34, 0.85);
-  backdrop-filter: blur(28px) saturate(210%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.ios-glass,
+.harbiz-glass {
+  background: var(--color-surface-translucent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--color-border);
 }
 
 .ios-card {
-  background: linear-gradient(180deg, #101726 0%, #0b0f19 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: transform var(--duration-fast) var(--ease-spring), border-color var(--duration-fast) var(--ease);
-}
-.ios-card:active {
-  transform: scale(0.985);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-spring), border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
 }
 
 .ios-segmented {
-  background: #090d16;
-  border-radius: var(--radius-sm);
-  padding: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  border: 1px solid var(--color-border);
 }
 
 .tabular-nums {
@@ -239,7 +271,7 @@ textarea,
 }
 
 .brand-dot-glow {
-  box-shadow: 0 0 10px #00e599;
+  box-shadow: 0 0 8px var(--color-brand);
 }
 
 ::selection {
@@ -247,7 +279,7 @@ textarea,
   color: var(--color-brand);
 }
 
-/* Scrollbars discretos y minimalistas */
+/* Scrollbars discretos */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: var(--radius-full); }
@@ -264,14 +296,14 @@ button {
 }
 
 /* ============================================================
-   PRIMITIVAS DE INTERFAZ (SURFACES & CARDS)
+   PRIMITIVAS DE INTERFAZ HARBIZ (SURFACES & CARDS)
    ============================================================ */
 
 .surface {
-  background: linear-gradient(180deg, #101726 0%, #0b0f19 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-sm);
   transition: border-color var(--duration-fast) var(--ease),
               box-shadow var(--duration-fast) var(--ease),
               transform var(--duration-fast) var(--ease),
@@ -282,19 +314,18 @@ button {
   cursor: pointer;
 }
 .surface-interactive:hover {
-  border-color: rgba(0, 229, 153, 0.35);
-  box-shadow: 0 10px 36px -4px rgba(0, 229, 153, 0.12), 0 4px 16px -2px rgba(0, 0, 0, 0.5);
-  transform: translateY(-1.5px);
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 .surface-interactive:active {
-  transform: translateY(0);
+  transform: scale(0.985);
 }
 
 .surface-raised {
-  background: #141b2c;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 14px -1px rgba(0, 0, 0, 0.4);
   transition: background-color var(--duration-base) var(--ease), border-color var(--duration-fast) var(--ease);
 }
 
@@ -305,10 +336,7 @@ button {
   box-shadow: var(--shadow-sm);
 }
 
-/* ============================================================
-   ATHLETIC DATA & EFFORT ZONES (sports-data-display rule)
-   Z1/Z2 verde (#10b981), Z3 amarillo (#eab308), Z4 naranja (#f97316), Z5 rojo (#ef4444)
-   ============================================================ */
+/* Zonas de esfuerzo fisiológicas */
 .zone-z1, .zone-z2 { color: #10b981; }
 .bg-zone-z1, .bg-zone-z2 { background-color: #10b981; }
 .border-zone-z1, .border-zone-z2 { border-color: #10b981; }
@@ -325,75 +353,12 @@ button {
 .bg-zone-z5 { background-color: #ef4444; }
 .border-zone-z5 { border-color: #ef4444; }
 
-/* ============================================================
-   STITCH KINETIC APEX HUD UTILITIES (FUTURISTIC PERFORMANCE)
-   ============================================================ */
-.laser-border {
-  border: 1px solid rgba(195, 244, 0, 0.25);
-}
-
-.laser-border-cyan {
-  border: 1px solid rgba(0, 227, 253, 0.35);
-}
-
-.laser-border-orange {
-  border: 1px solid rgba(255, 85, 0, 0.35);
-}
-
-.corner-bracket-tl {
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  width: 7px;
-  height: 7px;
-  border-top: 2px solid #c3f400;
-  border-left: 2px solid #c3f400;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.corner-bracket-br {
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 7px;
-  height: 7px;
-  border-bottom: 2px solid #00e3fd;
-  border-right: 2px solid #00e3fd;
-  pointer-events: none;
-  z-index: 5;
-}
-
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 6px #c3f400); }
-  50% { opacity: 0.35; filter: drop-shadow(0 0 1px #c3f400); }
-}
-
-.animate-laser-pulse {
-  animation: pulseGlow 2.4s infinite ease-in-out;
-}
-
-.hud-glow-volt {
-  box-shadow: 0 0 24px rgba(195, 244, 0, 0.55);
-}
-
-.hud-glow-emerald {
-  box-shadow: 0 0 24px -4px rgba(195, 244, 0, 0.35);
-}
-
-.hud-glow-cyan {
-  box-shadow: 0 0 24px -4px rgba(0, 227, 253, 0.35);
-}
-
-.hud-glow-amber {
-  box-shadow: 0 0 24px -4px rgba(255, 85, 0, 0.35);
-}
-
+/* Compatibilidad con tarjetas HUD */
 .hud-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 28px -2px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
@@ -406,49 +371,33 @@ button {
   border-radius: var(--radius-full);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
-
-.hud-pill-emerald {
-  background: rgba(195, 244, 0, 0.14);
-  border: 1px solid rgba(195, 244, 0, 0.35);
-  color: #c3f400;
-}
-
-.hud-pill-cyan {
-  background: rgba(0, 227, 253, 0.14);
-  border: 1px solid rgba(0, 227, 253, 0.35);
-  color: #00e3fd;
-}
-
-.hud-pill-orange {
-  background: rgba(255, 85, 0, 0.14);
-  border: 1px solid rgba(255, 85, 0, 0.35);
-  color: #ff5500;
-}
+.hud-pill-emerald { background: var(--color-success-bg); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--color-success); }
+.hud-pill-cyan { background: var(--color-info-bg); border: 1px solid rgba(37, 99, 235, 0.3); color: var(--color-info); }
+.hud-pill-orange { background: var(--color-warning-bg); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--color-warning); }
 
 /* ============================================================
-   FORMULARIOS E INPUTS
+   FORMULARIOS E INPUTS (44px+ touch targets, 16px anti-zoom)
    ============================================================ */
 
 .label {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-text-muted);
-  margin-bottom: var(--space-1);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
 }
 
 .field {
   width: 100%;
-  background: var(--color-surface-raised);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 0.65rem 0.85rem;
-  font-size: var(--text-sm);
+  padding: 0.625rem 0.875rem;
+  font-size: 1rem;
   color: var(--color-text);
   transition: border-color var(--duration-fast) var(--ease),
               background var(--duration-fast) var(--ease),
@@ -475,12 +424,12 @@ button {
 }
 
 textarea.field {
-  min-height: 80px;
+  min-height: 88px;
   resize: vertical;
 }
 
 /* ============================================================
-   BOTONES
+   BOTONES (44px+ touch targets & Cobalt Electric Primary)
    ============================================================ */
 
 .btn {
@@ -491,19 +440,20 @@ textarea.field {
   font-size: var(--text-sm);
   font-weight: 600;
   border-radius: var(--radius-md);
-  padding: 0.55rem 1rem;
+  padding: 0.625rem 1.125rem;
   min-height: 44px;
   border: 1px solid transparent;
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease),
               border-color var(--duration-fast) var(--ease),
-              transform var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease-spring),
               box-shadow var(--duration-fast) var(--ease),
               opacity var(--duration-fast) var(--ease);
   white-space: nowrap;
   user-select: none;
+  touch-action: manipulation;
 }
-.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .btn-primary {
@@ -517,12 +467,13 @@ textarea.field {
 }
 
 .btn-secondary {
-  background: var(--color-surface-raised);
+  background: var(--color-surface);
   border-color: var(--color-border);
   color: var(--color-text);
+  box-shadow: var(--shadow-sm);
 }
 .btn-secondary:hover:not(:disabled) {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-raised);
   border-color: var(--color-border-strong);
 }
 
@@ -531,7 +482,7 @@ textarea.field {
   color: var(--color-text-muted);
 }
 .btn-ghost:hover:not(:disabled) {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-raised);
   color: var(--color-text);
 }
 
@@ -549,28 +500,33 @@ textarea.field {
   padding: 0.5rem;
   min-width: 44px;
   width: 44px;
+  min-height: 44px;
   height: 44px;
 }
 
 .btn-sm {
-  padding: 0.35rem 0.75rem;
-  min-height: 34px;
-  height: 34px;
+  padding: 0.45rem 0.875rem;
+  min-height: 40px;
   font-size: var(--text-xs);
   gap: var(--space-1);
 }
 
 .btn-icon-sm {
   padding: 0;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: var(--radius-sm);
 }
 
+@media (max-width: 767px) {
+  .btn-icon-sm {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* ============================================================
-   CHIPS & BADGES
+   CHIPS & BADGES HARBIZ (Compactos y traslúcidos)
    ============================================================ */
 
 .badge {
@@ -585,13 +541,12 @@ textarea.field {
   white-space: nowrap;
 }
 .badge-neutral { background: var(--color-surface-raised); color: var(--color-text-muted); border: 1px solid var(--color-border); }
-.badge-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.2); }
-.badge-warning { background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid rgba(245, 158, 11, 0.2); }
-.badge-danger { background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.2); }
-.badge-info { background: var(--color-info-bg); color: var(--color-info); border: 1px solid rgba(59, 130, 246, 0.2); }
-.badge-brand { background: var(--color-brand-subtle); color: var(--color-brand); border: 1px solid rgba(59, 130, 246, 0.2); }
+.badge-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.25); }
+.badge-warning { background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid rgba(245, 158, 11, 0.25); }
+.badge-danger { background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.25); }
+.badge-info { background: var(--color-info-bg); color: var(--color-info); border: 1px solid rgba(37, 99, 235, 0.25); }
+.badge-brand { background: var(--color-brand-subtle); color: var(--color-brand); border: 1px solid rgba(37, 99, 235, 0.25); }
 
-/* Utilidades tipográficas */
 .text-muted { color: var(--color-text-muted); }
 .text-faint { color: var(--color-text-faint); }
 .text-brand { color: var(--color-brand); }
@@ -623,10 +578,15 @@ textarea.field {
 
 /* Animaciones */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(3px); }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-in { animation: fade-in var(--duration-base) var(--ease); }
+.animate-sheet { animation: sheet-up var(--duration-base) var(--ease); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {
@@ -638,38 +598,34 @@ textarea.field {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-in, .spinner { animation: none; }
+  .animate-in, .animate-sheet, .spinner { animation: none; }
   * { transition-duration: 0.01ms !important; }
 }
 
-/* Contenedor principal con paddings mobile-first y desktop centrado */
+/* Contenedor principal responsive (>=360px móvil hasta monitores anchos) */
 .main-content-container {
-  padding: var(--space-4) var(--space-5);
-  padding-bottom: 40px;
+  padding: var(--space-5) var(--space-6);
+  padding-bottom: 48px;
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .main-content-container {
-    padding: var(--space-4) 10px !important;
-    padding-bottom: calc(110px + env(safe-area-inset-bottom, 24px)) !important;
+    padding: 12px 14px !important;
+    padding-left: calc(14px + env(safe-area-inset-left, 0px)) !important;
+    padding-right: calc(14px + env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 16px)) !important;
     max-width: 100vw !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
-  
-  .surface {
-    border-radius: var(--radius-md) !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-    box-sizing: border-box !important;
-  }
 
+  .surface,
   .surface-raised {
-    border-radius: var(--radius-md) !important;
+    border-radius: var(--radius-lg) !important;
     max-width: 100% !important;
-    overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
 
@@ -677,7 +633,6 @@ textarea.field {
     max-width: 100% !important;
   }
 
-  /* Prevenir desbordamiento de notas y texto pre-wrap */
   [style*="pre-wrap"], .whitespace-pre-wrap, pre, code {
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
@@ -686,7 +641,7 @@ textarea.field {
   }
 }
 
-/* Ocultar banner/indicador inferior negro de desarrollo y sincronización de Next.js */
+/* Ocultar banner/indicador de desarrollo Next.js */
 #next-dev-indicator,
 [data-nextjs-dev-indicator],
 [data-nextjs-toast],

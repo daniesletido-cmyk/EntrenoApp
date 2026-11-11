@@ -23,9 +23,9 @@ export function useToast() {
 }
 
 const ICONS: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />,
-  error: <XCircle size={18} className="text-rose-400 shrink-0" />,
-  info: <Info size={18} className="text-sky-400 shrink-0" />,
+  success: <CheckCircle2 size={18} style={{ color: "var(--color-success)" }} className="shrink-0" />,
+  error: <XCircle size={18} style={{ color: "var(--color-danger)" }} className="shrink-0" />,
+  info: <Info size={18} style={{ color: "var(--color-brand)" }} className="shrink-0" />,
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -47,28 +47,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="fixed z-50 flex flex-col gap-2 max-w-[min(380px,calc(100vw-2rem))] pointer-events-none"
-        style={{
-          bottom: "calc(74px + env(safe-area-inset-bottom, 12px))",
-          right: "1rem",
-        }}
+        className="fixed z-50 flex flex-col gap-2 max-w-[min(380px,calc(100vw-2rem))] pointer-events-none right-4 bottom-[calc(82px+env(safe-area-inset-bottom,12px))] md:bottom-6"
       >
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="pointer-events-auto backdrop-blur-md bg-slate-900/90 border border-white/10 rounded-2xl p-3.5 shadow-2xl flex items-start gap-3 animate-in transition-all duration-150"
+            className="pointer-events-auto harbiz-glass rounded-2xl p-3.5 shadow-lg flex items-center gap-3 animate-in transition-all duration-150"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              boxShadow: "var(--shadow-md)",
+            }}
             role="status"
           >
             {ICONS[t.type]}
-            <span className="text-sm font-medium text-slate-100 leading-snug flex-1">
+            <span className="text-sm font-medium leading-snug flex-1" style={{ color: "var(--color-text)" }}>
               {t.message}
             </span>
             <button
               onClick={() => dismiss(t.id)}
               aria-label="Cerrar notificación"
-              className="text-slate-400 hover:text-white transition-colors duration-150 p-0.5 rounded-lg shrink-0"
+              className="flex items-center justify-center rounded-xl transition-colors duration-150 shrink-0 harbiz-press"
+              style={{
+                minWidth: 36,
+                minHeight: 36,
+                color: "var(--color-text-muted)",
+              }}
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           </div>
         ))}

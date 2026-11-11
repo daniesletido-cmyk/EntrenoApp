@@ -18,9 +18,11 @@ export function ThemeToggle({
     const currentTheme = document.documentElement.getAttribute("data-theme") as "light" | "dark" | null;
     if (currentTheme) {
       setTheme(currentTheme);
+      document.documentElement.classList.toggle("dark", currentTheme === "dark");
     } else {
       setTheme("dark");
       document.documentElement.setAttribute("data-theme", "dark");
+      document.documentElement.classList.add("dark");
     }
   }, []);
 
@@ -28,6 +30,7 @@ export function ThemeToggle({
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
     document.documentElement.setAttribute("data-theme", nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
     try {
       localStorage.setItem("entrenoapp_theme", nextTheme);
     } catch {

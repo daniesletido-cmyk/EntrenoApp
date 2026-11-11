@@ -46,6 +46,7 @@ import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { FileDropzone } from "@/components/ui/file-dropzone";
+import { SessionExerciseEditor } from "@/components/gym/session-exercise-editor";
 
 interface FitLap {
   index: number;
@@ -1825,6 +1826,7 @@ export default function RegistroPage() {
                       <Input
                         label="RPE (0-10)"
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         max={10}
                         value={s.rpe ?? ""}
@@ -1833,6 +1835,7 @@ export default function RegistroPage() {
                       <Input
                         label="Duración (min)"
                         type="number"
+                        inputMode="numeric"
                         value={s.duration_min ?? ""}
                         onChange={(e) =>
                           updateLocalSession(s.id, { duration_min: e.target.value === "" ? null : Number(e.target.value) })
@@ -1842,6 +1845,7 @@ export default function RegistroPage() {
                         <Input
                           label="Distancia (km)"
                           type="number"
+                          inputMode="decimal"
                           step="0.1"
                           value={s.distance_km ?? ""}
                           onChange={(e) =>
@@ -1873,7 +1877,7 @@ export default function RegistroPage() {
                         variant="primary"
                         loading={savingId === s.id}
                         onClick={() => saveSession(s)}
-                        style={{ height: 38, minHeight: 38, fontSize: "0.88rem", padding: "0 18px" }}
+                        style={{ minHeight: 44, fontSize: "0.9rem", padding: "0 20px" }}
                       >
                         <Save size={16} />
                         Guardar registro
@@ -1883,7 +1887,7 @@ export default function RegistroPage() {
                           variant="ghost"
                           loading={undoingFitId === s.id}
                           onClick={() => undoFitImport(s.id, !!s.fit_backup)}
-                          style={{ height: 38, minHeight: 38, fontSize: "0.84rem" }}
+                          style={{ minHeight: 44, fontSize: "0.84rem" }}
                         >
                           <RotateCcw size={15} />
                           {s.fit_backup ? "Deshacer importación .fit" : "Quitar datos del .fit"}
@@ -1894,13 +1898,16 @@ export default function RegistroPage() {
                           variant="ghost"
                           onClick={() => handleRevertAdjustment(s.id, s.date)}
                           title="Revertir este ajuste inteligente y volver al plan base"
-                          style={{ height: 38, minHeight: 38, fontSize: "0.84rem" }}
+                          style={{ minHeight: 44, fontSize: "0.84rem" }}
                         >
                           <RotateCcw size={14} />
                           Revertir adaptación
                         </Button>
                       )}
                     </div>
+
+                    {/* Bloques modulares colapsables de ejercicios, series y temporizador de descanso */}
+                    <SessionExerciseEditor date={s.date} discipline={s.discipline} onSaved={() => load()} />
                   </div>
                 );
               })}
@@ -1943,6 +1950,7 @@ export default function RegistroPage() {
                   <Input
                     label="Horas noche"
                     type="number"
+                    inputMode="decimal"
                     step="0.1"
                     defaultValue={sleep.hours ?? ""}
                     onBlur={(e) =>
@@ -1976,6 +1984,7 @@ export default function RegistroPage() {
                   <Input
                     label="Siesta (min)"
                     type="number"
+                    inputMode="numeric"
                     step="5"
                     placeholder="Ej: 30"
                     defaultValue={sleep.nap_min ?? ""}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { Timer, Play, Pause, RotateCcw, X, Plus, Minus, Volume2, Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Timer, Play, Pause, X, Minimize2 } from "lucide-react";
 
 interface SmartRestTimerProps {
   initialSeconds?: number;
@@ -16,8 +16,8 @@ export function playTimerCompletionSound() {
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
 
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
@@ -73,115 +73,84 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
 
   if (isMinimized) {
     return (
-      <div
-        className="animate-in rest-timer-float"
-        style={{
-          position: "fixed",
-          zIndex: 9999,
-          backgroundColor: "var(--color-surface)",
-          border: "2px solid var(--color-brand)",
-          borderRadius: 999,
-          padding: "8px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-          cursor: "pointer",
-        }}
+      <button
+        type="button"
         onClick={() => setIsMinimized(false)}
+        className="animate-in harbiz-press fixed z-[90] right-4 bottom-[calc(80px+env(safe-area-inset-bottom,16px))] md:bottom-6 md:right-6 flex items-center gap-2 rounded-full px-4 cursor-pointer"
+        style={{
+          minHeight: 46,
+          background: "var(--color-surface)",
+          border: `2px solid ${timeLeft === 0 ? "var(--color-success)" : "var(--color-warning)"}`,
+          boxShadow: "var(--shadow-md)",
+          color: "var(--color-text)",
+        }}
       >
-        <Timer size={16} className={isRunning ? "animate-spin text-brand" : "text-muted"} />
-        <span className="font-bold text-sm" style={{ color: timeLeft === 0 ? "var(--color-success)" : "var(--color-text)" }}>
-          {timeLeft === 0 ? "¡A entrenar!" : formattedTime}
+        <Timer
+          size={17}
+          className={isRunning ? "animate-spin" : ""}
+          style={{ color: timeLeft === 0 ? "var(--color-success)" : "var(--color-warning)" }}
+        />
+        <span
+          className="font-bold text-sm tabular-nums"
+          style={{ color: timeLeft === 0 ? "var(--color-success)" : "var(--color-text)" }}
+        >
+          {timeLeft === 0 ? "¡Siguiente serie!" : formattedTime}
         </span>
-        <style jsx>{`
-          .rest-timer-float {
-            bottom: calc(76px + env(safe-area-inset-bottom, 16px));
-            right: 16px;
-            max-width: calc(100vw - 32px);
-          }
-          @media (min-width: 768px) {
-            .rest-timer-float {
-              bottom: 24px;
-              right: 24px;
-            }
-          }
-        `}</style>
-      </div>
+      </button>
     );
   }
 
   return (
     <div
-      className="animate-in rest-timer-float"
+      className="animate-in fixed z-[90] right-4 bottom-[calc(80px+env(safe-area-inset-bottom,16px))] md:bottom-6 md:right-6 w-[min(310px,calc(100vw-32px))] rounded-2xl p-4"
       style={{
-        position: "fixed",
-        zIndex: 9999,
-        backgroundColor: "var(--color-surface)",
+        background: "var(--color-surface)",
         border: "1px solid var(--color-border-strong)",
-        borderRadius: "var(--radius-lg, 12px)",
-        padding: "var(--space-3) var(--space-4)",
-        boxShadow: "0 12px 32px rgba(0,0,0,0.6)",
-        width: 290,
+        boxShadow: "var(--shadow-md)",
+        color: "var(--color-text)",
       }}
     >
-      <style jsx>{`
-        .rest-timer-float {
-          bottom: calc(76px + env(safe-area-inset-bottom, 16px));
-          right: 16px;
-          max-width: calc(100vw - 32px);
-        }
-        @media (min-width: 768px) {
-          .rest-timer-float {
-            bottom: 24px;
-            right: 24px;
-          }
-        }
-      `}</style>
-      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 6 }}>
-        <div className="flex items-center gap-1.5 text-xs font-bold text-brand">
-          <Timer size={14} />
-          <span>Tiempo de Descanso</span>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--color-warning)" }}>
+          <Timer size={15} />
+          <span>Descanso Activo</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="btn btn-ghost text-xs"
-            style={{ padding: "2px 6px", height: "auto" }}
+            className="flex items-center justify-center rounded-xl harbiz-press cursor-pointer"
+            style={{ width: 38, height: 38, color: "var(--color-text-muted)" }}
             onClick={() => setIsMinimized(true)}
             title="Minimizar"
+            aria-label="Minimizar temporizador"
           >
-            _
+            <Minimize2 size={15} />
           </button>
           <button
             type="button"
-            className="btn btn-ghost text-xs"
-            style={{ padding: "2px 6px", height: "auto" }}
+            className="flex items-center justify-center rounded-xl harbiz-press cursor-pointer"
+            style={{ width: 38, height: 38, color: "var(--color-text-muted)" }}
             onClick={onClose}
             title="Cerrar"
+            aria-label="Cerrar temporizador"
           >
-            <X size={13} />
+            <X size={16} />
           </button>
         </div>
       </div>
 
-      {/* Reloj central */}
-      <div className="flex items-baseline justify-between" style={{ margin: "6px 0" }}>
+      <div className="flex items-center justify-between gap-2 my-1">
         <span
-          className="font-bold"
-          style={{
-            fontSize: "2rem",
-            letterSpacing: "-0.02em",
-            color: timeLeft === 0 ? "var(--color-success)" : "var(--color-text)",
-          }}
+          className="font-extrabold text-3xl tabular-nums tracking-tight"
+          style={{ color: timeLeft === 0 ? "var(--color-success)" : "var(--color-text)" }}
         >
           {formattedTime}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            className="btn btn-secondary text-xs"
-            style={{ height: 28, padding: "0 8px" }}
+            className="btn btn-secondary btn-sm harbiz-press"
+            style={{ minHeight: 40, padding: "0 10px" }}
             onClick={() => {
               setTimeLeft((t) => t + 30);
               setTotalTime((t) => t + 30);
@@ -191,8 +160,8 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
           </button>
           <button
             type="button"
-            className="btn btn-secondary text-xs"
-            style={{ height: 28, padding: "0 8px" }}
+            className="btn btn-secondary btn-sm harbiz-press"
+            style={{ minHeight: 40, padding: "0 10px" }}
             onClick={() => setTimeLeft((t) => Math.max(0, t - 30))}
           >
             -30s
@@ -200,29 +169,20 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
         </div>
       </div>
 
-      {/* Barra de progreso */}
       <div
-        style={{
-          width: "100%",
-          height: 6,
-          backgroundColor: "rgba(255, 255, 255, 0.08)",
-          borderRadius: 999,
-          overflow: "hidden",
-          margin: "8px 0",
-        }}
+        className="w-full h-2 rounded-full overflow-hidden my-3"
+        style={{ background: "var(--color-surface-raised)" }}
       >
         <div
+          className="h-full rounded-full transition-all duration-300"
           style={{
             width: `${progressPct}%`,
-            height: "100%",
-            backgroundColor: timeLeft === 0 ? "var(--color-success)" : "var(--color-brand)",
-            transition: "width 0.3s ease",
+            backgroundColor: timeLeft === 0 ? "var(--color-success)" : "var(--color-warning)",
           }}
         />
       </div>
 
-      {/* Presets rápidos */}
-      <div className="flex items-center justify-between gap-1" style={{ marginTop: 8 }}>
+      <div className="flex items-center justify-between gap-1.5">
         {[60, 90, 120, 180].map((sec) => (
           <button
             key={sec}
@@ -232,8 +192,8 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
               setTotalTime(sec);
               setIsRunning(true);
             }}
-            className="btn btn-ghost text-xs"
-            style={{ fontSize: "0.7rem", padding: "2px 6px" }}
+            className="btn btn-ghost btn-sm flex-1 harbiz-press"
+            style={{ minHeight: 40, fontSize: "0.75rem" }}
           >
             {sec >= 60 ? `${sec / 60}m` : `${sec}s`}
           </button>
@@ -241,10 +201,11 @@ export function SmartRestTimer({ initialSeconds = 90, isOpen, onClose }: SmartRe
         <button
           type="button"
           onClick={() => setIsRunning((r) => !r)}
-          className="btn btn-primary text-xs"
-          style={{ height: 26, padding: "0 10px" }}
+          className="btn btn-primary btn-sm harbiz-press"
+          style={{ minHeight: 40, minWidth: 44 }}
+          aria-label={isRunning ? "Pausar" : "Reanudar"}
         >
-          {isRunning ? <Pause size={12} /> : <Play size={12} />}
+          {isRunning ? <Pause size={15} /> : <Play size={15} />}
         </button>
       </div>
     </div>

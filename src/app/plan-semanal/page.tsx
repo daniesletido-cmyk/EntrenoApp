@@ -574,9 +574,9 @@ export default function PlanSemanalPage() {
         </div>
       </div>
 
-      {/* Selector Horizontal de los 7 Días */}
+      {/* Selector Horizontal Deslizable de los 7 Días */}
       <div className="w-full mb-3">
-        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+        <div className="snap-carousel gap-1.5 sm:gap-2 pb-1">
           {days.map((date, idx) => {
             const isSelected = viewMode === "horizontal" && date === selectedDate;
             const isToday = date === today();
@@ -593,9 +593,9 @@ export default function PlanSemanalPage() {
                   setSelectedDate(date);
                   if (viewMode === "all") setViewMode("horizontal");
                 }}
-                className={`group relative flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 select-none border text-center ${
+                className={`snap-item flex-1 min-w-[50px] min-h-[60px] group relative flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all duration-200 select-none border text-center harbiz-press cursor-pointer ${
                   isSelected
-                    ? "bg-brand text-white border-brand shadow-md shadow-brand/25 scale-[1.02]"
+                    ? "bg-brand text-white border-brand shadow-md"
                     : isToday
                     ? "bg-brand/10 text-brand border-brand/40 hover:bg-brand/15"
                     : "bg-surface-raised/70 text-muted hover:text-foreground hover:bg-surface-raised border-border/60"

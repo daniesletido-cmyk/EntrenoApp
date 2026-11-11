@@ -10,11 +10,12 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AppLockGuard } from "@/components/auth/app-lock-guard";
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -58,6 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   var saved = localStorage.getItem('entrenoapp_theme');
                   var theme = saved || 'dark';
                   document.documentElement.setAttribute('data-theme', theme);
+                  if (theme === 'dark') document.documentElement.classList.add('dark');
+                  else document.documentElement.classList.remove('dark');
                 } catch(e) {}
               })();
             `,

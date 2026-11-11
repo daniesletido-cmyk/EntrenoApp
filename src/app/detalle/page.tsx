@@ -42,6 +42,7 @@ import {
   ListOrdered,
 } from "lucide-react";
 import { SuuntoPushButton } from "@/components/suunto-push-button";
+import { SessionExerciseEditor } from "@/components/gym/session-exercise-editor";
 import {
   ResponsiveContainer,
   LineChart,
@@ -779,13 +780,13 @@ function DetalleContent() {
                   <span>Parciales ({laps.length} vueltas)</span>
                 </button>
               )}
-              {gym.length > 0 && (
+              {(gym.length > 0 || isGym || isCrossfit) && (
                 <button
                   className={`btn ${activeTab === "gym" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  style={{ minHeight: 44, padding: "0.45rem 0.9rem", borderRadius: "var(--radius-sm)" }}
                   onClick={() => setActiveTab("gym")}
                 >
-                  <Dumbbell size={13} />
+                  <Dumbbell size={14} />
                   <span>Ejercicios ({gym.length})</span>
                 </button>
               )}
@@ -2695,58 +2696,11 @@ function DetalleContent() {
             </div>
           )}
 
-          {/* 5. FUERZA / GIMNASIO */}
+          {/* 5. FUERZA / GIMNASIO (Bloques modulares + tabla series táctil + temporizador descanso) */}
           {activeTab === "gym" && (
             <div className="grid gap-3">
               <div className="surface-raised" style={{ padding: "var(--space-4)" }}>
-                <div className="font-semibold text-sm flex items-center gap-2" style={{ marginBottom: "var(--space-3)" }}>
-                  <Dumbbell size={16} style={{ color: "var(--color-brand)" }} />
-                  Ejercicios y Cargas Realizadas en la Sesión ({gym.length} ejercicios)
-                </div>
-
-                <div className="grid gap-2">
-                  {gym.map((g: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="surface"
-                      style={{
-                        padding: "var(--space-3)",
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--color-border)",
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "var(--space-2)",
-                      }}
-                    >
-                      <div>
-                        <div className="font-semibold text-sm flex items-center gap-2">
-                          {g.completed ? (
-                            <CheckCircle2 size={15} style={{ color: "var(--color-success)" }} />
-                          ) : (
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "var(--color-text-faint)" }} />
-                          )}
-                          <span>{g.exerciseName}</span>
-                        </div>
-                        {g.notes && <div className="text-xs text-muted" style={{ marginTop: 2 }}>{g.notes}</div>}
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs">
-                        {g.weightKg != null && (
-                          <span className="badge badge-neutral font-bold" style={{ fontSize: "0.75rem" }}>
-                            {g.weightKg} kg
-                          </span>
-                        )}
-                        {g.sets != null && g.reps != null && (
-                          <span className="text-muted font-medium">
-                            {g.sets} series × {g.reps} reps
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <SessionExerciseEditor date={session.date} discipline={session.discipline} />
               </div>
             </div>
           )}

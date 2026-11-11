@@ -415,8 +415,8 @@ export default function HoyPage() {
           </div>
         )}
 
-        {/* 7-Day Selector */}
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center">
+        {/* 7-Day Swipeable Harbiz Carousel */}
+        <div className="snap-carousel gap-2 pb-1 text-center">
           {weekDates(weekStartOf(today)).map((dIso, idx) => {
             const isDayToday = dIso === today;
             const dayNum = parseInt(dIso.slice(8), 10);
@@ -425,55 +425,51 @@ export default function HoyPage() {
             const isCompleted = daySession && (daySession.status === "realizada" || daySession.status === "parcial");
             const isRest = daySession?.discipline === "descanso";
 
-            if (isDayToday) {
-              return (
-                <div
-                  key={dIso}
-                  className="flex flex-col items-center py-2.5 px-1 rounded-xl relative transition-all"
-                  style={{
-                    background: "var(--color-brand-subtle)",
-                    border: "1.5px solid var(--color-brand)",
-                    boxShadow: "var(--shadow-glow-brand)",
-                  }}
-                >
-                  <span className="text-[10px] font-semibold text-brand uppercase tracking-tight">
-                    {letters[idx]}
-                  </span>
-                  <span className="text-base font-bold text-foreground mt-0.5 leading-none tabular-nums">
-                    {dayNum}
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand mt-2" />
-                </div>
-              );
-            }
-
             return (
-              <div
+              <Link
                 key={dIso}
-                className="flex flex-col items-center py-2.5 px-1 rounded-xl transition-all"
+                href={`/plan-semanal`}
+                className="snap-item flex-1 min-w-[52px] min-h-[68px] flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl relative transition-all harbiz-press no-underline"
                 style={{
-                  background: isCompleted ? "var(--color-surface-hover)" : "var(--color-surface-raised)",
-                  border: isCompleted ? "1px solid var(--color-brand)" : "1px solid var(--color-border)",
-                  opacity: isCompleted || (daySession && !isRest) ? 1 : 0.65,
+                  background: isDayToday
+                    ? "var(--color-brand)"
+                    : isCompleted
+                    ? "var(--color-success-bg)"
+                    : "var(--color-surface-raised)",
+                  border: isDayToday
+                    ? "1.5px solid var(--color-brand)"
+                    : isCompleted
+                    ? "1px solid rgba(16, 185, 129, 0.35)"
+                    : "1px solid var(--color-border)",
+                  color: isDayToday ? "#ffffff" : "var(--color-text)",
+                  boxShadow: isDayToday ? "var(--shadow-glow-brand)" : undefined,
+                  opacity: isDayToday || isCompleted || (daySession && !isRest) ? 1 : 0.72,
                 }}
               >
-                <span className="text-[10px] font-medium text-muted uppercase tracking-tight">
+                <span
+                  className="text-[11px] font-bold uppercase tracking-tight"
+                  style={{ color: isDayToday ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)" }}
+                >
                   {letters[idx]}
                 </span>
-                <span className="text-sm font-semibold text-foreground mt-0.5 leading-none tabular-nums">
+                <span className="text-base font-extrabold mt-0.5 leading-none tabular-nums">
                   {dayNum}
                 </span>
                 <span
                   className="w-1.5 h-1.5 rounded-full mt-2"
                   style={{
-                    background: isCompleted
-                      ? "var(--color-brand)"
+                    background: isDayToday
+                      ? "#ffffff"
+                      : isCompleted
+                      ? "var(--color-success)"
                       : daySession && !isRest
-                      ? "var(--color-text-muted)"
+                      ? "var(--color-brand)"
+                      : isRest
+                      ? "var(--color-warning)"
                       : "transparent",
                   }}
                 />
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -580,10 +576,10 @@ export default function HoyPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {/* 1. Plan Programado */}
                         <div
-                          className="p-3 rounded-lg flex flex-col justify-between"
+                          className="p-3 rounded-xl flex flex-col justify-between"
                           style={{
-                            background: "rgba(0, 0, 0, 0.25)",
-                            border: "1px solid rgba(255, 255, 255, 0.08)",
+                            background: "var(--color-surface-raised)",
+                            border: "1px solid var(--color-border)",
                           }}
                         >
                           <div className="text-[11px] uppercase tracking-wider font-bold text-muted flex items-center gap-1.5 mb-1.5">
@@ -731,7 +727,7 @@ export default function HoyPage() {
                           </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                          <div className="p-2 rounded-lg" style={{ background: "rgba(0, 0, 0, 0.25)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                          <div className="p-2.5 rounded-xl" style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}>
                             <div className="text-[10px] uppercase font-bold text-muted mb-0.5 flex items-center gap-1">
                               <Calendar size={11} />
                               <span>ESTE ES EL PLAN PROGRAMADO</span>
@@ -740,12 +736,12 @@ export default function HoyPage() {
                               {s.planned_code || meta.label}
                             </div>
                           </div>
-                          <div className="p-2 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                            <div className="text-[10px] uppercase font-bold text-emerald-400 mb-0.5 flex items-center gap-1">
+                          <div className="p-2.5 rounded-xl" style={{ background: "var(--color-success-bg)", border: "1px solid rgba(16, 185, 129, 0.28)" }}>
+                            <div className="text-[10px] uppercase font-bold mb-0.5 flex items-center gap-1" style={{ color: "var(--color-success)" }}>
                               <CheckCircle2 size={11} />
                               <span>ESTADO DE CARGA</span>
                             </div>
-                            <div className="font-semibold text-emerald-300">
+                            <div className="font-semibold" style={{ color: "var(--color-success)" }}>
                               Sin fatiga limitante · Cumple el plan programado
                             </div>
                           </div>
@@ -935,8 +931,14 @@ export default function HoyPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="space-y-2 pt-1">
-                      <div className="p-2.5 rounded-xl border border-white/10 bg-black/20 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="space-y-2.5 pt-2">
+                      <div
+                        className="p-3 rounded-2xl flex items-center justify-between gap-2 flex-wrap"
+                        style={{
+                          background: "var(--color-surface-raised)",
+                          border: "1px solid var(--color-border)",
+                        }}
+                      >
                         <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
                           Reloj Suunto
                         </span>
@@ -951,31 +953,31 @@ export default function HoyPage() {
 
                       <Link
                         href="/registro"
-                        className="w-full btn btn-primary flex items-center justify-center gap-2 py-3 px-6 rounded-full font-semibold text-sm transition-all shadow-md"
-                        style={{ textDecoration: "none" }}
+                        className="w-full btn btn-primary flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-bold text-sm transition-all shadow-md harbiz-press"
+                        style={{ textDecoration: "none", minHeight: 48 }}
                       >
-                        <Zap size={16} />
-                        <span>Iniciar Sesión / Registrar</span>
+                        <Zap size={17} />
+                        <span>{s.status === "realizada" ? "Ver / Editar Registro" : "Comenzar entreno"}</span>
                       </Link>
 
                       <div className="flex items-center gap-2">
                         <button
-                          className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5"
+                          className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl harbiz-press"
                           onClick={() => setDetailSessionId(s.id)}
-                          style={{ height: 34, borderRadius: "9999px" }}
+                          style={{ minHeight: 44 }}
                         >
-                          <Activity size={13} />
+                          <Activity size={15} />
                           <span>Detalle completo</span>
                         </button>
                         <button
-                          className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5"
+                          className="btn btn-secondary text-xs flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl harbiz-press"
                           onClick={() => copySession(s)}
-                          style={{ height: 34, borderRadius: "9999px" }}
+                          style={{ minHeight: 44 }}
                         >
                           {copiedId === s.id ? (
-                            <Check size={13} className="text-emerald-400" />
+                            <Check size={15} className="text-emerald-500" />
                           ) : (
-                            <Copy size={13} />
+                            <Copy size={15} />
                           )}
                           <span>{copiedId === s.id ? "Copiado" : "Copiar"}</span>
                         </button>

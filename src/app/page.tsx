@@ -436,57 +436,59 @@ export default function ResumenPage() {
           {/* Panel Estado de Forma & Recuperación */}
           <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-3 w-full">
             {/* Widget Readiness */}
-            <div className="surface p-4 flex flex-col justify-between rounded-2xl border border-slate-800">
+            <div className="surface p-4 sm:p-5 flex flex-col justify-between rounded-2xl">
               <div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
-                    <HeartPulse size={14} className="text-emerald-400" />
-                    Estado de Forma & Disposición
+                    <HeartPulse size={14} className="text-emerald-500" />
+                    Estado de Forma &amp; Disposición
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    Readiness
-                  </span>
+                  <span className="badge badge-success">Readiness</span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-slate-100 font-mono">
+                  <span className="text-3xl font-extrabold text-foreground tabular-nums">
                     {summary.readiness?.score ?? 85}
                   </span>
                   <span className="text-xs text-muted font-semibold">/ 100</span>
-                  <span className="text-xs font-bold text-emerald-400 ml-auto">
+                  <span className="text-xs font-bold ml-auto" style={{ color: "var(--color-success)" }}>
                     {summary.readiness?.level ?? "Óptimo para entrenar"}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                <p className="text-xs text-muted mt-2 leading-relaxed">
                   {summary.readiness?.description ??
                     "Equilibrio cardiovascular y recuperación celular en rango excelente para tolerar alta intensidad."}
                 </p>
               </div>
-              <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <div
+                className="mt-3 pt-3 flex items-center justify-between text-xs text-muted"
+                style={{ borderTop: "1px solid var(--color-border)" }}
+              >
                 <span>Carga semanal estimada</span>
-                <span className="font-mono font-semibold text-slate-200">
+                <span className="font-bold tabular-nums text-foreground">
                   {Math.round(summary.durationMin * (summary.rpeAvg ?? 5))} UA
                 </span>
               </div>
             </div>
 
             {/* Widget Recuperación de Sueño (Últimos 7 días) */}
-            <div className="surface p-4 flex flex-col justify-between rounded-2xl border border-slate-800 lg:col-span-2">
+            <div className="surface p-4 sm:p-5 flex flex-col justify-between rounded-2xl lg:col-span-2">
               <div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
-                    <Moon size={14} className="text-indigo-400" />
+                    <Moon size={14} className="text-brand" />
                     Recuperación de Sueño (Últimas noches)
                   </span>
                   <Link
                     href="/sueno"
-                    className="text-[11px] text-indigo-400 font-bold hover:underline flex items-center gap-1"
+                    className="text-xs font-semibold hover:underline flex items-center gap-1"
+                    style={{ color: "var(--color-brand)" }}
                   >
                     <span>Ver apartado de sueño</span>
-                    <ArrowRight size={11} />
+                    <ArrowRight size={12} />
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mt-3.5">
+                <div className="snap-carousel gap-2 mt-3.5 pb-1">
                   {(summary.recentSleep && summary.recentSleep.length > 0
                     ? summary.recentSleep.slice(0, 7).reverse()
                     : [
@@ -506,21 +508,26 @@ export default function ResumenPage() {
                     return (
                       <div
                         key={idx}
-                        className="flex flex-col items-center bg-slate-950/60 rounded-xl p-2 border border-slate-800/80 text-center"
+                        className="snap-item flex-1 min-w-[54px] flex flex-col items-center rounded-xl p-2 text-center"
+                        style={{
+                          background: "var(--color-surface-raised)",
+                          border: "1px solid var(--color-border)",
+                        }}
                       >
-                        <span className="text-[10px] text-muted font-mono">{dayLabel}</span>
+                        <span className="text-[10px] text-muted tabular-nums">{dayLabel}</span>
                         <span
-                          className={`text-xs font-extrabold font-mono mt-1 ${
-                            isHigh ? "text-emerald-400" : isGood ? "text-cyan-400" : "text-amber-400"
-                          }`}
+                          className="text-xs font-extrabold tabular-nums mt-1"
+                          style={{
+                            color: isHigh ? "var(--color-success)" : isGood ? "var(--color-brand)" : "var(--color-warning)",
+                          }}
                         >
                           {score}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        <span className="text-[10px] text-muted tabular-nums mt-0.5">
                           {sl.hours ? `${Number(sl.hours).toFixed(1)}h` : "—"}
                         </span>
                         {sl.deep_min != null && (
-                          <span className="text-[9px] text-indigo-400/80 font-mono mt-0.5">
+                          <span className="text-[9px] font-medium tabular-nums mt-0.5" style={{ color: "var(--color-brand)" }}>
                             {sl.deep_min}m prof
                           </span>
                         )}
@@ -530,9 +537,12 @@ export default function ResumenPage() {
                 </div>
               </div>
 
-              <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <div
+                className="mt-3 pt-3 flex items-center justify-between text-xs text-muted"
+                style={{ borderTop: "1px solid var(--color-border)" }}
+              >
                 <span>Puntuación media de descanso</span>
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold" style={{ color: "var(--color-success)" }}>
                   {summary.sleepHoursAvg ? `${summary.sleepHoursAvg.toFixed(1)}h por noche` : "8.0h"} · Calidad óptima
                 </span>
               </div>
