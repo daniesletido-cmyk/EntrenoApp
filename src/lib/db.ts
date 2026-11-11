@@ -678,6 +678,27 @@ function migrateSchema(d: AppDb) {
     }
   }
 
+  // Migración idempotente para sincronización bidireccional con Suunto / Intervals.icu
+  if (!isMigrationExecuted(d, "20261111_suunto_bidirectional_sync")) {
+    try {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS session_suunto_sync (
+          session_id INTEGER PRIMARY KEY,
+          provider TEXT NOT NULL,
+          external_id TEXT,
+          status TEXT NOT NULL DEFAULT 'synced',
+          steps_count INTEGER DEFAULT 0,
+          last_error TEXT,
+          synced_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+      recordMigration(d, "20261111_suunto_bidirectional_sync");
+    } catch (e) {
+      console.error("[DB] Error aplicando migración 20261111_suunto_bidirectional_sync:", e);
+    }
+  }
+
   // Catálogo de PRs y plan anual poblado de manera garantizada
   ensureAnnualPlanPopulated(d);
   ensurePrsCatalogAndRecords(d);

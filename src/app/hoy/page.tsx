@@ -43,6 +43,7 @@ import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import type { DailyReadiness } from "@/lib/readiness";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
+import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 import { AppleFitnessRings } from "@/components/dashboard/apple-fitness-rings";
 import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
@@ -186,6 +187,7 @@ export default function HoyPage() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [applyingAdjustment, setApplyingAdjustment] = useState(false);
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
+  const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
   const toast = useToast();
 
   const today = todayISO();
@@ -235,6 +237,7 @@ export default function HoyPage() {
       // Reconciliación blindada con IndexedDB
       const reconciledToday = await reconcileSessions(sessionsRes.sessions ?? []);
       setSessions(reconciledToday.filter((x) => x.date === today));
+      setSuuntoSyncMap(sessionsRes.suuntoSyncMap ?? {});
 
       const reconciledWeek = await reconcileSessions(weekSessionsRes.sessions ?? [], currentWeekStart);
       setWeekSessions(reconciledWeek);
@@ -933,6 +936,19 @@ export default function HoyPage() {
 
                     {/* Action Buttons */}
                     <div className="space-y-2 pt-1">
+                      <div className="p-2.5 rounded-xl border border-white/10 bg-black/20 flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                          Reloj Suunto
+                        </span>
+                        <SuuntoPushButton
+                          sessionId={s.id}
+                          discipline={s.discipline}
+                          status={s.status}
+                          initialSync={suuntoSyncMap[s.id] ?? null}
+                          showFitDownload
+                        />
+                      </div>
+
                       <Link
                         href="/registro"
                         className="w-full btn btn-primary flex items-center justify-center gap-2 py-3 px-6 rounded-full font-semibold text-sm transition-all shadow-md"

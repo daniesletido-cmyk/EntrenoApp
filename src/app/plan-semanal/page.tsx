@@ -28,6 +28,7 @@ import {
   FileText,
   Activity,
   Eye,
+  Watch,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -43,6 +44,7 @@ import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { AdaptiveWeekCard } from "@/components/adaptive-week-card";
 import { SessionFeedbackCard } from "@/components/session-feedback-card";
+import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import type { SessionRow } from "@/lib/repo/sessions";
@@ -98,6 +100,8 @@ export default function PlanSemanalPage() {
   const [sessionToDelete, setSessionToDelete] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
+  const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
+  const [pushingWeekSuunto, setPushingWeekSuunto] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -121,11 +125,36 @@ export default function PlanSemanalPage() {
 
   const [refreshing, setRefreshing] = useState(false);
 
+  async function pushWeekToSuunto() {
+    setPushingWeekSuunto(true);
+    try {
+      const from = days[0];
+      const to = days[days.length - 1];
+      const res = await fetch("/api/suunto/push-week", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to }),
+      });
+      const data = await res.json();
+      if (data.success || data.pushedCount > 0) {
+        toast.push("success", data.message || `${data.pushedCount} sesiones enviadas a tu reloj Suunto`);
+        load(true);
+      } else {
+        toast.push("error", data.message || "No se pudo sincronizar la semana con Suunto");
+      }
+    } catch {
+      toast.push("error", "Error de red sincronizando con Suunto");
+    } finally {
+      setPushingWeekSuunto(false);
+    }
+  }
+
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
       const res = await fetch(`/api/sessions?week=${weekStart}&t=${Date.now()}`, { cache: "no-store" });
       const d = await res.json();
+      setSuuntoSyncMap(d.suuntoSyncMap ?? {});
       const merged = await reconcileSessions(d.sessions ?? [], weekStart);
       setSessions(merged);
     } catch {
@@ -375,6 +404,21 @@ export default function PlanSemanalPage() {
               <FileText size={14} className="text-brand" />
               <span>Plan PDF</span>
             </a>
+            <button
+              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0"
+              onClick={pushWeekToSuunto}
+              disabled={pushingWeekSuunto}
+              style={{
+                height: 36,
+                minHeight: 36,
+                borderRadius: "var(--radius-full)",
+                padding: "0 12px",
+              }}
+              title="Enviar todos los entrenamientos pendientes de esta semana a tu reloj Suunto"
+            >
+              <Watch size={14} className="text-brand" />
+              <span>{pushingWeekSuunto ? "Enviando..." : "Semana a Suunto"}</span>
+            </button>
             <button
               className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0"
               onClick={() => load(true)}
@@ -828,7 +872,16 @@ export default function PlanSemanalPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 self-start pt-0.5">
+                          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 self-start pt-0.5 flex-wrap justify-end">
+                            {s.discipline !== "descanso" && (
+                              <SuuntoPushButton
+                                sessionId={s.id}
+                                discipline={s.discipline}
+                                status={s.status}
+                                initialSync={suuntoSyncMap[s.id] ?? null}
+                                compact
+                              />
+                            )}
                             <button
                               className="btn btn-ghost"
                               style={{ width: 32, height: 32, padding: 0, borderRadius: "var(--radius-sm)" }}

@@ -5,6 +5,8 @@ import { getSleepByDate } from "@/lib/repo/sleep";
 import { computeDailyReadiness } from "@/lib/readiness";
 import { sessionLoad } from "@/lib/recommendations";
 import { buildUnifiedSessionDiagnostics } from "@/lib/fit-feedback";
+import { getSessionSuuntoSync } from "@/lib/repo/suunto-sync";
+import { getSetting } from "@/lib/repo/settings";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -79,6 +81,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       avgPaceMinKm,
       avgSpeedKmh,
     },
+    suuntoSync: getSessionSuuntoSync(sessionId) ?? null,
   });
 }
 
@@ -171,7 +174,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
-  return NextResponse.json({ session, autoAdapted: autoAdaptedInfo });
+  let suuntoSync = null;
+  if (
+    session.status === "pendiente" &&
+    session.discipline !== "descanso" &&
+    (body.pushToSuunto === true || getSetting("suunto_auto_push") === "true")
+  ) {
+    try {
+      const { pushSessionToSuunto } = await import("@/lib/suunto-cloud");
+      suuntoSync = await pushSessionToSuunto(session.id);
+    } catch (suuntoErr) {
+      console.warn("[Suunto Auto-Push PATCH] Error:", suuntoErr);
+    }
+  }
+
+  return NextResponse.json({ session, autoAdapted: autoAdaptedInfo, suuntoSync });
 }
 
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

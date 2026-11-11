@@ -14,6 +14,7 @@ import { isAppLockEnabled, getAppLockType } from "@/lib/security";
 import { PushNotificationBanner } from "@/components/push/push-notification-banner";
 import { downloadJSONBackupFile, importDataFromJSON } from "@/lib/client-persistence";
 import { SUPABASE_SQL_SCHEMA } from "@/lib/supabase";
+import { AiObservabilityPanel } from "@/components/settings/ai-observability";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -30,6 +31,20 @@ export default function ConfiguracionPage() {
   const [hasIntervalsKey, setHasIntervalsKey] = useState(false);
   const [savingIntervals, setSavingIntervals] = useState(false);
   const [syncingIntervals, setSyncingIntervals] = useState(false);
+
+  const [suuntoStatus, setSuuntoStatus] = useState<{
+    directOAuthConfigured: boolean;
+    directOAuthConnected: boolean;
+    intervalsSuuntoBridgeConnected: boolean;
+    suuntoUserId: string | null;
+    uploadPlannedWorkoutsEnabled: boolean;
+    scopes: string | null;
+    tokenExpiresAt: string | null;
+    autoPushEnabled: boolean;
+  } | null>(null);
+  const [suuntoAutoPush, setSuuntoAutoPush] = useState(false);
+  const [togglingAutoPush, setTogglingAutoPush] = useState(false);
+  const [pushingWeekToSuunto, setPushingWeekToSuunto] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -88,6 +103,15 @@ export default function ConfiguracionPage() {
     return () => window.removeEventListener("entrenoapp:security_changed", handleSec);
   }, []);
 
+  const loadSuuntoStatus = () => {
+    fetch("/api/suunto/auth?status=1")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.status) setSuuntoStatus(d.status);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
@@ -97,8 +121,17 @@ export default function ConfiguracionPage() {
         setHasGeminiKey(!!d.settings?.has_gemini_api_key);
         setHasIntervalsKey(!!d.settings?.has_intervals_api_key);
         setIntervalsAthleteId(d.settings?.intervals_athlete_id ?? "");
+        setSuuntoAutoPush(Boolean(d.settings?.suunto_auto_push));
         if (d.app_info) setAppInfo(d.app_info);
       });
+    loadSuuntoStatus();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("suunto") === "connected") {
+      toast.push("success", "Cuenta Suunto Cloud OAuth conectada correctamente");
+    } else if (params.get("suunto_error")) {
+      toast.push("error", `Error Suunto OAuth: ${params.get("suunto_error")}`);
+    }
   }, []);
 
   async function saveAnthropicKey() {
@@ -208,6 +241,7 @@ export default function ConfiguracionPage() {
       const data = await res.json();
       if (data.success) {
         toast.push("success", data.message || "Sincronización completada");
+        loadSuuntoStatus();
       } else {
         toast.push("error", data.message || "No se pudo sincronizar con Intervals.icu");
       }
@@ -215,6 +249,50 @@ export default function ConfiguracionPage() {
       toast.push("error", "Error conectando con el servidor");
     } finally {
       setSyncingIntervals(false);
+    }
+  }
+
+  async function toggleSuuntoAutoPush(nextVal: boolean) {
+    setTogglingAutoPush(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ suunto_auto_push: nextVal ? "true" : "false" }),
+      });
+      setSuuntoAutoPush(nextVal);
+      toast.push(
+        "success",
+        nextVal
+          ? "Sincronización automática hacia Suunto activada"
+          : "Sincronización automática hacia Suunto desactivada"
+      );
+      loadSuuntoStatus();
+    } catch {
+      toast.push("error", "No se pudo actualizar la preferencia");
+    } finally {
+      setTogglingAutoPush(false);
+    }
+  }
+
+  async function pushWeekToSuunto() {
+    setPushingWeekToSuunto(true);
+    try {
+      const res = await fetch("/api/suunto/push-week", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success || data.pushedCount > 0) {
+        toast.push("success", data.message || `${data.pushedCount} sesiones enviadas a Suunto`);
+      } else {
+        toast.push("error", data.message || "No se pudieron enviar los entrenamientos");
+      }
+    } catch {
+      toast.push("error", "Error conectando con el servidor de Suunto");
+    } finally {
+      setPushingWeekToSuunto(false);
     }
   }
 
@@ -571,6 +649,9 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
+        {/* OBSERVABILIDAD DE IA */}
+        <AiObservabilityPanel />
+
         {/* SECCIÓN SEGURIDAD Y BLOQUEO DE LA APP */}
         <div className="surface" style={{ padding: "var(--space-4)" }}>
           <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
@@ -663,8 +744,65 @@ export default function ConfiguracionPage() {
               {hasIntervalsKey && (
                 <Button variant="secondary" loading={syncingIntervals} onClick={runIntervalsSync}>
                   <RefreshCw size={15} />
-                  <span>Sincronizar Suunto Ahora</span>
+                  <span>Descargar de Suunto Ahora</span>
                 </Button>
+              )}
+              <Button variant="secondary" loading={pushingWeekToSuunto} onClick={pushWeekToSuunto}>
+                <Upload size={15} />
+                <span>Enviar Semana al Reloj</span>
+              </Button>
+              {suuntoStatus?.directOAuthConfigured && (
+                <a href="/api/suunto/auth" className="btn btn-secondary text-xs inline-flex items-center gap-1.5">
+                  <Watch size={14} />
+                  <span>{suuntoStatus.directOAuthConnected ? "Reautorizar Suunto Cloud OAuth" : "Conectar Suunto Cloud OAuth"}</span>
+                </a>
+              )}
+            </div>
+
+            {/* Estado bidireccional y subida automática al reloj */}
+            <div
+              className="mt-3 pt-3 flex flex-col gap-2"
+              style={{ borderTop: "1px solid var(--color-border)" }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-xs font-semibold">
+                    Sincronización automática hacia el reloj (Auto-Push)
+                  </div>
+                  <div className="text-xs text-muted">
+                    Envía automáticamente a tu Suunto cada entrenamiento nuevo o adaptado en el calendario.
+                  </div>
+                </div>
+                <Button
+                  variant={suuntoAutoPush ? "primary" : "secondary"}
+                  loading={togglingAutoPush}
+                  onClick={() => toggleSuuntoAutoPush(!suuntoAutoPush)}
+                >
+                  {suuntoAutoPush ? "Auto-Push: ACTIVO" : "Auto-Push: Manual"}
+                </Button>
+              </div>
+
+              {suuntoStatus && (
+                <div className="text-xs text-muted flex flex-wrap gap-3">
+                  <span>
+                    Puente Suunto ↔ Intervals:{" "}
+                    <strong>
+                      {suuntoStatus.intervalsSuuntoBridgeConnected
+                        ? `Conectado (${suuntoStatus.suuntoUserId || "Suunto"})`
+                        : "Sin vincular"}
+                    </strong>
+                  </span>
+                  <span>
+                    Subida de planes (SuuntoPlus Guides):{" "}
+                    <strong>{suuntoStatus.uploadPlannedWorkoutsEnabled ? "Habilitada ✓" : "Deshabilitada"}</strong>
+                  </span>
+                  {suuntoStatus.directOAuthConnected && (
+                    <span>
+                      Suunto Cloud OAuth:{" "}
+                      <strong>Conectado (scopes: {suuntoStatus.scopes || "workout"})</strong>
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -41,6 +41,7 @@ import {
   Info,
   ListOrdered,
 } from "lucide-react";
+import { SuuntoPushButton } from "@/components/suunto-push-button";
 import {
   ResponsiveContainer,
   LineChart,
@@ -695,7 +696,16 @@ function DetalleContent() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {session.discipline !== "descanso" && (
+                  <SuuntoPushButton
+                    sessionId={session.id}
+                    discipline={session.discipline}
+                    status={session.status}
+                    initialSync={sessionDetail?.suuntoSync ?? null}
+                    showFitDownload
+                  />
+                )}
                 <button
                   className="btn btn-secondary text-xs flex items-center gap-1.5"
                   disabled={uploadingFit}

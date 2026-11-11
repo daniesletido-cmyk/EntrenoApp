@@ -8,6 +8,8 @@ import {
 } from "@/lib/repo/sessions";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import { isSupabaseConfigured, upsertSessionToSupabase, fetchSessionsFromSupabase } from "@/lib/supabase";
+import { listSuuntoSyncForSessionIds } from "@/lib/repo/suunto-sync";
+import { getSetting } from "@/lib/repo/settings";
 
 const VALID_DISCIPLINES = new Set([
   "carrera",
@@ -72,10 +74,13 @@ export async function GET(req: NextRequest) {
       const toDate = to || undefined;
       const cloudSessions = await fetchSessionsFromSupabase(fromDate, toDate);
       if (cloudSessions && cloudSessions.length > 0) {
+        const syncMap = listSuuntoSyncForSessionIds(
+          cloudSessions.map((cs: { id: number }) => cs.id)
+        );
         if (from && to) {
-          return NextResponse.json({ sessions: cloudSessions });
+          return NextResponse.json({ sessions: cloudSessions, suuntoSyncMap: syncMap });
         }
-        return NextResponse.json({ weekStart: weekStartOf(week), sessions: cloudSessions });
+        return NextResponse.json({ weekStart: weekStartOf(week), sessions: cloudSessions, suuntoSyncMap: syncMap });
       }
     } catch (e) {
       console.warn("[Sessions GET] Error consultando Supabase, usando SQLite fallback:", e);
@@ -83,11 +88,14 @@ export async function GET(req: NextRequest) {
   }
 
   if (from && to) {
-    return NextResponse.json({ sessions: listSessionsBetween(from, to) });
+    const sessions = listSessionsBetween(from, to);
+    const suuntoSyncMap = listSuuntoSyncForSessionIds(sessions.map((s) => s.id));
+    return NextResponse.json({ sessions, suuntoSyncMap });
   }
 
   const sessions = listSessionsForWeek(weekStartOf(week));
-  return NextResponse.json({ weekStart: weekStartOf(week), sessions });
+  const suuntoSyncMap = listSuuntoSyncForSessionIds(sessions.map((s) => s.id));
+  return NextResponse.json({ weekStart: weekStartOf(week), sessions, suuntoSyncMap });
 }
 
 export async function POST(req: NextRequest) {
@@ -162,5 +170,20 @@ export async function POST(req: NextRequest) {
     await upsertSessionToSupabase(session).catch(() => {});
   }
 
-  return NextResponse.json({ session }, { status: 201 });
+  // Auto-push a Suunto si la sesión es planificada y el auto-envío está activado (o solicitado)
+  let suuntoSync = null;
+  if (
+    session.status === "pendiente" &&
+    session.discipline !== "descanso" &&
+    (body.pushToSuunto === true || getSetting("suunto_auto_push") === "true")
+  ) {
+    try {
+      const { pushSessionToSuunto } = await import("@/lib/suunto-cloud");
+      suuntoSync = await pushSessionToSuunto(session.id);
+    } catch (suuntoErr) {
+      console.warn("[Suunto Auto-Push POST] Error:", suuntoErr);
+    }
+  }
+
+  return NextResponse.json({ session, suuntoSync }, { status: 201 });
 }

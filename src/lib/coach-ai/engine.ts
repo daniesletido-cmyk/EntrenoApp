@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "@/lib/repo/settings";
+import { recordAiLog } from "@/lib/repo/ai-logs";
+import { runTrackedAnthropicCall } from "@/lib/ai/client";
 import { buildCoachAthleteContext, CoachAthleteContext } from "@/lib/coach-ai/context";
 import { executeCoachAction, CoachActionProposal, CoachActionResult } from "@/lib/coach-ai/actions";
 
@@ -130,12 +132,19 @@ async function resolveGeminiEndpoints(apiKey: string): Promise<{ url: string; ap
   return endpoints;
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMessage[]): Promise<string> {
+interface GeminiCallResult {
+  text: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMessage[]): Promise<GeminiCallResult> {
   const cleanKey = apiKey.trim();
 
   const firstUserIndex = messages.findIndex((m) => m.role === "user");
   if (firstUserIndex === -1) {
-    return "";
+    return { text: "", model: "gemini", inputTokens: null, outputTokens: null };
   }
   const relevantMessages = messages.slice(firstUserIndex);
 
@@ -222,7 +231,13 @@ async function callGemini(apiKey: string, systemPrompt: string, messages: ChatMe
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
-        return text;
+        const modelMatch = url.match(/\/models\/([^:]+):/);
+        return {
+          text,
+          model: modelMatch ? modelMatch[1] : "gemini",
+          inputTokens: typeof data.usageMetadata?.promptTokenCount === "number" ? data.usageMetadata.promptTokenCount : null,
+          outputTokens: typeof data.usageMetadata?.candidatesTokenCount === "number" ? data.usageMetadata.candidatesTokenCount : null,
+        };
       }
     } catch (e: unknown) {
       console.warn(`Error llamando a endpoint ${url}:`, e);
@@ -567,9 +582,20 @@ ${context.contextMarkdown}
 
   // 1. Probar Gemini API si está configurada (100% gratuita y ultrarrápida)
   if (geminiApiKey) {
+    const startedAt = Date.now();
     try {
-      const rawReply = await callGemini(geminiApiKey, systemPrompt, messages);
-      const { cleanText, action } = parseCoachActionBlock(rawReply);
+      const geminiResult = await callGemini(geminiApiKey, systemPrompt, messages);
+      recordAiLog({
+        feature: "coach_ai",
+        provider: "gemini",
+        model: geminiResult.model,
+        status: "ok",
+        latencyMs: Date.now() - startedAt,
+        inputTokens: geminiResult.inputTokens,
+        outputTokens: geminiResult.outputTokens,
+        metadata: { messageCount: messages.length },
+      });
+      const { cleanText, action } = parseCoachActionBlock(geminiResult.text);
 
       if (action) {
         if (isExplicitChangeRequest) {
@@ -596,6 +622,15 @@ ${context.contextMarkdown}
         isAiPowered: true,
       };
     } catch (err: unknown) {
+      recordAiLog({
+        feature: "coach_ai",
+        provider: "gemini",
+        model: "gemini",
+        status: "error",
+        latencyMs: Date.now() - startedAt,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        metadata: { messageCount: messages.length },
+      });
       console.error("Error llamando a Google Gemini API:", err);
     }
   }
@@ -604,14 +639,16 @@ ${context.contextMarkdown}
   if (anthropicClient) {
     try {
       const model = getSetting("anthropic_model") || "claude-3-5-sonnet-latest";
-      const response = await anthropicClient.messages.create({
+      const response = await runTrackedAnthropicCall({
+        feature: "coach_ai",
         model,
-        max_tokens: 1024,
+        maxTokens: 1024,
         system: systemPrompt,
         messages: messages.map((m) => ({
           role: m.role,
           content: m.content,
         })),
+        metadata: { messageCount: messages.length },
       });
 
       const firstBlock = response.content[0];
@@ -649,6 +686,7 @@ ${context.contextMarkdown}
 
   // 3. Probar Ollama local si está activo en el equipo
   try {
+    const startedAt = Date.now();
     const ollamaRes = await fetch("http://127.0.0.1:11434/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -665,6 +703,16 @@ ${context.contextMarkdown}
     if (ollamaRes.ok) {
       const data = await ollamaRes.json();
       if (data.message?.content) {
+        recordAiLog({
+          feature: "coach_ai",
+          provider: "ollama",
+          model: "qwen-entreno",
+          status: "ok",
+          latencyMs: Date.now() - startedAt,
+          inputTokens: typeof data.prompt_eval_count === "number" ? data.prompt_eval_count : null,
+          outputTokens: typeof data.eval_count === "number" ? data.eval_count : null,
+          metadata: { messageCount: messages.length },
+        });
         const { cleanText, action } = parseCoachActionBlock(data.message.content);
         if (action) {
           if (isExplicitChangeRequest) {
