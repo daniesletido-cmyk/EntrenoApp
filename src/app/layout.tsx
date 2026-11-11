@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "EntrenoApp — Rendimiento & Salud",
   description: "Registro de entrenamiento y nutrición de alto rendimiento · Diseñada por Daniel Espinosa",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=7",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -30,14 +30,21 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon.svg?v=6", type: "image/svg+xml" },
-      { url: "/icon-192.png?v=6", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png?v=6", sizes: "512x512", type: "image/png" },
-      { url: "/brand/logo-mark-512.png?v=6", sizes: "512x512", type: "image/png" },
+      { url: "/favicon-32x32.png?v=7", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=7", sizes: "16x16", type: "image/png" },
+      { url: "/icon.svg?v=7", type: "image/svg+xml" },
+      { url: "/icon-192.png?v=7", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png?v=7", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.ico?v=6",
+    shortcut: "/favicon.ico?v=7",
     apple: [
-      { url: "/apple-touch-icon.png?v=6", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png?v=7", sizes: "180x180", type: "image/png" },
+      {
+        rel: "apple-touch-icon-precomposed",
+        url: "/apple-touch-icon-precomposed.png?v=7",
+        sizes: "180x180",
+        type: "image/png",
+      },
     ],
   },
 };
@@ -46,11 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" data-theme="light" suppressHydrationWarning>
       <head>
-        <link rel="icon" type="image/svg+xml" href="/icon.svg?v=6" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=6" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=6" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=6" />
-        <link rel="shortcut icon" href="/favicon.ico?v=6" />
+        <link rel="icon" href="/favicon.ico?v=7" sizes="any" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

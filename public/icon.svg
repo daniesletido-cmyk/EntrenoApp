@@ -1,11 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <rect width="512" height="512" rx="118" fill="#DC2626"/>
-  <!-- Barra vertical angular (columna izquierda de la E) -->
   <path d="M138 124H202L174 388H110L138 124Z" fill="#FFFFFF"/>
-  <!-- Barra superior de progresión (máxima amplitud) -->
   <path d="M198 124H402L388 184H184L198 124Z" fill="#FFFFFF"/>
-  <!-- Barra central de ritmo/pulso (corte deportivo intermedio) -->
   <path d="M181 226H350L336 286H167L181 226Z" fill="#FFFFFF"/>
-  <!-- Barra inferior base (arranque firme) -->
   <path d="M164 328H392L378 388H150L164 328Z" fill="#FFFFFF"/>
 </svg>

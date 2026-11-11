@@ -1,4 +1,4 @@
-// Service Worker para EntrenoApp Web Push Notifications y PWA
+// Service Worker para EntrenoApp Web Push Notifications y PWA (v7)
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
@@ -11,8 +11,8 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "Entrenamiento analizado",
     body: "Métricas y carga procesadas. Pulsa para ver el detalle.",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/icon-192.png?v=7",
+    badge: "/icon-192.png?v=7",
     data: {
       url: "/",
     },
@@ -30,8 +30,8 @@ self.addEventListener("push", (event) => {
 
   const notificationOptions = {
     body: data.body,
-    icon: data.icon || "/icon-192.png",
-    badge: data.badge || "/icon-192.png",
+    icon: data.icon || "/icon-192.png?v=7",
+    badge: data.badge || "/icon-192.png?v=7",
     vibrate: [200, 100, 200],
     data: data.data || { url: "/" },
     tag: data.tag || "entrenoapp-alert",

@@ -1,65 +1,110 @@
-const fs = require('fs');
-const path = require('path');
-const sharp = require('sharp');
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const sharp = require("sharp");
 
-// 1. All paths in Manifest Resources
-const manifestDir = 'C:\\Users\\danie\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Web Applications\\Manifest Resources\\pdhgnnimkdgbffhcmogdldikeolaeedj';
-const sourceIcon = path.resolve('public/brand/logo-mark-512.png');
+const userDataRoot = path.join(
+  process.env.LOCALAPPDATA || "",
+  "Google",
+  "Chrome",
+  "User Data"
+);
+const sourceIcon = path.resolve("public/brand/logo-mark-512.png");
+const sourceMaskable = path.resolve("public/icon-maskable-512.png");
+const sourceIco = path.resolve("public/favicon.ico");
 
-console.log('Source icon exists:', fs.existsSync(sourceIcon));
+async function updateApp(webAppsDir, appId) {
+  const manifestDir = path.join(webAppsDir, "Manifest Resources", appId);
+  const crxDir = path.join(webAppsDir, `_crx_${appId}`);
 
-async function run() {
-  // Overwrite Icons in Manifest Resources
-  const iconSizes = [32, 48, 64, 96, 128, 256, 512];
-  
-  const folders = [
-    path.join(manifestDir, 'Icons'),
-    path.join(manifestDir, 'Trusted Icons', 'Icons'),
+  const iconDirs = [
+    path.join(manifestDir, "Icons"),
+    path.join(manifestDir, "Trusted Icons", "Icons"),
   ];
-  
-  for (const folder of folders) {
+
+  for (const folder of iconDirs) {
     if (!fs.existsSync(folder)) continue;
-    for (const size of iconSizes) {
-      const targetPath = path.join(folder, `${size}.png`);
+    const files = fs.readdirSync(folder).filter((f) => /^\d+\.png$/i.test(f));
+    for (const file of files) {
+      const size = Number.parseInt(file, 10);
+      if (!Number.isFinite(size) || size <= 0) continue;
+      const targetPath = path.join(folder, file);
       await sharp(sourceIcon)
         .resize(size, size)
         .png()
-        .toFile(targetPath + '.tmp');
-      fs.renameSync(targetPath + '.tmp', targetPath);
+        .toFile(`${targetPath}.tmp`);
+      fs.renameSync(`${targetPath}.tmp`, targetPath);
       console.log(`Updated: ${targetPath}`);
     }
   }
 
-  // Icons Maskable
-  const maskablePath = path.join(manifestDir, 'Icons Maskable', '512.png');
-  if (fs.existsSync(path.dirname(maskablePath))) {
-    await sharp(sourceIcon)
-      .resize(512, 512)
-      .png()
-      .toFile(maskablePath + '.tmp');
-    fs.renameSync(maskablePath + '.tmp', maskablePath);
-    console.log(`Updated: ${maskablePath}`);
-  }
-
-  // Overwrite .ico file in _crx_pdhgnnimkdgbffhcmogdldikeolaeedj
-  const crxDir = 'C:\\Users\\danie\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Web Applications\\_crx_pdhgnnimkdgbffhcmogdldikeolaeedj';
-  const icoSource = path.resolve('public/favicon.ico');
-  const icoTarget = path.join(crxDir, 'EntrenoApp.ico');
-  if (fs.existsSync(icoSource)) {
-    fs.copyFileSync(icoSource, icoTarget);
-    console.log(`Updated: ${icoTarget}`);
-    
-    // Also update MD5 hash if .ico.md5 exists
-    const crypto = require('crypto');
-    const hash = crypto.createHash('md5').update(fs.readFileSync(icoTarget)).digest('hex');
-    const md5File = path.join(crxDir, 'EntrenoApp.ico.md5');
-    if (fs.existsSync(md5File)) {
-      fs.writeFileSync(md5File, hash);
-      console.log(`Updated MD5: ${md5File} -> ${hash}`);
+  const maskableDir = path.join(manifestDir, "Icons Maskable");
+  if (fs.existsSync(maskableDir)) {
+    const files = fs.readdirSync(maskableDir).filter((f) => /^\d+\.png$/i.test(f));
+    const maskSrc = fs.existsSync(sourceMaskable) ? sourceMaskable : sourceIcon;
+    for (const file of files) {
+      const size = Number.parseInt(file, 10) || 512;
+      const targetPath = path.join(maskableDir, file);
+      await sharp(maskSrc)
+        .resize(size, size)
+        .png()
+        .toFile(`${targetPath}.tmp`);
+      fs.renameSync(`${targetPath}.tmp`, targetPath);
+      console.log(`Updated maskable: ${targetPath}`);
     }
   }
 
-  console.log('All Chrome Web Application icons overwritten successfully!');
+  const icoTarget = path.join(crxDir, "EntrenoApp.ico");
+  if (fs.existsSync(sourceIco) && fs.existsSync(crxDir)) {
+    fs.copyFileSync(sourceIco, icoTarget);
+    console.log(`Updated: ${icoTarget}`);
+
+    const md5File = path.join(crxDir, "EntrenoApp.ico.md5");
+    const icoBytes = fs.readFileSync(icoTarget);
+    const md5Raw = crypto.createHash("md5").update(icoBytes).digest();
+    fs.writeFileSync(md5File, md5Raw);
+    console.log(`Updated MD5 (16B): ${md5File}`);
+  }
 }
 
-run().catch(console.error);
+async function run() {
+  if (!fs.existsSync(sourceIcon) || !fs.existsSync(sourceIco)) {
+    throw new Error("Missing brand source icons in public/. Run asset generator first.");
+  }
+  if (!fs.existsSync(userDataRoot)) {
+    console.log("Chrome User Data directory not found:", userDataRoot);
+    return;
+  }
+
+  const profiles = fs
+    .readdirSync(userDataRoot, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
+
+  let updatedCount = 0;
+  for (const profile of profiles) {
+    const webAppsDir = path.join(userDataRoot, profile, "Web Applications");
+    if (!fs.existsSync(webAppsDir)) continue;
+
+    const entries = fs
+      .readdirSync(webAppsDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith("_crx_"));
+
+    for (const entry of entries) {
+      const icoCandidate = path.join(webAppsDir, entry.name, "EntrenoApp.ico");
+      if (fs.existsSync(icoCandidate)) {
+        const appId = entry.name.slice("_crx_".length);
+        console.log(`Found Chrome EntrenoApp PWA in ${profile}: ${appId}`);
+        await updateApp(webAppsDir, appId);
+        updatedCount++;
+      }
+    }
+  }
+
+  console.log(`Done. Updated ${updatedCount} Chrome PWA icon installation(s).`);
+}
+
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
