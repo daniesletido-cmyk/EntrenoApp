@@ -1,5 +1,6 @@
 import { getSetting } from "@/lib/repo/settings";
 import { listSessionsBetween, createPlannedSession, updateSession, Discipline, SessionRow } from "@/lib/repo/sessions";
+import { listSleepBetween, upsertSleepLog } from "@/lib/repo/sleep";
 import { parseWorkoutFile } from "@/lib/fit-import";
 import { toLocalISODate } from "@/lib/dates";
 import { upsertWorkout } from "@/lib/repo/workouts";
@@ -75,17 +76,27 @@ function findMatchingPendingSession(sessions: SessionRow[], date: string, sport:
     const box = daySessions.find((s) => s.discipline === "crossfit" || s.discipline === "gimnasio");
     if (box) return box;
   }
+  if (sport === "otro") {
+    const gymOrCf = daySessions.find((s) => s.discipline === "crossfit" || s.discipline === "gimnasio");
+    if (gymOrCf) return gymOrCf;
+  }
   const restOrOther = daySessions.find((s) => s.discipline === "descanso" || s.discipline === "otro");
   return restOrOther || null;
 }
 
 let lastAutoSyncMs = 0;
 const AUTO_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
+let inFlightSync: Promise<IntervalsSyncResult> | null = null;
 
 export async function maybeAutoSyncIntervals(): Promise<void> {
   const athleteId = (getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID || "").trim();
   const apiKey = (getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY || "").trim();
   if (!athleteId || !apiKey) return;
+
+  if (inFlightSync) {
+    await inFlightSync;
+    return;
+  }
 
   const now = Date.now();
   if (now - lastAutoSyncMs < AUTO_SYNC_COOLDOWN_MS) return;
@@ -99,6 +110,18 @@ export async function maybeAutoSyncIntervals(): Promise<void> {
 }
 
 export async function syncIntervalsWorkouts(daysLookback = 14): Promise<IntervalsSyncResult> {
+  if (inFlightSync) {
+    return inFlightSync;
+  }
+  inFlightSync = runIntervalsSyncInternal(daysLookback);
+  try {
+    return await inFlightSync;
+  } finally {
+    inFlightSync = null;
+  }
+}
+
+async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyncResult> {
   const athleteId = (getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID || "").trim();
   const apiKey = (getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY || "").trim();
 
@@ -309,6 +332,63 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
       activitiesLog.push({ id: act.id, date, name: act.name || sport, status: "imported" });
     }
 
+    // Sincronizar también datos de sueño/bienestar (si Amazfit/Suunto están conectados en Intervals.icu)
+    let sleepImportedCount = 0;
+    try {
+      const wellRes = await fetch(
+        `https://intervals.icu/api/v1/athlete/${encodeURIComponent(athleteId)}/wellness?oldest=${oldest}&newest=${newest}`,
+        { headers: { Authorization: authHeader, Accept: "application/json" }, cache: "no-store" }
+      );
+      if (wellRes.ok) {
+        const wellList = (await wellRes.json()) as Array<{
+          id: string;
+          sleepSecs?: number | null;
+          sleepScore?: number | null;
+          sleepQuality?: number | null;
+          restingHR?: number | null;
+          hrv?: number | null;
+          respiration?: number | null;
+        }>;
+        const existingSleep = listSleepBetween(oldest, newest);
+        const existingMap = new Map(existingSleep.map((s) => [s.date, s]));
+        let latestSavedSleep: ReturnType<typeof upsertSleepLog> | null = null;
+
+        for (const w of wellList) {
+          if (!w.id || (w.sleepSecs == null && w.sleepScore == null && w.hrv == null)) continue;
+          const prev = existingMap.get(w.id);
+          const hours = w.sleepSecs != null ? Number((w.sleepSecs / 3600).toFixed(2)) : null;
+          if (prev && prev.hours != null && (hours == null || Math.abs(prev.hours - hours) < 0.05)) {
+            continue;
+          }
+          const saved = upsertSleepLog({
+            date: w.id,
+            hours: hours ?? prev?.hours ?? undefined,
+            score: w.sleepScore ?? prev?.score ?? undefined,
+            quality: w.sleepQuality ?? prev?.quality ?? undefined,
+            resting_hr: w.restingHR ?? prev?.resting_hr ?? undefined,
+            hrv_rmssd: w.hrv ?? prev?.hrv_rmssd ?? undefined,
+            respiratory_rate: w.respiration ?? prev?.respiratory_rate ?? undefined,
+            source: prev?.source || "intervals-cloud",
+          });
+          latestSavedSleep = saved;
+          sleepImportedCount++;
+        }
+
+        if (latestSavedSleep) {
+          const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
+          await sendSleepRecordedPush({
+            date: latestSavedSleep.date,
+            hours: latestSavedSleep.hours,
+            score: latestSavedSleep.score,
+            deep_min: latestSavedSleep.deep_min,
+            rem_min: latestSavedSleep.rem_min,
+            hrv_rmssd: latestSavedSleep.hrv_rmssd,
+            resting_hr: latestSavedSleep.resting_hr,
+          });
+        }
+      }
+    } catch {}
+
     return {
       configured: true,
       success: true,
@@ -316,8 +396,8 @@ export async function syncIntervalsWorkouts(daysLookback = 14): Promise<Interval
       skippedCount,
       activities: activitiesLog,
       message:
-        importedCount > 0
-          ? `Sincronizados ${importedCount} entrenos automáticamente desde Suunto / Intervals.icu.`
+        importedCount > 0 || sleepImportedCount > 0
+          ? `Sincronizados ${importedCount} entreno(s) y ${sleepImportedCount} noche(s) de sueño.`
           : "Todo al día: no hay entrenamientos nuevos pendientes de importar.",
     };
   } catch (err) {
