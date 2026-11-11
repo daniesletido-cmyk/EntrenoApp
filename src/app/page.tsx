@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Activity,
 } from "lucide-react";
-import { EstadoActualCard } from "@/components/dashboard/estado-actual-card";
+import { ReadinessCard } from "@/components/dashboard/readiness-card";
 import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import type { DailyReadiness } from "@/lib/readiness";
 import { weekStartOf, todayISO } from "@/lib/dates";
@@ -153,17 +153,19 @@ export default function ProgresoSaludPage() {
         }
       />
 
-      {/* Panel Estado Actual en Tiempo Real */}
-      <EstadoActualCard
+      {/* Panel Readiness / Estado Actual */}
+      <ReadinessCard
         readiness={readiness}
-        acwr={rec?.acwr ?? 1.05}
+        acwr={rec?.acwr ?? 1.0}
         weeklyKm={summary?.distanceKm ?? 0}
         weeklyTargetKm={45}
+        weeklyDurationMin={summary?.durationMin ?? 0}
         completedSessions={(summary?.realizadas ?? 0) + (summary?.parciales ?? 0)}
         plannedSessions={summary?.planificadas ?? 0}
         sleepHours={summary?.sleepHoursAvg ?? readiness?.stats?.sleepHours ?? null}
         sleepScore={summary?.recentSleep?.[0]?.score ?? readiness?.stats?.sleepScore ?? null}
         sleepQuality={summary?.sleepQualityAvg ?? readiness?.stats?.sleepQuality ?? null}
+        recentSessions={summary?.recentSessions ?? []}
       />
 
       {raceDate && (

@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { EntrenoLogo } from "@/components/brand/entreno-logo";
 import {
   Dumbbell,
   BookOpen,
@@ -232,7 +232,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => haptics.light()}
             className="flex items-center gap-2.5 min-w-0 no-underline harbiz-press"
           >
-            <Image src="/brand/logo-mark.png" alt="EntrenoApp" width={30} height={30} className="rounded-xl" />
+            <EntrenoLogo size={30} className="shrink-0" />
             <div className="flex flex-col min-w-0">
               <span
                 className="font-bold text-sm leading-tight truncate"
@@ -402,7 +402,7 @@ function Brand({ onCollapse }: { onCollapse?: () => void }) {
         href="/hoy"
         className="flex items-center gap-2.5 min-w-0 flex-1 no-underline text-inherit hover:opacity-90 transition-opacity"
       >
-        <Image src="/brand/logo-mark.png" alt="EntrenoApp" width={32} height={32} className="rounded-xl flex-shrink-0" />
+        <EntrenoLogo size={32} className="flex-shrink-0" />
         <span
           style={{
             fontWeight: 800,

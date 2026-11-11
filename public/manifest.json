@@ -2,7 +2,7 @@
   "name": "EntrenoApp — Rendimiento & Salud",
   "short_name": "EntrenoApp",
   "description": "Registro de entrenamiento, maratón y nutrición de alto rendimiento · Diseñada por Daniel Espinosa",
-  "id": "/?v=5",
+  "id": "/?v=6",
   "start_url": "/hoy",
   "scope": "/",
   "display": "standalone",
@@ -10,8 +10,8 @@
     "standalone",
     "window-controls-overlay"
   ],
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#F9FAFB",
+  "theme_color": "#DC2626",
   "orientation": "portrait",
   "categories": [
     "fitness",
@@ -21,25 +21,31 @@
   ],
   "icons": [
     {
-      "src": "/apple-touch-icon.png?v=5",
+      "src": "/icon.svg?v=6",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png?v=6",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.png?v=5",
+      "src": "/icon-192.png?v=6",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=5",
+      "src": "/icon-512.png?v=6",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/brand/logo-mark-512.png?v=5",
+      "src": "/brand/logo-mark-512.png?v=6",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

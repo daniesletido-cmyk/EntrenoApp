@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import Image from "next/image";
 import { Lock, Delete, Eye, EyeOff, ShieldCheck, ArrowRight, X } from "lucide-react";
+import { EntrenoLogo } from "@/components/brand/entreno-logo";
 import {
   isAppLockEnabled,
   getAppLockType,
@@ -191,8 +191,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
             position: "fixed",
             inset: 0,
             zIndex: 99990,
-            backgroundColor: "#000000",
-            backgroundImage: "radial-gradient(ellipse at 50% 15%, rgba(48, 209, 88, 0.12) 0%, rgba(0, 0, 0, 1) 75%)",
+            backgroundColor: "var(--color-bg)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -205,38 +204,25 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
             className={`flex flex-col items-center max-w-sm w-full animate-in ${errorShake ? "shake-anim" : ""}`}
             style={{
               padding: "var(--space-6) var(--space-5)",
-              backgroundColor: "rgba(28, 28, 30, 0.82)",
-              backdropFilter: "blur(25px) saturate(180%)",
-              WebkitBackdropFilter: "blur(25px) saturate(180%)",
-              borderRadius: "28px",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              boxShadow: "0 24px 50px rgba(0, 0, 0, 0.8)",
+              backgroundColor: "var(--color-surface)",
+              borderRadius: "24px",
+              border: "1px solid var(--color-border)",
+              boxShadow: "var(--shadow-md)",
             }}
           >
             {/* Logo de la aplicación con icono de candado */}
             <div
               style={{
                 position: "relative",
-                width: 72,
-                height: 72,
-                borderRadius: "20px",
-                padding: 4,
-                background: "linear-gradient(135deg, rgba(48, 209, 88, 0.4), rgba(28, 28, 30, 0.8))",
-                boxShadow: "0 8px 24px rgba(48, 209, 88, 0.25)",
+                width: 68,
+                height: 68,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 marginBottom: "var(--space-3)",
               }}
             >
-              <Image
-                src="/brand/logo-mark.png"
-                alt="EntrenoApp"
-                width={56}
-                height={56}
-                className="rounded-xl"
-                priority
-              />
+              <EntrenoLogo size={64} />
               <div
                 style={{
                   position: "absolute",
@@ -245,12 +231,12 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
-                  backgroundColor: "var(--color-brand)",
-                  color: "#000000",
+                  backgroundColor: "var(--color-surface)",
+                  color: "var(--color-brand)",
+                  border: "1px solid var(--color-border)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
                 }}
               >
                 <Lock size={13} strokeWidth={2.5} />
@@ -455,7 +441,7 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Entrada Dinámica (Splash Screen Animada al Abrir la App estilo Apple) */}
+      {/* Entrada Dinámica (Splash Screen Limpia Rojo & Blanco) */}
       {showSplash && (
         <div
           onClick={() => setShowSplash(false)}
@@ -464,52 +450,35 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
             position: "fixed",
             inset: 0,
             zIndex: 99999,
-            backgroundColor: "#000000",
-            backgroundImage: "radial-gradient(ellipse at 50% 35%, rgba(48, 209, 88, 0.2) 0%, rgba(0, 0, 0, 1) 75%)",
+            backgroundColor: "var(--color-bg)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             padding: "calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px))",
             opacity: splashFading ? 0 : 1,
-            transform: splashFading ? "scale(1.05)" : "scale(1)",
-            transition: "opacity 0.4s cubic-bezier(0.2, 0.9, 0.2, 1), transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1)",
+            transform: splashFading ? "scale(1.03)" : "scale(1)",
+            transition: "opacity 0.35s cubic-bezier(0.2, 0.9, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1)",
             pointerEvents: splashFading ? "none" : "auto",
           }}
         >
-          {/* Logo animado con efecto pulso nativo */}
           <div
             style={{
-              position: "relative",
-              width: 104,
-              height: 104,
-              borderRadius: "28px",
-              padding: 6,
-              background: "linear-gradient(135deg, rgba(48, 209, 88, 0.5) 0%, rgba(28, 28, 30, 0.9) 100%)",
-              boxShadow: "0 0 50px rgba(48, 209, 88, 0.35)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               marginBottom: "var(--space-4)",
-              animation: "splashPulse 2s infinite ease-in-out",
             }}
           >
-            <Image
-              src="/brand/logo-mark.png"
-              alt="EntrenoApp Logo"
-              width={86}
-              height={86}
-              className="rounded-2xl shadow-xl"
-              priority
-            />
+            <EntrenoLogo size={88} />
           </div>
 
           <div
             style={{
-              fontSize: "1.85rem",
+              fontSize: "1.75rem",
               fontWeight: 800,
               letterSpacing: "-0.03em",
-              color: "#ffffff",
+              color: "var(--color-text)",
               marginBottom: 4,
               textAlign: "center",
             }}
@@ -520,9 +489,9 @@ export function AppLockGuard({ children }: { children: React.ReactNode }) {
           <div
             style={{
               fontSize: "0.85rem",
-              color: "rgba(255, 255, 255, 0.65)",
+              color: "var(--color-text-muted)",
               fontWeight: 500,
-              letterSpacing: "0.02em",
+              letterSpacing: "0.01em",
               textAlign: "center",
               marginBottom: "var(--space-5)",
             }}

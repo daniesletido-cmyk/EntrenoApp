@@ -75,8 +75,8 @@ export async function sendPushToAll(payload: PushNotificationPayload): Promise<{
   const payloadString = JSON.stringify({
     title: payload.title,
     body: payload.body,
-    icon: payload.icon || "/icon-192.png",
-    badge: payload.badge || "/icon-192.png",
+    icon: payload.icon || "/icon-192.png?v=6",
+    badge: payload.badge || "/icon-192.png?v=6",
     data: payload.data || { url: "/" },
     tag: payload.tag || "entrenoapp-notification",
   });

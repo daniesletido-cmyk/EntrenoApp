@@ -20,7 +20,7 @@ import {
   RefreshCw,
   CalendarRange,
 } from "lucide-react";
-import { EstadoActualCard } from "@/components/dashboard/estado-actual-card";
+import { ReadinessCard, type ReadinessRecentSession } from "@/components/dashboard/readiness-card";
 import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import { todayISO, weekStartOf, weekDates } from "@/lib/dates";
 import { reconcileSessions, reconcileSleep } from "@/lib/client-persistence";
@@ -93,10 +93,12 @@ export default function HoyPage() {
   const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<{
     distanceKm: number;
+    durationMin: number;
     realizadas: number;
     parciales: number;
     planificadas: number;
     sleepHoursAvg: number | null;
+    recentSessions?: ReadinessRecentSession[];
   } | null>(null);
   const [weeklyAcwr, setWeeklyAcwr] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -247,17 +249,19 @@ export default function HoyPage() {
         }
       />
 
-      {/* 0. Estado Actual en Tiempo Real (Readiness & Forma física) */}
-      <EstadoActualCard
+      {/* 0. Readiness / Estado Actual */}
+      <ReadinessCard
         readiness={readiness}
         acwr={weeklyAcwr}
         weeklyKm={weeklySummary?.distanceKm ?? weekSessions.reduce((acc, s) => acc + (s.status === "realizada" ? (s.distance_km || 0) : 0), 0)}
         weeklyTargetKm={45}
+        weeklyDurationMin={weeklySummary?.durationMin ?? weekSessions.reduce((acc, s) => acc + (s.status === "realizada" ? (s.duration_min || 0) : 0), 0)}
         completedSessions={(weeklySummary?.realizadas ?? 0) + (weeklySummary?.parciales ?? 0)}
         plannedSessions={weeklySummary?.planificadas ?? weekSessions.filter((s) => s.discipline !== "descanso").length}
         sleepHours={sleep?.hours ?? weeklySummary?.sleepHoursAvg ?? readiness?.stats?.sleepHours ?? null}
         sleepScore={sleep?.score ?? readiness?.stats?.sleepScore ?? null}
         sleepQuality={sleep?.quality ?? readiness?.stats?.sleepQuality ?? null}
+        recentSessions={weeklySummary?.recentSessions ?? []}
       />
 
       {/* 1. Calendario Semanal Deslizable (Lunes a Domingo) */}
