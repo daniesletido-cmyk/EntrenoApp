@@ -108,6 +108,7 @@ export default function ConfiguracionPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d?.status) setSuuntoStatus(d.status);
+        else if (d && "intervalsSuuntoBridgeConnected" in d) setSuuntoStatus(d);
       })
       .catch(() => {});
   };

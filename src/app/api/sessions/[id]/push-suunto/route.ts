@@ -3,8 +3,10 @@ import { getSessionById } from "@/lib/repo/sessions";
 import { getSessionSuuntoSync } from "@/lib/repo/suunto-sync";
 import { pushSessionToSuunto } from "@/lib/suunto-cloud";
 import { buildStructuredWorkoutForSession, buildStructuredWorkoutFitBuffer } from "@/lib/suunto-workout-builder";
+import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  await refreshDbFromBlobIfNewer();
   const { id } = await ctx.params;
   const sessionId = Number(id);
   if (!Number.isFinite(sessionId)) {
@@ -41,7 +43,9 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   }
 
   try {
+    await refreshDbFromBlobIfNewer();
     const result = await pushSessionToSuunto(sessionId);
+    await flushDbPersistence();
     if (!result.success) {
       return NextResponse.json(result, { status: result.needsReauth ? 401 : 400 });
     }

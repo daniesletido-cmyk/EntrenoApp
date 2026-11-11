@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { listSessionsBetween } from "@/lib/repo/sessions";
 import { pushSessionToSuunto } from "@/lib/suunto-cloud";
 import { todayISO, addDays } from "@/lib/dates";
+import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
+  await refreshDbFromBlobIfNewer();
   let fromDate = todayISO();
   let toDate = addDays(fromDate, 6);
 
@@ -27,6 +29,8 @@ export async function POST(req: NextRequest) {
     if (res.success) pushedCount++;
     else errorCount++;
   }
+
+  await flushDbPersistence();
 
   return NextResponse.json({
     success: errorCount === 0,

@@ -10,6 +10,7 @@ import { weekStartOf, todayISO } from "@/lib/dates";
 import { isSupabaseConfigured, upsertSessionToSupabase, fetchSessionsFromSupabase } from "@/lib/supabase";
 import { listSuuntoSyncForSessionIds } from "@/lib/repo/suunto-sync";
 import { getSetting } from "@/lib/repo/settings";
+import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
 
 const VALID_DISCIPLINES = new Set([
   "carrera",
@@ -57,6 +58,7 @@ function validateSessionPayload(data: Record<string, unknown>): { valid: boolean
 }
 
 export async function GET(req: NextRequest) {
+  await refreshDbFromBlobIfNewer();
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
   const week = req.nextUrl.searchParams.get("week") ?? weekStartOf(todayISO());
@@ -184,6 +186,8 @@ export async function POST(req: NextRequest) {
       console.warn("[Suunto Auto-Push POST] Error:", suuntoErr);
     }
   }
+
+  await flushDbPersistence();
 
   return NextResponse.json({ session, suuntoSync }, { status: 201 });
 }

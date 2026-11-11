@@ -7,8 +7,10 @@ import { sessionLoad } from "@/lib/recommendations";
 import { buildUnifiedSessionDiagnostics } from "@/lib/fit-feedback";
 import { getSessionSuuntoSync } from "@/lib/repo/suunto-sync";
 import { getSetting } from "@/lib/repo/settings";
+import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  await refreshDbFromBlobIfNewer();
   const { id } = await ctx.params;
   const sessionId = Number(id);
   if (!Number.isFinite(sessionId)) return NextResponse.json({ error: "id inválido" }, { status: 400 });
@@ -187,6 +189,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       console.warn("[Suunto Auto-Push PATCH] Error:", suuntoErr);
     }
   }
+
+  await flushDbPersistence();
 
   return NextResponse.json({ session, autoAdapted: autoAdaptedInfo, suuntoSync });
 }

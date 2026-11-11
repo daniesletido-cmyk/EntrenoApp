@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeSuuntoAuthCode } from "@/lib/suunto-cloud";
+import { flushDbPersistence } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
 
   try {
     await exchangeSuuntoAuthCode(code, origin);
+    await flushDbPersistence();
     return NextResponse.redirect(`${origin}/configuracion?suunto=connected`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Error intercambiando token de Suunto";

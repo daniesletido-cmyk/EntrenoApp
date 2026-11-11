@@ -4,13 +4,14 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { ensureAnnualPlanPopulated } from "@/lib/annual-plan-seed";
 import { DEFAULT_EXERCISES } from "@/lib/prs-catalog";
-import { syncDownFromBlobSync, scheduleDbSyncToBlob } from "@/lib/blob-sync";
+import { syncDownFromBlobSync, scheduleDbSyncToBlob, syncDbToBlob, getRemoteBlobEtag, downloadBlobDatabaseAsync, isBlobSyncEnabled } from "@/lib/blob-sync";
 
 let db: DatabaseSync | null = null;
 let activeDbPath: string | null = null;
 let lastCloudSyncTime = 0;
 let syncScheduled = false;
 let isInitializing = false;
+let lastBlobCheckMs = 0;
 
 function isWriteStatement(sql: string): boolean {
   const head = sql.trimStart().slice(0, 10).toUpperCase();
@@ -770,4 +771,30 @@ export function getDb(): AppDb {
 
 export function getDbPath(): string {
   return activeDbPath || resolveDbPath();
+}
+
+export async function flushDbPersistence(): Promise<void> {
+  if (!isBlobSyncEnabled()) return;
+  const dbPath = activeDbPath || resolveDbPath();
+  await syncDbToBlob(dbPath, db ?? undefined);
+}
+
+export async function refreshDbFromBlobIfNewer(force = false): Promise<void> {
+  if (!process.env.VERCEL || !isBlobSyncEnabled()) return;
+  const now = Date.now();
+  if (!force && now - lastBlobCheckMs < 1500) return;
+  lastBlobCheckMs = now;
+
+  const targetPath = activeDbPath || path.join("/tmp", "entrenoapp.db");
+  const etagFile = path.join(path.dirname(targetPath), ".blob_last_etag");
+  const localEtag = fs.existsSync(etagFile) ? fs.readFileSync(etagFile, "utf8").trim() : null;
+  const remoteEtag = await getRemoteBlobEtag();
+
+  if (remoteEtag && remoteEtag !== localEtag) {
+    try {
+      db?.close();
+    } catch {}
+    db = null;
+    await downloadBlobDatabaseAsync(targetPath);
+  }
 }

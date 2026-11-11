@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAllSettings, setSettings } from "@/lib/repo/settings";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { isBlobSyncEnabled } from "@/lib/blob-sync";
+import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
 
 function publicSettings() {
   const all = getAllSettings();
@@ -33,6 +34,7 @@ function publicSettings() {
 }
 
 export async function GET() {
+  await refreshDbFromBlobIfNewer();
   return NextResponse.json({
     settings: publicSettings(),
     app_info: {
@@ -51,5 +53,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "cuerpo inválido" }, { status: 400 });
   }
   setSettings(body as Record<string, string>);
+  await flushDbPersistence();
   return NextResponse.json({ settings: publicSettings() });
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildSuuntoAuthorizeUrl, getSuuntoConnectionStatus } from "@/lib/suunto-cloud";
+import { refreshDbFromBlobIfNewer } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
+  await refreshDbFromBlobIfNewer();
   const isStatus = req.nextUrl.searchParams.get("status") === "1";
   if (isStatus) {
     const status = await getSuuntoConnectionStatus();
