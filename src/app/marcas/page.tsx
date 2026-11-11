@@ -68,12 +68,12 @@ interface ExerciseItem {
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "Halterofilia": { bg: "var(--color-brand-subtle)", text: "var(--color-brand)", border: "rgba(37, 99, 235, 0.25)" },
-  "Fuerza & Powerlifting": { bg: "var(--color-brand-subtle)", text: "var(--color-brand)", border: "rgba(37, 99, 235, 0.25)" },
+  "Halterofilia": { bg: "var(--color-surface-raised)", text: "var(--color-text)", border: "var(--color-border)" },
+  "Fuerza & Powerlifting": { bg: "var(--color-surface-raised)", text: "var(--color-text)", border: "var(--color-border)" },
   "Gimnásticos": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
   "Mancuernas": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
   "Kettlebells & Funcional": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
-  "Ergómetros & Benchmarks": { bg: "var(--color-brand-subtle)", text: "var(--color-brand)", border: "rgba(37, 99, 235, 0.25)" },
+  "Ergómetros & Benchmarks": { bg: "var(--color-surface-raised)", text: "var(--color-text)", border: "var(--color-border)" },
   "Accesorios": { bg: "var(--color-surface-raised)", text: "var(--color-text-muted)", border: "var(--color-border)" },
 };
 

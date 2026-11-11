@@ -125,10 +125,10 @@ export function SuuntoPushButton({
               : "var(--color-brand)",
             border: `1px solid ${
               errorMsg
-                ? "rgba(239, 68, 68, 0.35)"
+                ? "rgba(220, 38, 38, 0.3)"
                 : isSynced
-                ? "rgba(16, 185, 129, 0.35)"
-                : "rgba(59, 130, 246, 0.3)"
+                ? "rgba(22, 163, 74, 0.25)"
+                : "rgba(220, 38, 38, 0.25)"
             }`,
           }}
         >
@@ -213,7 +213,7 @@ export function SuuntoPushButton({
             style={{
               background: "var(--color-success-bg)",
               color: "var(--color-success)",
-              border: "1px solid rgba(16, 185, 129, 0.25)",
+              border: "1px solid rgba(22, 163, 74, 0.25)",
             }}
           >
             <CheckCircle2 size={14} />
@@ -227,7 +227,7 @@ export function SuuntoPushButton({
             style={{
               background: "var(--color-danger-bg)",
               color: "var(--color-danger)",
-              border: "1px solid rgba(239, 68, 68, 0.28)",
+              border: "1px solid rgba(220, 38, 38, 0.25)",
             }}
           >
             <span>{errorMsg}</span>

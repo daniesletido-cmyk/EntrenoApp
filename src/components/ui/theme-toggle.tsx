@@ -20,9 +20,9 @@ export function ThemeToggle({
       setTheme(currentTheme);
       document.documentElement.classList.toggle("dark", currentTheme === "dark");
     } else {
-      setTheme("dark");
-      document.documentElement.setAttribute("data-theme", "dark");
-      document.documentElement.classList.add("dark");
+      setTheme("light");
+      document.documentElement.setAttribute("data-theme", "light");
+      document.documentElement.classList.remove("dark");
     }
   }, []);
 

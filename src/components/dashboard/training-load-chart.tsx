@@ -144,23 +144,23 @@ export function TrainingLoadChart({ acwr = 1.05 }: TrainingLoadChartProps) {
           <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
             <defs>
               <linearGradient id="harbizAtl" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.22} />
-                <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="#dc2626" stopOpacity={0.14} />
+                <stop offset="95%" stopColor="#dc2626" stopOpacity={0.0} />
               </linearGradient>
               <linearGradient id="harbizCtl" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.18} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="#16a34a" stopOpacity={0.12} />
+                <stop offset="95%" stopColor="#16a34a" stopOpacity={0.0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="dayLabel" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={["dataMin - 5", "dataMax + 10"]} />
+            <XAxis dataKey="dayLabel" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} domain={["dataMin - 5", "dataMax + 10"]} />
             <Tooltip
               content={({ active, payload }) => {
                 if (!active || !payload || !payload.length) return null;
                 const d = payload[0].payload as TrainingLoadPoint;
                 return (
                   <div
-                    className="p-3 rounded-xl text-xs shadow-lg"
+                    className="p-3 rounded-xl text-xs shadow-sm"
                     style={{
                       background: "var(--color-surface)",
                       border: "1px solid var(--color-border)",
@@ -170,11 +170,11 @@ export function TrainingLoadChart({ acwr = 1.05 }: TrainingLoadChartProps) {
                     <div className="font-bold mb-1">
                       {d.date} ({d.dayLabel}) · {d.loadTss} TSS
                     </div>
-                    <div className="flex justify-between gap-4" style={{ color: "var(--color-brand)" }}>
+                    <div className="flex justify-between gap-4" style={{ color: "#dc2626" }}>
                       <span>Carga 7d:</span>
                       <span className="font-semibold tabular-nums">{d.atl}</span>
                     </div>
-                    <div className="flex justify-between gap-4" style={{ color: "var(--color-success)" }}>
+                    <div className="flex justify-between gap-4" style={{ color: "#16a34a" }}>
                       <span>Forma base:</span>
                       <span className="font-semibold tabular-nums">{d.ctl}</span>
                     </div>
@@ -182,8 +182,8 @@ export function TrainingLoadChart({ acwr = 1.05 }: TrainingLoadChartProps) {
                 );
               }}
             />
-            <Area type="monotone" dataKey="atl" stroke="#2563eb" strokeWidth={2.2} fillOpacity={1} fill="url(#harbizAtl)" />
-            <Area type="monotone" dataKey="ctl" stroke="#10b981" strokeWidth={2.2} fillOpacity={1} fill="url(#harbizCtl)" />
+            <Area type="monotone" dataKey="atl" stroke="#dc2626" strokeWidth={2.2} fillOpacity={1} fill="url(#harbizAtl)" />
+            <Area type="monotone" dataKey="ctl" stroke="#16a34a" strokeWidth={2.2} fillOpacity={1} fill="url(#harbizCtl)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>

@@ -11,8 +11,8 @@ import { AppLockGuard } from "@/components/auth/app-lock-guard";
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
+    { media: "(prefers-color-scheme: dark)", color: "#121316" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" data-theme="dark" className="dark" suppressHydrationWarning>
+    <html lang="es" data-theme="light" suppressHydrationWarning>
       <head>
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=4" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=4" />
@@ -57,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               (function() {
                 try {
                   var saved = localStorage.getItem('entrenoapp_theme');
-                  var theme = saved || 'dark';
+                  var theme = saved || 'light';
                   document.documentElement.setAttribute('data-theme', theme);
                   if (theme === 'dark') document.documentElement.classList.add('dark');
                   else document.documentElement.classList.remove('dark');
