@@ -12,8 +12,12 @@ import {
   RefreshCw,
   PanelLeftClose,
   PanelLeftOpen,
+  Watch,
+  UploadCloud,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Modal } from "@/components/ui/modal";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { haptics } from "@/lib/haptics";
 
 interface NavItemDef {
@@ -69,6 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [raceDate, setRaceDate] = useState("26/04/2027");
   const [isGlobalRefreshing, setIsGlobalRefreshing] = useState(false);
+  const [suuntoImportOpen, setSuuntoImportOpen] = useState(false);
 
   const current = MAIN_NAV.find((item) => isNavActive(pathname, item)) ?? MAIN_NAV[0];
 
@@ -243,7 +248,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                haptics.selection();
+                setSuuntoImportOpen(true);
+              }}
+              className="btn-suunto harbiz-press rounded-xl inline-flex items-center gap-1.5 px-2.5 text-xs font-bold cursor-pointer"
+              aria-label="Importar Suunto"
+              title="Importar Suunto (.FIT / .GPX / .JSON)"
+              style={{ minHeight: 40, height: 40 }}
+            >
+              <Watch size={15} />
+              <span>Suunto</span>
+              <UploadCloud size={14} />
+            </button>
             <button
               onClick={() => {
                 haptics.medium();
@@ -361,6 +381,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden md:block" style={{ height: "24px" }} />
         </div>
       </main>
+
+      {suuntoImportOpen && (
+        <Modal title="Importar entrenamiento Suunto" onClose={() => setSuuntoImportOpen(false)}>
+          <FileDropzone
+            onSuccess={() => {
+              window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+              router.refresh();
+            }}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

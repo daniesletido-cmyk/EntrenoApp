@@ -12,7 +12,10 @@ import {
   RefreshCw,
   Activity,
   UploadCloud,
+  Watch,
 } from "lucide-react";
+import { EstadoActualCard } from "@/components/dashboard/estado-actual-card";
+import type { DailyReadiness } from "@/lib/readiness";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
 import { StatCard } from "@/components/ui/stat-card";
@@ -75,6 +78,7 @@ export default function ProgresoSaludPage() {
   const [weekStart, setWeekStart] = useState(weekStartOf(todayISO()));
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rec, setRec] = useState<Recommendation | null>(null);
+  const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
   const [raceDate, setRaceDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,14 +90,17 @@ export default function ProgresoSaludPage() {
 
     try {
       const t = Date.now();
-      const [s, r, cfg] = await Promise.all([
+      const todayStr = todayISO();
+      const [s, r, cfg, rd] = await Promise.all([
         fetch(`/api/summary?week=${weekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/recommendations?week=${weekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/settings?t=${t}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/readiness?date=${todayStr}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
       ]);
 
       setSummary(s);
       setRec(r);
+      setReadiness(rd?.readiness ?? null);
       setRaceDate(cfg.settings?.goal_race_date ?? null);
     } catch {
       // silent
@@ -140,11 +147,20 @@ export default function ProgresoSaludPage() {
             <button
               type="button"
               onClick={() => setImportOpen(true)}
-              className="btn btn-secondary btn-sm harbiz-press"
+              className="btn btn-suunto btn-sm harbiz-press hidden md:inline-flex"
               style={{ minHeight: 44 }}
             >
-              <UploadCloud size={16} style={{ color: "var(--color-brand)" }} />
-              <span>Cargar sesión</span>
+              <Watch size={16} />
+              <span>+ Importar entreno Suunto (.FIT)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="btn btn-suunto btn-sm harbiz-press md:hidden"
+              style={{ minHeight: 44 }}
+            >
+              <UploadCloud size={16} />
+              <span>Importar Suunto (.FIT)</span>
             </button>
             <button
               type="button"
@@ -157,6 +173,19 @@ export default function ProgresoSaludPage() {
             </button>
           </div>
         }
+      />
+
+      {/* Panel Estado Actual en Tiempo Real */}
+      <EstadoActualCard
+        readiness={readiness}
+        acwr={rec?.acwr ?? 1.05}
+        weeklyKm={summary?.distanceKm ?? 0}
+        weeklyTargetKm={45}
+        completedSessions={(summary?.realizadas ?? 0) + (summary?.parciales ?? 0)}
+        plannedSessions={summary?.planificadas ?? 0}
+        sleepHours={summary?.sleepHoursAvg ?? readiness?.stats?.sleepHours ?? null}
+        sleepScore={summary?.recentSleep?.[0]?.score ?? readiness?.stats?.sleepScore ?? null}
+        sleepQuality={summary?.sleepQualityAvg ?? readiness?.stats?.sleepQuality ?? null}
       />
 
       {raceDate && (
@@ -356,10 +385,9 @@ export default function ProgresoSaludPage() {
       )}
 
       {importOpen && (
-        <Modal title="Importar sesión (.FIT) o sueño" onClose={() => setImportOpen(false)}>
+        <Modal title="Importar entreno Suunto / Sueño" onClose={() => setImportOpen(false)}>
           <FileDropzone
             onSuccess={() => {
-              setImportOpen(false);
               loadData(true);
             }}
           />

@@ -244,10 +244,13 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
         onDrop={handleDrop}
         onClick={() => !isProcessing && fileInputRef.current?.click()}
         className={`relative border-2 border-dashed rounded-2xl transition-all duration-200 cursor-pointer overflow-hidden ${
-          isDragging
-            ? "border-emerald-500 bg-emerald-500/10 scale-[1.01] shadow-lg shadow-emerald-500/10"
-            : "border-slate-800 hover:border-slate-700 bg-slate-900/50 hover:bg-slate-900/80"
-        } ${compact ? "p-4" : "p-6"}`}
+          compact ? "p-4" : "p-6"
+        }`}
+        style={{
+          borderColor: isDragging ? "var(--color-brand)" : "var(--color-border-strong)",
+          background: isDragging ? "var(--color-brand-subtle)" : "var(--color-surface-raised)",
+          transform: isDragging ? "scale(1.01)" : undefined,
+        }}
       >
         <input
           ref={fileInputRef}
@@ -260,14 +263,14 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="flex items-center gap-4">
             <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                isDragging
-                  ? "bg-emerald-500 text-slate-950 font-bold"
-                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              }`}
+              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+              style={{
+                background: isDragging ? "var(--color-brand)" : "var(--color-brand-subtle)",
+                color: isDragging ? "#ffffff" : "var(--color-brand)",
+              }}
             >
               {isProcessing ? (
-                <Loader2 size={24} className="animate-spin text-emerald-400" />
+                <Loader2 size={24} className="animate-spin" />
               ) : isDragging ? (
                 <Zap size={24} className="animate-bounce" />
               ) : (
@@ -276,21 +279,19 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
             </div>
 
             <div>
-              <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <span className="font-semibold text-slate-100 text-sm sm:text-base">
+              <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
+                <span className="font-semibold text-sm sm:text-base" style={{ color: "var(--color-text)" }}>
                   {isDragging
                     ? "¡Suelta el archivo aquí!"
                     : isProcessing
                     ? "Procesando telemetría deportiva..."
-                    : "Importar sesión o sueño (Drag & Drop)"}
+                    : "Importar entreno Suunto o sueño Zepp"}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                  Suunto & Zepp
-                </span>
+                <span className="badge badge-brand">.FIT · .GPX · .JSON · .CSV</span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                 {statusMessage ||
-                  "Arrastra tu archivo .FIT, .GPX o .JSON de Suunto, o exportación de sueño Zepp (.CSV)."}
+                  "Arrastra el archivo aquí o selecciona desde tu reloj / móvil."}
               </p>
             </div>
           </div>
@@ -302,57 +303,80 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
               e.stopPropagation();
               fileInputRef.current?.click();
             }}
-            className="btn btn-secondary text-xs shrink-0 px-4 py-2 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-800 hover:bg-slate-700 font-semibold"
+            className="btn btn-primary text-xs shrink-0 harbiz-press"
+            style={{ minHeight: 44 }}
           >
-            {isProcessing ? "Procesando..." : "Explorar archivo"}
+            {isProcessing ? "Procesando..." : "Elegir archivo"}
           </button>
         </div>
       </div>
 
       {/* Alerta de Error */}
       {errorMessage && (
-        <div className="mt-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start justify-between gap-3 text-rose-300 text-xs animate-in">
+        <div
+          className="mt-3 p-3.5 rounded-xl flex items-start justify-between gap-3 text-xs animate-in"
+          style={{
+            background: "var(--color-danger-bg)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            color: "var(--color-danger)",
+          }}
+        >
           <div className="flex items-start gap-2.5">
-            <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
             <div>
-              <div className="font-semibold text-rose-200">Error en la importación</div>
+              <div className="font-semibold">Error en la importación</div>
               <div>{errorMessage}</div>
             </div>
           </div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="text-rose-400 hover:text-rose-200 p-1 rounded-lg hover:bg-rose-500/20"
+            className="p-1.5 rounded-lg harbiz-press"
+            aria-label="Cerrar error"
           >
-            <X size={14} />
+            <X size={15} />
           </button>
         </div>
       )}
 
       {/* Tarjeta de Confirmación de Éxito */}
       {successInfo && (
-        <div className="mt-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-200 animate-in">
+        <div
+          className="mt-3 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in"
+          style={{
+            background: "var(--color-success-bg)",
+            border: "1px solid rgba(16, 185, 129, 0.35)",
+            color: "var(--color-text)",
+          }}
+        >
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+              style={{ background: "var(--color-success)", color: "#ffffff" }}
+            >
               <CheckCircle2 size={18} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-sm text-emerald-300">{successInfo.title}</span>
+                <span className="font-bold text-sm" style={{ color: "var(--color-success)" }}>
+                  {successInfo.title}
+                </span>
                 {successInfo.suuntoPte != null && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <span className="badge badge-success">
                     PTE {successInfo.suuntoPte.toFixed(1)}/5.0
                   </span>
                 )}
                 {successInfo.suuntoEpoc != null && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  <span className="badge badge-info">
                     EPOC {successInfo.suuntoEpoc} ml/kg
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-300 mt-1">{successInfo.details}</div>
+              <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                {successInfo.details}
+              </div>
               {successInfo.recoveryHours != null && (
-                <div className="text-[11px] text-emerald-400/90 font-medium mt-0.5">
-                  ⏱️ Tiempo de recuperación estimado por el reloj: {successInfo.recoveryHours}h
+                <div className="text-xs font-medium mt-0.5" style={{ color: "var(--color-success)" }}>
+                  Recuperación estimada por el reloj: {successInfo.recoveryHours}h
                 </div>
               )}
             </div>
@@ -361,16 +385,16 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
             {successInfo.type === "sleep" ? (
               <Link
-                href="/progreso?tab=sueno"
-                className="btn btn-primary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                href="/sueno"
+                className="btn btn-primary btn-sm no-underline inline-flex items-center gap-1.5"
               >
-                <span>Ver Análisis</span>
+                <span>Ver Sueño</span>
                 <ArrowRight size={13} />
               </Link>
             ) : successInfo.sessionId ? (
               <Link
                 href={`/detalle?id=${successInfo.sessionId}&date=${successInfo.date ?? ""}`}
-                className="btn btn-primary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                className="btn btn-primary btn-sm no-underline inline-flex items-center gap-1.5"
               >
                 <span>Ver Análisis</span>
                 <ArrowRight size={13} />
@@ -378,15 +402,16 @@ export function FileDropzone({ onSuccess, className = "", compact = false }: Fil
             ) : (
               <Link
                 href={successInfo.date ? `/detalle?date=${successInfo.date}` : "/registro"}
-                className="btn btn-secondary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                className="btn btn-secondary btn-sm no-underline inline-flex items-center gap-1.5"
               >
-                <span>Ver en Registro</span>
+                <span>Ver Registro</span>
                 <ArrowRight size={13} />
               </Link>
             )}
             <button
               onClick={() => setSuccessInfo(null)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              className="btn-ghost p-2 rounded-lg harbiz-press"
+              aria-label="Cerrar confirmación"
             >
               <X size={15} />
             </button>

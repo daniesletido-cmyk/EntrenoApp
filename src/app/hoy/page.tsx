@@ -21,7 +21,9 @@ import {
   Calendar,
   UploadCloud,
   CalendarRange,
+  Watch,
 } from "lucide-react";
+import { EstadoActualCard } from "@/components/dashboard/estado-actual-card";
 import { todayISO, weekStartOf, weekDates } from "@/lib/dates";
 import { reconcileSessions, reconcileSleep } from "@/lib/client-persistence";
 import { PageHeader } from "@/components/ui/page-header";
@@ -93,6 +95,14 @@ export default function HoyPage() {
   const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
   const [sleep, setSleep] = useState<SleepRow | null>(null);
   const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<{
+    distanceKm: number;
+    realizadas: number;
+    parciales: number;
+    planificadas: number;
+    sleepHoursAvg: number | null;
+  } | null>(null);
+  const [weeklyAcwr, setWeeklyAcwr] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [applyingAdjustment, setApplyingAdjustment] = useState(false);
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
@@ -106,16 +116,20 @@ export default function HoyPage() {
     try {
       const t = Date.now();
       const currentWeekStart = weekStartOf(today);
-      const [weekSessionsRes, sleepRes, readinessRes] = await Promise.all([
+      const [weekSessionsRes, sleepRes, readinessRes, summaryRes, recRes] = await Promise.all([
         fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ logs: [] })),
         fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
+        fetch(`/api/summary?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/recommendations?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
       ]);
 
       const reconciledWeek = await reconcileSessions(weekSessionsRes.sessions ?? [], currentWeekStart);
       setWeekSessions(reconciledWeek);
       setSuuntoSyncMap(weekSessionsRes.suuntoSyncMap ?? {});
       setReadiness(readinessRes.readiness ?? null);
+      if (summaryRes) setWeeklySummary(summaryRes);
+      if (recRes && typeof recRes.acwr === "number") setWeeklyAcwr(recRes.acwr);
 
       const sleepLogs: SleepRow[] = sleepRes.logs ?? sleepRes.sleepLogs ?? [];
       const reconciledSleep = await reconcileSleep(sleepLogs as never, today, today);
@@ -219,11 +233,20 @@ export default function HoyPage() {
             <button
               type="button"
               onClick={() => setImportModalOpen(true)}
-              className="btn btn-secondary btn-sm harbiz-press"
+              className="btn btn-suunto btn-sm harbiz-press hidden md:inline-flex"
               style={{ minHeight: 44 }}
             >
-              <UploadCloud size={16} style={{ color: "var(--color-brand)" }} />
-              <span>Cargar sesión</span>
+              <Watch size={16} />
+              <span>+ Importar entreno Suunto (.FIT)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportModalOpen(true)}
+              className="btn btn-suunto btn-sm harbiz-press md:hidden"
+              style={{ minHeight: 44 }}
+            >
+              <UploadCloud size={16} />
+              <span>Importar Suunto (.FIT)</span>
             </button>
             <Link
               href="/plan-semanal"
@@ -244,6 +267,19 @@ export default function HoyPage() {
             </button>
           </div>
         }
+      />
+
+      {/* 0. Estado Actual en Tiempo Real (Readiness & Forma física) */}
+      <EstadoActualCard
+        readiness={readiness}
+        acwr={weeklyAcwr}
+        weeklyKm={weeklySummary?.distanceKm ?? weekSessions.reduce((acc, s) => acc + (s.status === "realizada" ? (s.distance_km || 0) : 0), 0)}
+        weeklyTargetKm={45}
+        completedSessions={(weeklySummary?.realizadas ?? 0) + (weeklySummary?.parciales ?? 0)}
+        plannedSessions={weeklySummary?.planificadas ?? weekSessions.filter((s) => s.discipline !== "descanso").length}
+        sleepHours={sleep?.hours ?? weeklySummary?.sleepHoursAvg ?? readiness?.stats?.sleepHours ?? null}
+        sleepScore={sleep?.score ?? readiness?.stats?.sleepScore ?? null}
+        sleepQuality={sleep?.quality ?? readiness?.stats?.sleepQuality ?? null}
       />
 
       {/* 1. Calendario Semanal Deslizable (Lunes a Domingo) */}
@@ -542,12 +578,11 @@ export default function HoyPage() {
         </Link>
       </div>
 
-      {/* Modal limpio "+ Cargar sesión (.FIT / CSV)" */}
+      {/* Modal limpio "+ Importar entreno Suunto (.FIT / .GPX / .JSON / .CSV)" */}
       {importModalOpen && (
-        <Modal title="Cargar sesión o sueño" onClose={() => setImportModalOpen(false)}>
+        <Modal title="Importar entreno Suunto / Sueño" onClose={() => setImportModalOpen(false)}>
           <FileDropzone
             onSuccess={() => {
-              setImportModalOpen(false);
               load(true);
             }}
           />
