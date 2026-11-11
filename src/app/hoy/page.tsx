@@ -18,18 +18,14 @@ import {
   Zap,
   Activity,
   RefreshCw,
-  Calendar,
-  UploadCloud,
   CalendarRange,
-  Watch,
 } from "lucide-react";
 import { EstadoActualCard } from "@/components/dashboard/estado-actual-card";
+import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import { todayISO, weekStartOf, weekDates } from "@/lib/dates";
 import { reconcileSessions, reconcileSleep } from "@/lib/client-persistence";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Modal } from "@/components/ui/modal";
-import { FileDropzone } from "@/components/ui/file-dropzone";
 import { useToast } from "@/components/ui/toast";
 import { copyWorkoutToClipboard } from "@/lib/format-workout";
 import type { DailyReadiness } from "@/lib/readiness";
@@ -230,24 +226,6 @@ export default function HoyPage() {
         description={formatDateLabel(selectedDate)}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setImportModalOpen(true)}
-              className="btn btn-suunto btn-sm harbiz-press hidden md:inline-flex"
-              style={{ minHeight: 44 }}
-            >
-              <Watch size={16} />
-              <span>+ Importar entreno Suunto (.FIT)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportModalOpen(true)}
-              className="btn btn-suunto btn-sm harbiz-press md:hidden"
-              style={{ minHeight: 44 }}
-            >
-              <UploadCloud size={16} />
-              <span>Importar Suunto (.FIT)</span>
-            </button>
             <Link
               href="/plan-semanal"
               className="btn btn-secondary btn-sm harbiz-press no-underline"
@@ -469,40 +447,30 @@ export default function HoyPage() {
                   </div>
                 )}
 
-                {/* Fila Suunto + Acciones principales */}
+                {/* Botón principal: Exportar a Suunto + Acciones secundarias */}
                 <div className="space-y-3 pt-2">
-                  <div
-                    className="p-3 rounded-xl flex items-center justify-between gap-2 flex-wrap"
-                    style={{
-                      background: "var(--color-surface-raised)",
-                      border: "1px solid var(--color-border)",
-                    }}
-                  >
-                    <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
-                      Sincronización Suunto
-                    </span>
-                    <SuuntoPushButton
-                      sessionId={s.id}
-                      discipline={s.discipline}
-                      status={s.status}
-                      initialSync={suuntoSyncMap[s.id] ?? null}
-                      showFitDownload
-                    />
-                  </div>
+                  <SuuntoPushButton
+                    sessionId={s.id}
+                    discipline={s.discipline}
+                    status={s.status}
+                    initialSync={suuntoSyncMap[s.id] ?? null}
+                    primaryMode
+                    showFitDownload
+                  />
 
                   <Link
                     href="/registro"
-                    className="w-full btn btn-primary flex items-center justify-center gap-2 rounded-xl font-bold text-sm"
-                    style={{ textDecoration: "none", minHeight: 48 }}
+                    className="w-full btn btn-secondary flex items-center justify-center gap-2 rounded-xl font-semibold text-sm harbiz-press"
+                    style={{ textDecoration: "none", minHeight: 44 }}
                   >
-                    {isCompleted ? <CheckCircle2 size={18} /> : <Zap size={18} />}
-                    <span>{isCompleted ? "Ver / editar registro" : "Comenzar entreno"}</span>
+                    {isCompleted ? <CheckCircle2 size={16} style={{ color: "var(--color-success)" }} /> : <Zap size={16} style={{ color: "var(--color-brand)" }} />}
+                    <span>{isCompleted ? "Ver / editar registro" : "Registrar realización"}</span>
                   </Link>
 
                   <div className="flex items-center gap-2.5">
                     <button
                       type="button"
-                      className="btn btn-secondary text-xs flex-1"
+                      className="btn btn-ghost text-xs flex-1"
                       onClick={() => setDetailSessionId(s.id)}
                     >
                       <Activity size={15} />
@@ -510,7 +478,7 @@ export default function HoyPage() {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-secondary text-xs flex-1"
+                      className="btn btn-ghost text-xs flex-1"
                       onClick={() => copySession(s)}
                     >
                       {copiedId === s.id ? <Check size={15} style={{ color: "var(--color-success)" }} /> : <Copy size={15} />}
@@ -578,16 +546,23 @@ export default function HoyPage() {
         </Link>
       </div>
 
-      {/* Modal limpio "+ Importar entreno Suunto (.FIT / .GPX / .JSON / .CSV)" */}
-      {importModalOpen && (
-        <Modal title="Importar entreno Suunto / Sueño" onClose={() => setImportModalOpen(false)}>
-          <FileDropzone
-            onSuccess={() => {
-              load(true);
-            }}
-          />
-        </Modal>
-      )}
+      {/* Acceso discreto de Rescate Manual (Fallback) */}
+      <div className="flex justify-end pt-1">
+        <button
+          type="button"
+          onClick={() => setImportModalOpen(true)}
+          className="text-xs hover:underline cursor-pointer px-2 py-2"
+          style={{ color: "var(--color-text-muted)", minHeight: 44 }}
+        >
+          ¿Fallo de sincronización? Carga manual (.FIT / .CSV)
+        </button>
+      </div>
+
+      <FallbackManualModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => load(true)}
+      />
 
       {detailSessionId && (
         <WorkoutDetailModal

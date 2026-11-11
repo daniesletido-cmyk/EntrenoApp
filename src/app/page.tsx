@@ -11,18 +11,15 @@ import {
   Flag,
   RefreshCw,
   Activity,
-  UploadCloud,
-  Watch,
 } from "lucide-react";
 import { EstadoActualCard } from "@/components/dashboard/estado-actual-card";
+import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import type { DailyReadiness } from "@/lib/readiness";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Modal } from "@/components/ui/modal";
-import { FileDropzone } from "@/components/ui/file-dropzone";
 import { TrainingLoadChart } from "@/components/dashboard/training-load-chart";
 
 interface RecentSession {
@@ -143,35 +140,16 @@ export default function ProgresoSaludPage() {
         title="Progreso & Salud"
         description={summary?.weekStart ? `Semana del ${summary.weekStart}` : "Carga, sueño y evolución"}
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="btn btn-suunto btn-sm harbiz-press hidden md:inline-flex"
-              style={{ minHeight: 44 }}
-            >
-              <Watch size={16} />
-              <span>+ Importar entreno Suunto (.FIT)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="btn btn-suunto btn-sm harbiz-press md:hidden"
-              style={{ minHeight: 44 }}
-            >
-              <UploadCloud size={16} />
-              <span>Importar Suunto (.FIT)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => loadData(true)}
-              disabled={refreshing}
-              className="btn btn-ghost btn-icon harbiz-press hidden sm:inline-flex"
-              aria-label="Actualizar"
-            >
-              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="btn btn-secondary btn-sm harbiz-press"
+            style={{ minHeight: 44 }}
+          >
+            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
+            <span>Actualizar</span>
+          </button>
         }
       />
 
@@ -384,15 +362,22 @@ export default function ProgresoSaludPage() {
         </div>
       )}
 
-      {importOpen && (
-        <Modal title="Importar entreno Suunto / Sueño" onClose={() => setImportOpen(false)}>
-          <FileDropzone
-            onSuccess={() => {
-              loadData(true);
-            }}
-          />
-        </Modal>
-      )}
+      <div className="flex justify-end pt-1">
+        <button
+          type="button"
+          onClick={() => setImportOpen(true)}
+          className="text-xs hover:underline cursor-pointer px-2 py-2"
+          style={{ color: "var(--color-text-muted)", minHeight: 44 }}
+        >
+          ¿Fallo de sincronización? Carga manual (.FIT / .CSV)
+        </button>
+      </div>
+
+      <FallbackManualModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => loadData(true)}
+      />
     </div>
   );
 }
