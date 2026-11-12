@@ -5,6 +5,7 @@ import { parseWorkoutFile } from "@/lib/fit-import";
 import { toLocalISODate } from "@/lib/dates";
 import { upsertWorkout } from "@/lib/repo/workouts";
 import { calculateSessionLoad } from "@/lib/engine/load-calculator";
+import { isSupabaseConfigured, upsertSleepToSupabase } from "@/lib/supabase";
 
 export interface IntervalsSyncResult {
   configured: boolean;
@@ -370,6 +371,9 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
             respiratory_rate: w.respiration ?? prev?.respiratory_rate ?? undefined,
             source: prev?.source || "intervals-cloud",
           });
+          if (isSupabaseConfigured()) {
+            await upsertSleepToSupabase(saved).catch(() => {});
+          }
           latestSavedSleep = saved;
           sleepImportedCount++;
         }

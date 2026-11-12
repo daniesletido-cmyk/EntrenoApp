@@ -13,6 +13,7 @@ import {
   TrendingUp,
   ArrowRight,
   BedDouble,
+  RefreshCw,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -113,6 +114,7 @@ export default function SuenoPage() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
+  const [syncingCloud, setSyncingCloud] = useState(false);
 
   const [formData, setFormData] = useState({
     date: today,
@@ -162,6 +164,45 @@ export default function SuenoPage() {
     window.addEventListener("entrenoapp:refresh", onRefresh);
     return () => window.removeEventListener("entrenoapp:refresh", onRefresh);
   }, [loadSleepData]);
+
+  const handleSyncCloud = useCallback(async (silent = false) => {
+    try {
+      setSyncingCloud(true);
+      const res = await fetch("/api/sync/intervals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 7 }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (!silent) toast.push("error", data?.message || "No se pudo sincronizar con la nube.");
+        return;
+      }
+      await loadSleepData();
+      if (!silent) {
+        haptics.success();
+        toast.push("success", data?.message || "Sincronización completada.");
+      }
+    } catch {
+      if (!silent) toast.push("error", "Error de red al sincronizar.");
+    } finally {
+      setSyncingCloud(false);
+    }
+  }, [loadSleepData, toast]);
+
+  useEffect(() => {
+    // Auto-sincronización silenciosa en segundo plano al abrir /sueno si aún no hay registro de anoche
+    if (!loading && !logs.some((l) => l.date === today)) {
+      const key = `entrenoapp_sleep_autosync_${today}`;
+      try {
+        const last = Number(sessionStorage.getItem(key) || "0");
+        if (Date.now() - last > 5 * 60 * 1000) {
+          sessionStorage.setItem(key, String(Date.now()));
+          handleSyncCloud(true);
+        }
+      } catch {}
+    }
+  }, [loading, logs, today, handleSyncCloud]);
 
   const currentLog = useMemo(
     () => logs.find((l) => l.date === selectedDate) ?? null,
@@ -330,14 +371,25 @@ export default function SuenoPage() {
         title="Sueño & Recuperación"
         description="Análisis nocturno de fases, biometría HRV/RHR y balance semanal de descanso."
         actions={
-          <button
-            type="button"
-            onClick={() => setIsImportOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
-          >
-            <Upload size={14} />
-            <span>+ Importar CSV Zepp</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleSyncCloud(false)}
+              disabled={syncingCloud}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={syncingCloud ? "animate-spin text-red-600" : ""} />
+              <span>{syncingCloud ? "Sincronizando…" : "Sincronizar"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsImportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+            >
+              <Upload size={14} />
+              <span>+ Importar CSV Zepp</span>
+            </button>
+          </div>
         }
       />
 
@@ -387,6 +439,16 @@ export default function SuenoPage() {
               Anoche
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => handleSyncCloud(false)}
+            disabled={syncingCloud}
+            title="Sincronizar con Intervals.icu / nube"
+            className="md:hidden inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={syncingCloud ? "animate-spin text-red-600" : ""} />
+            <span className="hidden xs:inline">Sync</span>
+          </button>
           <button
             type="button"
             onClick={() => setIsImportOpen(true)}
