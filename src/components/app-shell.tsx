@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { EntrenoLogo } from "@/components/brand/entreno-logo";
 import {
   Dumbbell,
+  Moon,
   BookOpen,
   TrendingUp,
   User,
@@ -26,7 +27,7 @@ interface NavItemDef {
   aliases?: string[];
 }
 
-// Únicamente 4 secciones principales consolidadas (Arquitectura Harbiz)
+// 5 secciones principales limpias y equilibradas
 const MAIN_NAV: NavItemDef[] = [
   {
     href: "/hoy",
@@ -34,6 +35,12 @@ const MAIN_NAV: NavItemDef[] = [
     mobileLabel: "Hoy",
     icon: Dumbbell,
     aliases: ["/plan-semanal", "/calendario", "/registro", "/detalle", "/entrenos"],
+  },
+  {
+    href: "/sueno",
+    label: "Sueño & Descanso",
+    mobileLabel: "Sueño",
+    icon: Moon,
   },
   {
     href: "/marcas",
@@ -47,7 +54,7 @@ const MAIN_NAV: NavItemDef[] = [
     label: "Progreso & Salud",
     mobileLabel: "Progreso",
     icon: TrendingUp,
-    aliases: ["/progreso", "/sueno", "/informe-semanal", "/objetivos"],
+    aliases: ["/progreso", "/informe-semanal", "/objetivos"],
   },
   {
     href: "/configuracion",
@@ -283,7 +290,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Bottom Tab Bar limpia (< 768px): 4 accesos directos con iconos 24px y text-xs */}
+      {/* Bottom Tab Bar limpia (< 768px): 5 accesos directos con iconos 22px y text-[11px] */}
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{
@@ -302,7 +309,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             paddingTop: "6px",
             paddingBottom: "calc(6px + env(safe-area-inset-bottom, 0px))",
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            gridTemplateColumns: "repeat(5, 1fr)",
             alignItems: "center",
           }}
         >
@@ -315,21 +322,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 onClick={() => haptics.selection()}
                 aria-current={active ? "page" : undefined}
-                className="harbiz-press flex flex-col items-center justify-center gap-1 py-1 no-underline relative select-none"
+                className="harbiz-press flex flex-col items-center justify-center gap-1 py-1 px-0.5 min-w-0 no-underline relative select-none"
                 style={{
                   minHeight: 48,
-                  minWidth: 44,
                 }}
               >
                 <Icon
-                  size={24}
+                  size={22}
                   strokeWidth={active ? 2.2 : 1.75}
                   style={{
                     color: active ? "var(--color-brand)" : "var(--color-text-muted)",
                   }}
                 />
                 <span
-                  className="text-xs leading-none truncate max-w-full"
+                  className="text-[11px] leading-none truncate max-w-full"
                   style={{
                     color: active ? "var(--color-brand)" : "var(--color-text-muted)",
                     fontWeight: active ? 700 : 500,

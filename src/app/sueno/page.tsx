@@ -1,36 +1,24 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Moon,
-  Sun,
-  BedDouble,
   HeartPulse,
   Activity,
-  Sparkles,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Zap,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Upload,
-  Info,
-  ShieldCheck,
-  Flame,
+  Plus,
+  Clock,
+  TrendingUp,
   ArrowRight,
-  Brain,
+  BedDouble,
 } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -42,73 +30,124 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { todayISO, addDays, weekDates } from "@/lib/dates";
+import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
+import { todayISO, addDays } from "@/lib/dates";
 import { reconcileSleep, saveLocalSleep } from "@/lib/client-persistence";
 import { haptics } from "@/lib/haptics";
 import type { SleepRow } from "@/lib/repo/sleep";
 
-const STAGE_COLORS = {
-  deep: { bg: "#3b82f6", text: "text-blue-400", label: "Profundo (NREM 3)", desc: "Regeneración muscular, secreción de GH y reparación celular profunda" },
-  rem: { bg: "#a855f7", text: "text-purple-400", label: "REM (Mov. Rápido)", desc: "Consolidación motriz, técnica de carrera y salud cognitiva" },
-  light: { bg: "#10b981", text: "text-emerald-400", label: "Ligero (NREM 1-2)", desc: "Transición somática y recuperación metabólica basal" },
-  awake: { bg: "#f97316", text: "text-amber-400", label: "Despierto / Microdespertares", desc: "Interrupciones del descanso nocturno" },
-};
+const SLEEP_TARGET_HOURS = 8.0;
+
+function formatDurationHM(totalMinutes: number | null | undefined): string {
+  if (totalMinutes == null || isNaN(totalMinutes) || totalMinutes <= 0) return "0m";
+  const mins = Math.round(totalMinutes);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h <= 0) return `${m}m`;
+  return `${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+function formatHoursHM(hours: number | null | undefined): string {
+  if (hours == null || isNaN(hours) || hours <= 0) return "0h 00m";
+  return formatDurationHM(Math.round(hours * 60));
+}
+
+function formatSignedMinutes(deltaMin: number): string {
+  const sign = deltaMin >= 0 ? "+" : "-";
+  return `${sign}${formatDurationHM(Math.abs(Math.round(deltaMin)))}`;
+}
+
+function formatNightLabel(isoDate: string, today: string): string {
+  const yesterday = addDays(today, -1);
+  try {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    const short = new Intl.DateTimeFormat("es-ES", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(dt);
+    if (isoDate === today) return `Anoche · ${short}`;
+    if (isoDate === yesterday) return `Ayer · ${short}`;
+    return short.charAt(0).toUpperCase() + short.slice(1);
+  } catch {
+    return isoDate;
+  }
+}
+
+function getRecoveryVerdict(score: number, hours: number): {
+  label: string;
+  badgeClass: string;
+} {
+  if (score >= 82 && hours >= 7.2) {
+    return {
+      label: "Recuperación óptima · Listo para carga alta",
+      badgeClass: "bg-emerald-50 border-emerald-200 text-emerald-800",
+    };
+  }
+  if (score >= 68 && hours >= 6.5) {
+    return {
+      label: "Recuperación sólida · Carga moderada/alta",
+      badgeClass: "bg-zinc-100 border-zinc-200 text-zinc-800",
+    };
+  }
+  if (score >= 52 || hours >= 5.5) {
+    return {
+      label: "Descanso justo · Moderar intensidad",
+      badgeClass: "bg-amber-50 border-amber-200 text-amber-800",
+    };
+  }
+  return {
+    label: "Déficit de descanso · Priorizar descarga",
+    badgeClass: "bg-red-50 border-red-200 text-red-700",
+  };
+}
 
 export default function SuenoPage() {
   const toast = useToast();
-  const [selectedDate, setSelectedDate] = useState<string>(todayISO());
+  const today = todayISO();
+  const [selectedDate, setSelectedDate] = useState<string>(today);
   const [logs, setLogs] = useState<SleepRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [historyDays, setHistoryDays] = useState<7 | 14 | 30>(14);
 
-  // Modal para registro / edición manual
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
+  const [savingManual, setSavingManual] = useState(false);
+
   const [formData, setFormData] = useState({
-    date: todayISO(),
+    date: today,
     hours: "7.5",
-    quality: "4",
-    deep_min: "105",
+    score: "82",
+    deep_min: "95",
     rem_min: "110",
-    light_min: "215",
-    awake_min: "20",
-    score: "85",
-    nap_min: "0",
-    nap_notes: "",
-    hrv_rmssd: "74",
-    resting_hr: "50",
-    respiratory_rate: "14.2",
-    efficiency: "92",
-    sleep_start: "23:30",
+    light_min: "230",
+    awake_min: "15",
+    hrv_rmssd: "58",
+    resting_hr: "58",
+    sleep_start: "23:45",
     sleep_end: "07:15",
-    latency_min: "12",
-    notes: "",
   });
 
-  // Carga de registros de sueño
-  const loadSleepData = async () => {
+  const loadSleepData = useCallback(async () => {
     try {
       setLoading(true);
       const from = addDays(todayISO(), -35);
-      const to = addDays(todayISO(), 3);
+      const to = addDays(todayISO(), 2);
       const res = await fetch(`/api/sleep?from=${from}&to=${to}`).catch(() => null);
       let serverLogs: SleepRow[] = [];
       if (res && res.ok) {
         const data = await res.json();
         serverLogs = data.logs || [];
       }
-      // Reconciliación con persistencia blindada en IndexedDB
       const merged = await reconcileSleep(serverLogs, from, to);
       setLogs(merged);
-    } catch (e) {
-      console.error(e);
-      // Fallback a IndexedDB local en caso de error
-      const local = await reconcileSleep([], addDays(todayISO(), -35), addDays(todayISO(), 3));
+    } catch {
+      const local = await reconcileSleep([], addDays(todayISO(), -35), addDays(todayISO(), 2));
       setLogs(local);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     try {
@@ -119,833 +158,629 @@ export default function SuenoPage() {
       }
     } catch {}
     loadSleepData();
-  }, []);
+    const onRefresh = () => loadSleepData();
+    window.addEventListener("entrenoapp:refresh", onRefresh);
+    return () => window.removeEventListener("entrenoapp:refresh", onRefresh);
+  }, [loadSleepData]);
 
-  // Registro del día seleccionado
-  const currentLog = useMemo(() => {
-    return logs.find((l) => l.date === selectedDate) || null;
-  }, [logs, selectedDate]);
+  const currentLog = useMemo(
+    () => logs.find((l) => l.date === selectedDate) ?? null,
+    [logs, selectedDate]
+  );
 
-  // Si no hay datos registrados para la fecha, creamos una simulación/estimación fisiológica
-  const activeData = useMemo(() => {
-    if (currentLog) {
-      const hours = currentLog.hours ?? 7.5;
-      const deep = currentLog.deep_min ?? Math.round(hours * 60 * 0.22);
-      const rem = currentLog.rem_min ?? Math.round(hours * 60 * 0.24);
-      const awake = currentLog.awake_min ?? Math.round(hours * 60 * 0.05);
-      const light = currentLog.light_min ?? Math.max(0, Math.round(hours * 60 - deep - rem - awake));
-      const score = currentLog.score ?? Math.min(100, Math.round(hours * 11 + (currentLog.quality ?? 4) * 3));
-      const efficiency = currentLog.efficiency ?? Math.min(98, Math.round(((hours * 60 - awake) / (hours * 60 || 1)) * 100));
-      const hrv = currentLog.hrv_rmssd ?? 74;
-      const rhr = currentLog.resting_hr ?? 51;
-      const resp = currentLog.respiratory_rate ?? 14.3;
+  const latestAvailableLog = useMemo(() => {
+    const valid = logs.filter((l) => l.hours != null && l.hours > 0);
+    if (valid.length === 0) return null;
+    return valid.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+  }, [logs]);
 
-      return {
-        hours,
-        quality: currentLog.quality ?? 4,
-        score,
-        deep_min: deep,
-        rem_min: rem,
-        light_min: light,
-        awake_min: awake,
-        nap_min: currentLog.nap_min ?? 0,
-        nap_notes: currentLog.nap_notes ?? "",
-        nap_count: currentLog.nap_count ?? 0,
-        hrv,
-        rhr,
-        respiratory_rate: resp,
-        efficiency,
-        sleep_start: currentLog.sleep_start || "23:30",
-        sleep_end: currentLog.sleep_end || "07:15",
-        latency_min: currentLog.latency_min ?? 12,
-        notes: currentLog.notes || "",
-        source: currentLog.source || "manual",
-        isReal: true,
-      };
-    }
+  // Métricas calculadas de la noche seleccionada (solo cuando existen datos reales)
+  const nightView = useMemo(() => {
+    if (!currentLog) return null;
+    const hours = Number(currentLog.hours ?? 0);
+    const totalMin = Math.round(hours * 60);
+    const deep = currentLog.deep_min ?? 0;
+    const rem = currentLog.rem_min ?? 0;
+    const light = currentLog.light_min ?? 0;
+    const awake = currentLog.awake_min ?? 0;
+    const hasStages = deep + rem + light > 0;
 
-    // Datos por defecto basados en el perfil atlético de Dani
+    const stageSum = deep + rem + light + awake;
+    const baseTotal = stageSum > 0 ? stageSum : totalMin || 1;
+    const pct = (val: number) => Math.round((val / baseTotal) * 100);
+
+    const score =
+      currentLog.score ??
+      Math.max(30, Math.min(100, Math.round((hours / SLEEP_TARGET_HOURS) * 85 + (currentLog.quality ?? 3) * 3)));
+
     return {
-      hours: 7.6,
-      quality: 4,
-      score: 84,
-      deep_min: 105,
-      rem_min: 112,
-      light_min: 220,
-      awake_min: 19,
-      nap_min: 0,
-      nap_notes: "",
-      nap_count: 0,
-      hrv: 74,
-      rhr: 52,
-      respiratory_rate: 14.2,
-      efficiency: 93,
-      sleep_start: "23:30",
-      sleep_end: "07:15",
-      latency_min: 14,
-      notes: "Sueño reparador. Nivel de activación parasimpática alto.",
-      source: "estimado",
-      isReal: false,
+      hours,
+      totalMin,
+      score,
+      deep,
+      rem,
+      light,
+      awake,
+      hasStages,
+      deepPct: pct(deep),
+      remPct: pct(rem),
+      lightPct: pct(light),
+      awakePct: pct(awake),
+      rhr: currentLog.resting_hr ?? null,
+      hrv: currentLog.hrv_rmssd ?? null,
+      sleepStart: currentLog.sleep_start || null,
+      sleepEnd: currentLog.sleep_end || null,
+      verdict: getRecoveryVerdict(score, hours),
     };
   }, [currentLog]);
 
-  // Cálculos de porcentajes de fases
-  const totalStageMinutes = activeData.deep_min + activeData.rem_min + activeData.light_min + activeData.awake_min;
-  const safeTotal = totalStageMinutes > 0 ? totalStageMinutes : activeData.hours * 60;
-  const deepPct = Math.round((activeData.deep_min / safeTotal) * 100);
-  const remPct = Math.round((activeData.rem_min / safeTotal) * 100);
-  const lightPct = Math.round((activeData.light_min / safeTotal) * 100);
-  const awakePct = Math.max(0, 100 - deepPct - remPct - lightPct);
-
-  // Deuda de sueño acumulada últimos 7 días frente al objetivo de 8.0h
-  const sleepDebt7d = useMemo(() => {
-    let debt = 0;
-    const targetDaily = 8.0;
-    for (let i = 0; i < 7; i++) {
+  // Comparativa 7d y deuda de sueño acumulada (últimos 7 días hasta selectedDate)
+  const weeklyStats = useMemo(() => {
+    const days: Array<{ date: string; dayLabel: string; hours: number; isSelected: boolean }> = [];
+    for (let i = 6; i >= 0; i--) {
       const d = addDays(selectedDate, -i);
-      const log = logs.find((l) => l.date === d);
-      const h = log?.hours ?? 7.5;
-      const nap = (log?.nap_min ?? 0) / 60;
-      debt += targetDaily - (h + nap);
-    }
-    return Number(debt.toFixed(1));
-  }, [logs, selectedDate]);
-
-  // Historial para los gráficos
-  const chartData = useMemo(() => {
-    const list = [];
-    for (let i = historyDays - 1; i >= 0; i--) {
-      const d = addDays(selectedDate, -i);
-      const log = logs.find((l) => l.date === d);
-      const dayLabel = d.slice(8, 10) + "/" + d.slice(5, 7);
-      const h = log?.hours ?? (7.2 + (i % 3) * 0.3);
-      const score = log?.score ?? Math.round(75 + (i % 4) * 5);
-      const hrv = log?.hrv_rmssd ?? (70 + (i % 5) * 2);
-      const rhr = log?.resting_hr ?? (50 + (i % 3));
-      list.push({
+      const found = logs.find((l) => l.date === d);
+      const [yy, mm, dd] = d.split("-").map(Number);
+      const dt = new Date(yy, mm - 1, dd);
+      const dayLabel = new Intl.DateTimeFormat("es-ES", { weekday: "narrow" })
+        .format(dt)
+        .toUpperCase();
+      days.push({
         date: d,
-        label: dayLabel,
-        hours: Number(h.toFixed(1)),
-        score,
-        hrv,
-        rhr,
+        dayLabel,
+        hours: found?.hours != null ? Number(found.hours.toFixed(2)) : 0,
+        isSelected: d === selectedDate,
       });
     }
-    return list;
-  }, [logs, selectedDate, historyDays]);
 
-  // Guardar datos en modal con validaciones y doble persistencia
-  const handleSaveModal = async (e: React.FormEvent) => {
+    const recordedDays = days.filter((d) => d.hours > 0);
+    const avgHours =
+      recordedDays.length > 0
+        ? recordedDays.reduce((acc, d) => acc + d.hours, 0) / recordedDays.length
+        : null;
+
+    // Deuda de sueño sobre los días con registro de la semana (o saldo de la noche frente a 8h)
+    const debtMinutes =
+      recordedDays.length > 0
+        ? Math.round(
+            recordedDays.reduce((acc, d) => acc + (d.hours - SLEEP_TARGET_HOURS) * 60, 0)
+          )
+        : null;
+
+    const consistencyDeltaMin =
+      nightView && avgHours != null ? Math.round((nightView.hours - avgHours) * 60) : null;
+
+    return {
+      days,
+      avgHours,
+      debtMinutes,
+      consistencyDeltaMin,
+    };
+  }, [logs, selectedDate, nightView]);
+
+  const openManualModal = () => {
+    setFormData({
+      date: selectedDate,
+      hours: currentLog?.hours != null ? String(currentLog.hours) : "7.5",
+      score: currentLog?.score != null ? String(currentLog.score) : "82",
+      deep_min: currentLog?.deep_min != null ? String(currentLog.deep_min) : "95",
+      rem_min: currentLog?.rem_min != null ? String(currentLog.rem_min) : "110",
+      light_min: currentLog?.light_min != null ? String(currentLog.light_min) : "230",
+      awake_min: currentLog?.awake_min != null ? String(currentLog.awake_min) : "15",
+      hrv_rmssd: currentLog?.hrv_rmssd != null ? String(currentLog.hrv_rmssd) : "58",
+      resting_hr: currentLog?.resting_hr != null ? String(currentLog.resting_hr) : "58",
+      sleep_start: currentLog?.sleep_start || "23:45",
+      sleep_end: currentLog?.sleep_end || "07:15",
+    });
+    setIsManualOpen(true);
+  };
+
+  async function handleSaveManual(e: React.FormEvent) {
     e.preventDefault();
+    setSavingManual(true);
     try {
-      const hoursNum = parseFloat(formData.hours);
-      if (isNaN(hoursNum) || hoursNum < 0 || hoursNum > 24) {
-        toast.push("error", "Las horas de sueño deben ser un número válido entre 0 y 24");
-        return;
-      }
-
-      const qualityNum = parseInt(formData.quality, 10);
-      if (isNaN(qualityNum) || qualityNum < 1 || qualityNum > 5) {
-        toast.push("error", "La calidad debe estar entre 1 y 5 estrellas");
-        return;
-      }
-
-      const deepNum = parseFloat(formData.deep_min) || 0;
-      const remNum = parseFloat(formData.rem_min) || 0;
-      const lightNum = parseFloat(formData.light_min) || 0;
-      const awakeNum = parseFloat(formData.awake_min) || 0;
-      const napNum = parseFloat(formData.nap_min) || 0;
-      const scoreNum = parseInt(formData.score, 10) || Math.min(100, Math.round(hoursNum * 11 + qualityNum * 3));
-
-      if (scoreNum < 0 || scoreNum > 100) {
-        toast.push("error", "La puntuación de sueño debe estar entre 0 y 100");
-        return;
-      }
-
       const payload = {
         date: formData.date,
-        hours: hoursNum,
-        quality: qualityNum,
-        score: scoreNum,
-        deep_min: deepNum,
-        rem_min: remNum,
-        light_min: lightNum,
-        awake_min: awakeNum,
-        nap_min: napNum,
-        nap_count: napNum > 0 ? 1 : 0,
-        nap_notes: formData.nap_notes,
-        hrv_rmssd: parseFloat(formData.hrv_rmssd) || 74,
-        resting_hr: parseFloat(formData.resting_hr) || 51,
-        respiratory_rate: parseFloat(formData.respiratory_rate) || 14.2,
-        efficiency: parseFloat(formData.efficiency) || 92,
-        sleep_start: formData.sleep_start,
-        sleep_end: formData.sleep_end,
-        latency_min: parseFloat(formData.latency_min) || 12,
-        notes: formData.notes,
+        hours: Number(formData.hours),
+        score: Number(formData.score),
+        quality: Math.max(1, Math.min(5, Math.round(Number(formData.score) / 20))),
+        deep_min: Number(formData.deep_min) || 0,
+        rem_min: Number(formData.rem_min) || 0,
+        light_min: Number(formData.light_min) || 0,
+        awake_min: Number(formData.awake_min) || 0,
+        hrv_rmssd: formData.hrv_rmssd ? Number(formData.hrv_rmssd) : null,
+        resting_hr: formData.resting_hr ? Number(formData.resting_hr) : null,
+        sleep_start: formData.sleep_start || null,
+        sleep_end: formData.sleep_end || null,
         source: "manual",
       };
 
-      // 1. Guardar de inmediato en IndexedDB del navegador (blindaje contra recargas o reinicios)
-      await saveLocalSleep(payload as unknown as SleepRow);
-
-      // 2. Enviar a la API del servidor (SQLite + Supabase)
       const res = await fetch("/api/sleep", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error guardando registro");
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Fallo al guardar en el servidor");
+      if (data.log) {
+        await saveLocalSleep(data.log).catch(() => {});
       }
-
-      toast.push("success", "Registro de sueño guardado con éxito (en la nube y en tu dispositivo)");
-      setIsModalOpen(false);
+      toast.push("success", "Noche guardada correctamente");
+      setIsManualOpen(false);
+      setSelectedDate(formData.date);
       await loadSleepData();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Error guardando sueño";
-      toast.push("error", message);
+    } catch (err) {
+      toast.push("error", err instanceof Error ? err.message : "No se pudo guardar");
+    } finally {
+      setSavingManual(false);
     }
-  };
+  }
 
-  // Abrir modal con datos existentes
-  const openEditModal = () => {
-    haptics.medium();
-    setFormData({
-      date: selectedDate,
-      hours: String(activeData.hours),
-      quality: String(activeData.quality),
-      deep_min: String(activeData.deep_min),
-      rem_min: String(activeData.rem_min),
-      light_min: String(activeData.light_min),
-      awake_min: String(activeData.awake_min),
-      score: String(activeData.score),
-      nap_min: String(activeData.nap_min),
-      nap_notes: activeData.nap_notes,
-      hrv_rmssd: String(activeData.hrv),
-      resting_hr: String(activeData.rhr),
-      respiratory_rate: String(activeData.respiratory_rate),
-      efficiency: String(activeData.efficiency),
-      sleep_start: activeData.sleep_start,
-      sleep_end: activeData.sleep_end,
-      latency_min: String(activeData.latency_min),
-      notes: activeData.notes,
-    });
-    setIsModalOpen(true);
-  };
-
-  // Puntuación color
-  const scoreColor =
-    activeData.score >= 85
-      ? "#30d158"
-      : activeData.score >= 70
-      ? "#0a84ff"
-      : activeData.score >= 55
-      ? "#ff9f0a"
-      : "#ff453a";
-
-  const scoreVerdict =
-    activeData.score >= 85
-      ? "Excelente Recuperación · Asimilación Óptima"
-      : activeData.score >= 70
-      ? "Descanso Adecuado · Listo para Entrenar"
-      : activeData.score >= 55
-      ? "Recuperación Parcial · Modera Intensidad"
-      : "Fatiga Acumulada · Prioriza Regenerativo";
+  // Geometría del anillo limpio de puntuación (0-100)
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeOffset = nightView
+    ? circumference - (Math.max(0, Math.min(100, nightView.score)) / 100) * circumference
+    : circumference;
 
   return (
-    <div className="space-y-6 pb-20 max-w-5xl mx-auto px-3 sm:px-4 pt-2">
-      {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
-              <Moon size={22} />
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden flex flex-col gap-3 sm:gap-4">
+      <PageHeader
+        title="Sueño & Recuperación"
+        description="Análisis nocturno de fases, biometría HRV/RHR y balance semanal de descanso."
+        actions={
+          <button
+            type="button"
+            onClick={() => setIsImportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+          >
+            <Upload size={14} />
+            <span>+ Importar CSV Zepp</span>
+          </button>
+        }
+      />
+
+      {/* 1. SELECTOR COMPACTO DE FECHA / NOCHE + ACCESO DISCRETO ZEPP EN MÓVIL */}
+      <div className="bg-white border border-zinc-200 rounded-2xl p-2.5 sm:p-3 shadow-xs flex items-center justify-between gap-2 min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              haptics.light();
+              setSelectedDate((d) => addDays(d, -1));
+            }}
+            aria-label="Noche anterior"
+            className="w-9 h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 flex items-center justify-center text-zinc-700 shrink-0 cursor-pointer"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          <div className="px-2 min-w-0 flex items-center gap-1.5">
+            <Moon size={14} className="text-red-600 shrink-0" />
+            <span className="text-xs sm:text-sm font-bold text-zinc-900 truncate">
+              {formatNightLabel(selectedDate, today)}
             </span>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-                Sueño & Recuperación Biológica
-              </h1>
-              <p className="text-xs sm:text-sm text-muted">
-                Fases del descanso nocturno, telemetría autonómica (HRV) y regeneración celular
-              </p>
-            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              haptics.light();
+              if (selectedDate < today) setSelectedDate((d) => addDays(d, 1));
+            }}
+            disabled={selectedDate >= today}
+            aria-label="Noche siguiente"
+            className="w-9 h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 flex items-center justify-center text-zinc-700 shrink-0 disabled:opacity-40 cursor-pointer"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
 
-        {/* Acciones principales */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            onClick={openEditModal}
-            className="flex items-center gap-1.5 text-xs font-semibold"
+        <div className="flex items-center gap-1.5 shrink-0">
+          {selectedDate !== today && (
+            <button
+              type="button"
+              onClick={() => setSelectedDate(today)}
+              className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 cursor-pointer"
+            >
+              Anoche
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsImportOpen(true)}
+            className="md:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 cursor-pointer"
           >
-            <Plus size={15} className="text-indigo-400" />
-            <span>Registrar / Editar</span>
-          </Button>
-          <Link href="/registro#zepp">
-            <Button
-              variant="secondary"
-              className="flex items-center gap-1.5 text-xs font-semibold border-indigo-500/30 text-indigo-300"
+            <Upload size={12} />
+            <span>+ CSV Zepp</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ESTADO CARGANDO */}
+      {loading && logs.length === 0 ? (
+        <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs flex items-center justify-center gap-2 text-xs text-zinc-500">
+          <div className="spinner" />
+          <span>Cargando registros de sueño…</span>
+        </div>
+      ) : !nightView ? (
+        /* ESTADO VACÍO LIMPIO SI NO HAY DATOS PARA LA FECHA */
+        <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-xs text-center flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500">
+            <BedDouble size={22} />
+          </div>
+          <div className="space-y-1 max-w-sm">
+            <h2 className="text-sm sm:text-base font-bold text-zinc-900">
+              Sin registro de sueño para esta fecha
+            </h2>
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              Sincroniza ZeppBridge en tu PC o importa directamente un archivo CSV/JSON exportado desde Zepp.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto pt-1">
+            <button
+              type="button"
+              onClick={() => setIsImportOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer"
             >
               <Upload size={14} />
-              <span>Importar Zepp / FIT</span>
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Selector de Fecha Estilo Calendario */}
-      <div className="surface p-3 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 shadow-xs">
-        <button
-          onClick={() => setSelectedDate(addDays(selectedDate, -1))}
-          className="p-2 rounded-xl hover:bg-white/5 text-muted hover:text-foreground transition-colors"
-          title="Día anterior"
-        >
-          <ChevronLeft size={18} />
-        </button>
-
-        <div className="flex items-center gap-2 text-center">
-          <Calendar size={16} className="text-indigo-400 hidden sm:inline" />
-          <span className="text-sm font-bold text-foreground">
-            {selectedDate === todayISO()
-              ? "Noche de Hoy / Amanecer"
-              : selectedDate === addDays(todayISO(), -1)
-              ? "Noche de Ayer"
-              : `Noche del ${selectedDate.split("-").reverse().join("/")}`}
-          </span>
-          {!activeData.isReal && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              Estimación Basal
-            </span>
+              <span>+ Importar CSV Zepp</span>
+            </button>
+            <button
+              type="button"
+              onClick={openManualModal}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Registrar manual</span>
+            </button>
+          </div>
+          {latestAvailableLog && latestAvailableLog.date !== selectedDate && (
+            <button
+              type="button"
+              onClick={() => setSelectedDate(latestAvailableLog.date)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 pt-1 cursor-pointer"
+            >
+              <span>Ver última noche registrada ({latestAvailableLog.date})</span>
+              <ArrowRight size={13} />
+            </button>
           )}
         </div>
-
-        <button
-          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-          disabled={selectedDate >= todayISO()}
-          className="p-2 rounded-xl hover:bg-white/5 text-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
-          title="Día siguiente"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* 1. HERO CARD: Puntuación de Sueño & Anillo de Asimilación */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-slate-800 relative overflow-hidden bg-gradient-to-br from-slate-900/90 via-[#0B1120] to-[#0A0E1A] shadow-lg">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-          {/* Anillo de puntuación */}
-          <div className="md:col-span-5 flex flex-col items-center justify-center text-center">
-            <div className="relative w-40 h-40 sm:w-44 sm:h-44 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  className="stroke-slate-800"
-                  strokeWidth="10"
-                  fill="transparent"
-                />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  stroke={scoreColor}
-                  strokeWidth="10"
-                  fill="transparent"
-                  strokeDasharray={2 * Math.PI * 50}
-                  strokeDashoffset={2 * Math.PI * 50 * (1 - activeData.score / 100)}
-                  strokeLinecap="round"
-                  className="transition-all duration-1000 ease-out"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-4xl sm:text-5xl font-black tracking-tight text-foreground font-mono">
-                  {activeData.score}
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted mt-0.5">
-                  Sleep Score
-                </span>
+      ) : (
+        <>
+          {/* 2. TARJETA PRINCIPAL: RESUMEN DE LA NOCHE Y PUNTUACIÓN */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs flex flex-col gap-3 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              {/* Anillo de puntuación */}
+              <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+                <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r={radius}
+                    fill="none"
+                    stroke="#F4F4F5"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r={radius}
+                    fill="none"
+                    stroke={nightView.score >= 70 ? "#18181B" : "#DC2626"}
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeOffset}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl font-extrabold text-zinc-900 leading-none tabular-nums">
+                    {nightView.score}
+                  </span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400 mt-0.5">
+                    Score
+                  </span>
+                </div>
               </div>
+
+              {/* Dato central + horario */}
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  Tiempo total dormido
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight tabular-nums mt-0.5">
+                  {formatHoursHM(nightView.hours)}
+                </div>
+                {(nightView.sleepStart || nightView.sleepEnd) && (
+                  <div className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600 mt-1">
+                    <Clock size={12} className="text-zinc-400 shrink-0" />
+                    <span className="tabular-nums">
+                      {nightView.sleepStart || "—"} → {nightView.sleepEnd || "—"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Edición rápida discreta */}
+              <button
+                type="button"
+                onClick={openManualModal}
+                className="self-start px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 shrink-0 cursor-pointer"
+              >
+                Editar
+              </button>
             </div>
 
-            <div className="mt-3">
-              <div
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border"
-                style={{
-                  backgroundColor: `${scoreColor}15`,
-                  borderColor: `${scoreColor}40`,
-                  color: scoreColor,
-                }}
-              >
-                <Sparkles size={13} />
-                <span>{scoreVerdict}</span>
-              </div>
+            {/* Badge de estado de recuperación */}
+            <div
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 ${nightView.verdict.badgeClass}`}
+            >
+              <span>{nightView.verdict.label}</span>
+              <span className="text-[11px] opacity-80 shrink-0 tabular-nums">
+                Obj: 8h 00m
+              </span>
             </div>
           </div>
 
-          {/* Métricas clave en rejilla */}
-          <div className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="text-[10px] font-bold uppercase text-muted tracking-wider flex items-center gap-1">
-                <BedDouble size={12} className="text-indigo-400" />
-                <span>Tiempo Total</span>
+          {/* 3. DESGLOSE DE FASES DEL SUEÑO */}
+          <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs flex flex-col gap-3 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-xs sm:text-sm font-bold text-zinc-900 uppercase tracking-wide">
+                Fases del Sueño
+              </h2>
+              <span className="text-[11px] font-medium text-zinc-500">
+                {nightView.hasStages ? "Reparto nocturno" : "Sin desglose detallado"}
+              </span>
+            </div>
+
+            {nightView.hasStages ? (
+              <>
+                <div className="h-3.5 w-full rounded-full overflow-hidden flex bg-zinc-100">
+                  {nightView.deepPct > 0 && (
+                    <div
+                      style={{ width: `${nightView.deepPct}%`, backgroundColor: "#DC2626" }}
+                      title={`Profundo ${nightView.deepPct}%`}
+                    />
+                  )}
+                  {nightView.remPct > 0 && (
+                    <div
+                      style={{ width: `${nightView.remPct}%`, backgroundColor: "#52525B" }}
+                      title={`REM ${nightView.remPct}%`}
+                    />
+                  )}
+                  {nightView.lightPct > 0 && (
+                    <div
+                      style={{ width: `${nightView.lightPct}%`, backgroundColor: "#A1A1AA" }}
+                      title={`Ligero ${nightView.lightPct}%`}
+                    />
+                  )}
+                  {nightView.awakePct > 0 && (
+                    <div
+                      style={{ width: `${nightView.awakePct}%`, backgroundColor: "#E4E4E7" }}
+                      title={`Despierto ${nightView.awakePct}%`}
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      label: "Profundo",
+                      min: nightView.deep,
+                      pct: nightView.deepPct,
+                      color: "#DC2626",
+                    },
+                    {
+                      label: "REM",
+                      min: nightView.rem,
+                      pct: nightView.remPct,
+                      color: "#52525B",
+                    },
+                    {
+                      label: "Ligero",
+                      min: nightView.light,
+                      pct: nightView.lightPct,
+                      color: "#A1A1AA",
+                    },
+                    {
+                      label: "Despierto",
+                      min: nightView.awake,
+                      pct: nightView.awakePct,
+                      color: "#E4E4E7",
+                    },
+                  ].map((st) => (
+                    <div
+                      key={st.label}
+                      className="min-w-0 p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center gap-2"
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
+                        style={{ backgroundColor: st.color }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-semibold text-zinc-500 truncate">
+                          {st.label}
+                        </div>
+                        <div className="text-xs font-bold text-zinc-900 tabular-nums truncate">
+                          {formatDurationHM(st.min)} · {st.pct}%
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-zinc-500">
+                Este registro no incluye minutos por fase (Profundo/REM/Ligero). Puedes editar la noche o importar el CSV completo de Zepp.
+              </p>
+            )}
+          </div>
+
+          {/* 4. BIOMETRÍA NOCTURNA (2x2 COMPACTO 390px) */}
+          <div className="grid grid-cols-2 gap-2.5 min-w-0">
+            <div className="bg-white border border-zinc-200 rounded-2xl p-3.5 shadow-xs min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
+                <HeartPulse size={13} className="text-red-600 shrink-0" />
+                <span className="truncate">FC en Reposo</span>
               </div>
-              <div className="text-xl font-black text-foreground font-mono mt-1">
-                {Math.floor(activeData.hours)}h {Math.round((activeData.hours % 1) * 60)}m
+              <div className="text-lg font-extrabold text-zinc-900 tabular-nums mt-1">
+                {nightView.rhr != null ? `${nightView.rhr} lpm` : "—"}
               </div>
-              <div className="text-[11px] text-emerald-400 font-semibold mt-0.5">
-                {activeData.hours >= 8.0 ? "+100% Objetivo" : `${Math.round((activeData.hours / 8.0) * 100)}% de 8.0h`}
+              <div className="text-[11px] text-zinc-500 truncate">Mínima nocturna</div>
+            </div>
+
+            <div className="bg-white border border-zinc-200 rounded-2xl p-3.5 shadow-xs min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
+                <Activity size={13} className="text-zinc-700 shrink-0" />
+                <span className="truncate">HRV / VFC</span>
+              </div>
+              <div className="text-lg font-extrabold text-zinc-900 tabular-nums mt-1">
+                {nightView.hrv != null ? `${nightView.hrv} ms` : "—"}
+              </div>
+              <div className="text-[11px] text-zinc-500 truncate">Sistema nervioso</div>
+            </div>
+
+            <div className="bg-white border border-zinc-200 rounded-2xl p-3.5 shadow-xs min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
+                <TrendingUp size={13} className="text-zinc-700 shrink-0" />
+                <span className="truncate">Regularidad</span>
+              </div>
+              <div className="text-lg font-extrabold text-zinc-900 tabular-nums mt-1 truncate">
+                {weeklyStats.consistencyDeltaMin != null
+                  ? formatSignedMinutes(weeklyStats.consistencyDeltaMin)
+                  : "—"}
+              </div>
+              <div className="text-[11px] text-zinc-500 truncate">
+                vs media 7d ({weeklyStats.avgHours ? formatHoursHM(weeklyStats.avgHours) : "—"})
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="text-[10px] font-bold uppercase text-muted tracking-wider flex items-center gap-1">
-                <Zap size={12} className="text-emerald-400" />
-                <span>Eficiencia</span>
-              </div>
-              <div className="text-xl font-black text-foreground font-mono mt-1">
-                {activeData.efficiency}%
-              </div>
-              <div className="text-[11px] text-muted font-medium mt-0.5">
-                {activeData.efficiency >= 90 ? "Descanso sólido" : "Fragmentado"}
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="text-[10px] font-bold uppercase text-muted tracking-wider flex items-center gap-1">
-                <HeartPulse size={12} className="text-rose-400" />
-                <span>HRV Basal</span>
-              </div>
-              <div className="text-xl font-black text-foreground font-mono mt-1">
-                {activeData.hrv} <span className="text-xs font-normal text-muted">ms</span>
-              </div>
-              <div className="text-[11px] text-emerald-400 font-semibold mt-0.5">
-                +8% vs Basal 30d
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="text-[10px] font-bold uppercase text-muted tracking-wider flex items-center gap-1">
-                <Activity size={12} className="text-sky-400" />
-                <span>FC Reposo</span>
-              </div>
-              <div className="text-xl font-black text-foreground font-mono mt-1">
-                {activeData.rhr} <span className="text-xs font-normal text-muted">lpm</span>
-              </div>
-              <div className="text-[11px] text-sky-400 font-semibold mt-0.5">
-                Caída nocturna 14%
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="text-[10px] font-bold uppercase text-muted tracking-wider flex items-center gap-1">
-                <Clock size={12} className="text-amber-400" />
-                <span>Horario Cama</span>
-              </div>
-              <div className="text-sm font-bold text-foreground font-mono mt-1.5">
-                {activeData.sleep_start} → {activeData.sleep_end}
-              </div>
-              <div className="text-[11px] text-muted font-medium mt-0.5">
-                Latencia: {activeData.latency_min}m
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="text-[10px] font-bold uppercase text-muted tracking-wider flex items-center gap-1">
-                <TrendingUp size={12} className="text-purple-400" />
-                <span>Deuda 7 días</span>
+            <div className="bg-white border border-zinc-200 rounded-2xl p-3.5 shadow-xs min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
+                <Moon size={13} className="text-zinc-700 shrink-0" />
+                <span className="truncate">Deuda de Sueño</span>
               </div>
               <div
-                className={`text-xl font-black font-mono mt-1 ${
-                  sleepDebt7d <= 0.5 ? "text-emerald-400" : sleepDebt7d <= 2 ? "text-amber-400" : "text-rose-400"
+                className={`text-lg font-extrabold tabular-nums mt-1 truncate ${
+                  weeklyStats.debtMinutes != null && weeklyStats.debtMinutes < -60
+                    ? "text-red-600"
+                    : "text-zinc-900"
                 }`}
               >
-                {sleepDebt7d > 0 ? `-${sleepDebt7d}h` : "+0h Al día"}
+                {weeklyStats.debtMinutes != null
+                  ? formatSignedMinutes(weeklyStats.debtMinutes)
+                  : "—"}
               </div>
-              <div className="text-[11px] text-muted font-medium mt-0.5">
-                {sleepDebt7d <= 1 ? "Saldo excelente" : "Recuperar con siesta"}
-              </div>
+              <div className="text-[11px] text-zinc-500 truncate">Saldo 7d (obj. 8h)</div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* 2. ARQUITECTURA DEL SUEÑO: Desglose de Fases (Hypnogram Bar & Cards) */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-slate-800 space-y-5">
-        <div className="flex items-center justify-between">
+      {/* 5. TENDENCIA SEMANAL (ÚLTIMOS 7 DÍAS) */}
+      <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-3">
           <div>
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground flex items-center gap-2">
-              <span>Arquitectura & Fases de Sueño</span>
+            <h2 className="text-xs sm:text-sm font-bold text-zinc-900 uppercase tracking-wide">
+              Tendencia Semanal (7 días)
             </h2>
-            <p className="text-xs text-muted">
-              Estructura fisiológica de los ciclos de ondas lentas y sueño de movimientos oculares rápidos
+            <p className="text-[11px] text-zinc-500">
+              Horas dormidas · Línea roja en objetivo 8h
             </p>
           </div>
-          <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20">
-            {Math.round(activeData.hours * 60)} min registrados
-          </span>
-        </div>
-
-        {/* Barra Segmentada de Fases */}
-        <div className="space-y-1.5">
-          <div className="w-full h-7 rounded-xl overflow-hidden flex p-0.5 bg-slate-950/60 border border-slate-800">
-            {deepPct > 0 && (
-              <div
-                style={{ width: `${deepPct}%`, backgroundColor: STAGE_COLORS.deep.bg }}
-                className="h-full first:rounded-l-lg transition-all relative group flex items-center justify-center text-[11px] font-extrabold text-white"
-                title={`Profundo: ${activeData.deep_min}m (${deepPct}%)`}
-              >
-                {deepPct >= 12 && <span>{deepPct}%</span>}
-              </div>
-            )}
-            {remPct > 0 && (
-              <div
-                style={{ width: `${remPct}%`, backgroundColor: STAGE_COLORS.rem.bg }}
-                className="h-full transition-all relative group flex items-center justify-center text-[11px] font-extrabold text-white"
-                title={`REM: ${activeData.rem_min}m (${remPct}%)`}
-              >
-                {remPct >= 12 && <span>{remPct}%</span>}
-              </div>
-            )}
-            {lightPct > 0 && (
-              <div
-                style={{ width: `${lightPct}%`, backgroundColor: STAGE_COLORS.light.bg }}
-                className="h-full transition-all relative group flex items-center justify-center text-[11px] font-extrabold text-white"
-                title={`Ligero: ${activeData.light_min}m (${lightPct}%)`}
-              >
-                {lightPct >= 12 && <span>{lightPct}%</span>}
-              </div>
-            )}
-            {awakePct > 0 && (
-              <div
-                style={{ width: `${awakePct}%`, backgroundColor: STAGE_COLORS.awake.bg }}
-                className="h-full last:rounded-r-lg transition-all relative group flex items-center justify-center text-[11px] font-extrabold text-white"
-                title={`Despierto: ${activeData.awake_min}m (${awakePct}%)`}
-              >
-                {awakePct >= 8 && <span>{awakePct}%</span>}
-              </div>
-            )}
-          </div>
-
-          {/* Leyenda de la barra */}
-          <div className="flex items-center justify-between text-[11px] text-muted flex-wrap gap-2 pt-1">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STAGE_COLORS.deep.bg }} />
-              <span className="font-semibold text-slate-300">Profundo</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STAGE_COLORS.rem.bg }} />
-              <span className="font-semibold text-slate-300">REM</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STAGE_COLORS.light.bg }} />
-              <span className="font-semibold text-slate-300">Ligero</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STAGE_COLORS.awake.bg }} />
-              <span className="font-semibold text-slate-300">Despierto</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 4 Cards de Detalle Fisiológico de Cada Fase */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-          {/* Sueño Profundo */}
-          <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-blue-400">Sueño Profundo</span>
-              <span className="text-xs font-mono font-bold text-blue-300">{deepPct}%</span>
-            </div>
-            <div className="text-2xl font-black text-foreground font-mono">
-              {Math.floor(activeData.deep_min / 60)}h {activeData.deep_min % 60}m
-            </div>
-            <div className="text-[11px] text-muted leading-relaxed">
-              {STAGE_COLORS.deep.desc}. Rango ideal maratoniano: 15–25%.
-            </div>
-            <div className="pt-1">
-              <span className={`badge text-[10px] font-bold ${deepPct >= 18 ? "badge-success" : "badge-warning"}`}>
-                {deepPct >= 18 ? "Óptimo anabólico" : "Aumentar descanso"}
-              </span>
-            </div>
-          </div>
-
-          {/* Sueño REM */}
-          <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/20 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-purple-400">Sueño REM</span>
-              <span className="text-xs font-mono font-bold text-purple-300">{remPct}%</span>
-            </div>
-            <div className="text-2xl font-black text-foreground font-mono">
-              {Math.floor(activeData.rem_min / 60)}h {activeData.rem_min % 60}m
-            </div>
-            <div className="text-[11px] text-muted leading-relaxed">
-              {STAGE_COLORS.rem.desc}. Rango ideal: 20–25%.
-            </div>
-            <div className="pt-1">
-              <span className={`badge text-[10px] font-bold ${remPct >= 20 ? "badge-success" : "badge-warning"}`}>
-                {remPct >= 20 ? "Consolidación motriz alta" : "Moderado"}
-              </span>
-            </div>
-          </div>
-
-          {/* Sueño Ligero */}
-          <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-emerald-400">Sueño Ligero</span>
-              <span className="text-xs font-mono font-bold text-emerald-300">{lightPct}%</span>
-            </div>
-            <div className="text-2xl font-black text-foreground font-mono">
-              {Math.floor(activeData.light_min / 60)}h {activeData.light_min % 60}m
-            </div>
-            <div className="text-[11px] text-muted leading-relaxed">
-              {STAGE_COLORS.light.desc}. Rango estándar: 50–60%.
-            </div>
-            <div className="pt-1">
-              <span className="badge badge-neutral text-[10px] font-bold">
-                Estructura estable
-              </span>
-            </div>
-          </div>
-
-          {/* Despierto */}
-          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-amber-400">Despierto / Micro</span>
-              <span className="text-xs font-mono font-bold text-amber-300">{awakePct}%</span>
-            </div>
-            <div className="text-2xl font-black text-foreground font-mono">
-              {activeData.awake_min} min
-            </div>
-            <div className="text-[11px] text-muted leading-relaxed">
-              {STAGE_COLORS.awake.desc}. Objetivo en cama: &lt; 10% del tiempo total.
-            </div>
-            <div className="pt-1">
-              <span className={`badge text-[10px] font-bold ${awakePct <= 8 ? "badge-success" : "badge-warning"}`}>
-                {awakePct <= 8 ? "Baja fragmentación" : "Microdespertares"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. MÓDULO DE SIESTAS DIURNAS (Power Naps) */}
-      <div className="surface p-5 rounded-3xl border border-slate-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
-              <Sun size={18} />
+          {weeklyStats.avgHours != null && (
+            <span className="px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-semibold text-zinc-800 tabular-nums shrink-0">
+              Media: {formatHoursHM(weeklyStats.avgHours)}
             </span>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-foreground">
-                Siestas Diurnas & Regeneración Vespertina
-              </h3>
-              <p className="text-xs text-muted">
-                Potenciación parasimpática entre sesiones dobles o en días de alta carga aeróbica
-              </p>
-            </div>
-          </div>
-          {activeData.nap_min > 0 ? (
-            <span className="text-xs font-bold text-emerald-400 font-mono px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30">
-              +{activeData.nap_min} min sumados hoy
-            </span>
-          ) : (
-            <span className="text-xs text-muted font-medium">Sin siesta registrada</span>
           )}
         </div>
 
-        {activeData.nap_min > 0 ? (
-          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-extrabold uppercase tracking-wider text-amber-400">
-                Siesta Completada
-              </div>
-              <div className="text-lg font-black text-foreground mt-0.5">
-                {activeData.nap_min} minutos regenerativos
-              </div>
-              {activeData.nap_notes && (
-                <div className="text-xs text-muted mt-1 font-mono">
-                  Detalle: {activeData.nap_notes}
-                </div>
-              )}
-            </div>
-            <div className="text-xs text-muted max-w-sm leading-relaxed">
-              💡 La siesta aporta recuperación al sistema nervioso central y recarga el glucógeno cerebral sin restar presión de sueño para esta noche.
-            </div>
-          </div>
-        ) : (
-          <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs text-muted">
-            <span>
-              Protocolo recomendado: 20-30 min de siesta entre 14:30h y 16:00h para optimizar la sesión de tarde.
-            </span>
-            <Button variant="ghost" onClick={openEditModal} className="text-indigo-400 font-bold shrink-0">
-              + Añadir Siesta
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* 4. EVOLUCIÓN HISTÓRICA: Gráficos de Tendencias */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-slate-800 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base sm:text-lg font-black text-foreground">
-              Tendencia Histórica de Sueño & HRV
-            </h3>
-            <p className="text-xs text-muted">
-              Consistencia de horas dormidas, estabilidad del score y respuesta del sistema autonómico
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-xl border border-slate-800 self-start sm:self-auto">
-            <button
-              onClick={() => setHistoryDays(7)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                historyDays === 7 ? "bg-indigo-600 text-white shadow-xs" : "text-muted hover:text-foreground"
-              }`}
-            >
-              7 Días
-            </button>
-            <button
-              onClick={() => setHistoryDays(14)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                historyDays === 14 ? "bg-indigo-600 text-white shadow-xs" : "text-muted hover:text-foreground"
-              }`}
-            >
-              14 Días
-            </button>
-            <button
-              onClick={() => setHistoryDays(30)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                historyDays === 30 ? "bg-indigo-600 text-white shadow-xs" : "text-muted hover:text-foreground"
-              }`}
-            >
-              30 Días
-            </button>
-          </div>
-        </div>
-
-        {/* Gráfico 1: Horas de Sueño vs Objetivo 8h */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-300">Horas de Sueño por Noche</span>
-            <span className="text-muted font-mono">Objetivo: 8.0 horas</span>
-          </div>
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} domain={[4, 10]} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "1px solid #334155",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value: any) => [`${value} horas`, "Sueño"]}
-                />
-                <ReferenceLine y={8.0} stroke="#30d158" strokeDasharray="3 3" label={{ value: "8h", fill: "#30d158", fontSize: 10 }} />
-                <Bar dataKey="hours" fill="#6366f1" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Gráfico 2: HRV Basal Nocturno */}
-        <div className="space-y-2 pt-3 border-t border-slate-800">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-300">Variabilidad de Frecuencia Cardíaca (HRV rMSSD)</span>
-            <span className="text-emerald-400 font-mono font-bold">Media: 73 ms</span>
-          </div>
-          <div className="h-44 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} domain={[55, 95]} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "1px solid #334155",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value: any) => [`${value} ms`, "HRV Nocturno"]}
-                />
-                <ReferenceLine y={70} stroke="#475569" strokeDasharray="2 2" />
-                <Line
-                  type="monotone"
-                  dataKey="hrv"
-                  stroke="#10b981"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#10b981" }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+        <div className="w-full h-44 min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={weeklyStats.days} margin={{ top: 8, right: 6, left: -24, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
+              <XAxis
+                dataKey="dayLabel"
+                tick={{ fill: "#71717A", fontSize: 11, fontWeight: 600 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 10]}
+                ticks={[0, 4, 8, 10]}
+                tick={{ fill: "#71717A", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "#F4F4F5" }}
+                contentStyle={{
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #E4E4E7",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  color: "#18181B",
+                }}
+                formatter={(val) => [formatHoursHM(Number(val)), "Dormido"]}
+                labelFormatter={(_, payload) => payload?.[0]?.payload?.date || ""}
+              />
+              <ReferenceLine y={SLEEP_TARGET_HOURS} stroke="#DC2626" strokeDasharray="4 4" />
+              <Bar dataKey="hours" radius={[6, 6, 0, 0]} maxBarSize={28}>
+                {weeklyStats.days.map((entry) => (
+                  <Cell
+                    key={entry.date}
+                    fill={
+                      entry.isSelected
+                        ? "#DC2626"
+                        : entry.hours >= SLEEP_TARGET_HOURS
+                        ? "#18181B"
+                        : "#71717A"
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* 5. RECOMENDACIONES DEL COACH PARA EL SUEÑO & HIGIENE NOCTURNA */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-slate-800 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-foreground">
-              Prescripción del Coach: Higiene del Sueño & Asimilación
-            </h3>
-            <p className="text-xs text-muted">
-              Pautas nutricionales y de relajación adaptadas a tu carga y restricciones
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
-            <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
-              1. Desconexión Lumínica
-            </div>
-            <p className="text-xs text-muted leading-relaxed">
-              Corta pantallas o activa filtro ámbar 45 min antes de acostarte. La exposición a luz azul retrasa 90 min el pico natural de secreción de melatonina.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
-            <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-              2. Snack Nocturno Seguro
-            </div>
-            <p className="text-xs text-muted leading-relaxed">
-              <strong className="text-foreground">Cero frutos secos:</strong> 1 kiwi maduro o infusión de manzanilla con semillas de chía o pipas de calabaza (ricas en magnesio y triptófano, 100% libres de alérgenos).
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
-            <div className="text-xs font-bold text-purple-400 uppercase tracking-wider">
-              3. Termorregulación
-            </div>
-            <p className="text-xs text-muted leading-relaxed">
-              Mantén el dormitorio fresco (18–19°C). El cuerpo necesita enfriarse 1°C para inducir el sueño profundo de ondas lentas donde se sintetiza el colágeno muscular.
-            </p>
-          </div>
-        </div>
+      {/* 6. PIE DISCRETO DE IMPORTACIÓN / REGISTRO */}
+      <div className="flex items-center justify-between gap-2 px-1 text-xs text-zinc-500">
+        <button
+          type="button"
+          onClick={openManualModal}
+          className="hover:text-zinc-800 font-medium underline underline-offset-2 cursor-pointer"
+        >
+          + Registrar noche manualmente
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsImportOpen(true)}
+          className="hover:text-zinc-800 font-medium underline underline-offset-2 cursor-pointer"
+        >
+          + Importar CSV Zepp
+        </button>
       </div>
 
-      {/* MODAL PARA REGISTRO MANUAL / EDICIÓN */}
-      {isModalOpen && (
+      {/* MODAL IMPORTACIÓN ZEPP / FALLBACK */}
+      <FallbackManualModal
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={loadSleepData}
+      />
+
+      {/* MODAL REGISTRO / EDICIÓN MANUAL */}
+      {isManualOpen && (
         <Modal
           title={`Registrar Noche · ${formData.date}`}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => setIsManualOpen(false)}
         >
-          <form onSubmit={handleSaveModal} className="space-y-4 pt-1">
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSaveManual} className="space-y-3 pt-1">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="text-xs font-bold text-muted uppercase">Fecha</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Fecha</label>
                 <Input
                   type="date"
                   value={formData.date}
@@ -954,7 +789,7 @@ export default function SuenoPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-muted uppercase">Horas Dormidas</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Horas</label>
                 <Input
                   type="number"
                   step="0.1"
@@ -967,9 +802,28 @@ export default function SuenoPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="text-xs font-bold text-blue-400 uppercase">Profundo (min)</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Acostado</label>
+                <Input
+                  type="time"
+                  value={formData.sleep_start}
+                  onChange={(e) => setFormData({ ...formData, sleep_start: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Despertar</label>
+                <Input
+                  type="time"
+                  value={formData.sleep_end}
+                  onChange={(e) => setFormData({ ...formData, sleep_end: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Profundo (m)</label>
                 <Input
                   type="number"
                   min="0"
@@ -978,7 +832,7 @@ export default function SuenoPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-purple-400 uppercase">REM (min)</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">REM (m)</label>
                 <Input
                   type="number"
                   min="0"
@@ -987,7 +841,7 @@ export default function SuenoPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-emerald-400 uppercase">Ligero (min)</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Ligero (m)</label>
                 <Input
                   type="number"
                   min="0"
@@ -996,7 +850,7 @@ export default function SuenoPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-amber-400 uppercase">Despierto (min)</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Despierto (m)</label>
                 <Input
                   type="number"
                   min="0"
@@ -1006,25 +860,9 @@ export default function SuenoPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-xs font-bold text-muted uppercase">HRV (ms)</label>
-                <Input
-                  type="number"
-                  value={formData.hrv_rmssd}
-                  onChange={(e) => setFormData({ ...formData, hrv_rmssd: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-muted uppercase">FC Reposo (lpm)</label>
-                <Input
-                  type="number"
-                  value={formData.resting_hr}
-                  onChange={(e) => setFormData({ ...formData, resting_hr: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-muted uppercase">Puntuación (0-100)</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">Score</label>
                 <Input
                   type="number"
                   min="0"
@@ -1033,46 +871,29 @@ export default function SuenoPage() {
                   onChange={(e) => setFormData({ ...formData, score: e.target.value })}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-amber-400 uppercase">Siesta (minutos)</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">RHR (lpm)</label>
                 <Input
                   type="number"
-                  min="0"
-                  value={formData.nap_min}
-                  onChange={(e) => setFormData({ ...formData, nap_min: e.target.value })}
-                  placeholder="0 si no hubo"
+                  value={formData.resting_hr}
+                  onChange={(e) => setFormData({ ...formData, resting_hr: e.target.value })}
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-muted uppercase">Detalle de siesta</label>
+                <label className="text-[11px] font-semibold text-zinc-600 uppercase">HRV (ms)</label>
                 <Input
-                  type="text"
-                  value={formData.nap_notes}
-                  onChange={(e) => setFormData({ ...formData, nap_notes: e.target.value })}
-                  placeholder="Ej: 15:30 a 16:00"
+                  type="number"
+                  value={formData.hrv_rmssd}
+                  onChange={(e) => setFormData({ ...formData, hrv_rmssd: e.target.value })}
                 />
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-muted uppercase">Notas y Sensaciones</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full rounded-xl bg-slate-900 border border-slate-800 p-2.5 text-xs text-foreground focus:outline-hidden focus:border-indigo-500"
-                rows={2}
-                placeholder="Sensación al despertar, pesadez, si hubo cena copiosa..."
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-              <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
+            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-200">
+              <Button type="button" variant="ghost" onClick={() => setIsManualOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" variant="primary" className="bg-indigo-600 hover:bg-indigo-500 text-white">
+              <Button type="submit" variant="primary" loading={savingManual}>
                 Guardar Noche
               </Button>
             </div>
