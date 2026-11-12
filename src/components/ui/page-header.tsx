@@ -11,7 +11,7 @@ export function PageHeader({
 }) {
   return (
     <div
-      className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full min-w-0 overflow-hidden"
+      className="hidden md:flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full min-w-0 overflow-hidden"
       style={{ marginBottom: "var(--space-4)" }}
     >
       <div className="min-w-0 flex-1">

@@ -112,7 +112,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div style={{ display: "flex", minHeight: "100dvh", position: "relative" }}>
+    <div
+      className="w-full max-w-full overflow-x-hidden"
+      style={{ display: "flex", minHeight: "100dvh", position: "relative" }}
+    >
       {/* Sidebar delgada y limpia para Tablet / Escritorio (>= 768px) */}
       <aside
         className={`hidden md:flex fixed inset-y-0 left-0 z-30 flex-col overflow-hidden transition-all duration-200 ${
@@ -342,7 +345,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Área de contenido principal */}
       <main
-        className={`flex-1 min-w-0 transition-[margin] duration-200 ${
+        className={`flex-1 min-w-0 max-w-full overflow-x-hidden transition-[margin] duration-200 ${
           sidebarCollapsed ? "md:ml-0" : "md:ml-60"
         }`}
         style={{ flex: 1, minWidth: 0 }}

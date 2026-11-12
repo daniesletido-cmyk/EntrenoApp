@@ -420,66 +420,70 @@ export default function ConfiguracionPage() {
   ];
 
   return (
-    <div>
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Perfil & Ajustes" description="Datos del atleta, sincronización Suunto/.FIT, preferencias y herramientas." />
 
-      <div className="grid gap-5">
+      <div className="grid gap-3 sm:gap-5 min-w-0">
         {/* Módulos complementarios consolidados dentro de Perfil */}
-        <div className="surface p-4 sm:p-5">
-          <div className="text-sm font-semibold mb-3" style={{ color: "var(--color-text)" }}>
+        <div className="surface p-3.5 sm:p-5 min-w-0 w-full">
+          <div className="text-xs sm:text-sm font-semibold mb-2.5" style={{ color: "var(--color-text)" }}>
             Herramientas y Módulos
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
-              { href: "/menu", label: "Nutrición / Menú" },
+              { href: "/menu", label: "Nutrición" },
               { href: "/entrenador", label: "Entrenador IA" },
-              { href: "/psicologia", label: "Psicología Deportiva" },
-              { href: "/calendario", label: "Calendario Mensual" },
-              { href: "/informe-semanal", label: "Informe Semanal" },
-              { href: "/objetivos", label: "Objetivos y Maratón" },
+              { href: "/psicologia", label: "Psicología" },
+              { href: "/calendario", label: "Calendario" },
+              { href: "/informe-semanal", label: "Informe" },
+              { href: "/objetivos", label: "Objetivos" },
             ].map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="btn btn-secondary text-xs justify-between no-underline harbiz-press"
-                style={{ minHeight: 44 }}
+                className="btn btn-secondary w-full min-w-0 py-2.5 px-3 text-xs justify-between gap-1.5 no-underline harbiz-press"
+                style={{ minHeight: 42 }}
               >
                 <span className="truncate">{item.label}</span>
-                <ExternalLink size={13} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+                <ExternalLink size={13} className="shrink-0" style={{ color: "var(--color-text-muted)" }} />
               </Link>
             ))}
           </div>
         </div>
 
         {/* SECCIÓN APARIENCIA & TEMA */}
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
-            <div className="flex items-center gap-2 font-semibold text-sm">
-              <Sun size={16} />
-              Apariencia y Tema Visual
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 font-semibold text-sm text-zinc-900">
+                <Sun size={16} className="shrink-0 text-zinc-700" />
+                <span className="truncate">Apariencia y Tema</span>
+              </div>
+              <p className="text-xs text-muted mt-0.5 truncate">
+                Alternar entre modo claro y oscuro
+              </p>
             </div>
-            <ThemeToggle showLabel />
+            <div className="shrink-0">
+              <ThemeToggle showLabel />
+            </div>
           </div>
-          <p className="text-sm text-muted">
-            Alterna entre <strong>Modo Claro</strong> (fondos limpios y grises tenues de alto contraste) y <strong>Modo Oscuro</strong> (grafito pizarra suave para evitar fatiga visual). La app también detecta la preferencia de tu sistema operativo automáticamente.
-          </p>
         </div>
 
         {/* SECCIÓN NOTIFICACIONES PUSH */}
         <PushNotificationBanner variant="card" />
 
         {/* SECCIÓN PLAN & FACTURACIÓN */}
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <div className="flex items-center gap-2 font-semibold text-sm">
-              <Crown size={16} className="text-amber-400" />
-              Suscripción y Estado de la Cuenta
+              <Crown size={16} className="text-amber-500 shrink-0" />
+              <span>Suscripción y Cuenta</span>
             </div>
             <span
               className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
                 subInfo?.isActive
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  : "bg-slate-800 text-slate-400 border border-slate-700"
+                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                  : "bg-zinc-100 text-zinc-700 border border-zinc-200"
               }`}
             >
               {subInfo?.plan === "pro_coach"
@@ -492,15 +496,15 @@ export default function ConfiguracionPage() {
             </span>
           </div>
 
-          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
+          <p className="text-xs sm:text-sm text-muted mb-3">
             {subInfo?.isActive
               ? "Tu cuenta tiene acceso completo al Entrenador IA, sincronización de relojes Suunto/Zepp y análisis de fatiga ACWR."
-              : "Estás en el plan gratuito con registro básico de sesiones. Desbloquea el Entrenador IA y la sincronización con el plan Premium."}
+              : "Plan gratuito con registro básico de sesiones. Desbloquea el Entrenador IA y la sincronización con Premium."}
           </p>
 
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Link href="/precios">
-              <Button variant="primary">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/precios" className="w-full sm:w-auto">
+              <Button variant="primary" className="w-full sm:w-auto">
                 <Crown size={14} />
                 {subInfo?.isActive ? "Ver o Cambiar Plan" : "Mejorar a Premium"}
               </Button>
@@ -514,18 +518,18 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-3)" }}>
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="font-semibold text-sm mb-2">
             Perfil
           </div>
-          <p className="text-xs text-muted" style={{ marginBottom: "var(--space-3)" }}>
-            La fecha del maratón y el ritmo objetivo se editan ahora en la pestaña{" "}
+          <p className="text-xs text-muted mb-3">
+            La fecha del maratón y el ritmo objetivo se editan en{" "}
             <Link href="/objetivos" style={{ color: "var(--color-brand)", fontWeight: 600 }}>
               Objetivos
             </Link>
-            . Aquí solo va lo que usa el motor de recomendaciones para no ajustarte mal la carga.
+            . Aquí solo va lo que usa el motor de recomendaciones.
           </p>
-          <div className="grid gap-3">
+          <div className="grid gap-3 min-w-0">
             {fields.map((f) =>
               f.textarea ? (
                 <Textarea
@@ -554,18 +558,17 @@ export default function ConfiguracionPage() {
         </div>
 
         {/* SECCIÓN IA & ENTRENADOR */}
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="flex items-center gap-2 font-semibold text-sm" style={{ marginBottom: "var(--space-2)" }}>
-            <Sparkles size={16} />
-            Inteligencia Artificial y Entrenador Personal
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="flex items-center gap-2 font-semibold text-sm mb-2">
+            <Sparkles size={16} className="shrink-0" />
+            <span>Inteligencia Artificial y Entrenador Personal</span>
           </div>
-          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-4)" }}>
-            EntrenoApp integra a tu **Entrenador Personal** capaz de razonar sobre tus datos en vivo y modificar sesiones
-            directamente en tu calendario. Para el diálogo libre ilimitado puedes conectar **Google Gemini** (100% gratuito)
-            o **Anthropic Claude**.
+          <p className="text-xs sm:text-sm text-muted mb-3">
+            EntrenoApp integra a tu <strong>Entrenador Personal</strong> capaz de razonar sobre tus datos en vivo y modificar sesiones
+            directamente en tu calendario. Puedes conectar <strong>Google Gemini</strong> (gratis) o <strong>Anthropic Claude</strong>.
           </p>
 
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
             {/* GOOGLE GEMINI */}
             <div
               style={{
@@ -681,10 +684,10 @@ export default function ConfiguracionPage() {
         <AiObservabilityPanel />
 
         {/* SECCIÓN SEGURIDAD Y BLOQUEO DE LA APP */}
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="flex items-center justify-between gap-2" style={{ marginBottom: "var(--space-2)" }}>
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <div className="flex items-center gap-2 font-semibold text-sm">
-              <Lock size={16} className="text-brand" />
+              <Lock size={16} className="text-brand shrink-0" />
               <span>Seguridad y Bloqueo de Acceso</span>
             </div>
             {lockEnabled ? (
@@ -695,9 +698,8 @@ export default function ConfiguracionPage() {
               <span className="badge badge-neutral">Desactivado (Acceso libre)</span>
             )}
           </div>
-          <p className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
-            Protege el acceso a tus métricas y registros con un código PIN o contraseña alfanumérica. La app te pedirá
-            la clave al iniciarse para garantizar tu máxima privacidad en el móvil o escritorio.
+          <p className="text-xs sm:text-sm text-muted mb-3">
+            Protege el acceso a tus métricas y registros con un código PIN o contraseña alfanumérica.
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -716,18 +718,18 @@ export default function ConfiguracionPage() {
         </div>
 
         {/* SECCIÓN SINCRONIZACIÓN AUTOMÁTICA DE DISPOSITIVOS (SUUNTO & AMAZFIT HELIO) */}
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
-            <div className="flex items-center gap-2 font-semibold text-sm">
-              <Watch size={16} className="text-brand" />
-              <span>Sincronización Automática (Reloj Suunto & Pulsera Amazfit)</span>
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <div className="flex items-center gap-2 font-semibold text-sm min-w-0">
+              <Watch size={16} className="text-brand shrink-0" />
+              <span>Sincronización (Suunto & Amazfit)</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="badge badge-success">Amazfit Helio (ZeppBridge): Activa</span>
+            <div className="flex items-center flex-wrap gap-1.5">
+              <span className="badge badge-success">Amazfit Helio: Activa</span>
               {hasIntervalsKey ? (
-                <span className="badge badge-success">Suunto / Intervals.icu: Conectado</span>
+                <span className="badge badge-success">Suunto / Intervals: Conectado</span>
               ) : (
-                <span className="badge badge-warning">Suunto Auto-Pull: Pendiente de clave</span>
+                <span className="badge badge-warning">Suunto: Pendiente</span>
               )}
             </div>
           </div>
@@ -837,13 +839,13 @@ export default function ConfiguracionPage() {
         </div>
 
         {/* SECCIÓN PERSISTENCIA Y COPIAS DE SEGURIDAD (JSON & SUPABASE) */}
-        <div className="surface" style={{ padding: "var(--space-4)" }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
+        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <div className="flex items-center gap-2 font-semibold text-sm">
-              <Database size={16} className="text-emerald-400" />
-              Persistencia Blindada & Copias de Seguridad
+              <Database size={16} className="text-emerald-600 shrink-0" />
+              <span>Persistencia & Copias de Seguridad</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-1.5">
               <span className="badge badge-success flex items-center gap-1">
                 <HardDrive size={11} />
                 IndexedDB Activo
@@ -922,14 +924,14 @@ export default function ConfiguracionPage() {
               marginBottom: "var(--space-3)",
             }}
           >
-            <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-1)" }}>
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
               <div className="text-xs font-semibold flex items-center gap-1.5">
-                <Cloud size={13} className="text-sky-400" />
-                Persistencia en Supabase (PostgreSQL en la Nube)
+                <Cloud size={13} className="text-zinc-600 shrink-0" />
+                <span>Persistencia en Supabase (PostgreSQL)</span>
               </div>
               <Button variant="ghost" onClick={copySupabaseSchema}>
-                {copiedSchema ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                <span>{copiedSchema ? "SQL Copiado" : "Copiar SQL para Supabase"}</span>
+                {copiedSchema ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                <span>{copiedSchema ? "SQL Copiado" : "Copiar SQL"}</span>
               </Button>
             </div>
             <p className="text-xs text-muted">
@@ -940,9 +942,9 @@ export default function ConfiguracionPage() {
           </div>
 
           {/* COPIA NATIVA .DB */}
-          <div className="flex items-center justify-between pt-2 text-xs text-muted">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs text-muted">
             <span>Copia de base de datos SQLite (.db clásica):</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <a href="/api/backup/export" className="btn btn-ghost" style={{ fontSize: "11px", padding: "4px 8px" }}>
                 <Download size={12} />
                 Exportar .db

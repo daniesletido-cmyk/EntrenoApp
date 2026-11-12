@@ -377,30 +377,32 @@ export function PushNotificationBanner({
 
   // Vista Card completa (para Configuración)
   return (
-    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] flex flex-col gap-3">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
+    <div className="p-3.5 sm:p-4 rounded-xl border border-zinc-200 bg-white shadow-xs flex flex-col gap-3 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 min-w-0">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <div
-            className={`p-2.5 rounded-xl ${
-              isSubscribed ? "bg-emerald-500/10 text-emerald-400" : "bg-indigo-500/10 text-indigo-400"
+            className={`p-2 rounded-xl shrink-0 ${
+              isSubscribed
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                : "bg-zinc-100 border border-zinc-200 text-zinc-700"
             }`}
           >
-            {isSubscribed ? <CheckCircle2 size={22} /> : <Bell size={22} />}
+            {isSubscribed ? <CheckCircle2 size={20} /> : <Bell size={20} />}
           </div>
-          <div>
-            <h4 className="text-sm font-semibold text-white flex items-center gap-2 flex-wrap">
-              Notificaciones Push en el Móvil
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold text-zinc-900 flex items-center gap-2 flex-wrap">
+              <span>Notificaciones Push en el Móvil</span>
               {isSubscribed ? (
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800">
                   Activadas
                 </span>
               ) : permission === "denied" ? (
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700">
                   Bloqueadas en navegador
                 </span>
               ) : null}
             </h4>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">
               {isSubscribed
                 ? "Tu móvil recibirá un banner y vibración cuando el entreno diario o el informe semanal estén listos."
                 : "Recibe alertas instantáneas en tu móvil o PC en cuanto se analice un entreno o se cierre la semana."}
@@ -408,35 +410,35 @@ export function PushNotificationBanner({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="w-full sm:w-auto shrink-0">
           {isSubscribed ? (
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
               <button
                 onClick={() => sendTestNotification("daily")}
                 disabled={testingDaily || testingWeekly}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors"
+                className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
                 title="Probar que salta el aviso diario"
               >
-                {testingDaily ? <Loader2 size={13} className="animate-spin" /> : <Trophy size={13} />}
-                <span>Probar aviso diario</span>
+                {testingDaily ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Trophy size={13} className="shrink-0 text-zinc-700" />}
+                <span className="truncate">Probar aviso diario</span>
               </button>
               <button
                 onClick={() => sendTestNotification("weekly")}
                 disabled={testingDaily || testingWeekly}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-colors"
+                className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
                 title="Probar que salta el aviso semanal"
               >
-                {testingWeekly ? <Loader2 size={13} className="animate-spin" /> : <BarChart3 size={13} />}
-                <span>Probar aviso semanal</span>
+                {testingWeekly ? <Loader2 size={13} className="animate-spin shrink-0" /> : <BarChart3 size={13} className="shrink-0 text-zinc-700" />}
+                <span className="truncate">Probar aviso semanal</span>
               </button>
             </div>
           ) : (
             <button
               onClick={subscribeToPush}
               disabled={loading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-indigo-500 hover:bg-indigo-400 text-slate-950 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+              className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer disabled:opacity-50"
             >
-              {loading ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
+              {loading ? <Loader2 size={14} className="animate-spin shrink-0" /> : <Bell size={14} className="shrink-0" />}
               <span>{permission === "denied" ? "Reintentar activación" : "Activar en mi móvil"}</span>
             </button>
           )}
@@ -444,17 +446,17 @@ export function PushNotificationBanner({
       </div>
 
       {statusHelp && (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
-          <Info size={15} className="text-amber-400 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+          <Info size={15} className="text-amber-700 shrink-0 mt-0.5" />
           <span>{statusHelp}</span>
         </div>
       )}
 
       {isIosWeb && !isSubscribed && (
-        <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs text-sky-300 flex items-start gap-2">
-          <Smartphone size={15} className="text-sky-400 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 flex items-start gap-2">
+          <Smartphone size={15} className="text-zinc-700 shrink-0 mt-0.5" />
           <span>
-            <strong>Usuarios de iPhone / iPad:</strong> Pulsa el icono de <em>Compartir</em> en Safari y elige <strong>"Añadir a pantalla de inicio"</strong>. Luego abre la app desde ese icono para activar notificaciones con el motor nativo de Apple.
+            <strong>Usuarios de iPhone / iPad:</strong> Pulsa el icono de <em>Compartir</em> en Safari y elige <strong>&quot;Añadir a pantalla de inicio&quot;</strong>. Luego abre la app desde ese icono para activar notificaciones con el motor nativo de Apple.
           </span>
         </div>
       )}
