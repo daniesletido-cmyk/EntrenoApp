@@ -1092,9 +1092,9 @@ function calculateSessionMetrics(
 
     return {
       totalBadge: `${totDist.toFixed(1)} km · ${totDur} min`,
-      warmup: { badgeLabel: `${wDist.toFixed(1)} km · ${wTime} min`, pace: wPace },
+      warmup: { badgeLabel: `${wTime} min`, pace: wPace },
       main: { badgeLabel: `${mDist.toFixed(1)} km · ${mTime} min`, pace: mPace },
-      cooldown: { badgeLabel: `${cDist.toFixed(1)} km · ${cTime} min`, pace: cPace },
+      cooldown: { badgeLabel: `${cTime} min`, pace: cPace },
     };
   }
 

@@ -86,20 +86,23 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     suuntoSportId = 1;
 
     const mainKm = parseMainDistanceKm(s);
-    const wuKm = mainKm >= 15 ? 2 : mainKm >= 10 ? 1.5 : 1;
-    const cdKm = mainKm >= 15 ? 1.5 : 1;
+    // Calentamiento y Vuelta a la Calma programados estrictamente por tiempo (minutos)
+    const wuMin = mainKm >= 15 ? 15 : mainKm >= 10 ? 12 : 10;
+    const cdMin = mainKm >= 15 ? 10 : 8;
+    const wuSec = wuMin * 60;
+    const cdSec = cdMin * 60;
 
-    // 1. Calentamiento (Regla de Oro: siempre sumado, nunca restado del trabajo clave)
+    // 1. Calentamiento (Regla de Oro: por tiempo en segundos, intensidad warmup)
     steps.push({
-      label: "Calentamiento R0 suave",
+      label: `Calentamiento ${wuMin} min`,
       phase: "warmup",
-      durationType: "distance",
-      durationValue: Math.round(wuKm * 1000),
+      durationType: "time",
+      durationValue: wuSec,
       targetPaceLowSecKm: 330, // 5:30/km
       targetPaceHighSecKm: 345, // 5:45/km
-      intervalsLine: `- Calentamiento R0 ${wuKm}km 5:30-5:45/km Pace`,
+      intervalsLine: `- Calentamiento R0 ${wuMin}m 5:30-5:45/km Pace`,
     });
-    intervalsBlocks.push(`Warmup\n- Calentamiento R0 ${wuKm}km 5:30-5:45/km Pace`);
+    intervalsBlocks.push(`Warmup\n- Calentamiento R0 ${wuMin}m 5:30-5:45/km Pace`);
 
     // 2. Detección de tipo de parte principal
     const intervalMatch = textAll.match(/(\d+)\s*[xX]\s*(\d+(?:\.\d{3})?|\d+(?:[.,]\d+)?)\s*(m|km)\b/i);
@@ -215,17 +218,17 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
       intervalsBlocks.push(`Main Set\n- Rodaje Base R1 ${mainKm}km 4:59-5:25/km Pace`);
     }
 
-    // 3. Vuelta a la calma
+    // 3. Vuelta a la calma (programada estrictamente por tiempo en segundos)
     steps.push({
-      label: "Vuelta a la calma suave",
+      label: `Vuelta a la calma ${cdMin} min`,
       phase: "cooldown",
-      durationType: "distance",
-      durationValue: Math.round(cdKm * 1000),
+      durationType: "time",
+      durationValue: cdSec,
       targetPaceLowSecKm: 360,
       targetPaceHighSecKm: 420,
-      intervalsLine: `- Vuelta a la calma ${cdKm}km 6:00-7:00/km Pace`,
+      intervalsLine: `- Vuelta a la calma ${cdMin}m 6:00-7:00/km Pace`,
     });
-    intervalsBlocks.push(`Cooldown\n- Vuelta a la calma ${cdKm}km 6:00-7:00/km Pace`);
+    intervalsBlocks.push(`Cooldown\n- Vuelta a la calma ${cdMin}m 6:00-7:00/km Pace`);
   } else if (s.discipline === "natacion") {
     sportTypeIntervals = "Swim";
     suuntoSportId = 5; // 5 = swimming in FIT
@@ -363,9 +366,9 @@ function fitCrc16(buf: Uint8Array): number {
   return crc;
 }
 
-function encodeAsciiFixed(str: string, len: number): Buffer {
+function encodeAsciiFixed(str: string | undefined | null, len: number): Buffer {
   const out = Buffer.alloc(len, 0);
-  const clean = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const clean = (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   out.write(clean.slice(0, len - 1), 0, "ascii");
   return out;
 }
