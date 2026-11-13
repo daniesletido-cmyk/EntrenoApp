@@ -174,13 +174,22 @@ export function NotificationCenter({
       checkPush();
     };
     window.addEventListener("entrenoapp_push_changed", handlePushChange);
-    window.addEventListener("focus", () => {
-      fetchNotifications();
-      checkPush();
-    });
+    
+    // Evitar saturar con checkPush repetitivo en cada cambio de ventana si ya está suscrito
+    let lastFocusCheck = 0;
+    const handleFocus = () => {
+      const now = Date.now();
+      if (now - lastFocusCheck > 30000) {
+        lastFocusCheck = now;
+        fetchNotifications();
+        checkPush();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       window.removeEventListener("entrenoapp_push_changed", handlePushChange);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [fetchNotifications, checkPush]);
 
@@ -261,6 +270,19 @@ export function NotificationCenter({
   };
 
   const triggerDirectTestNotification = async (type: "daily" | "weekly" = "daily", delaySeconds: number = 0) => {
+    // Protección contra doble disparo involuntario o en bucle
+    if (pushTesting) return;
+
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const dedupeKey = `entrenoapp_test_push_${type}_${todayDate}_${Math.floor(Date.now() / 15000)}`;
+    try {
+      if (sessionStorage.getItem(dedupeKey)) {
+        toast.push("info", "Aviso en curso. Espera unos segundos antes de reintentar.");
+        return;
+      }
+      sessionStorage.setItem(dedupeKey, "1");
+    } catch {}
+
     setPushTesting(true);
     if (delaySeconds > 0) {
       toast.push("info", "Bloquea la pantalla o sal de la app ahora. El aviso llegará en 5 segundos.");

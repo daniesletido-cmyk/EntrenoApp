@@ -40,6 +40,30 @@ function ensureVapidConfigured(): boolean {
   }
 }
 
+// Deduplicación en memoria de notificaciones recientes para evitar ráfagas o llamadas simultáneas
+const recentPushes = new Map<string, number>();
+const RECENT_PUSH_COOLDOWN_MS = 60 * 1000; // 60 segundos de cooldown por tag idéntico
+
+function isDuplicatePush(tag?: string): boolean {
+  if (!tag) return false;
+  const now = Date.now();
+  const lastTime = recentPushes.get(tag);
+  if (lastTime && now - lastTime < RECENT_PUSH_COOLDOWN_MS) {
+    return true;
+  }
+  recentPushes.set(tag, now);
+
+  // Limpieza periódica de mapa de deduplicación
+  if (recentPushes.size > 200) {
+    for (const [k, time] of recentPushes.entries()) {
+      if (now - time > RECENT_PUSH_COOLDOWN_MS * 5) {
+        recentPushes.delete(k);
+      }
+    }
+  }
+  return false;
+}
+
 export interface PushNotificationPayload {
   title: string;
   body: string;
@@ -65,6 +89,16 @@ export async function sendPushToAll(payload: PushNotificationPayload): Promise<{
   const subscriptions = getAllPushSubscriptions();
 
   if (!isReady || subscriptions.length === 0) {
+    return {
+      successCount: 0,
+      failureCount: 0,
+      totalSubscriptions: subscriptions.length,
+    };
+  }
+
+  // Comprobar deduplicación si tiene tag
+  if (payload.tag && isDuplicatePush(payload.tag)) {
+    console.warn(`[WebPush] Envío omitido por deduplicación (tag reciente: ${payload.tag})`);
     return {
       successCount: 0,
       failureCount: 0,
@@ -162,7 +196,7 @@ export async function sendWorkoutLoadedPush(workout: {
     title,
     body,
     data: { url: targetUrl },
-    tag: `workout-${workout.sessionId || workout.id}`,
+    tag: `workout-${workout.sessionId || workout.id}-${workout.fecha || ""}`,
   });
 }
 
@@ -255,7 +289,7 @@ export async function sendDailyReportPush(session: {
     title,
     body,
     data: { url: targetUrl },
-    tag: `daily-report-${session.id}`,
+    tag: `daily-report-${session.id}-${dateStr}`,
   });
 }
 

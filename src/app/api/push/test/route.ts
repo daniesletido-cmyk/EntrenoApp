@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     } else {
       result = await sendDailyReportPush({
         id: 480,
+        date: new Date().toISOString().slice(0, 10),
         discipline: "carrera",
         distance_km: 12.0,
         duration_min: 60,

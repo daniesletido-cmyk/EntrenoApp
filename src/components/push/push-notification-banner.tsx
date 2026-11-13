@@ -218,6 +218,17 @@ export function PushNotificationBanner({
   }
 
   async function sendTestNotification(type: "daily" | "weekly") {
+    if (testingDaily || testingWeekly) return;
+
+    const dedupeKey = `entrenoapp_banner_test_${type}_${Math.floor(Date.now() / 15000)}`;
+    try {
+      if (sessionStorage.getItem(dedupeKey)) {
+        toast.push("info", "Aviso en curso. Espera unos segundos antes de enviar otro.");
+        return;
+      }
+      sessionStorage.setItem(dedupeKey, "1");
+    } catch {}
+
     if (type === "daily") setTestingDaily(true);
     if (type === "weekly") setTestingWeekly(true);
 

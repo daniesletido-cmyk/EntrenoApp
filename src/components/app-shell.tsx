@@ -118,6 +118,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [pathname]);
 
+  // Listener para mensajes provenientes del Service Worker (clic en notificaciones Web Push)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "NAVIGATE_TO" && typeof event.data.url === "string") {
+        const dest = event.data.url;
+        window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+        router.push(dest);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+    };
+  }, [router]);
+
   return (
     <div
       className="w-full max-w-full overflow-x-hidden"

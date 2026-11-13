@@ -66,6 +66,8 @@ export interface DailyReadiness {
     sleepTrend3dAvg: number | null;
     napMin: number | null;
     totalSleepHours: number | null;
+    todayTrained?: boolean;
+    todayLoad?: number;
     yesterdayTrained: boolean;
     yesterdayDiscipline: string | null;
     yesterdayRpe: number | null;
@@ -313,6 +315,14 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
   const todaySessions = pastAndTodaySessions.filter((s) => s.date === targetDate && s.discipline !== "descanso");
   const todaySession = todaySessions[0];
 
+  // Sesiones de hoy realizadas (fatiga intrínseca del mismo día)
+  const todayCompletedSessions = pastAndTodaySessions.filter(
+    (s) => s.date === targetDate && (s.status === "realizada" || s.status === "parcial")
+  );
+  const loadTodayCompleted = todayCompletedSessions.reduce((sum, s) => sum + sessionLoad(s), 0);
+  const todayTrained = todayCompletedSessions.length > 0;
+  const todayRpe = todayCompletedSessions[0]?.rpe ?? null;
+
   // Sesiones de ayer y anteayer
   const yesterdaySessions = pastAndTodaySessions.filter(
     (s) => s.date === yesterday && (s.status === "realizada" || s.status === "parcial")
@@ -327,7 +337,7 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
 
   const loadYesterday = yesterdaySessions.reduce((sum, s) => sum + sessionLoad(s), 0);
   const loadTwoDaysAgo = twoDaysAgoSessions.reduce((sum, s) => sum + sessionLoad(s), 0);
-  const last48hLoad = loadYesterday + loadTwoDaysAgo;
+  const last48hLoad = loadTodayCompleted + loadYesterday + loadTwoDaysAgo;
 
   // Carga de la semana anterior completa
   const currentWeekMonday = weekStartOf(targetDate);
@@ -458,9 +468,41 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
   const fatigueMetrics: { label: string; value: string }[] = [];
 
   fatigueMetrics.push({ label: "Carga 48h", value: `${Math.round(last48hLoad)} pts` });
-  fatigueMetrics.push({ label: "Ayer", value: yesterdayTrained ? `${yesterdayDiscipline} (RPE ${yesterdayRpe ?? "—"})` : "Descanso" });
+  if (todayTrained) {
+    const mainToday = todayCompletedSessions[0];
+    fatigueMetrics.push({ label: "Hoy", value: `${mainToday.discipline} (${mainToday.duration_min ?? 0}m · RPE ${mainToday.rpe ?? "—"})` });
+  } else {
+    fatigueMetrics.push({ label: "Ayer", value: yesterdayTrained ? `${yesterdayDiscipline} (RPE ${yesterdayRpe ?? "—"})` : "Descanso" });
+  }
 
-  if (!yesterdayTrained) {
+  if (todayTrained) {
+    // Si ya se ha entrenado hoy, la fatiga aguda sube de forma reactiva e inmediata
+    const hardToday = (todayRpe ?? 0) >= 8 || loadTodayCompleted >= 350;
+    const moderateToday = (todayRpe ?? 0) >= 6 || loadTodayCompleted >= 200;
+    const mainToday = todayCompletedSessions[0];
+
+    if (hardToday) {
+      fatigueScoreVal = 42;
+      fatigueStatus = "bajo";
+      fatigueHeadline = `Fatiga alta post-entrenamiento de hoy (${mainToday.discipline})`;
+      fatigueDetail = `Has completado una sesión exigente hoy (RPE ${todayRpe}, carga ${Math.round(loadTodayCompleted)} pts). Los depósitos de glucógeno y el sistema neuromuscular están en proceso de vaciado y demanda de descanso.`;
+    } else if (moderateToday) {
+      fatigueScoreVal = 58;
+      fatigueStatus = "moderado";
+      fatigueHeadline = `Recuperando de la sesión completada hoy (${mainToday.discipline})`;
+      fatigueDetail = `Has entrenado hoy (${mainToday.duration_min ?? 0} min, RPE ${todayRpe}). Tu Readiness baja temporalmente para reflejar la fatiga acumulada hasta que descanses esta noche.`;
+    } else {
+      fatigueScoreVal = 68;
+      fatigueStatus = "moderado";
+      fatigueHeadline = `Entrenamiento suave realizado hoy (${mainToday.discipline})`;
+      fatigueDetail = `Estímulo aeróbico moderado hoy (${mainToday.duration_min ?? 0} min). La fatiga es ligera pero activa.`;
+    }
+
+    if (yesterdayTrained && (yesterdayRpe ?? 0) >= 7) {
+      fatigueScoreVal = Math.max(25, fatigueScoreVal - 10);
+      fatigueDetail += " Se suma además la fatiga del entrenamiento de ayer.";
+    }
+  } else if (!yesterdayTrained) {
     fatigueScoreVal = 95;
     fatigueStatus = "optimo";
     fatigueHeadline = "Cuerpo fresco tras día de descanso ayer";
@@ -569,6 +611,15 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
 
   // Obtener diagnóstico y guía 100% personalizada al deporte de hoy
   const sportAdvice = getSportSpecificReadinessAdvice(overallScore, todaySession);
+
+  if (todayTrained) {
+    const mainToday = todayCompletedSessions[0];
+    sportAdvice.verdictBadgeLabel = "SESIÓN DE HOY COMPLETADA";
+    sportAdvice.verdictTitle = `Entrenamiento realizado · Asimilando carga`;
+    sportAdvice.verdictDesc = `Has completado ${mainToday.discipline}${mainToday.distance_km ? ` (${Number(mainToday.distance_km).toFixed(1)} km)` : ""}. La fatiga aguda reduce el readiness hasta el descanso nocturno. Prioriza hidratación, proteína limpia y descanso.`;
+    sportAdvice.actionGuidance = `Trabajo del día completado con éxito. Dedica la tarde/noche a nutrición reparadora y movilidad suave para acelerar la recuperación.`;
+    sportAdvice.coachAdvice = `¡Gran trabajo hoy! La fatiga es natural tras entrenar. Descansa bien esta noche para rebotar con supercompensación.`;
+  }
 
   const verdict: ReadinessVerdict = {
     type: sportAdvice.verdictType,
@@ -714,6 +765,8 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
         lastNightSleep && (lastNightSleep.hours != null || lastNightSleep.nap_min != null)
           ? (lastNightSleep.hours ?? 0) + ((lastNightSleep.nap_min ?? 0) / 60)
           : null,
+      todayTrained,
+      todayLoad: loadTodayCompleted,
       yesterdayTrained,
       yesterdayDiscipline,
       yesterdayRpe,
