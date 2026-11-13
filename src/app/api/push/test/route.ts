@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
 
     let result;
     if (customTitle || customBody) {
-      const title = customTitle || "Notificación de prueba";
-      const bodyText = customBody || "Notificación personalizada de EntrenoApp";
+      const title = (customTitle || "Notificación de prueba").slice(0, 30);
+      const bodyText = (customBody || "Prueba de notificación").slice(0, 55);
       try {
         createNotification({
           title,
@@ -59,20 +59,20 @@ export async function POST(req: NextRequest) {
     } else if (type === "sleep") {
       result = await sendSleepRecordedPush({
         date: new Date().toISOString().slice(0, 10),
-        hours: 8.0,
-        score: 85,
+        hours: 7.75, // 7h 45m
+        score: 82,
       });
     } else if (type === "weekly") {
-      result = await sendWeeklyReportPush("2026-10-26", { totalKm: 34.5, totalTss: 420, sessionsCount: 5 });
+      result = await sendWeeklyReportPush("2026-10-26", { totalKm: 42.5, totalTss: 420, sessionsCount: 5 });
     } else {
       result = await sendDailyReportPush({
         id: 480,
         date: new Date().toISOString().slice(0, 10),
         discipline: "carrera",
-        distance_km: 12.0,
-        duration_min: 60,
-        planned_code: "R1-Base",
-        pace: "5:02 min/km",
+        distance_km: 10.2,
+        duration_min: 58,
+        planned_code: "Series de umbral",
+        pace: "4:19 min/km",
         carga_tss: 98,
       });
     }

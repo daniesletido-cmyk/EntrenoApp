@@ -201,8 +201,8 @@ export function PushNotificationBanner({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "daily",
-            title: "🏅 Tu informe del entreno de hoy está listo",
-            body: "¡Notificaciones enlazadas! Recibirás los informes diarios y semanales al instante en tu móvil.",
+            title: "Nuevo entreno completado",
+            body: "Series de umbral · 58 min",
             url: "/hoy",
           }),
         });
