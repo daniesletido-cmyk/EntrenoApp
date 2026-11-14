@@ -42,7 +42,7 @@ export interface ProposedMicroAdjustment {
   suggestedDiscipline: string;
   suggestedPlannedCode: string | null;
   suggestedPaceGuidance: string | null;
-  action: "modulate_run" | "convert_recovery" | "convert_rest" | "boost_session";
+  action: "modulate_run" | "convert_recovery" | "convert_rest" | "modulate_wod" | "boost_session";
   reason: string;
   isApplied: boolean;
 }
@@ -655,57 +655,79 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
     const originalMatch = s.notes ? s.notes.match(/\(Original:\s*([^)]+)\)/i) : null;
     const originalCode = originalMatch ? originalMatch[1].trim() : s.planned_code;
     
-    // Caso 1: Fatiga alta o déficit severo de sueño -> Modular carrera intensa o crossfit
-    if (overallScore < 55 || (yesterdayRpe !== null && yesterdayRpe >= 8 && last48hLoad > 350)) {
-      if (s.discipline === "carrera") {
-        const code = (originalCode ?? s.planned_code ?? "").toLowerCase();
-        const isIntenseRun = code.includes("r2") || code.includes("r3") || code.includes("r4") || code.includes("serie") || code.includes("fartlek") || s.is_long_run === 1;
-        
-        if (isIntenseRun) {
+    // Regla: Si Readiness es Óptimo / Luz Verde (>= 75%), NO proponer adaptaciones de fatiga
+    // Se mantiene el plan original programado al 100%
+    if (overallScore < 75) {
+      const code = (originalCode ?? s.planned_code ?? "").toLowerCase();
+      const isIntenseRun =
+        code.includes("r2") ||
+        code.includes("r3") ||
+        code.includes("r4") ||
+        code.includes("serie") ||
+        code.includes("fartlek") ||
+        code.includes("cuestas") ||
+        code.includes("umbral") ||
+        s.is_long_run === 1;
+
+      // Nivel 1: Fatiga Alta (< 50%) -> Reducción drástica o descanso
+      if (overallScore < 50) {
+        if (s.discipline === "carrera") {
           proposedMicroAdjustments.push({
             sessionId: s.id,
             date: s.date,
             discipline: s.discipline,
             originalPlannedCode: originalCode,
             suggestedDiscipline: "carrera",
-            suggestedPlannedCode: "R1 Regenerativo (suave 5:25-5:45 min/km)",
-            suggestedPaceGuidance: "5:25 - 5:50 min/km (R0/R1) a RPE ≤ 5",
+            suggestedPlannedCode: "R0 Regenerativo Suave (30-35 min)",
+            suggestedPaceGuidance: "> 5:35 - 5:50 min/km (Zona R0 suave) a RPE ≤ 3-4",
             action: "modulate_run",
-            reason: `Fatiga acumulada en las últimas 48h (RPE ${yesterdayRpe ?? "alto"}) o descanso bajo (${sleepScoreVal}/100). Se adapta para evitar sobrecarga y asimilar el trabajo previo.`,
+            reason: `Fatiga alta detectada (Readiness ${overallScore}% · Sueño ${sleepScoreVal}/100). Se reduce el volumen e intensidad a trote regenerativo R0 muy suave para recuperar el sistema neuromuscular y drenar musculatura.`,
             isApplied: isAlreadyApplied,
           });
-        }
-      } else if (s.discipline === "crossfit" || s.discipline === "gimnasio") {
-        if (overallScore < 45) {
+        } else if (s.discipline === "crossfit" || s.discipline === "gimnasio") {
           proposedMicroAdjustments.push({
             sessionId: s.id,
             date: s.date,
             discipline: s.discipline,
             originalPlannedCode: originalCode,
             suggestedDiscipline: "descanso",
-            suggestedPlannedCode: null,
+            suggestedPlannedCode: "Descanso Activo & Movilidad Lumbo-Pélvica",
             suggestedPaceGuidance: null,
             action: "convert_rest",
-            reason: "Readiness muy bajo (<45/100). Se sugiere convertir a descanso o movilidad para proteger tendones y sistema nervioso.",
+            reason: `Fatiga alta acumulada (Readiness ${overallScore}%). Se recomienda suspender cargas en el Box para permitir la recuperación del sistema nervioso central y articulaciones.`,
             isApplied: isAlreadyApplied,
           });
         }
       }
-    } else if (overallScore >= 85 && s.discipline === "carrera") {
-      // Caso 2: Estado óptimo -> Animar a buscar objetivo alto
-      if (!isAlreadyApplied && s.planned_code && (s.planned_code.includes("R1") || s.planned_code.includes("R2"))) {
-        proposedMicroAdjustments.push({
-          sessionId: s.id,
-          date: s.date,
-          discipline: s.discipline,
-          originalPlannedCode: s.planned_code,
-          suggestedDiscipline: "carrera",
-          suggestedPlannedCode: s.planned_code,
-          suggestedPaceGuidance: "Puedes buscar el ritmo alto de la zona (ej. R1 a 5:00 min/km o R2 a 4:35 min/km)",
-          action: "boost_session",
-          reason: "Recuperación y biomarcadores en nivel óptimo (Luz Verde).",
-          isApplied: false,
-        });
+      // Nivel 2: Fatiga Moderada (50% - 74%) -> Reducción real de volumen e intensidad
+      else {
+        if (s.discipline === "carrera" && isIntenseRun) {
+          proposedMicroAdjustments.push({
+            sessionId: s.id,
+            date: s.date,
+            discipline: s.discipline,
+            originalPlannedCode: originalCode,
+            suggestedDiscipline: "carrera",
+            suggestedPlannedCode: "R1 Base Aeróbica Suave (5:25 - 5:10 min/km)",
+            suggestedPaceGuidance: "5:25 - 5:10 min/km (Zona R1 continua) a RPE 4-5",
+            action: "modulate_run",
+            reason: `Fatiga moderada detectada (Readiness ${overallScore}%). Se sustituyen las series e intensidad por un rodaje continuo cómodo en zona R1 para asimilar la carga sin sobreentrenamiento.`,
+            isApplied: isAlreadyApplied,
+          });
+        } else if ((s.discipline === "crossfit" || s.discipline === "gimnasio") && ((yesterdayRpe !== null && yesterdayRpe >= 8) || last48hLoad > 350)) {
+          proposedMicroAdjustments.push({
+            sessionId: s.id,
+            date: s.date,
+            discipline: s.discipline,
+            originalPlannedCode: originalCode,
+            suggestedDiscipline: s.discipline,
+            suggestedPlannedCode: "WOD con Carga Moderada (Técnica & Movilidad)",
+            suggestedPaceGuidance: "Cargas al 60% · Evitar fallo muscular",
+            action: "modulate_wod",
+            reason: `Fatiga moderada tras alta carga previa (Readiness ${overallScore}%). Dosificar los pesos máximos y reducir el volumen de impacto en el Box.`,
+            isApplied: isAlreadyApplied,
+          });
+        }
       }
     }
   }

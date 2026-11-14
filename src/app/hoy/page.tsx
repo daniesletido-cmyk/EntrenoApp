@@ -339,7 +339,7 @@ export default function HoyPage() {
           {daySessions.map((s) => {
             const meta = DISCIPLINE_LABEL[s.discipline] ?? DISCIPLINE_LABEL.otro;
             const Icon = meta.Icon;
-            const modInfo = parseWorkoutModification(s, readiness?.proposedMicroAdjustments);
+            const modInfo = parseWorkoutModification(s, readiness?.proposedMicroAdjustments, readiness?.score);
             const isCompleted = s.status === "realizada";
             const vamZone = s.discipline === "carrera" ? detectVamZoneForSession(s) : null;
 
@@ -357,7 +357,7 @@ export default function HoyPage() {
 
             return (
               <section key={s.id} className="surface p-5 sm:p-6 space-y-5 animate-in">
-                {modInfo && (modInfo.isModified || modInfo.isPendingProposal) && (
+                {modInfo && (modInfo.isModified || modInfo.isPendingProposal || modInfo.isOptimal) && (
                   <WorkoutModificationBanner
                     info={modInfo}
                     onRevert={() => handleRevertAdjustment(s.id)}

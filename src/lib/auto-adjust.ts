@@ -193,6 +193,18 @@ export function applyDailyMicroAdjustments(targetDate: string, specificSessionId
         sessionId: adj.sessionId,
         message: `Convertido a descanso entreno del ${adj.date}`,
       });
+    } else if (adj.action === "modulate_wod") {
+      updateSession(adj.sessionId, {
+        planned_code: adj.suggestedPlannedCode,
+      });
+      appendSessionNote(
+        adj.sessionId,
+        `[Ajuste inteligente] ${adj.reason} Indicación: ${adj.suggestedPaceGuidance ?? "Carga moderada"}. (Original: ${adj.originalPlannedCode ?? adj.discipline}).`
+      );
+      results.push({
+        sessionId: adj.sessionId,
+        message: `Modulado entreno de box del ${adj.date} a ${adj.suggestedPlannedCode}`,
+      });
     } else if (adj.action === "boost_session") {
       appendSessionNote(
         adj.sessionId,
