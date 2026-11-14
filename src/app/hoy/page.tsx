@@ -145,11 +145,26 @@ export default function HoyPage() {
   }, [load]);
 
   useEffect(() => {
-    function onGlobalRefresh() {
+    function onRefresh() {
       load(true);
     }
-    window.addEventListener("entrenoapp:refresh", onGlobalRefresh);
-    return () => window.removeEventListener("entrenoapp:refresh", onGlobalRefresh);
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        load(false);
+      }
+    }
+
+    window.addEventListener("entrenoapp:refresh", onRefresh);
+    window.addEventListener("entrenoapp:sleep-updated", onRefresh);
+    window.addEventListener("focus", onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("entrenoapp:refresh", onRefresh);
+      window.removeEventListener("entrenoapp:sleep-updated", onRefresh);
+      window.removeEventListener("focus", onVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [load]);
 
   async function copySession(s: SessionRow) {

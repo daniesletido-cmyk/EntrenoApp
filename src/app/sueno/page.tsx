@@ -14,6 +14,9 @@ import {
   ArrowRight,
   BedDouble,
   RefreshCw,
+  Copy,
+  Check,
+  Radio,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -36,6 +39,7 @@ import { todayISO, addDays } from "@/lib/dates";
 import { reconcileSleep, saveLocalSleep } from "@/lib/client-persistence";
 import { haptics } from "@/lib/haptics";
 import type { SleepRow } from "@/lib/repo/sleep";
+import type { SleepSyncStatus } from "@/lib/sleep-sync-service";
 
 const SLEEP_TARGET_HOURS = 8.0;
 
@@ -115,6 +119,8 @@ export default function SuenoPage() {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
   const [syncingCloud, setSyncingCloud] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SleepSyncStatus | null>(null);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
 
   const [formData, setFormData] = useState({
     date: today,
@@ -130,19 +136,43 @@ export default function SuenoPage() {
     sleep_end: "07:15",
   });
 
-  const loadSleepData = useCallback(async () => {
+  const loadSleepData = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const from = addDays(todayISO(), -35);
       const to = addDays(todayISO(), 2);
-      const res = await fetch(`/api/sleep?from=${from}&to=${to}`).catch(() => null);
+      const t = Date.now();
+
+      // Consultar sin caché para traer el último registro del servidor
+      const [sleepRes, syncRes] = await Promise.all([
+        fetch(`/api/sleep?from=${from}&to=${to}&t=${t}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        }).catch(() => null),
+        fetch(`/api/sync/sleep?t=${t}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        }).catch(() => null),
+      ]);
+
       let serverLogs: SleepRow[] = [];
-      if (res && res.ok) {
-        const data = await res.json();
+      if (sleepRes && sleepRes.ok) {
+        const data = await sleepRes.json();
         serverLogs = data.logs || [];
       }
+
+      if (syncRes && syncRes.ok) {
+        const syncData = await syncRes.json();
+        if (syncData.syncStatus) {
+          setSyncStatus(syncData.syncStatus);
+        }
+      }
+
       const merged = await reconcileSleep(serverLogs, from, to);
       setLogs(merged);
+
+      // Notificar al resto de la app para que Readiness se recalcule de inmediato
+      window.dispatchEvent(new CustomEvent("entrenoapp:sleep-updated", { detail: { count: merged.length } }));
     } catch {
       const local = await reconcileSleep([], addDays(todayISO(), -35), addDays(todayISO(), 2));
       setLogs(local);
@@ -159,36 +189,64 @@ export default function SuenoPage() {
         setSelectedDate(urlDate);
       }
     } catch {}
-    loadSleepData();
-    const onRefresh = () => loadSleepData();
+    loadSleepData(true);
+
+    const onRefresh = () => loadSleepData(false);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadSleepData(false);
+      }
+    };
+
     window.addEventListener("entrenoapp:refresh", onRefresh);
-    return () => window.removeEventListener("entrenoapp:refresh", onRefresh);
+    window.addEventListener("focus", onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("entrenoapp:refresh", onRefresh);
+      window.removeEventListener("focus", onVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [loadSleepData]);
 
   const handleSyncCloud = useCallback(async (silent = false) => {
     try {
       setSyncingCloud(true);
-      const res = await fetch("/api/sync/intervals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: 7 }),
+      if (!silent) haptics.light();
+      const t = Date.now();
+      const res = await fetch(`/api/sync/sleep?t=${t}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        if (!silent) toast.push("error", data?.message || "No se pudo sincronizar con la nube.");
-        return;
+      if (data?.syncStatus) {
+        setSyncStatus(data.syncStatus);
       }
-      await loadSleepData();
+      await loadSleepData(false);
       if (!silent) {
         haptics.success();
-        toast.push("success", data?.message || "Sincronización completada.");
+        toast.push("success", data?.message || "Sincronización de sueño completada.");
       }
     } catch {
-      if (!silent) toast.push("error", "Error de red al sincronizar.");
+      if (!silent) toast.push("error", "Error de red al sincronizar sueño.");
     } finally {
       setSyncingCloud(false);
     }
   }, [loadSleepData, toast]);
+
+  const copyWebhookUrl = useCallback(async () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://entrenoapp-blond.vercel.app";
+    const webhookUrl = `${origin}/api/sync/sleep`;
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      setCopiedWebhook(true);
+      haptics.success();
+      toast.push("success", "URL de sincronización copiada para iOS Atajos / Zepp.");
+      setTimeout(() => setCopiedWebhook(false), 3000);
+    } catch {
+      toast.push("error", "No se pudo copiar la URL.");
+    }
+  }, [toast]);
 
   useEffect(() => {
     // Auto-sincronización silenciosa en segundo plano al abrir /sueno si aún no hay registro de anoche
@@ -443,8 +501,8 @@ export default function SuenoPage() {
             type="button"
             onClick={() => handleSyncCloud(false)}
             disabled={syncingCloud}
-            title="Sincronizar con Intervals.icu / nube"
-            className="md:hidden inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 cursor-pointer disabled:opacity-50"
+            title="Sincronizar sueño con Zepp / Servidor"
+            className="md:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw size={12} className={syncingCloud ? "animate-spin text-red-600" : ""} />
             <span className="hidden xs:inline">Sync</span>
@@ -456,6 +514,98 @@ export default function SuenoPage() {
           >
             <Upload size={12} />
             <span>+ CSV Zepp</span>
+          </button>
+        </div>
+      </div>
+
+      {/* PANEL DE DIAGNÓSTICO Y SINCRONIZACIÓN AUTOMÁTICA ZEPP / WEARABLE */}
+      <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs space-y-3 min-w-0">
+        <div className="flex items-center justify-between gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 shrink-0">
+              <Radio size={16} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-zinc-900">
+                  Sincronización Automática de Wearable (Zepp / Amazfit)
+                </span>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    syncStatus?.lastSyncAt
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                  }`}
+                >
+                  {syncStatus?.lastSyncAt ? "Enlace Activo" : "Esperando Registro"}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 truncate">
+                Amazfit Helio Strap / Zepp App · Conexión directa vía Webhook y ZeppBridge
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleSyncCloud(false)}
+            disabled={syncingCloud}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-black text-white transition-colors cursor-pointer disabled:opacity-50"
+            title="Comprobar nuevos datos en el servidor ahora"
+          >
+            <RefreshCw size={13} className={syncingCloud ? "animate-spin text-red-400" : ""} />
+            <span>{syncingCloud ? "Comprobando…" : "Forzar sincronización"}</span>
+          </button>
+        </div>
+
+        {/* Info estado de sincronización */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 flex flex-col gap-1 min-w-0">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+              Última sincronización recibida
+            </span>
+            <span className="text-xs font-bold text-zinc-900 truncate">
+              {syncStatus?.lastSyncFormatted || "Sin registros automáticos aún"}
+            </span>
+            <span className="text-[11px] text-zinc-600 truncate">
+              {syncStatus?.lastSleepDate
+                ? `Última noche: ${syncStatus.lastSleepDate} (${syncStatus.lastSleepHours ?? "—"}h · Score ${syncStatus.lastSleepScore ?? "—"}/100)`
+                : "No hay registros recientes"}
+            </span>
+          </div>
+
+          <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 flex flex-col gap-1 min-w-0">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+              Dispositivo / Zona Horaria
+            </span>
+            <span className="text-xs font-bold text-zinc-900">
+              Amazfit Helio Strap · Zepp
+            </span>
+            <span className="text-[11px] text-emerald-700 font-medium">
+              ✓ Normalización horaria en Europe/Madrid
+            </span>
+          </div>
+        </div>
+
+        {/* URL Webhook copiable */}
+        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-2.5 flex items-center justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 shrink-0">
+              Webhook:
+            </span>
+            <code className="text-[11px] font-mono text-zinc-800 truncate select-all">
+              {typeof window !== "undefined"
+                ? `${window.location.origin}/api/sync/sleep`
+                : "https://entrenoapp-blond.vercel.app/api/sync/sleep"}
+            </code>
+          </div>
+          <button
+            type="button"
+            onClick={copyWebhookUrl}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-200 shrink-0 cursor-pointer transition-colors shadow-2xs"
+          >
+            {copiedWebhook ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+            <span>{copiedWebhook ? "Copiada" : "Copiar URL"}</span>
           </button>
         </div>
       </div>

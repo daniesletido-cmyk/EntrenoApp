@@ -1,18 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertRecovery, getLatestRecovery, listRecoveryBetween, RecoveryInput } from "@/lib/repo/recovery";
-import { toLocalISODate } from "@/lib/dates";
+import { parseUniversalSleepPayload } from "@/lib/sleep-parser";
+import { ingestSleepRecords, getSleepSyncStatus } from "@/lib/sleep-sync-service";
+import { listSleepBetween, getSleepByDate } from "@/lib/repo/sleep";
+import { todayISO } from "@/lib/dates";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
 
 /**
- * Endpoint de sincronización automatizada de sueño de Zepp / Amazfit
+ * Endpoint de diagnóstico y consulta de estado de sincronización de sueño
  */
 export async function GET(req: NextRequest) {
-  // Blindaje forzado de sincronización con ZeppBridge
-  let syncResult: { success: boolean; count: number; message?: string } | null = null;
-  try {
-    const { autoSyncZepp } = await import("@/lib/zepp-auto-sync");
-    syncResult = autoSyncZepp(true);
-  } catch (err) {
-    syncResult = { success: false, count: 0, message: String(err) };
+  // 1. Si estamos en entorno local, intentar sincronizar con ZeppBridge si está disponible
+  let localSyncResult = null;
+  if (!process.env.VERCEL) {
+    try {
+      const { autoSyncZepp } = await import("@/lib/zepp-auto-sync");
+      localSyncResult = autoSyncZepp(true);
+    } catch {}
   }
 
   const { searchParams } = new URL(req.url);
@@ -20,111 +38,131 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to");
 
   if (from && to) {
-    const list = listRecoveryBetween(from, to);
-    return NextResponse.json({ recovery: list, count: list.length, syncResult });
+    const list = listSleepBetween(from, to);
+    return NextResponse.json(
+      { logs: list, count: list.length, syncStatus: getSleepSyncStatus() },
+      {
+        headers: {
+          ...CORS_HEADERS,
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+        },
+      }
+    );
   }
 
-  const latest = getLatestRecovery();
-  return NextResponse.json({
-    latest,
-    status: "ready",
-    timestamp: new Date().toISOString(),
-    syncResult,
-  });
+  const syncStatus = getSleepSyncStatus();
+  const today = todayISO();
+  const todayLog = getSleepByDate(today);
+
+  const host = req.headers.get("host") || "entrenoapp-blond.vercel.app";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const webhookUrl = `${protocol}://${host}/api/sync/sleep`;
+
+  return NextResponse.json(
+    {
+      status: "ready",
+      todaySleep: todayLog ?? null,
+      syncStatus,
+      webhookUrl,
+      localSyncResult,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      headers: {
+        ...CORS_HEADERS,
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+      },
+    }
+  );
 }
 
+/**
+ * Webhook unificado de recepción de sueño desde Zepp / Amazfit, iOS Shortcuts, Health Connect, etc.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: unknown = null;
+    const contentType = req.headers.get("content-type") || "";
 
-    // 1. Ingesta por lote (batch) de varios días
-    if (Array.isArray(body.logs) || Array.isArray(body)) {
-      const logs = Array.isArray(body.logs) ? body.logs : body;
-      const results = [];
-
-      for (const item of logs) {
-        if (!item.date && !item.fecha) continue;
-        const normalized = normalizeZeppPayload(item);
-        const saved = upsertRecovery(normalized);
-        results.push(saved);
-      }
-
+    if (contentType.includes("application/json")) {
+      body = await req.json().catch(() => null);
+    } else if (contentType.includes("text/plain")) {
+      const text = await req.text();
       try {
-        const latest = results.slice().sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
-        if (latest) {
-          const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
-          await sendSleepRecordedPush({
-            date: latest.fecha,
-            hours: latest.sleep_duration,
-            score: latest.recovery_score,
-            deep_min: latest.deep_sleep_min,
-            rem_min: latest.rem_min,
-            resting_hr: latest.resting_hr,
-          });
+        body = JSON.parse(text);
+      } catch {
+        body = { raw_text: text };
+      }
+    } else {
+      // Fallback genérico para cualquier payload
+      body = await req.json().catch(async () => {
+        const text = await req.text().catch(() => "");
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
         }
-      } catch {}
-
-      return NextResponse.json({
-        success: true,
-        count: results.length,
-        recovery: results,
       });
     }
 
-    // 2. Ingesta individual de un día
-    const normalized = normalizeZeppPayload(body);
-    if (!normalized.fecha) {
-      return NextResponse.json({ error: "Campo fecha/date es obligatorio" }, { status: 400 });
+    if (!body) {
+      return NextResponse.json(
+        { error: "Payload vacío o formato no reconocido" },
+        { status: 400, headers: CORS_HEADERS }
+      );
     }
 
-    const saved = upsertRecovery(normalized);
+    // 1. Parseo universal y normalización en zona horaria Europe/Madrid
+    const parsedRecords = parseUniversalSleepPayload(body);
 
+    if (parsedRecords.length === 0) {
+      return NextResponse.json(
+        {
+          error: "No se pudieron extraer registros de sueño válidos del payload recibido",
+          receivedKeys: typeof body === "object" && body !== null ? Object.keys(body) : [],
+        },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
+    // 2. Persistencia blindada en SQLite (ambas DBs), Vercel Blob y Supabase
+    const { saved, count } = await ingestSleepRecords(parsedRecords);
+
+    // 3. Notificación Push para el registro más reciente
     try {
-      const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
-      await sendSleepRecordedPush({
-        date: saved.fecha,
-        hours: saved.sleep_duration,
-        score: saved.recovery_score,
-        deep_min: saved.deep_sleep_min,
-        rem_min: saved.rem_min,
-        resting_hr: saved.resting_hr,
-      });
-    } catch {}
+      const latest = saved.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (latest) {
+        const { sendSleepRecordedPush } = await import("@/lib/push-notifications");
+        await sendSleepRecordedPush(latest);
+      }
+    } catch (pushErr) {
+      console.warn("[Sleep Sync API] Aviso notificando push:", pushErr);
+    }
 
-    return NextResponse.json({
-      success: true,
-      recovery: saved,
-      message: "Registro de sueño sincronizado y métricas de recuperación actualizadas.",
-    });
+    const syncStatus = getSleepSyncStatus();
+
+    return NextResponse.json(
+      {
+        success: true,
+        count,
+        latest: saved[0] ?? null,
+        syncStatus,
+        message: `Sincronizados ${count} registro(s) de sueño con éxito.`,
+      },
+      {
+        headers: {
+          ...CORS_HEADERS,
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (err: any) {
-    console.error("[Zepp Sync API] Error al procesar:", err);
-    return NextResponse.json({ error: err.message || "Error interno procesando sueño" }, { status: 500 });
+    console.error("[Sleep Sync API] Error procesando sueño:", err);
+    return NextResponse.json(
+      { error: err?.message || "Error interno procesando sincronización de sueño" },
+      { status: 500, headers: CORS_HEADERS }
+    );
   }
-}
-
-function normalizeZeppPayload(item: any): RecoveryInput {
-  const fecha = item.fecha || item.date || toLocalISODate();
-
-  // Duración en horas: si viene en minutos (>24) o en horas
-  let sleepDuration: number | null = null;
-  const rawDuration = item.sleep_duration ?? item.hours ?? item.duration ?? item.total_sleep_time;
-  if (typeof rawDuration === "number") {
-    sleepDuration = rawDuration > 24 ? Math.round((rawDuration / 60) * 10) / 10 : Math.round(rawDuration * 10) / 10;
-  }
-
-  // Fases en minutos
-  const deepMin = item.deep_sleep_min ?? item.deep_min ?? item.deepSleepTime ?? item.deep_sleep_time ?? null;
-  const remMin = item.rem_min ?? item.rem_sleep_min ?? item.remSleepTime ?? item.rem_time ?? null;
-  const restingHr = item.resting_hr ?? item.rest_hr ?? item.resting_heart_rate ?? item.min_hr ?? null;
-  const score = item.recovery_score ?? item.score ?? item.sleep_score ?? null;
-
-  return {
-    fecha,
-    sleep_duration: sleepDuration,
-    deep_sleep_min: deepMin != null ? Number(deepMin) : null,
-    rem_min: remMin != null ? Number(remMin) : null,
-    resting_hr: restingHr != null ? Number(restingHr) : null,
-    recovery_score: score != null ? Math.round(Number(score)) : null,
-    raw_data: JSON.stringify(item),
-  };
 }

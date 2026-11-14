@@ -23,3 +23,5 @@ release/
 .env*
 
 !.env.example
+scratch/
+
