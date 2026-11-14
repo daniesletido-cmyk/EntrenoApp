@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendPushToAll, sendDailyReportPush, sendWeeklyReportPush, sendSleepRecordedPush } from "@/lib/push-notifications";
+import {
+  sendPushToAll,
+  sendDailyReportPush,
+  sendWeeklyReportPush,
+  sendSleepRecordedPush,
+  sendDailyPlanReminderPush,
+} from "@/lib/push-notifications";
 import { savePushSubscription } from "@/lib/repo/push-subscriptions";
 import { createNotification } from "@/lib/repo/notifications";
 
@@ -39,8 +45,8 @@ export async function POST(req: NextRequest) {
 
     let result;
     if (customTitle || customBody) {
-      const title = (customTitle || "Notificación de prueba").slice(0, 30);
-      const bodyText = (customBody || "Prueba de notificación").slice(0, 55);
+      const title = (customTitle || "Entreno completado").slice(0, 25);
+      const bodyText = (customBody || "Series umbral · 58 min").slice(0, 35);
       try {
         createNotification({
           title,
@@ -59,11 +65,18 @@ export async function POST(req: NextRequest) {
     } else if (type === "sleep") {
       result = await sendSleepRecordedPush({
         date: new Date().toISOString().slice(0, 10),
-        hours: 7.75, // 7h 45m
-        score: 82,
+        hours: 8.5833, // 8h 35m
+        score: 94,
       });
     } else if (type === "weekly") {
-      result = await sendWeeklyReportPush("2026-10-26", { totalKm: 42.5, totalTss: 420, sessionsCount: 5 });
+      result = await sendWeeklyReportPush("2026-11-09", { totalKm: 42.5, totalTss: 420, sessionsCount: 5 });
+    } else if (type === "reminder") {
+      result = await sendDailyPlanReminderPush({
+        date: new Date().toISOString().slice(0, 10),
+        discipline: "carrera",
+        planned_code: "Intervalos R3",
+        duration_min: 55,
+      });
     } else {
       result = await sendDailyReportPush({
         id: 480,
@@ -71,7 +84,7 @@ export async function POST(req: NextRequest) {
         discipline: "carrera",
         distance_km: 10.2,
         duration_min: 58,
-        planned_code: "Series de umbral",
+        planned_code: "Series umbral",
         pace: "4:19 min/km",
         carga_tss: 98,
       });

@@ -64,30 +64,29 @@ function isDuplicatePush(tag?: string): boolean {
   return false;
 }
 
-function truncateLine(str: string, maxLen: number): string {
+function truncateLine(str: string, maxLen: number = 35): string {
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen - 1).trim() + "…";
 }
 
 function formatHoursMinutesShort(hours: number | null | undefined): string {
-  if (hours == null || isNaN(hours) || hours <= 0) return "0h";
+  if (hours == null || isNaN(hours) || hours <= 0) return "0h 00m";
   const totalMin = Math.round(hours * 60);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (m === 0) return `${h}h`;
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
 function cleanDisciplineLabel(raw?: string | null): string {
   const d = (raw || "").toLowerCase().trim();
-  if (d.includes("carrer") || d.includes("run")) return "Rodaje suave";
-  if (d.includes("series") || d.includes("interval")) return "Series de umbral";
-  if (d.includes("natac") || d.includes("swim")) return "Natación técnica";
-  if (d.includes("crossfit") || d.includes("box")) return "CrossFit WOD";
-  if (d.includes("gimnas") || d.includes("fuerza")) return "Fuerza gimnasio";
+  if (d.includes("series") || d.includes("interval") || d.includes("r3") || d.includes("r4")) return "Series umbral";
+  if (d.includes("carrer") || d.includes("run") || d.includes("rodaje")) return "Rodaje suave";
+  if (d.includes("natac") || d.includes("swim")) return "Natación";
+  if (d.includes("crossfit") || d.includes("box") || d.includes("wod")) return "CrossFit";
+  if (d.includes("gimnas") || d.includes("fuerza")) return "Fuerza";
   if (d.includes("bici") || d.includes("ciclismo")) return "Ciclismo";
-  if (d.includes("caminata")) return "Caminata activa";
-  return raw ? raw.slice(0, 24) : "Entrenamiento";
+  if (d.includes("caminata") || d.includes("paseo")) return "Caminata";
+  return raw ? raw.slice(0, 16).trim() : "Entreno";
 }
 
 export interface PushNotificationPayload {
@@ -178,9 +177,10 @@ export async function sendPushToAll(payload: PushNotificationPayload): Promise<{
 
 /**
  * Envía notificación push instantánea cuando se procesa un entrenamiento desde Suunto/Intervals
- * Estilo minimalista Apple Salud / Strava / WHOOP:
- * Título: "Nuevo entreno completado"
- * Cuerpo (1 línea): "[Tipo o título breve] · [Distancia o Duración]"
+ * Estilo ultra minimalista (Apple Salud / Strava / WHOOP):
+ * Título: "Entreno completado"
+ * Cuerpo (1 línea): "[Nombre corto] · [Duración o km]" (Ej: "Series umbral · 58 min" o "Rodaje suave · 10.2 km")
+ * Destino: /hoy
  */
 export async function sendWorkoutLoadedPush(workout: {
   id: number;
@@ -191,19 +191,15 @@ export async function sendWorkoutLoadedPush(workout: {
   duracion: number;
   carga_tss?: number | null;
 }) {
-  const typeLabel = cleanDisciplineLabel(workout.tipo);
+  const shortName = cleanDisciplineLabel(workout.tipo);
   const metricPart =
     workout.distancia != null && workout.distancia > 0
       ? `${Number(workout.distancia).toFixed(1)} km`
       : `${Math.round(workout.duracion)} min`;
 
-  const title = "Nuevo entreno completado";
-  const body = truncateLine(`${typeLabel} · ${metricPart}`, 55);
-
-  let targetUrl = workout.fecha ? `/hoy?date=${workout.fecha}` : `/hoy`;
-  if (workout.sessionId) {
-    targetUrl = `/hoy?id=${workout.sessionId}`;
-  }
+  const title = "Entreno completado";
+  const body = truncateLine(`${shortName} · ${metricPart}`, 35);
+  const targetUrl = "/hoy";
 
   try {
     createNotification({
@@ -224,9 +220,10 @@ export async function sendWorkoutLoadedPush(workout: {
 
 /**
  * Envía notificación push instantánea cuando el informe diario de un entreno está listo
- * Estilo minimalista:
- * Título: "Nuevo entreno completado"
- * Cuerpo (1 línea): "[Tipo o título breve] · [Distancia o Duración]"
+ * Estilo ultra minimalista:
+ * Título: "Entreno completado"
+ * Cuerpo (1 línea): "[Nombre corto] · [Duración o km]" (Ej: "Series umbral · 58 min" o "Rodaje suave · 10.2 km")
+ * Destino: /hoy
  */
 export async function sendDailyReportPush(session: {
   id: number;
@@ -247,7 +244,7 @@ export async function sendDailyReportPush(session: {
   const codeVal = session.planned_code || fullSession?.planned_code;
 
   let shortName = codeVal ? codeVal.replace(/\([^)]*\)/g, "").trim() : cleanDisciplineLabel(discipline);
-  if (shortName.length > 24) shortName = shortName.slice(0, 24).trim();
+  if (shortName.length > 18) shortName = shortName.slice(0, 18).trim();
 
   const metricPart =
     distVal != null && distVal > 0
@@ -256,9 +253,9 @@ export async function sendDailyReportPush(session: {
       ? `${Math.round(durVal)} min`
       : "Completado";
 
-  const title = "Nuevo entreno completado";
-  const body = truncateLine(`${shortName} · ${metricPart}`, 55);
-  const targetUrl = `/hoy?id=${session.id}${dateStr ? `&date=${dateStr}` : ""}`;
+  const title = "Entreno completado";
+  const body = truncateLine(`${shortName} · ${metricPart}`, 35);
+  const targetUrl = "/hoy";
 
   try {
     createNotification({
@@ -279,9 +276,10 @@ export async function sendDailyReportPush(session: {
 
 /**
  * Envía notificación push de resumen semanal
- * Estilo minimalista:
- * Título: "Resumen semanal disponible"
- * Cuerpo (1 línea): "[Total km o tiempo semanal] completados esta semana."
+ * Estilo ultra minimalista:
+ * Título: "Resumen semanal"
+ * Cuerpo (1 línea): "[Total km o horas] esta semana" (Ej: "42.5 km esta semana")
+ * Destino: /progreso
  */
 export async function sendWeeklyReportPush(
   weekStart: string,
@@ -289,19 +287,18 @@ export async function sendWeeklyReportPush(
 ) {
   let volumePart = "";
   if (summary?.totalKm != null && summary.totalKm > 0) {
-    volumePart = `${summary.totalKm.toFixed(1)} km`;
+    volumePart = `${Number(summary.totalKm).toFixed(1)} km`;
   } else if (summary?.totalDurationMin != null && summary.totalDurationMin > 0) {
-    const h = Math.floor(summary.totalDurationMin / 60);
-    const m = Math.round(summary.totalDurationMin % 60);
-    volumePart = `${h}h ${String(m).padStart(2, "0")}m`;
+    const hours = (summary.totalDurationMin / 60).toFixed(1);
+    volumePart = `${hours}h`;
   } else if (summary?.sessionsCount != null && summary.sessionsCount > 0) {
     volumePart = `${summary.sessionsCount} sesiones`;
   } else {
-    volumePart = "Entrenamientos";
+    volumePart = "Buen volumen";
   }
 
-  const title = "Resumen semanal disponible";
-  const body = truncateLine(`${volumePart} completados esta semana.`, 55);
+  const title = "Resumen semanal";
+  const body = truncateLine(`${volumePart} esta semana`, 35);
   const targetUrl = "/progreso";
 
   try {
@@ -325,9 +322,10 @@ export async function sendWeeklyReportPush(
 
 /**
  * Envía notificación push instantánea cuando se registra o sincroniza el descanso (Zepp)
- * Estilo minimalista:
- * Título: "Nuevo registro de sueño"
- * Cuerpo (1 línea): "[Horas dormidas] · Readiness al [X]%"
+ * Estilo ultra minimalista:
+ * Título: "Recuperación al [X]%" (Ej: "Recuperación al 94%")
+ * Cuerpo (1 línea): "Sueño registrado: [Xh XXm]" (Ej: "Sueño registrado: 8h 35m")
+ * Destino: /sueno
  */
 export async function sendSleepRecordedPush(sleep: {
   date: string;
@@ -344,12 +342,20 @@ export async function sendSleepRecordedPush(sleep: {
   let readinessVal = 80;
   try {
     const r = computeDailyReadiness(sleep.date);
-    if (typeof r?.score === "number") readinessVal = Math.round(r.score);
-  } catch {}
+    if (typeof r?.score === "number") {
+      readinessVal = Math.round(r.score);
+    } else if (typeof sleep.score === "number" && sleep.score > 0) {
+      readinessVal = Math.round(sleep.score);
+    }
+  } catch {
+    if (typeof sleep.score === "number" && sleep.score > 0) {
+      readinessVal = Math.round(sleep.score);
+    }
+  }
 
-  const title = "Nuevo registro de sueño";
-  const body = truncateLine(`${hoursFormatted} dormidos · Readiness al ${readinessVal}%`, 55);
-  const targetUrl = `/sueno?date=${sleep.date}`;
+  const title = `Recuperación al ${readinessVal}%`;
+  const body = truncateLine(`Sueño registrado: ${hoursFormatted}`, 35);
+  const targetUrl = "/sueno";
 
   try {
     createNotification({
@@ -370,9 +376,10 @@ export async function sendSleepRecordedPush(sleep: {
 
 /**
  * Recordatorio diario de sesión planificada
- * Estilo minimalista:
- * Título: "Entreno de hoy listo"
- * Cuerpo (1 línea): "[Nombre corto de la sesión] · [Duración estimada]"
+ * Estilo ultra minimalista:
+ * Título: "Sesión de hoy"
+ * Cuerpo (1 línea): "[Nombre corto] · [Duración]" (Ej: "Intervalos R3 · 55 min")
+ * Destino: /hoy
  */
 export async function sendDailyPlanReminderPush(session: {
   id?: number;
@@ -385,17 +392,17 @@ export async function sendDailyPlanReminderPush(session: {
   let shortName = session.planned_code
     ? session.planned_code.replace(/\([^)]*\)/g, "").trim()
     : cleanDisciplineLabel(session.discipline);
-  if (shortName.length > 24) shortName = shortName.slice(0, 24).trim();
+  if (shortName.length > 18) shortName = shortName.slice(0, 18).trim();
 
   const durPart =
     session.duration_min != null && session.duration_min > 0
       ? `${Math.round(session.duration_min)} min`
       : session.distance_km != null && session.distance_km > 0
       ? `${Number(session.distance_km).toFixed(1)} km`
-      : "Sesión del día";
+      : "Listo";
 
-  const title = "Entreno de hoy listo";
-  const body = truncateLine(`${shortName} · ${durPart}`, 55);
+  const title = "Sesión de hoy";
+  const body = truncateLine(`${shortName} · ${durPart}`, 35);
   const targetUrl = "/hoy";
 
   try {

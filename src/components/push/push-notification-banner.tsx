@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, CheckCircle2, AlertTriangle, Loader2, Send, Info, Smartphone, BarChart3, Trophy, X } from "lucide-react";
+import { Bell, CheckCircle2, AlertTriangle, Loader2, Send, Info, Smartphone, BarChart3, Trophy, Moon, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -28,6 +28,7 @@ export function PushNotificationBanner({
   const [loading, setLoading] = useState(false);
   const [testingDaily, setTestingDaily] = useState(false);
   const [testingWeekly, setTestingWeekly] = useState(false);
+  const [testingSleep, setTestingSleep] = useState(false);
   const [isIosWeb, setIsIosWeb] = useState(false);
   const [statusHelp, setStatusHelp] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -201,8 +202,8 @@ export function PushNotificationBanner({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "daily",
-            title: "Nuevo entreno completado",
-            body: "Series de umbral · 58 min",
+            title: "Entreno completado",
+            body: "Series umbral · 58 min",
             url: "/hoy",
           }),
         });
@@ -217,8 +218,8 @@ export function PushNotificationBanner({
     }
   }
 
-  async function sendTestNotification(type: "daily" | "weekly") {
-    if (testingDaily || testingWeekly) return;
+  async function sendTestNotification(type: "daily" | "weekly" | "sleep") {
+    if (testingDaily || testingWeekly || testingSleep) return;
 
     const dedupeKey = `entrenoapp_banner_test_${type}_${Math.floor(Date.now() / 15000)}`;
     try {
@@ -231,6 +232,7 @@ export function PushNotificationBanner({
 
     if (type === "daily") setTestingDaily(true);
     if (type === "weekly") setTestingWeekly(true);
+    if (type === "sleep") setTestingSleep(true);
 
     try {
       const res = await fetch("/api/push/test", {
@@ -249,6 +251,7 @@ export function PushNotificationBanner({
     } finally {
       setTestingDaily(false);
       setTestingWeekly(false);
+      setTestingSleep(false);
     }
   }
 
@@ -423,24 +426,33 @@ export function PushNotificationBanner({
 
         <div className="w-full sm:w-auto shrink-0">
           {isSubscribed ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full sm:w-auto">
               <button
                 onClick={() => sendTestNotification("daily")}
-                disabled={testingDaily || testingWeekly}
+                disabled={testingDaily || testingWeekly || testingSleep}
                 className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
-                title="Probar que salta el aviso diario"
+                title="Probar que salta el aviso de entreno completado"
               >
                 {testingDaily ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Trophy size={13} className="shrink-0 text-zinc-700" />}
-                <span className="truncate">Probar aviso diario</span>
+                <span className="truncate">Probar entreno</span>
+              </button>
+              <button
+                onClick={() => sendTestNotification("sleep")}
+                disabled={testingDaily || testingWeekly || testingSleep}
+                className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+                title="Probar que salta el aviso de recuperación y sueño"
+              >
+                {testingSleep ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Moon size={13} className="shrink-0 text-zinc-700" />}
+                <span className="truncate">Probar sueño</span>
               </button>
               <button
                 onClick={() => sendTestNotification("weekly")}
-                disabled={testingDaily || testingWeekly}
+                disabled={testingDaily || testingWeekly || testingSleep}
                 className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
-                title="Probar que salta el aviso semanal"
+                title="Probar que salta el resumen semanal"
               >
                 {testingWeekly ? <Loader2 size={13} className="animate-spin shrink-0" /> : <BarChart3 size={13} className="shrink-0 text-zinc-700" />}
-                <span className="truncate">Probar aviso semanal</span>
+                <span className="truncate">Probar resumen</span>
               </button>
             </div>
           ) : (

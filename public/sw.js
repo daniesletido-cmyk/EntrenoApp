@@ -1,5 +1,5 @@
-// Service Worker para EntrenoApp Web Push Notifications y PWA (v8 - Anti-duplicados y Deep Linking)
-const CACHE_NAME = "entrenoapp-v8";
+// Service Worker para EntrenoApp Web Push Notifications y PWA (v9 - Minimalist Native Push)
+const CACHE_NAME = "entrenoapp-v9";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -19,10 +19,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   let data = {
-    title: "EntrenoApp",
-    body: "Novedades en tu plan y recuperación.",
-    icon: "/icon-192.png?v=8",
-    badge: "/icon-192.png?v=8",
+    title: "Entreno completado",
+    body: "Series umbral · 58 min",
+    icon: "/icon-192.png?v=9",
+    badge: "/icon-192.png?v=9",
     data: {
       url: "/hoy",
     },
@@ -50,8 +50,8 @@ self.addEventListener("push", (event) => {
 
   const notificationOptions = {
     body: data.body,
-    icon: data.icon || "/icon-192.png?v=8",
-    badge: data.badge || "/icon-192.png?v=8",
+    icon: data.icon || "/icon-192.png?v=9",
+    badge: data.badge || "/icon-192.png?v=9",
     vibrate: [200, 100, 200],
     data: {
       url: data.data?.url || "/hoy",
