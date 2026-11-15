@@ -37,6 +37,7 @@ import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { CalendarAgendaBadge } from "@/components/calendar/calendar-agenda-badge";
 import type { AdaptedSessionProposal } from "@/lib/adaptive_scheduler";
+import { SubstituteWorkoutModal } from "@/components/modals/substitute-workout-modal";
 
 interface SessionRow {
   id: number;
@@ -109,6 +110,7 @@ export default function HoyPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [calendarProposal, setCalendarProposal] = useState<AdaptedSessionProposal | null>(null);
   const [calendarVersion, setCalendarVersion] = useState<"express" | "original">("express");
+  const [substituteModalSession, setSubstituteModalSession] = useState<SessionRow | null>(null);
   const toast = useToast();
 
   const load = useCallback(async (isManual = false) => {
@@ -539,6 +541,16 @@ export default function HoyPage() {
                       <span>{copiedId === s.id ? "Copiado" : "Copiar"}</span>
                     </button>
                   </div>
+
+                  {/* Acción rápida de sustitución por enfermedad/recuperación */}
+                  <button
+                    type="button"
+                    className="w-full btn btn-ghost text-xs flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-white/15 hover:border-brand/40 text-muted hover:text-white transition-all cursor-pointer"
+                    onClick={() => setSubstituteModalSession(s)}
+                  >
+                    <Footprints size={14} className="text-amber-500" />
+                    <span>Cambiar entreno (Andar / Enfermedad / Descanso)</span>
+                  </button>
                 </div>
               </section>
             );
@@ -622,6 +634,18 @@ export default function HoyPage() {
         <WorkoutDetailModal
           sessionId={detailSessionId}
           onClose={() => setDetailSessionId(null)}
+        />
+      )}
+
+      {substituteModalSession && (
+        <SubstituteWorkoutModal
+          isOpen={Boolean(substituteModalSession)}
+          onClose={() => setSubstituteModalSession(null)}
+          date={substituteModalSession.date}
+          sessionId={substituteModalSession.id}
+          currentDiscipline={substituteModalSession.discipline}
+          currentTitle={substituteModalSession.planned_code}
+          onSuccess={() => load(false)}
         />
       )}
     </div>

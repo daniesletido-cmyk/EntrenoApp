@@ -85,7 +85,7 @@ function cleanDisciplineLabel(raw?: string | null): string {
   if (d.includes("crossfit") || d.includes("box") || d.includes("wod")) return "CrossFit";
   if (d.includes("gimnas") || d.includes("fuerza")) return "Fuerza";
   if (d.includes("bici") || d.includes("ciclismo")) return "Ciclismo";
-  if (d.includes("caminata") || d.includes("paseo")) return "Caminata";
+  if (d.includes("caminata") || d.includes("paseo") || d.includes("andar") || d.includes("caminar") || d.includes("walk") || d.includes("hike")) return "Caminata";
   return raw ? raw.slice(0, 16).trim() : "Entreno";
 }
 
@@ -215,6 +215,70 @@ export async function sendWorkoutLoadedPush(workout: {
     body,
     data: { url: targetUrl },
     tag: `workout-${workout.sessionId || workout.id}-${workout.fecha || ""}`,
+  });
+}
+
+/**
+ * Envía notificación push cuando se actualiza, adapta o sustituye un entreno
+ * (por ejemplo cambiar carrera por caminata por enfermedad, o ajuste de agenda)
+ * Formato minimalista estilo nativo iOS:
+ * Título: "Entreno actualizado"
+ * Cuerpo: "[Día]: cambiado a [Nueva actividad] · [Duración/km]"
+ * Destino: /hoy
+ */
+export async function sendWorkoutUpdatedPush(params: {
+  date: string;
+  newActivity: string;
+  durationMin?: number | null;
+  distanceKm?: number | null;
+  changeId?: string | number;
+}) {
+  const now = new Date();
+  const todayIso = now.toISOString().slice(0, 10);
+  const targetDate = new Date(params.date + "T00:00:00Z");
+  const todayDate = new Date(todayIso + "T00:00:00Z");
+  const diffDays = Math.round((todayDate.getTime() - targetDate.getTime()) / 86400000);
+
+  let dayLabel = "Hoy";
+  if (diffDays === 1) dayLabel = "Ayer";
+  else if (diffDays === 0) dayLabel = "Hoy";
+  else if (diffDays === -1) dayLabel = "Mañana";
+  else {
+    const daysEs = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    dayLabel = daysEs[targetDate.getUTCDay()];
+  }
+
+  const actLabel = cleanDisciplineLabel(params.newActivity) || params.newActivity;
+  let metricPart = "";
+  if (params.distanceKm != null && params.distanceKm > 0) {
+    metricPart = `${Number(params.distanceKm).toFixed(1)} km`;
+  } else if (params.durationMin != null && params.durationMin > 0) {
+    metricPart = `${Math.round(params.durationMin)} min`;
+  }
+
+  const title = "Entreno actualizado";
+  const body = truncateLine(
+    metricPart
+      ? `${dayLabel}: cambiado a ${actLabel} · ${metricPart}`
+      : `${dayLabel}: cambiado a ${actLabel}`,
+    35
+  );
+  const targetUrl = "/hoy";
+
+  try {
+    createNotification({
+      title,
+      body,
+      url: targetUrl,
+      category: "workout",
+    });
+  } catch {}
+
+  return sendPushToAll({
+    title,
+    body,
+    data: { url: targetUrl },
+    tag: `workout-updated-${params.date}-${params.changeId || Date.now()}`,
   });
 }
 

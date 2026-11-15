@@ -60,8 +60,9 @@ function findMatchingCompletedWithoutFit(sessions: SessionRow[], date: string, s
   for (const s of completed) {
     const sameSport =
       s.discipline === sport ||
-      ((s.discipline === "crossfit" || s.discipline === "gimnasio") && (sport === "crossfit" || sport === "gimnasio"));
-    const closeDuration = s.duration_min != null && Math.abs(s.duration_min - durationMin) <= 8;
+      ((s.discipline === "crossfit" || s.discipline === "gimnasio") && (sport === "crossfit" || sport === "gimnasio")) ||
+      (sport === "otro" && (s.discipline === "crossfit" || s.discipline === "gimnasio"));
+    const closeDuration = s.duration_min != null && Math.abs(s.duration_min - durationMin) <= 12;
     if (sameSport || closeDuration) {
       return s;
     }
@@ -71,8 +72,13 @@ function findMatchingCompletedWithoutFit(sessions: SessionRow[], date: string, s
 
 function findMatchingPendingSession(sessions: SessionRow[], date: string, sport: Discipline): SessionRow | null {
   const daySessions = sessions.filter((s) => s.date === date && s.status === "pendiente");
+  if (daySessions.length === 0) return null;
+
+  // 1. Coincidencia exacta de disciplina
   const exact = daySessions.find((s) => s.discipline === sport);
   if (exact) return exact;
+
+  // 2. Coincidencia de fuerza/box
   if (sport === "crossfit" || sport === "gimnasio") {
     const box = daySessions.find((s) => s.discipline === "crossfit" || s.discipline === "gimnasio");
     if (box) return box;
@@ -81,8 +87,14 @@ function findMatchingPendingSession(sessions: SessionRow[], date: string, sport:
     const gymOrCf = daySessions.find((s) => s.discipline === "crossfit" || s.discipline === "gimnasio");
     if (gymOrCf) return gymOrCf;
   }
+
+  // 3. Sesión de descanso u otro
   const restOrOther = daySessions.find((s) => s.discipline === "descanso" || s.discipline === "otro");
-  return restOrOther || null;
+  if (restOrOther) return restOrOther;
+
+  // 4. SUSTITUCIÓN INTELIGENTE: Si había otra sesión planificada en el día (ej. Carrera sustituida por Caminata/Andar por enfermedad)
+  // Reemplazar la sesión pendiente existente en lugar de duplicarla como extra
+  return daySessions[0];
 }
 
 let lastAutoSyncMs = 0;
@@ -257,8 +269,20 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
       } else {
         const match = findMatchingPendingSession(existingSessions, date, sport);
         if (match) {
+          const isSubstitution =
+            match.discipline !== sport ||
+            (match.planned_code && match.planned_code.toLowerCase().includes("sustituy")) ||
+            (match.discipline === "caminata" && (match.planned_code || "").includes("Paseo"));
+
+          let newPlannedCode = match.planned_code;
+          if (isSubstitution) {
+            const cleanSportName = sport === "caminata" ? "Caminata" : sport;
+            newPlannedCode = `Entreno modificado · ${cleanSportName}`;
+          }
+
           const updated = updateSession(match.id, {
-            discipline: match.discipline === "descanso" ? sport : match.discipline,
+            discipline: sport,
+            planned_code: newPlannedCode,
             status: "realizada",
             duration_min: Math.round(durationMin),
             distance_km: distanceKm,
@@ -270,6 +294,20 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
           if (updated) {
             targetSessionId = updated.id;
             existingSessions.push(updated);
+
+            // Enviar notificación Push de entreno modificado / actualizado
+            try {
+              const { sendWorkoutUpdatedPush } = await import("@/lib/push-notifications");
+              await sendWorkoutUpdatedPush({
+                date,
+                newActivity: sport === "caminata" ? "Caminata" : sport,
+                durationMin: Math.round(durationMin),
+                distanceKm,
+                changeId: act.id,
+              });
+            } catch (pushErr) {
+              console.warn("[IntervalsSync] Error enviando push de entreno modificado:", pushErr);
+            }
           }
         } else {
           const created = createPlannedSession({
@@ -290,6 +328,17 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
           if (updated) {
             targetSessionId = updated.id;
             existingSessions.push(updated);
+
+            try {
+              const { sendWorkoutUpdatedPush } = await import("@/lib/push-notifications");
+              await sendWorkoutUpdatedPush({
+                date,
+                newActivity: sport === "caminata" ? "Caminata" : sport,
+                durationMin: Math.round(durationMin),
+                distanceKm,
+                changeId: act.id,
+              });
+            } catch {}
           }
         }
       }
