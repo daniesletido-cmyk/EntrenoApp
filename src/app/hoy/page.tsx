@@ -35,6 +35,8 @@ import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
+import { CalendarAgendaBadge } from "@/components/calendar/calendar-agenda-badge";
+import type { AdaptedSessionProposal } from "@/lib/adaptive_scheduler";
 
 interface SessionRow {
   id: number;
@@ -105,6 +107,8 @@ export default function HoyPage() {
   const [applyingAdjustment, setApplyingAdjustment] = useState(false);
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [calendarProposal, setCalendarProposal] = useState<AdaptedSessionProposal | null>(null);
+  const [calendarVersion, setCalendarVersion] = useState<"express" | "original">("express");
   const toast = useToast();
 
   const load = useCallback(async (isManual = false) => {
@@ -337,6 +341,14 @@ export default function HoyPage() {
         </div>
       </section>
 
+      {/* Badge de Agenda y Adaptación del Calendario iPhone */}
+      <CalendarAgendaBadge
+        date={selectedDate}
+        onSelectVersion={setCalendarVersion}
+        activeVersion={calendarVersion}
+        onAdaptationLoaded={setCalendarProposal}
+      />
+
       {/* 2. Sesión Programada del Día (Protagonista, sin saturación) */}
       {daySessions.length === 0 ? (
         <EmptyState
@@ -352,14 +364,31 @@ export default function HoyPage() {
       ) : (
         <div className="space-y-4">
           {daySessions.map((s) => {
+            const isAdaptedExpress = Boolean(
+              calendarProposal &&
+              calendarProposal.status === "adapted_express" &&
+              calendarVersion === "express" &&
+              calendarProposal.originalSession.id === s.id
+            );
+
+            const effectiveSession = isAdaptedExpress
+              ? {
+                  ...s,
+                  planned_code: calendarProposal!.adaptedSession.planned_code,
+                  duration_min: calendarProposal!.adaptedSession.duration_min,
+                  distance_km: calendarProposal!.adaptedSession.distance_km,
+                  notes: calendarProposal!.adaptedSession.notes,
+                }
+              : s;
+
             const meta = DISCIPLINE_LABEL[s.discipline] ?? DISCIPLINE_LABEL.otro;
             const Icon = meta.Icon;
             const modInfo = parseWorkoutModification(s, readiness?.proposedMicroAdjustments, readiness?.score);
             const isCompleted = s.status === "realizada";
-            const vamZone = s.discipline === "carrera" ? detectVamZoneForSession(s) : null;
+            const vamZone = s.discipline === "carrera" ? detectVamZoneForSession(effectiveSession) : null;
 
-            const cleanNotes = s.notes
-              ? s.notes
+            const cleanNotes = effectiveSession.notes
+              ? effectiveSession.notes
                   .split("\n")
                   .filter(
                     (line) =>
@@ -399,6 +428,12 @@ export default function HoyPage() {
                         <span className={isCompleted ? "badge badge-success" : "badge badge-brand"}>
                           {isCompleted ? "Completado" : meta.label}
                         </span>
+                        {isAdaptedExpress && (
+                          <span className="badge badge-warning flex items-center gap-1">
+                            <Zap size={10} />
+                            Versión Express
+                          </span>
+                        )}
                         {vamZone && (
                           <span className="badge badge-neutral tabular-nums">
                             Objetivo {vamZone.rangeLabel}
@@ -409,34 +444,34 @@ export default function HoyPage() {
                         className="text-lg sm:text-xl font-bold tracking-tight mt-1.5 leading-snug break-words"
                         style={{ color: "var(--color-text)" }}
                       >
-                        {s.planned_code || meta.label}
+                        {effectiveSession.planned_code || meta.label}
                       </h2>
                     </div>
                   </div>
                 </div>
 
                 {/* Chips clave limpios (Distancia / Duración / RPE) */}
-                {(s.distance_km != null || s.duration_min != null || s.rpe != null) && (
+                {(effectiveSession.distance_km != null || effectiveSession.duration_min != null || s.rpe != null) && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {s.distance_km != null && (
+                    {effectiveSession.distance_km != null && (
                       <div
                         className="p-3 rounded-xl"
                         style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Distancia</div>
                         <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
-                          {s.distance_km} km
+                          {effectiveSession.distance_km} km
                         </div>
                       </div>
                     )}
-                    {s.duration_min != null && (
+                    {effectiveSession.duration_min != null && (
                       <div
                         className="p-3 rounded-xl"
                         style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Duración</div>
                         <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
-                          {s.duration_min} min
+                          {effectiveSession.duration_min} min
                         </div>
                       </div>
                     )}
@@ -459,9 +494,9 @@ export default function HoyPage() {
                   <div className="pt-4" style={{ borderTop: "1px solid var(--color-border)" }}>
                     <WorkoutStructuredNotes
                       notes={cleanNotes}
-                      discipline={s.discipline}
-                      distanceKm={s.distance_km}
-                      durationMin={s.duration_min}
+                      discipline={effectiveSession.discipline}
+                      distanceKm={effectiveSession.distance_km}
+                      durationMin={effectiveSession.duration_min}
                     />
                   </div>
                 )}
@@ -498,7 +533,7 @@ export default function HoyPage() {
                     <button
                       type="button"
                       className="btn btn-ghost text-xs flex-1"
-                      onClick={() => copySession(s)}
+                      onClick={() => copySession(effectiveSession)}
                     >
                       {copiedId === s.id ? <Check size={15} style={{ color: "var(--color-success)" }} /> : <Copy size={15} />}
                       <span>{copiedId === s.id ? "Copiado" : "Copiar"}</span>

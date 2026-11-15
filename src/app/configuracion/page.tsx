@@ -15,6 +15,7 @@ import { PushNotificationBanner } from "@/components/push/push-notification-bann
 import { downloadJSONBackupFile, importDataFromJSON } from "@/lib/client-persistence";
 import { SUPABASE_SQL_SCHEMA } from "@/lib/supabase";
 import { AiObservabilityPanel } from "@/components/settings/ai-observability";
+import { CalendarIPhoneCard } from "@/components/settings/calendar-iphone-card";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -837,6 +838,9 @@ export default function ConfiguracionPage() {
             </div>
           </div>
         </div>
+
+        {/* SECCIÓN INTEGRACIÓN CON CALENDARIO DE IPHONE (ICLOUD & ATAJOS IOS) */}
+        <CalendarIPhoneCard />
 
         {/* SECCIÓN PERSISTENCIA Y COPIAS DE SEGURIDAD (JSON & SUPABASE) */}
         <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
