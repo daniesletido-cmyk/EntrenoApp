@@ -5,14 +5,34 @@ import {
   countPushSubscriptions,
 } from "@/lib/repo/push-subscriptions";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || "";
   const count = countPushSubscriptions();
-  return NextResponse.json({
-    publicKey,
-    configured: Boolean(publicKey),
-    totalSubscriptions: count,
-  });
+  const url = new URL(req.url);
+  const endpoint = url.searchParams.get("endpoint");
+
+  let isSubscribed = false;
+  if (endpoint) {
+    try {
+      const { getDb } = await import("@/lib/db");
+      const row = getDb().prepare("SELECT id FROM push_subscriptions WHERE endpoint = ?").get(endpoint);
+      isSubscribed = Boolean(row);
+    } catch {}
+  }
+
+  return NextResponse.json(
+    {
+      publicKey,
+      configured: Boolean(publicKey),
+      totalSubscriptions: count,
+      isSubscribed,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }
 
 export async function POST(req: NextRequest) {

@@ -1,7 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, CheckCircle2, AlertTriangle, Loader2, Send, Info, Smartphone, BarChart3, Trophy, Moon, X } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  Send,
+  Info,
+  Smartphone,
+  BarChart3,
+  Trophy,
+  Moon,
+  X,
+  RefreshCw,
+  ShieldCheck,
+  ShieldAlert,
+} from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -26,6 +41,7 @@ export function PushNotificationBanner({
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resubscribing, setResubscribing] = useState(false);
   const [testingDaily, setTestingDaily] = useState(false);
   const [testingWeekly, setTestingWeekly] = useState(false);
   const [testingSleep, setTestingSleep] = useState(false);
@@ -33,18 +49,97 @@ export function PushNotificationBanner({
   const [statusHelp, setStatusHelp] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [justActivated, setJustActivated] = useState(false);
+  const [swStatus, setSwStatus] = useState<"loading" | "active" | "error" | "unsupported">("loading");
+  const [serverStatus, setServerStatus] = useState<"checking" | "subscribed" | "not_subscribed">("checking");
+  const [serverTotalSubs, setServerTotalSubs] = useState<number>(0);
   const toast = useToast();
 
   const checkExistingSubscription = useCallback(async () => {
     try {
-      if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
-      const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+      if (typeof window === "undefined") return;
+
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+        setIsSupported(false);
+        setSwStatus("unsupported");
+        setServerStatus("not_subscribed");
+        return;
+      }
+      setIsSupported(true);
+      setPermission(Notification.permission);
+
+      let reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+      if (!reg || !reg.active) {
+        try {
+          reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+          await navigator.serviceWorker.ready;
+        } catch {}
+      }
+
+      if (reg && reg.active) {
+        setSwStatus("active");
+      } else {
+        setSwStatus("error");
+      }
+
       if (reg) {
         const sub = await reg.pushManager.getSubscription();
-        setIsSubscribed(!!sub);
+        setIsSubscribed(Boolean(sub));
+
+        if (sub) {
+          try {
+            const sRes = await fetch(`/api/push/subscribe?endpoint=${encodeURIComponent(sub.endpoint)}`, {
+              cache: "no-store",
+            });
+            const sData = await sRes.json();
+            setServerTotalSubs(sData.totalSubscriptions || 0);
+
+            if (sData.isSubscribed) {
+              setServerStatus("subscribed");
+            } else {
+              // El navegador tiene sub pero el servidor no lo tiene -> Auto-sincronizar
+              const subJson = sub.toJSON();
+              const rawP256dh = sub.getKey ? sub.getKey("p256dh") : null;
+              const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+              const p256dh =
+                subJson.keys?.p256dh ||
+                (rawP256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawP256dh)))) : "");
+              const auth =
+                subJson.keys?.auth ||
+                (rawAuth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth)))) : "");
+
+              const syncRes = await fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  endpoint: sub.endpoint,
+                  keys: { p256dh, auth },
+                  subscription: subJson,
+                  deviceType: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "mobile" : "desktop",
+                }),
+              });
+              if (syncRes.ok) {
+                setServerStatus("subscribed");
+                setServerTotalSubs((prev) => Math.max(prev + 1, 1));
+              } else {
+                setServerStatus("not_subscribed");
+              }
+            }
+          } catch {
+            setServerStatus("not_subscribed");
+          }
+        } else {
+          setServerStatus("not_subscribed");
+          try {
+            const sRes = await fetch("/api/push/subscribe", { cache: "no-store" });
+            const sData = await sRes.json();
+            setServerTotalSubs(sData.totalSubscriptions || 0);
+          } catch {}
+        }
       }
     } catch (err) {
       console.warn("Aviso comprobando suscripción push previa:", err);
+      setSwStatus("error");
+      setServerStatus("not_subscribed");
     }
   }, []);
 
@@ -68,7 +163,7 @@ export function PushNotificationBanner({
       setPermission(Notification.permission);
       if (Notification.permission === "denied") {
         setStatusHelp(
-          "Permisos bloqueados en tu navegador. Toca el candado o icono de ajustes junto a la URL para desbloquearlos."
+          "Permisos bloqueados en tu navegador o sistema. Toca el candado o icono de ajustes junto a la URL para desbloquearlos."
         );
       }
       checkExistingSubscription();
@@ -88,6 +183,98 @@ export function PushNotificationBanner({
       window.removeEventListener("entrenoapp_push_changed", handlePushChange);
     };
   }, [checkExistingSubscription]);
+
+  async function resubscribeDevice() {
+    setResubscribing(true);
+    setStatusHelp(null);
+
+    try {
+      if (isIosWeb) {
+        toast.push(
+          "error",
+          "En iPhone debes pulsar 'Compartir' en Safari > 'Añadir a pantalla de inicio' y abrir la app desde ese icono para activar notificaciones push."
+        );
+        setResubscribing(false);
+        return;
+      }
+
+      let currentPerm = Notification.permission;
+      if (currentPerm !== "granted") {
+        currentPerm = await Notification.requestPermission();
+        setPermission(currentPerm);
+        if (currentPerm !== "granted") {
+          toast.push("error", "Permiso de notificaciones denegado en el navegador.");
+          setResubscribing(false);
+          return;
+        }
+      }
+
+      const keyRes = await fetch("/api/push/subscribe", { cache: "no-store" });
+      if (!keyRes.ok) throw new Error("No se pudo conectar con el servicio de suscripción push");
+      const keyData = await keyRes.json();
+      if (!keyData.publicKey) throw new Error("Clave pública VAPID no disponible en servidor.");
+
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+
+      // Cancelar suscripción previa si existía para renovar claves limpias
+      try {
+        const oldSub = await reg.pushManager.getSubscription();
+        if (oldSub) await oldSub.unsubscribe();
+      } catch {}
+
+      const convertedKey = urlBase64ToUint8Array(keyData.publicKey);
+      const newSub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey,
+      });
+
+      const subJson = newSub.toJSON();
+      const rawP256dh = newSub.getKey ? newSub.getKey("p256dh") : null;
+      const rawAuth = newSub.getKey ? newSub.getKey("auth") : null;
+      const p256dh =
+        subJson.keys?.p256dh ||
+        (rawP256dh ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawP256dh)))) : "");
+      const auth =
+        subJson.keys?.auth ||
+        (rawAuth ? btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth)))) : "");
+
+      const saveRes = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: newSub.endpoint,
+          keys: { p256dh, auth },
+          subscription: subJson,
+          deviceType: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "mobile" : "desktop",
+        }),
+      });
+
+      if (!saveRes.ok) throw new Error("El servidor no pudo almacenar la nueva suscripción.");
+
+      setIsSubscribed(true);
+      setSwStatus("active");
+      setServerStatus("subscribed");
+      setServerTotalSubs((prev) => Math.max(prev, 1));
+      window.dispatchEvent(new Event("entrenoapp_push_changed"));
+      toast.push("success", "¡Dispositivo re-suscrito con éxito en el servidor!");
+
+      // Enviar prueba automática
+      try {
+        await fetch("/api/push/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "daily" }),
+        });
+      } catch {}
+    } catch (err: any) {
+      console.error("[Push] Error al re-suscribir dispositivo:", err);
+      toast.push("error", err.message || "Error al re-suscribir dispositivo");
+      setStatusHelp(err.message);
+    } finally {
+      setResubscribing(false);
+    }
+  }
 
   async function subscribeToPush() {
     setLoading(true);
@@ -221,6 +408,19 @@ export function PushNotificationBanner({
   async function sendTestNotification(type: "daily" | "weekly" | "sleep") {
     if (testingDaily || testingWeekly || testingSleep) return;
 
+    if (isIosWeb) {
+      toast.push(
+        "error",
+        "En iPhone debes abrir la app desde la Pantalla de Inicio para que iOS reciba Web Push."
+      );
+      return;
+    }
+
+    if (permission === "denied") {
+      toast.push("error", "Permisos de notificaciones bloqueados en tu navegador o móvil.");
+      return;
+    }
+
     const dedupeKey = `entrenoapp_banner_test_${type}_${Math.floor(Date.now() / 15000)}`;
     try {
       if (sessionStorage.getItem(dedupeKey)) {
@@ -242,10 +442,33 @@ export function PushNotificationBanner({
       });
       const data = await res.json();
       if (res.ok) {
-        toast.push("success", data.message || "Notificación enviada a tu móvil.");
+        if (data.totalSubscriptions === 0) {
+          toast.push("error", "No hay suscripciones en el servidor. Pulsa 'Re-suscribir dispositivo'.");
+        } else {
+          toast.push("success", data.message || "Notificación enviada a tu dispositivo.");
+        }
       } else {
         throw new Error(data.error);
       }
+
+      // Previsualización local inmediata si el navegador está abierto
+      try {
+        const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+        if (reg && "showNotification" in reg) {
+          const title =
+            type === "sleep" ? "Recuperación al 94%" : type === "weekly" ? "Resumen semanal" : "Entreno completado";
+          const body =
+            type === "sleep" ? "Sueño registrado: 8h 35m" : type === "weekly" ? "42.5 km esta semana" : "Series umbral · 58 min";
+          const dest = type === "sleep" ? "/sueno" : type === "weekly" ? "/progreso" : "/hoy";
+          reg.showNotification(title, {
+            body,
+            icon: "/icon-192.png?v=10",
+            badge: "/icon-192.png?v=10",
+            tag: `test-preview-${type}`,
+            data: { url: dest },
+          });
+        }
+      } catch {}
     } catch (err: any) {
       toast.push("error", err.message || "Error al enviar la notificación.");
     } finally {
@@ -424,47 +647,129 @@ export function PushNotificationBanner({
           </div>
         </div>
 
-        <div className="w-full sm:w-auto shrink-0">
+        <div className="w-full sm:w-auto shrink-0 flex items-center gap-2">
           {isSubscribed ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => sendTestNotification("daily")}
-                disabled={testingDaily || testingWeekly || testingSleep}
-                className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
-                title="Probar que salta el aviso de entreno completado"
-              >
-                {testingDaily ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Trophy size={13} className="shrink-0 text-zinc-700" />}
-                <span className="truncate">Probar entreno</span>
-              </button>
-              <button
-                onClick={() => sendTestNotification("sleep")}
-                disabled={testingDaily || testingWeekly || testingSleep}
-                className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
-                title="Probar que salta el aviso de recuperación y sueño"
-              >
-                {testingSleep ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Moon size={13} className="shrink-0 text-zinc-700" />}
-                <span className="truncate">Probar sueño</span>
-              </button>
-              <button
-                onClick={() => sendTestNotification("weekly")}
-                disabled={testingDaily || testingWeekly || testingSleep}
-                className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
-                title="Probar que salta el resumen semanal"
-              >
-                {testingWeekly ? <Loader2 size={13} className="animate-spin shrink-0" /> : <BarChart3 size={13} className="shrink-0 text-zinc-700" />}
-                <span className="truncate">Probar resumen</span>
-              </button>
-            </div>
+            <button
+              onClick={resubscribeDevice}
+              disabled={resubscribing || loading}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+              title="Renovar y sincronizar la suscripción con el servidor"
+            >
+              {resubscribing ? <Loader2 size={13} className="animate-spin shrink-0" /> : <RefreshCw size={13} className="shrink-0 text-zinc-700" />}
+              <span>Re-suscribir</span>
+            </button>
           ) : (
             <button
               onClick={subscribeToPush}
-              disabled={loading}
+              disabled={loading || resubscribing}
               className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer disabled:opacity-50"
             >
               {loading ? <Loader2 size={14} className="animate-spin shrink-0" /> : <Bell size={14} className="shrink-0" />}
               <span>{permission === "denied" ? "Reintentar activación" : "Activar en mi móvil"}</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Indicadores de Estado Técnico en Tiempo Real */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs">
+        {/* 1. Permiso del Navegador */}
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <span className="text-zinc-500 font-medium">Permiso:</span>
+          {permission === "granted" ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+              Concedido
+            </span>
+          ) : permission === "denied" ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-red-700 bg-red-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+              Bloqueado
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+              Sin solicitar
+            </span>
+          )}
+        </div>
+
+        {/* 2. Service Worker */}
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <span className="text-zinc-500 font-medium">Service Worker:</span>
+          {swStatus === "active" ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+              Activo (v10)
+            </span>
+          ) : swStatus === "error" ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-red-700 bg-red-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+              Error
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 font-semibold text-zinc-600 bg-zinc-200/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              Comprobando...
+            </span>
+          )}
+        </div>
+
+        {/* 3. Suscripción en Servidor */}
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <span className="text-zinc-500 font-medium">Servidor:</span>
+          {serverStatus === "subscribed" ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+              Suscrito ({serverTotalSubs} disp.)
+            </span>
+          ) : serverStatus === "not_subscribed" ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-100/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+              No suscrito
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 font-semibold text-zinc-600 bg-zinc-200/60 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              Consultando...
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Botones de Prueba Web Push */}
+      <div className="flex flex-col gap-1.5 pt-1 border-t border-zinc-100">
+        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+          Pruebas de envío Web Push (Estilo Nativo)
+        </span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+          <button
+            onClick={() => sendTestNotification("daily")}
+            disabled={testingDaily || testingWeekly || testingSleep}
+            className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+            title="Probar que salta el aviso de entreno completado"
+          >
+            {testingDaily ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Trophy size={13} className="shrink-0 text-zinc-700" />}
+            <span className="truncate">Probar entreno</span>
+          </button>
+          <button
+            onClick={() => sendTestNotification("sleep")}
+            disabled={testingDaily || testingWeekly || testingSleep}
+            className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+            title="Probar que salta el aviso de recuperación y sueño"
+          >
+            {testingSleep ? <Loader2 size={13} className="animate-spin shrink-0" /> : <Moon size={13} className="shrink-0 text-zinc-700" />}
+            <span className="truncate">Probar sueño</span>
+          </button>
+          <button
+            onClick={() => sendTestNotification("weekly")}
+            disabled={testingDaily || testingWeekly || testingSleep}
+            className="w-full min-w-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200 transition-colors cursor-pointer"
+            title="Probar que salta el resumen semanal"
+          >
+            {testingWeekly ? <Loader2 size={13} className="animate-spin shrink-0" /> : <BarChart3 size={13} className="shrink-0 text-zinc-700" />}
+            <span className="truncate">Probar resumen</span>
+          </button>
         </div>
       </div>
 

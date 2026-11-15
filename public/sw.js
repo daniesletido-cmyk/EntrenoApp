@@ -1,5 +1,5 @@
-// Service Worker para EntrenoApp Web Push Notifications y PWA (v9 - Minimalist Native Push)
-const CACHE_NAME = "entrenoapp-v9";
+// Service Worker para EntrenoApp Web Push Notifications y PWA (v10 - Native iOS Safari & Desktop Push)
+const CACHE_NAME = "entrenoapp-v10";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -21,8 +21,8 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "Entreno completado",
     body: "Series umbral · 58 min",
-    icon: "/icon-192.png?v=9",
-    badge: "/icon-192.png?v=9",
+    icon: "/icon-192.png?v=10",
+    badge: "/icon-192.png?v=10",
     data: {
       url: "/hoy",
     },
@@ -41,18 +41,20 @@ self.addEventListener("push", (event) => {
         },
       };
     } catch (e) {
-      data.body = event.data.text();
+      try {
+        const text = event.data.text();
+        if (text) data.body = text;
+      } catch {}
     }
   }
 
-  // Asegurar una etiqueta (tag) única por tipo y fecha/evento para deduplicación estricta a nivel de SO
+  // Deduplicación estricta a nivel de SO mediante tag
   const uniqueTag = data.tag || `entrenoapp-${data.data?.url || "alert"}`;
 
   const notificationOptions = {
-    body: data.body,
-    icon: data.icon || "/icon-192.png?v=9",
-    badge: data.badge || "/icon-192.png?v=9",
-    vibrate: [200, 100, 200],
+    body: data.body || "Novedad en tu entrenamiento",
+    icon: data.icon || "/icon-192.png?v=10",
+    badge: data.badge || "/icon-192.png?v=10",
     data: {
       url: data.data?.url || "/hoy",
       timestamp: Date.now(),
@@ -62,7 +64,7 @@ self.addEventListener("push", (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, notificationOptions)
+    self.registration.showNotification(data.title || "EntrenoApp", notificationOptions)
   );
 });
 
@@ -82,22 +84,28 @@ self.addEventListener("notificationclick", (event) => {
         // 1. Si ya hay una ventana o pestaña de la app abierta
         for (const client of clientList) {
           const clientUrl = new URL(client.url, self.location.origin);
-          // Si es del mismo origen
           if (clientUrl.origin === self.location.origin) {
-            // Intentar enfocar y navegar
-            if ("focus" in client) {
-              await client.focus();
-            }
-            // Enviar mensaje al cliente para navegación SPA suave (sin recarga completa si ya está montado)
-            if ("postMessage" in client) {
-              client.postMessage({
-                type: "NAVIGATE_TO",
-                url: targetPath,
-              });
-            }
-            if ("navigate" in client && client.url !== targetUrl) {
-              return client.navigate(targetUrl);
-            }
+            try {
+              if ("focus" in client) await client.focus();
+            } catch {}
+
+            // Enviar mensaje al cliente para navegación SPA suave en Next.js
+            try {
+              if ("postMessage" in client) {
+                client.postMessage({
+                  type: "NAVIGATE_TO",
+                  url: targetPath,
+                });
+              }
+            } catch {}
+
+            // En navegadores que soporten navigate en WindowClient
+            try {
+              if ("navigate" in client && typeof client.navigate === "function" && client.url !== targetUrl) {
+                return await client.navigate(targetUrl);
+              }
+            } catch {}
+
             return client;
           }
         }
