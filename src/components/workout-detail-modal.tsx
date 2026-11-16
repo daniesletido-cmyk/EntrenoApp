@@ -1002,23 +1002,28 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                             Zapatilla utilizada en la sesión
                           </span>
                         </div>
-                        {data?.assignedShoe && (
-                          <span
-                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                              data.assignedShoe.wear_percentage >= 90
-                                ? "bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 border-red-200 dark:border-red-900/40"
-                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
-                            }`}
-                          >
-                            {data.assignedShoe.total_km.toFixed(1)} / {data.assignedShoe.max_km} km ({data.assignedShoe.wear_percentage.toFixed(0)}% desgaste)
-                          </span>
-                        )}
+                        {data?.assignedShoe && (() => {
+                          const wearPct = Number(data.assignedShoe.wear_pct ?? data.assignedShoe.wear_percentage ?? 0);
+                          const totalKm = Number(data.assignedShoe.total_km ?? 0);
+                          const maxKm = Number(data.assignedShoe.max_km ?? 700);
+                          return (
+                            <span
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                                wearPct >= 90
+                                  ? "bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 border-red-200 dark:border-red-900/40"
+                                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+                              }`}
+                            >
+                              {totalKm.toFixed(1)} / {maxKm} km ({wearPct.toFixed(0)}% desgaste)
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-2">
                         <select
                           value={session.shoe_id ?? data?.assignedShoe?.id ?? ""}
-                          disabled={changingShoe || !data?.shoes || data.shoes.length === 0}
+                          disabled={changingShoe || !Array.isArray(data?.shoes) || data.shoes.length === 0}
                           onChange={(e) => {
                             const val = e.target.value ? Number(e.target.value) : null;
                             handleChangeShoe(val);
@@ -1026,16 +1031,21 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           className="w-full text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-red-500"
                           style={{ minHeight: 40 }}
                         >
-                          {!data?.shoes || data.shoes.length === 0 ? (
+                          {!Array.isArray(data?.shoes) || data.shoes.length === 0 ? (
                             <option value="">No hay zapatillas registradas (añádelas en Ajustes)</option>
                           ) : (
                             <>
                               <option value="">Selecciona o cambia de zapatilla...</option>
-                              {data.shoes.map((sh: any) => (
-                                <option key={sh.id} value={sh.id}>
-                                  {sh.name} {sh.is_primary ? "(Principal)" : ""} — {sh.total_km.toFixed(1)} km / {sh.max_km} km ({sh.wear_percentage.toFixed(0)}%)
-                                </option>
-                              ))}
+                              {data.shoes.map((sh: any) => {
+                                const wearPct = Number(sh?.wear_pct ?? sh?.wear_percentage ?? 0);
+                                const totalKm = Number(sh?.total_km ?? 0);
+                                const maxKm = Number(sh?.max_km ?? 700);
+                                return (
+                                  <option key={sh?.id} value={sh?.id}>
+                                    {sh?.name || "Zapatilla"} {sh?.is_primary ? "(Principal)" : ""} — {totalKm.toFixed(1)} km / {maxKm} km ({wearPct.toFixed(0)}%)
+                                  </option>
+                                );
+                              })}
                             </>
                           )}
                         </select>

@@ -55,6 +55,7 @@ import { CrossfitButtonWidget } from "@/components/crossfit/crossfit-button-widg
 import { WorkoutShareCardModal } from "@/components/modals/workout-share-card-modal";
 import type { AdaptedSessionProposal } from "@/lib/adaptive_scheduler";
 import { SubstituteWorkoutModal } from "@/components/modals/substitute-workout-modal";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 interface SessionRow {
   id: number;
@@ -372,29 +373,37 @@ export default function HoyPage() {
       />
 
       {/* Indicador Compacto de Objetivo y Periodización (Maratón 26/04/2027) */}
-      <MarathonCompactWidget />
+      <ErrorBoundary fallbackTitle="Objetivo Maratón">
+        <MarathonCompactWidget />
+      </ErrorBoundary>
 
-      {/* Estrategia de Competición (Pacing 5K & Nutrición) */}
-      <RaceStrategyCardWidget />
+      {/* Estrategia de Competición (Pacing & Nutrición) */}
+      <ErrorBoundary fallbackTitle="Estrategia de Competición">
+        <RaceStrategyCardWidget />
+      </ErrorBoundary>
 
       {/* Analizar Semana CrossFit (Foto / Visión IA) */}
-      <CrossfitButtonWidget onAddedToCalendar={() => load(false)} />
+      <ErrorBoundary fallbackTitle="Analizador CrossFit">
+        <CrossfitButtonWidget onAddedToCalendar={() => load(false)} />
+      </ErrorBoundary>
 
       {/* Sugerencia Preventiva de Fisioterapia y Movilidad (10 min) si hay sobrecarga o fatiga */}
-      {(() => {
-        const lastCompletedSession = [...weekSessions]
-          .filter((s) => s.status === "realizada" || s.status === "completada")
-          .sort((a, b) => b.date.localeCompare(a.date))[0];
-        return (
-          <PhysioAlertBanner
-            readinessScore={readiness?.score ?? null}
-            readinessLevel={readiness?.level ?? null}
-            recentNotes={`${lastCompletedSession?.notes || ""} ${lastCompletedSession?.user_notes || ""}`}
-            lastSessionRpe={lastCompletedSession?.rpe ?? null}
-            lastSessionTitle={lastCompletedSession?.planned_code ?? null}
-          />
-        );
-      })()}
+      <ErrorBoundary fallbackTitle="Alerta de Fisioterapia">
+        {(() => {
+          const lastCompletedSession = [...weekSessions]
+            .filter((s) => s.status === "realizada" || s.status === "completada")
+            .sort((a, b) => b.date.localeCompare(a.date))[0];
+          return (
+            <PhysioAlertBanner
+              readinessScore={readiness?.score ?? null}
+              readinessLevel={readiness?.level ?? null}
+              recentNotes={`${lastCompletedSession?.notes || ""} ${lastCompletedSession?.user_notes || ""}`}
+              lastSessionRpe={lastCompletedSession?.rpe ?? null}
+              lastSessionTitle={lastCompletedSession?.planned_code ?? null}
+            />
+          );
+        })()}
+      </ErrorBoundary>
 
       {/* 1. Calendario Semanal Deslizable (Lunes a Domingo) */}
       <section className="surface p-4">

@@ -30,6 +30,7 @@ export interface ShoeRow {
   created_at: string;
   updated_at: string;
   wear_pct?: number;
+  wear_percentage?: number;
   is_near_limit?: boolean;
   is_limit_reached?: boolean;
 }
@@ -112,6 +113,7 @@ export function listShoes(): ShoeRow[] {
       ...s,
       total_km: calc.total_km,
       wear_pct: calc.wear_pct,
+      wear_percentage: calc.wear_pct,
       is_near_limit: calc.is_near_limit,
       is_limit_reached: calc.is_limit_reached,
     };
@@ -131,6 +133,7 @@ export function getShoeById(id: number): ShoeRow | undefined {
     ...shoe,
     total_km: calc.total_km,
     wear_pct: calc.wear_pct,
+    wear_percentage: calc.wear_pct,
     is_near_limit: calc.is_near_limit,
     is_limit_reached: calc.is_limit_reached,
   };
@@ -151,6 +154,7 @@ export function getPrimaryShoe(): ShoeRow | undefined {
     ...shoe,
     total_km: calc.total_km,
     wear_pct: calc.wear_pct,
+    wear_percentage: calc.wear_pct,
     is_near_limit: calc.is_near_limit,
     is_limit_reached: calc.is_limit_reached,
   };

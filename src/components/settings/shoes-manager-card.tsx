@@ -26,7 +26,8 @@ export interface ShoeItem {
   initial_km: number;
   total_km: number;
   max_km: number;
-  wear_percentage: number;
+  wear_percentage?: number;
+  wear_pct?: number;
   is_active: number;
   is_primary: number;
   notes: string | null;
@@ -201,7 +202,7 @@ export function ShoesManagerCard() {
                 Equipamiento & Zapatillas
               </h3>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/40">
-                {shoes.length} {shoes.length === 1 ? "par" : "pares"}
+                {(Array.isArray(shoes) ? shoes : []).length} {(Array.isArray(shoes) ? shoes : []).length === 1 ? "par" : "pares"}
               </span>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
@@ -233,7 +234,7 @@ export function ShoesManagerCard() {
         <div className="py-8 text-center text-xs text-zinc-400">
           Cargando equipamiento...
         </div>
-      ) : shoes.length === 0 ? (
+      ) : (!Array.isArray(shoes) || shoes.length === 0) ? (
         <div className="py-6 text-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-4">
           <Footprints size={28} className="mx-auto text-zinc-300 dark:text-zinc-700 mb-2" />
           <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
@@ -248,10 +249,14 @@ export function ShoesManagerCard() {
         </div>
       ) : (
         <div className="grid gap-3 min-w-0">
-          {shoes.map((shoe) => {
-            const isAlert = shoe.wear_percentage >= 90;
-            const isExceeded = shoe.total_km >= shoe.max_km;
-            const progressClamped = Math.min(shoe.wear_percentage, 100);
+          {(Array.isArray(shoes) ? shoes : []).map((shoe) => {
+            const wearPct = Number(shoe?.wear_percentage ?? shoe?.wear_pct ?? 0);
+            const totalKm = Number(shoe?.total_km ?? 0);
+            const maxKm = Number(shoe?.max_km ?? 700);
+            const initialKmVal = Number(shoe?.initial_km ?? 0);
+            const isAlert = wearPct >= 90;
+            const isExceeded = totalKm >= maxKm;
+            const progressClamped = Math.min(Math.max(wearPct, 0), 100);
 
             return (
               <div
@@ -341,9 +346,9 @@ export function ShoesManagerCard() {
                 {/* Kilometers & Percentage stats */}
                 <div className="flex items-baseline justify-between text-xs mb-1.5">
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {shoe.total_km.toFixed(1)}{" "}
+                    {totalKm.toFixed(1)}{" "}
                     <span className="font-normal text-zinc-500">
-                      / {shoe.max_km} km
+                      / {maxKm} km
                     </span>
                   </span>
                   <span
@@ -353,7 +358,7 @@ export function ShoesManagerCard() {
                         : "text-zinc-700 dark:text-zinc-300"
                     }`}
                   >
-                    {shoe.wear_percentage.toFixed(0)}% desgastadas
+                    {wearPct.toFixed(0)}% desgastadas
                   </span>
                 </div>
 
@@ -373,10 +378,10 @@ export function ShoesManagerCard() {
                 <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5">
                   <span>
                     {isExceeded
-                      ? `Exceso: ${(shoe.total_km - shoe.max_km).toFixed(1)} km`
-                      : `Restan: ${(shoe.max_km - shoe.total_km).toFixed(1)} km`}
+                      ? `Exceso: ${(totalKm - maxKm).toFixed(1)} km`
+                      : `Restan: ${(maxKm - totalKm).toFixed(1)} km`}
                   </span>
-                  {shoe.initial_km > 0 && (
+                  {initialKmVal > 0 && (
                     <span className="text-[10px] text-zinc-400">
                       (km iniciales: {shoe.initial_km} km)
                     </span>

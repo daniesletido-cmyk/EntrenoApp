@@ -1,5 +1,5 @@
-// Service Worker para EntrenoApp (v11 - Offline Cache, Background Sync & Native iOS Web Push)
-const CACHE_VERSION = "v11";
+// Service Worker para EntrenoApp (v12 - Clean Chunks, Offline Cache & Native Web Push)
+const CACHE_VERSION = "v12";
 const STATIC_CACHE = `entrenoapp-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `entrenoapp-dynamic-${CACHE_VERSION}`;
 const DATA_CACHE = `entrenoapp-data-${CACHE_VERSION}`;
@@ -45,11 +45,17 @@ self.addEventListener("install", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
-      // Eliminar versiones obsoletas de la caché
+      // Eliminar TODAS las versiones obsoletas de la caché para limpiar chunks viejos
       caches.keys().then((keys) =>
         Promise.all(
           keys
@@ -126,7 +132,28 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2. Recursos estáticos de Next.js (_next/static, fuentes, imágenes, icons)
+  // 2. Chunks de JavaScript de Next.js (_next/static/chunks/...)
+  // Estrategia: Network-First con fallback a caché. Evita errores de chunks rotos o desincronizados tras nuevo despliegue.
+  if (url.pathname.startsWith("/_next/static/chunks/")) {
+    event.respondWith(
+      fetch(request)
+        .then(async (networkResponse) => {
+          if (networkResponse.ok) {
+            const cache = await caches.open(DYNAMIC_CACHE);
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response("", { status: 408, statusText: "Offline chunk unavailable" });
+        })
+    );
+    return;
+  }
+
+  // 3. Recursos multimedia e iconos estáticos (_next/static/media, fuentes, imágenes, icons)
   // Estrategia: Cache-First con actualización en segundo plano (Stale-While-Revalidate)
   if (
     url.pathname.startsWith("/_next/static/") ||
@@ -154,7 +181,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 3. Peticiones de datos API (GET /api/...)
+  // 4. Peticiones de datos API (GET /api/...)
   // Estrategia: Network-First con caché de datos para modo offline
   if (url.pathname.startsWith("/api/")) {
     // Excluir endpoints sensibles de streaming o auth

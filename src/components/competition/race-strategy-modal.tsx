@@ -37,6 +37,18 @@ interface RaceStrategyModalProps {
 
 const STORAGE_KEY = "entrenoapp_race_strategy_simple";
 
+function normalizePreset(d?: string): "10k" | "21k" | "42k" {
+  if (d === "10k") return "10k";
+  if (d === "21k" || d === "media") return "21k";
+  return "42k";
+}
+
+const defaultTimes: Record<"10k" | "21k" | "42k", { h: number; m: number; s: number; label: string }> = {
+  "10k": { h: 0, m: 44, s: 0, label: "00:44:00" }, // ~4:24 min/km
+  "21k": { h: 1, m: 38, s: 0, label: "01:38:00" }, // ~4:39 min/km
+  "42k": { h: 3, m: 35, s: 0, label: "03:35:00" }, // ~5:06 min/km (Escenario Maratón Zuera de Dani)
+};
+
 export function RaceStrategyModal({
   isOpen,
   onClose,
@@ -45,8 +57,8 @@ export function RaceStrategyModal({
   const toast = useToast();
 
   // 1. Selector de distancia (10K | 21K | 42K)
-  const [distancePreset, setDistancePreset] = useState<"10k" | "21k" | "42k">(
-    initialPreset === "10k" || initialPreset === "21k" ? initialPreset : "42k"
+  const [distancePreset, setDistancePreset] = useState<"10k" | "21k" | "42k">(() =>
+    normalizePreset(initialPreset)
   );
 
   // 2. Tiempo objetivo (editable en horas, minutos y segundos)
@@ -57,37 +69,41 @@ export function RaceStrategyModal({
   const [downloadingCard, setDownloadingCard] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Valores sugeridos por defecto según distancia
-  const defaultTimes = {
-    "10k": { h: 0, m: 44, s: 0, label: "00:44:00" }, // ~4:24 min/km
-    "21k": { h: 1, m: 38, s: 0, label: "01:38:00" }, // ~4:39 min/km
-    "42k": { h: 3, m: 35, s: 0, label: "03:35:00" }, // ~5:06 min/km (Escenario Maratón Zuera de Dani)
-  };
+  // Sincronizar initialPreset cuando cambia o se abre
+  useEffect(() => {
+    if (isOpen && initialPreset) {
+      const norm = normalizePreset(initialPreset);
+      setDistancePreset(norm);
+      const def = defaultTimes[norm] || defaultTimes["42k"];
+      setHours(def.h);
+      setMinutes(def.m);
+      setSeconds(def.s);
+    }
+  }, [isOpen, initialPreset]);
 
-  // Cargar estado guardado o aplicar inicial
+  // Cargar estado guardado al montar en cliente
   useEffect(() => {
     try {
+      if (typeof window === "undefined") return;
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.distancePreset) setDistancePreset(parsed.distancePreset);
-        if (parsed.hours !== undefined) setHours(parsed.hours);
-        if (parsed.minutes !== undefined) setMinutes(parsed.minutes);
-        if (parsed.seconds !== undefined) setSeconds(parsed.seconds);
-        return;
+        if (parsed.distancePreset) {
+          const norm = normalizePreset(parsed.distancePreset);
+          setDistancePreset(norm);
+        }
+        if (typeof parsed.hours === "number" && !isNaN(parsed.hours)) setHours(parsed.hours);
+        if (typeof parsed.minutes === "number" && !isNaN(parsed.minutes)) setMinutes(parsed.minutes);
+        if (typeof parsed.seconds === "number" && !isNaN(parsed.seconds)) setSeconds(parsed.seconds);
       }
     } catch {}
-
-    const def = defaultTimes[distancePreset] || defaultTimes["42k"];
-    setHours(def.h);
-    setMinutes(def.m);
-    setSeconds(def.s);
-  }, [distancePreset]);
+  }, []);
 
   // Al cambiar la distancia, cargar su tiempo proyectado
   const handleSelectDistance = (d: "10k" | "21k" | "42k") => {
-    setDistancePreset(d);
-    const def = defaultTimes[d];
+    const norm = normalizePreset(d);
+    setDistancePreset(norm);
+    const def = defaultTimes[norm] || defaultTimes["42k"];
     setHours(def.h);
     setMinutes(def.m);
     setSeconds(def.s);

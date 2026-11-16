@@ -41,9 +41,26 @@ export function OfflineIndicator() {
 
     // Auto-registrar Service Worker para soporte offline PWA en iOS y escritorio
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((err) => {
-        console.warn("[SW] Registro no disponible:", err);
-      });
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .then((reg) => {
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+          reg.onupdatefound = () => {
+            const installing = reg.installing;
+            if (installing) {
+              installing.onstatechange = () => {
+                if (installing.state === "installed" && navigator.serviceWorker.controller) {
+                  installing.postMessage({ type: "SKIP_WAITING" });
+                }
+              };
+            }
+          };
+        })
+        .catch((err) => {
+          console.warn("[SW] Registro no disponible:", err);
+        });
     }
 
     const onOnline = () => {

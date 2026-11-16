@@ -17,6 +17,7 @@ import { SUPABASE_SQL_SCHEMA } from "@/lib/supabase";
 import { AiObservabilityPanel } from "@/components/settings/ai-observability";
 import { CalendarIPhoneCard } from "@/components/settings/calendar-iphone-card";
 import { ShoesManagerCard } from "@/components/settings/shoes-manager-card";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { XiaomiScaleSettingsCard } from "@/components/settings/xiaomi-scale-card";
 
 export default function ConfiguracionPage() {
@@ -846,7 +847,9 @@ export default function ConfiguracionPage() {
         <CalendarIPhoneCard />
 
         {/* SECCIÓN EQUIPAMIENTO Y DESGASTE DE ZAPATILLAS */}
-        <ShoesManagerCard />
+        <ErrorBoundary fallbackTitle="Equipamiento & Zapatillas">
+          <ShoesManagerCard />
+        </ErrorBoundary>
 
         {/* SECCIÓN BÁSCULA XIAOMI S200 / APPLE SALUD */}
         <XiaomiScaleSettingsCard />
