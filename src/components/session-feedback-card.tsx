@@ -2,34 +2,41 @@
 
 import React, { useMemo } from "react";
 import {
-  CheckCircle2,
-  AlertTriangle,
-  ShieldAlert,
-  Zap,
-  Heart,
-  Shield,
-  Activity,
-  Flame,
-  Timer,
-  Route,
-  Target,
   ChevronRight,
   Sparkles,
   Watch,
-  Award,
-  TrendingUp,
+  Heart,
+  Shield,
+  Zap,
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  Flame,
+  Timer,
+  UserCheck,
 } from "lucide-react";
 import type { SessionRow } from "@/lib/repo/sessions";
 import {
   buildStructuredFitDiagnostics,
   normalizeRecoveryTime,
-  ComplianceVerdict,
-  TechnicalBulletItem,
   FitStructuredFeedback,
 } from "@/lib/fit-feedback";
+import { detectVamZoneForSession } from "@/lib/vam-zones";
 
 interface SessionFeedbackCardProps {
-  session: SessionRow;
+  session: {
+    id: number;
+    date: string;
+    discipline: string;
+    planned_code: string | null;
+    status: string;
+    duration_min?: number | null;
+    distance_km?: number | null;
+    rpe?: number | null;
+    notes?: string | null;
+    fit_data?: string | null;
+    [key: string]: any;
+  };
   onOpenDetail?: (sessionId: number) => void;
   compact?: boolean;
 }
@@ -42,34 +49,12 @@ export function SessionFeedbackCard({
   const isCompleted = session.status === "realizada" || session.status === "parcial";
   const isRest = session.discipline === "descanso";
 
-  // Extraer o generar el feedback estructurado de la sesión
-  const feedbackData = useMemo<{
-    verdict: ComplianceVerdict;
-    tone: "success" | "warning" | "danger" | "brand";
-    summary: string;
-    bullets: Array<{
-      icon: "heart" | "zap" | "shield" | "activity" | "target";
-      title: string;
-      badge?: string;
-      badgeTone?: "success" | "warning" | "danger" | "brand";
-      text: string;
-    }>;
-    suunto: {
-      pte?: number | null;
-      epoc?: number | null;
-      recoveryTimeHours?: number | null;
-      recoveryTimeFormatted?: string;
-      deviceModel?: string | null;
-      feeling?: number | null;
-      tss?: number | null;
-    } | null;
-    sourceType: "suunto_fit" | "fit_data" | "manual_realizada" | "pendiente";
-  }>(() => {
+  const feedbackData = useMemo(() => {
     // 1. Caso con telemetría .FIT / Suunto en la sesión
     if (session.fit_data) {
       try {
         const parsed = JSON.parse(session.fit_data);
-        const diag: FitStructuredFeedback = buildStructuredFitDiagnostics(parsed, session);
+        const diag: FitStructuredFeedback = buildStructuredFitDiagnostics(parsed, session as unknown as SessionRow);
         const suuntoMetrics =
           parsed.deepAnalysis?.suuntoMetrics ||
           (parsed.suuntoMetrics
@@ -114,243 +99,148 @@ export function SessionFeedbackCard({
               }
             : null;
 
+        // Subtarjetas fisiológicas para completado con telemetría
+        const objectiveText =
+          diag.summary ||
+          (session.discipline === "carrera"
+            ? "Volumen y ritmos verificados frente a la prescripción del motor aeróbico."
+            : "Estímulo completado con registro de telemetría.");
+
+        const executionText =
+          diag.technicalBullets && diag.technicalBullets.length > 0
+            ? diag.technicalBullets.map((b) => b.text).slice(0, 2).join(" ")
+            : "Cumplimiento verificado. Hidratación adecuada y recuperación para el próximo bloque de carga.";
+
         return {
-          verdict: diag.complianceVerdict || "Cumplido",
-          tone: diag.complianceTone || "success",
-          summary:
-            diag.summary ||
-            `Sesión analizada con telemetría. Cumplimiento fisiológico validado frente a la prescripción.`,
-          bullets: diag.technicalBullets && diag.technicalBullets.length > 0 ? diag.technicalBullets : [],
+          statusLabel: diag.complianceVerdict || "Completado",
+          isAdapted: false,
+          objective: objectiveText,
+          executionCare: executionText,
           suunto,
-          sourceType: suunto ? "suunto_fit" : "fit_data",
         };
       } catch (e) {
         console.error("Error interpretando fit_data en SessionFeedbackCard:", e);
       }
     }
 
-    // 2. Caso completada sin FIT (manual, natación, Zepp, crossfit)
+    // 2. Caso completada sin FIT
     if (isCompleted) {
       if (isRest) {
         return {
-          verdict: "Cumplido",
-          tone: "success",
-          summary: "Día de asimilación y regeneración neuromuscular completado según planificación.",
-          bullets: [
-            {
-              icon: "heart",
-              title: "Tono Nervioso Parasimpático",
-              badge: "Regeneración",
-              badgeTone: "success",
-              text: "La ausencia de carga física permite recomponer el glucógeno y reducir la fatiga residual.",
-            },
-            {
-              icon: "shield",
-              title: "Reparación Miofascial",
-              badge: "Adaptación",
-              badgeTone: "brand",
-              text: "El tejido conectivo y articulaciones asimilan los impactos acumulados de la semana.",
-            },
-            {
-              icon: "zap",
-              title: "Preparación para la Siguiente Carga",
-              badge: "Luz Verde",
-              badgeTone: "success",
-              text: "Hidratación y descanso listos para afrontar los entrenamientos de mayor intensidad.",
-            },
-          ],
+          statusLabel: "Completado",
+          isAdapted: false,
+          objective: "Favorecer la supercompensación fisiológica, recomponer los depósitos de glucógeno y reducir la fatiga neuromuscular acumulada.",
+          executionCare: "Descanso activo o total, movilidad articular suave y nutrición rica en micronutrientes para regenerar tejidos.",
           suunto: null,
-          sourceType: "manual_realizada",
         };
       }
 
-      const dur = session.duration_min ? `${session.duration_min} min` : "completada";
-      const dist = session.distance_km ? ` · ${session.distance_km} km` : "";
-      const rpe = session.rpe ? ` · RPE ${session.rpe}/10` : "";
-
-      let bullets: TechnicalBulletItem[] = [];
+      const durStr = session.duration_min ? `${session.duration_min} min` : "sesión";
+      const distStr = session.distance_km ? ` (${session.distance_km} km)` : "";
 
       if (session.discipline === "natacion") {
-        bullets = [
-          {
-            icon: "heart",
-            title: "Cardio & Descarga Articular",
-            badge: "Impacto Cero",
-            badgeTone: "success",
-            text: `Sesión acuática de ${dur}${dist}. Retorno venoso optimizado sin carga axial en tendones y columna.`,
-          },
-          {
-            icon: "activity",
-            title: "Cadena Posterior & Hombros",
-            badge: "Compensatorio",
-            badgeTone: "brand",
-            text: "Trabajo fluido de tracción dorsal y movilidad de cintura escapular ideal para corredores.",
-          },
-          {
-            icon: "shield",
-            title: "Recomendación de Asimilación",
-            badge: "Post-Nado",
-            badgeTone: "success",
-            text: "Mantén buena hidratación con sales minerales; tren inferior libre de sobrecarga para correr.",
-          },
-        ];
-      } else if (session.discipline === "crossfit" || session.discipline === "gimnasio") {
-        bullets = [
-          {
-            icon: "zap",
-            title: "Potencia & Reclutamiento Neuromuscular",
-            badge: `RPE ${session.rpe ?? 7}`,
-            badgeTone: "brand",
-            text: `Trabajo de fuerza completado (${dur}${rpe}). Reclutamiento eficiente de fibras rápidas tipo II.`,
-          },
-          {
-            icon: "activity",
-            title: "Estabilidad Central & Blindaje",
-            badge: "Fuerza Útil",
-            badgeTone: "success",
-            text: "Activación de glúteos, sóleos y core anti-rotación para blindar la zancada en carrera.",
-          },
-          {
-            icon: "shield",
-            title: "Prescripción de Descanso",
-            badge: "Recuperación",
-            badgeTone: "warning",
-            text: "Ingesta proteica adecuada y estiramiento de tren superior para no arrastrar rigidez muscular.",
-          },
-        ];
-      } else {
-        // Carrera o general
-        bullets = [
-          {
-            icon: "heart",
-            title: "Respuesta Aeróbica & Volumen",
-            badge: "Asimilado",
-            badgeTone: "success",
-            text: `Rodaje ejecutado con éxito (${dur}${dist}${rpe}). Kilómetros sumados al motor aeróbico.`,
-          },
-          {
-            icon: "activity",
-            title: "Economía de Carrera & Elasticidad",
-            badge: "Mecánica",
-            badgeTone: "brand",
-            text: "Consistencia en la cadencia y activación del ciclo estiramiento-acortamiento de la fascia.",
-          },
-          {
-            icon: "shield",
-            title: "Recomendación para Siguiente Estímulo",
-            badge: "Continuidad",
-            badgeTone: "success",
-            text: "Masaje miofascial en sóleos/gemelos y descanso reparador para asimilar el kilometraje.",
-          },
-        ];
+        return {
+          statusLabel: "Completado",
+          isAdapted: false,
+          objective: "Optimizar el retorno venoso, estimular el flujo sanguíneo y descargar de impacto articular a sóleos, rodillas y columna.",
+          executionCare: "Nado con técnica limpia y foco pull-buoy. Rehidrata con sales al salir del agua para no deshidratarte.",
+          suunto: null,
+        };
+      }
+
+      if (session.discipline === "crossfit" || session.discipline === "gimnasio") {
+        return {
+          statusLabel: "Completado",
+          isAdapted: false,
+          objective: "Reclutar unidades motoras de fuerza, estabilizar cadera/core y blindar tendones para resistir la zancada de carrera.",
+          executionCare: "Cuida el rango de movimiento articular y asegura aporte proteico y descanso antes de la próxima sesión de carrera.",
+          suunto: null,
+        };
       }
 
       return {
-        verdict: "Cumplido",
-        tone: "success",
-        summary: `Sesión de ${session.discipline} completada con volumen objetivo (${dur}${dist}${rpe}).`,
-        bullets,
+        statusLabel: "Completado",
+        isAdapted: false,
+        objective: `Asimilar el volumen aeróbico programado de ${durStr}${distStr}, incrementando la densidad mitocondrial y la eficiencia cardiovascular.`,
+        executionCare: "Hidratación post-entreno con carbohidratos ligeros, movilidad de tobillos y descarga miofascial de sóleos y gemelos.",
         suunto: null,
-        sourceType: "manual_realizada",
       };
     }
 
-    // 3. Caso sesión pendiente
+    // 3. Caso planificado / pendiente
+    const notesLower = (session.notes || "").toLowerCase();
+    const isAdapted =
+      notesLower.includes("[ajuste inteligente]") ||
+      notesLower.includes("adaptado") ||
+      notesLower.includes("adaptada");
+
+    // Derivar objetivo del Preparador Físico
+    let objective = "";
+    let executionCare = "";
+
+    if (isRest) {
+      objective = "Asimilar las cargas de los días previos, reducir el tono simpático y permitir la supercompensación miofascial y tendinosa.";
+      executionCare = "Cero impacto articular. Prioriza descanso de calidad, hidratación abundante y aporte de magnesio y nutrientes limpios.";
+    } else if (session.discipline === "natacion") {
+      objective = "Regeneración activa cardiovascular y activación de la cadena posterior con descarga total del impacto gravitatorio en piernas.";
+      executionCare = "Mantén brazada fluida y sin prisas; usa pull-buoy para aislar tren superior y bebe agua al terminar la sesión.";
+    } else if (session.discipline === "crossfit") {
+      objective = "Fortalecimiento neuromuscular de cadenas cruzadas, core y tren superior para proteger la postura y economía de carrera.";
+      executionCare = "Ajusta las cargas en los levantamientos para no fatigar lumbares ni sobrecargar gemelos antes del fin de semana.";
+    } else if (session.discipline === "gimnasio") {
+      objective = "Trabajo de fuerza útil y propiocepción para blindar glúteos, isquiotibiales y tobillos contra lesiones en asfalto.";
+      executionCare = "Foco en la ejecución técnica y fase excéntrica lenta; evita llegar al fallo muscular para preservar frescura.";
+    } else {
+      // Carrera
+      const vz = detectVamZoneForSession(session);
+      if (vz?.code === "R0") {
+        objective = "Drenar lactato residual, favorecer la oxigenación muscular y acumular minutos de carrera en Zona R0 sin estrés cardiovascular.";
+        executionCare = "Calienta 10 min suave, no mires el reloj ni aceleres en repechos; mantén sensaciones muy cómodas (RPE 3-4) y bebe agua.";
+      } else if (vz?.code === "R1") {
+        objective = "Consolidar la base aeróbica lipolítica y la economía de zancada en Zona R1, entrenando al cuerpo a optimizar el uso de grasas.";
+        executionCare = "Comienza con calentamiento progresivo, mantén cadencia ágil y constante (~175-180 spm) y rueda en ritmo conversacional.";
+      } else if (vz?.code === "R2") {
+        objective = "Elevar el umbral aeróbico y mejorar el aclaramiento de lactato a ritmo medio progresivo (Zona R2).";
+        executionCare = "Calienta 10-12 min a ritmo suave antes de entrar en ritmo tempo; hidrátate bien y consume carbohidratos al terminar.";
+      } else if (vz?.code === "R5" || vz?.code === "R4" || vz?.code === "R3") {
+        objective = "Desarrollar el consumo máximo de oxígeno (VO2max) y la tolerancia neuromuscular a ritmos específicos de competición.";
+        executionCare = "Calentamiento y activación dinámica obligatorios; recupera al trote suave entre bloques y realiza 10 min de vuelta a la calma.";
+      } else {
+        objective = "Asimilar carga aeróbica de calidad, favorecer el flujo sanguíneo y mantener la continuidad del plan de entrenamiento.";
+        executionCare = "Calienta 10 min de forma progresiva, mantén cadencia fluida sin forzar en subidas y prioriza hidratación + carbohidratos ligeros al terminar.";
+      }
+    }
+
     return {
-      verdict: "Cumplido",
-      tone: "brand" as any,
-      summary: `Sesión programada según plan. Revisa la receta y objetivos antes de iniciar.`,
-      bullets: [
-        {
-          icon: "target",
-          title: "Objetivo del Entrenamiento",
-          badge: "Planificado",
-          badgeTone: "brand",
-          text: `Prescripción: ${session.planned_code || session.discipline}. Mantén el ritmo en la zona marcada.`,
-        },
-        {
-          icon: "shield",
-          title: "Pauta Fisiológica Recomendada",
-          badge: "Estrategia",
-          badgeTone: "success",
-          text: "Calienta de forma progresiva y dosifica la intensidad para cumplir el objetivo del bloque.",
-        },
-      ],
+      statusLabel: isAdapted ? "Adaptado" : "Planificado",
+      isAdapted,
+      objective,
+      executionCare,
       suunto: null,
-      sourceType: "pendiente",
     };
   }, [session, isCompleted, isRest]);
 
-  const verdictStyles = {
-    success: {
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/30",
-      badgeBg: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40",
-      icon: <CheckCircle2 size={16} className="text-emerald-400" />,
-      text: "text-emerald-400",
-      glow: "shadow-[0_0_20px_rgba(16,185,129,0.12)]",
-    },
-    warning: {
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/30",
-      badgeBg: "bg-amber-500/20 text-amber-400 border border-amber-500/40",
-      icon: <AlertTriangle size={16} className="text-amber-400" />,
-      text: "text-amber-400",
-      glow: "shadow-[0_0_20px_rgba(245,158,11,0.12)]",
-    },
-    danger: {
-      bg: "bg-rose-500/10",
-      border: "border-rose-500/30",
-      badgeBg: "bg-rose-500/20 text-rose-400 border border-rose-500/40",
-      icon: <ShieldAlert size={16} className="text-rose-400" />,
-      text: "text-rose-400",
-      glow: "shadow-[0_0_20px_rgba(244,63,94,0.12)]",
-    },
-    brand: {
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/30",
-      badgeBg: "bg-blue-500/20 text-blue-400 border border-blue-500/40",
-      icon: <Target size={16} className="text-blue-400" />,
-      text: "text-blue-400",
-      glow: "shadow-[0_0_20px_rgba(59,130,246,0.12)]",
-    },
-  }[feedbackData.tone] || {
-    bg: "bg-slate-800/20",
-    border: "border-slate-800",
-    badgeBg: "bg-slate-800 text-slate-300",
-    icon: <Sparkles size={16} className="text-slate-400" />,
-    text: "text-slate-300",
-    glow: "",
-  };
-
   return (
-    <div
-      className={`mt-3 rounded-xl border p-2.5 sm:p-4 bg-slate-950/70 transition-all max-w-full overflow-hidden ${verdictStyles.border} ${verdictStyles.glow}`}
-    >
-      {/* 1. Header con Veredicto & Telemetría */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800/80 w-full min-w-0">
-        <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
-          <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 flex-shrink-0 mt-0.5 sm:mt-0">
-            {verdictStyles.icon}
+    <div className="mt-3 bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm space-y-3.5 w-full min-w-0">
+      {/* Cabecera limpia y directa */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-zinc-100 w-full min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+            <Sparkles size={15} className="text-red-600" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] sm:text-xs font-bold text-slate-100 uppercase tracking-wider">
-                Análisis & Feedback
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className="text-xs font-bold text-zinc-900 tracking-tight uppercase">
+              ANÁLISIS &amp; FEEDBACK
+            </span>
+            <span className="bg-zinc-100 text-zinc-700 text-xs font-medium px-2.5 py-0.5 rounded-full">
+              {feedbackData.statusLabel}
+            </span>
+            {feedbackData.suunto?.deviceModel && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 flex items-center gap-1 font-semibold">
+                <Watch size={11} className="text-zinc-500" />
+                <span>{feedbackData.suunto.deviceModel}</span>
               </span>
-              <span className={`text-[10px] sm:text-[11px] font-extrabold px-1.5 sm:px-2 py-0.5 rounded-full ${verdictStyles.badgeBg}`}>
-                {isCompleted ? feedbackData.verdict : "Prescripción Planificada"}
-              </span>
-              {feedbackData.suunto?.deviceModel && (
-                <span className="text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center gap-1 font-semibold">
-                  <Watch size={10} className="text-emerald-400" />
-                  <span>{feedbackData.suunto.deviceModel}</span>
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] sm:text-xs text-slate-400 mt-1 leading-snug break-words">
-              {feedbackData.summary}
-            </p>
+            )}
           </div>
         </div>
 
@@ -358,124 +248,93 @@ export function SessionFeedbackCard({
           <button
             type="button"
             onClick={() => onOpenDetail(session.id)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 border border-slate-800 hover:border-emerald-500/40 transition-all flex-shrink-0 self-start sm:self-auto cursor-pointer"
+            className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100/80 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 flex-shrink-0 self-start sm:self-auto cursor-pointer"
             title="Ver analítica exhaustiva, curvas de pulso y zonas"
           >
-            <span>Ver telemetría completa</span>
-            <ChevronRight size={13} />
+            <span>Ver telemetría →</span>
           </button>
         )}
       </div>
 
-      {/* 2. Ribbon de Métricas Suunto & Carga (si están disponibles) */}
+      {/* Ribbon de Métricas Suunto (solo si hay telemetría FIT disponible) */}
       {feedbackData.suunto && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 pt-2.5 pb-2 w-full min-w-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-1 w-full min-w-0">
           {feedbackData.suunto.pte != null && (
-            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
-              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Zap size={10} className="text-emerald-400 flex-shrink-0" />
+            <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 min-w-0">
+              <div className="text-[10px] font-semibold text-zinc-500 flex items-center gap-1">
+                <Zap size={11} className="text-red-600 flex-shrink-0" />
                 <span className="truncate">PTE</span>
               </div>
-              <div className="text-sm sm:text-base font-extrabold text-emerald-400 font-mono mt-0.5 truncate">
-                {feedbackData.suunto.pte.toFixed(1)} <span className="text-[10px] text-slate-500 font-normal">/ 5.0</span>
-              </div>
-              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">
-                {feedbackData.suunto.pte >= 3.5 ? "Impacto alto" : feedbackData.suunto.pte >= 2.0 ? "Mantenimiento" : "Recuperación"}
+              <div className="text-sm font-bold text-zinc-900 font-mono mt-0.5">
+                {feedbackData.suunto.pte.toFixed(1)} <span className="text-[10px] text-zinc-400 font-normal">/ 5.0</span>
               </div>
             </div>
           )}
 
           {feedbackData.suunto.epoc != null && (
-            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
-              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Flame size={10} className="text-amber-400 flex-shrink-0" />
+            <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 min-w-0">
+              <div className="text-[10px] font-semibold text-zinc-500 flex items-center gap-1">
+                <Flame size={11} className="text-amber-500 flex-shrink-0" />
                 <span className="truncate">EPOC Pico</span>
               </div>
-              <div className="text-sm sm:text-base font-extrabold text-amber-400 font-mono mt-0.5 truncate">
-                {feedbackData.suunto.epoc} <span className="text-[10px] text-slate-500 font-normal">ml/kg</span>
+              <div className="text-sm font-bold text-zinc-900 font-mono mt-0.5">
+                {feedbackData.suunto.epoc} <span className="text-[10px] text-zinc-400 font-normal">ml/kg</span>
               </div>
-              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">Demanda O2</div>
             </div>
           )}
 
           {feedbackData.suunto.recoveryTimeFormatted && (
-            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
-              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Timer size={10} className="text-cyan-400 flex-shrink-0" />
+            <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 min-w-0">
+              <div className="text-[10px] font-semibold text-zinc-500 flex items-center gap-1">
+                <Timer size={11} className="text-blue-500 flex-shrink-0" />
                 <span className="truncate">Recuperación</span>
               </div>
-              <div className="text-sm sm:text-base font-extrabold text-cyan-400 font-mono mt-0.5 truncate">
+              <div className="text-sm font-bold text-zinc-900 font-mono mt-0.5 truncate">
                 {feedbackData.suunto.recoveryTimeFormatted}
               </div>
-              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">Estimado reloj</div>
             </div>
           )}
 
           {session.rpe != null && (
-            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 min-w-0 overflow-hidden">
-              <div className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                <Activity size={10} className="text-indigo-400 flex-shrink-0" />
+            <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 min-w-0">
+              <div className="text-[10px] font-semibold text-zinc-500 flex items-center gap-1">
+                <Activity size={11} className="text-purple-500 flex-shrink-0" />
                 <span className="truncate">Esfuerzo RPE</span>
               </div>
-              <div className="text-sm sm:text-base font-extrabold text-indigo-400 font-mono mt-0.5 truncate">
-                {session.rpe} <span className="text-[10px] text-slate-500 font-normal">/ 10</span>
+              <div className="text-sm font-bold text-zinc-900 font-mono mt-0.5">
+                {session.rpe} <span className="text-[10px] text-zinc-400 font-normal">/ 10</span>
               </div>
-              <div className="text-[8px] sm:text-[9px] text-slate-400 truncate mt-0.5">Carga percibida</div>
             </div>
           )}
         </div>
       )}
 
-      {/* 3. Viñetas de Diagnóstico Técnico & Fisiológico */}
-      {feedbackData.bullets && feedbackData.bullets.length > 0 && (
-        <div className="mt-2 space-y-1.5 w-full min-w-0">
-          {feedbackData.bullets.map((b, idx) => {
-            const iconComp =
-              b.icon === "heart" ? (
-                <Heart size={12} className="text-rose-400 flex-shrink-0" />
-              ) : b.icon === "zap" ? (
-                <Zap size={12} className="text-amber-400 flex-shrink-0" />
-              ) : b.icon === "shield" ? (
-                <Shield size={12} className="text-emerald-400 flex-shrink-0" />
-              ) : b.icon === "target" ? (
-                <Target size={12} className="text-blue-400 flex-shrink-0" />
-              ) : (
-                <Activity size={12} className="text-cyan-400 flex-shrink-0" />
-              );
-
-            const badgeBg =
-              b.badgeTone === "danger"
-                ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
-                : b.badgeTone === "warning"
-                ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                : b.badgeTone === "brand"
-                ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
-                : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
-
-            return (
-              <div
-                key={idx}
-                className="flex items-start gap-2 p-2 rounded-lg bg-slate-900/50 border border-slate-800/60 text-xs min-w-0 w-full overflow-hidden"
-              >
-                <div className="mt-0.5 flex-shrink-0">{iconComp}</div>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-slate-200 text-[11px] sm:text-xs break-words">{b.title}</span>
-                    {b.badge && (
-                      <span className={`text-[9px] sm:text-[10px] font-mono px-1.5 py-0.2 rounded border font-semibold ${badgeBg}`}>
-                        {b.badge}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-slate-400 mt-0.5 leading-relaxed text-[11px] sm:text-xs break-words" style={{ overflowWrap: "anywhere" }}>
-                    {b.text}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+      {/* 2 Subtarjetas Limpias y Enriquecidas (Sin repeticiones) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full min-w-0">
+        {/* 1. Objetivo de la Sesión (Preparador Físico) */}
+        <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
+            <Heart size={13} className="text-red-600 flex-shrink-0" />
+            <span>Objetivo de la Sesión</span>
+            <span className="text-[10px] font-medium text-zinc-500 ml-auto">Preparador Físico</span>
+          </div>
+          <p className="text-xs text-zinc-600 leading-relaxed break-words">
+            {feedbackData.objective}
+          </p>
         </div>
-      )}
+
+        {/* 2. Pauta de Ejecución y Cuidado (Fisioterapeuta + Nutricionista) */}
+        <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
+            <Shield size={13} className="text-emerald-600 flex-shrink-0" />
+            <span>Pauta de Ejecución y Cuidado</span>
+            <span className="text-[10px] font-medium text-zinc-500 ml-auto">Fisio + Nutrición</span>
+          </div>
+          <p className="text-xs text-zinc-600 leading-relaxed break-words">
+            {feedbackData.executionCare}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

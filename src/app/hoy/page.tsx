@@ -43,6 +43,7 @@ import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { WorkoutDetailModal } from "@/components/workout-detail-modal";
 import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
+import { SessionFeedbackCard } from "@/components/session-feedback-card";
 import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { CalendarAgendaBadge } from "@/components/calendar/calendar-agenda-badge";
@@ -628,6 +629,12 @@ export default function HoyPage() {
                     />
                   </div>
                 )}
+
+                {/* Análisis & Feedback del Equipo Técnico Multidisciplinar */}
+                <SessionFeedbackCard
+                  session={s}
+                  onOpenDetail={(id) => setDetailSessionId(id)}
+                />
 
                 {/* Insight de Eficiencia Aeróbica y Desacople Cardíaco (Suunto) */}
                 {s.discipline === "carrera" && (
