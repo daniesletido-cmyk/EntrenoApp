@@ -82,7 +82,7 @@ export function SuuntoPushButton({
             synced_at: new Date().toISOString(),
           }
         );
-        setSuccessMsg("Sesión lista para sincronizar con tu reloj Suunto");
+        setSuccessMsg("Enviado a Suunto sin solapamientos · Listo en tu reloj");
         onSynced?.({
           externalId: data.externalId,
           stepsCount: data.stepsCount ?? 0,

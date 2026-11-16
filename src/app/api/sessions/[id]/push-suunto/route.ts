@@ -21,11 +21,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const format = req.nextUrl.searchParams.get("format");
   if (format === "fit") {
     const fitBuf = buildStructuredWorkoutFitBuffer(session);
+    const cleanTitle = (session.planned_code || session.discipline).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, "_");
     return new NextResponse(new Uint8Array(fitBuf), {
       status: 200,
       headers: {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="suunto-entreno-${session.date}-${session.id}.fit"`,
+        "Content-Disposition": `attachment; filename="${session.date} - ${cleanTitle}.fit"`,
       },
     });
   }

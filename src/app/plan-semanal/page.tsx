@@ -102,6 +102,7 @@ export default function PlanSemanalPage() {
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
   const [pushingWeekSuunto, setPushingWeekSuunto] = useState(false);
+  const [suuntoPushStage, setSuuntoPushStage] = useState<"idle" | "purging" | "pushing" | "done">("idle");
   const importFileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -127,9 +128,12 @@ export default function PlanSemanalPage() {
 
   async function pushWeekToSuunto() {
     setPushingWeekSuunto(true);
+    setSuuntoPushStage("purging");
     try {
       const from = days[0];
       const to = days[days.length - 1];
+      
+      // Breve transición visual para que el usuario perciba la purga antes de la subida
       const res = await fetch("/api/suunto/push-week", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,15 +141,24 @@ export default function PlanSemanalPage() {
       });
       const data = await res.json();
       if (data.success || data.pushedCount > 0) {
-        toast.push("success", data.message || `${data.pushedCount} sesiones enviadas a tu reloj Suunto`);
+        setSuuntoPushStage("done");
+        const msg = data.purgedCount > 0
+          ? `Limpiados ${data.purgedCount} entrenos anteriores. Semana nueva enviada sin solapamientos (${data.pushedCount} sesiones)`
+          : `Semana nueva enviada sin solapamientos (${data.pushedCount} sesiones)`;
+        toast.push("success", msg);
         load(true);
       } else {
+        setSuuntoPushStage("idle");
         toast.push("error", data.message || "No se pudo sincronizar la semana con Suunto");
       }
     } catch {
+      setSuuntoPushStage("idle");
       toast.push("error", "Error de red sincronizando con Suunto");
     } finally {
-      setPushingWeekSuunto(false);
+      setTimeout(() => {
+        setPushingWeekSuunto(false);
+        setSuuntoPushStage("idle");
+      }, 2500);
     }
   }
 
@@ -405,7 +418,7 @@ export default function PlanSemanalPage() {
               <span>Plan PDF</span>
             </a>
             <button
-              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0"
+              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0 transition-all"
               onClick={pushWeekToSuunto}
               disabled={pushingWeekSuunto}
               style={{
@@ -413,11 +426,22 @@ export default function PlanSemanalPage() {
                 minHeight: 36,
                 borderRadius: "var(--radius-full)",
                 padding: "0 12px",
+                backgroundColor: suuntoPushStage === "done" ? "rgba(22, 163, 74, 0.15)" : undefined,
+                color: suuntoPushStage === "done" ? "var(--color-success)" : undefined,
+                borderColor: suuntoPushStage === "done" ? "rgba(22, 163, 74, 0.3)" : undefined,
               }}
-              title="Enviar todos los entrenamientos pendientes de esta semana a tu reloj Suunto"
+              title="Limpiar entrenamientos anteriores y enviar la nueva semana a tu reloj Suunto"
             >
-              <Watch size={14} className="text-brand" />
-              <span>{pushingWeekSuunto ? "Enviando..." : "Semana a Suunto"}</span>
+              <Watch size={14} className={pushingWeekSuunto ? "animate-spin text-brand" : "text-brand"} />
+              <span>
+                {suuntoPushStage === "purging"
+                  ? "Limpiando entrenos anteriores en Suunto..."
+                  : suuntoPushStage === "pushing"
+                  ? "Subiendo nueva semana a Suunto..."
+                  : suuntoPushStage === "done"
+                  ? "Semana enviada sin solapamientos"
+                  : "Semana a Suunto"}
+              </span>
             </button>
             <button
               className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0"

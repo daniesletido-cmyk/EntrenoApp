@@ -77,3 +77,25 @@ export function deleteSessionSuuntoSync(sessionId: number): void {
     getDb().prepare("DELETE FROM session_suunto_sync WHERE session_id = ?").run(sessionId);
   } catch {}
 }
+
+export function listAllSuuntoSync(): SessionSuuntoSyncRow[] {
+  try {
+    return getDb()
+      .prepare<SessionSuuntoSyncRow>("SELECT * FROM session_suunto_sync")
+      .all();
+  } catch {
+    return [];
+  }
+}
+
+export function deleteSuuntoSyncByExternalId(externalId: string): void {
+  try {
+    getDb().prepare("DELETE FROM session_suunto_sync WHERE external_id = ?").run(externalId);
+  } catch {}
+}
+
+export function clearAllSuuntoSync(): void {
+  try {
+    getDb().prepare("DELETE FROM session_suunto_sync").run();
+  } catch {}
+}

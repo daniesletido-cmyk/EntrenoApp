@@ -1,6 +1,12 @@
 import { getSetting, setSettings } from "@/lib/repo/settings";
 import { getSessionById, SessionRow } from "@/lib/repo/sessions";
-import { upsertSessionSuuntoSync, SessionSuuntoSyncRow } from "@/lib/repo/suunto-sync";
+import {
+  upsertSessionSuuntoSync,
+  SessionSuuntoSyncRow,
+  listAllSuuntoSync,
+  deleteSessionSuuntoSync,
+  clearAllSuuntoSync,
+} from "@/lib/repo/suunto-sync";
 import { buildStructuredWorkoutForSession, buildStructuredWorkoutFitBuffer } from "@/lib/suunto-workout-builder";
 
 const SUUNTO_OAUTH_AUTHORIZE = "https://cloudapi-oauth.suunto.com/oauth/authorize";
@@ -430,3 +436,112 @@ export async function pushSessionToSuunto(sessionId: number): Promise<SuuntoPush
     };
   }
 }
+
+/**
+ * PURGA PREVIA OBLIGATORIA:
+ * Elimina todos los entrenamientos planificados previos en Suunto (directos e Intervals bridge)
+ * antes de volcar una semana nueva, evitando cualquier duplicidad o solapamiento.
+ */
+export async function purgePreviousSuuntoWorkouts(options?: {
+  olderThanOrCurrent?: boolean;
+  fromDate?: string;
+  toDate?: string;
+}): Promise<{ deletedCount: number; errors: string[] }> {
+  let deletedCount = 0;
+  const errors: string[] = [];
+
+  const cfg = getSuuntoOAuthConfig();
+  const hasDirectTokens = !!(getSetting("suunto_access_token") || getSetting("suunto_refresh_token"));
+  const athleteId = (getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID || "").trim();
+  const apiKey = (getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY || "").trim();
+
+  // 1. Obtener todos los registros locales de sincronización previa
+  const syncRecords = listAllSuuntoSync();
+
+  // 2. Si usamos Intervals.icu como puente Suunto:
+  if (athleteId && apiKey) {
+    try {
+      const auth = "Basic " + Buffer.from(`API_KEY:${apiKey}`).toString("base64");
+      const oldest = options?.fromDate || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      const newest = options?.toDate || new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+
+      // Consultar todos los eventos de la ventana en Intervals
+      const res = await fetch(
+        `https://intervals.icu/api/v1/athlete/${encodeURIComponent(athleteId)}/events?oldest=${oldest}&newest=${newest}`,
+        {
+          headers: { Authorization: auth, Accept: "application/json" },
+          cache: "no-store",
+        }
+      );
+
+      if (res.ok) {
+        const events = await res.json();
+        if (Array.isArray(events)) {
+          // Filtrar eventos originados por EntrenoApp o de tipo WORKOUT planificado
+          const entrenoAppEvents = events.filter((ev: any) => {
+            const extId = String(ev?.external_id || "");
+            const isCategory = ev?.category === "WORKOUT";
+            return (
+              extId.startsWith("entrenoapp-") ||
+              isCategory ||
+              syncRecords.some((sr) => sr.external_id && String(sr.external_id) === String(ev?.id))
+            );
+          });
+
+          // Eliminar cada evento en Intervals (que a su vez borra la guía en Suunto)
+          for (const ev of entrenoAppEvents) {
+            try {
+              const delRes = await fetch(
+                `https://intervals.icu/api/v1/athlete/${encodeURIComponent(athleteId)}/events/${encodeURIComponent(ev.id)}`,
+                {
+                  method: "DELETE",
+                  headers: { Authorization: auth },
+                }
+              );
+              if (delRes.ok || delRes.status === 404) {
+                deletedCount++;
+              }
+            } catch (delErr) {
+              errors.push(`Error borrando evento Intervals ${ev.id}`);
+            }
+          }
+        }
+      }
+    } catch (intErr) {
+      errors.push(`Error consultando eventos Intervals: ${intErr instanceof Error ? intErr.message : String(intErr)}`);
+    }
+  }
+
+  // 3. Si usamos Suunto Cloud Direct (Guides API / Workouts):
+  if (cfg.subscriptionKey && hasDirectTokens) {
+    try {
+      const token = await ensureValidSuuntoToken();
+
+      // Para cada registro previo de Suunto Direct, intentar DELETE en /v2/workout/guide/{id}
+      for (const rec of syncRecords) {
+        if (rec.provider === "suunto_cloud_direct" && rec.external_id) {
+          try {
+            const delRes = await fetch(`${SUUNTO_CLOUD_BASE}/v2/workout/guide/${encodeURIComponent(rec.external_id)}`, {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Ocp-Apim-Subscription-Key": cfg.subscriptionKey,
+              },
+            });
+            if (delRes.ok || delRes.status === 404) {
+              deletedCount++;
+            }
+          } catch {}
+        }
+      }
+    } catch (suuntoErr) {
+      errors.push(`Error en purga Suunto Direct: ${suuntoErr instanceof Error ? suuntoErr.message : String(suuntoErr)}`);
+    }
+  }
+
+  // 4. Limpiar los registros de sincronización locales para que la nueva semana quede limpia
+  clearAllSuuntoSync();
+
+  return { deletedCount, errors };
+}
+
