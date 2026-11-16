@@ -40,7 +40,7 @@ export function MarathonCompactWidget() {
               <span className="text-xs font-bold text-white truncate">
                 Maratón 26/04/2027
               </span>
-              <span className="badge badge-brand text-[10px] py-0 px-1.5">
+              <span className="bg-red-600 text-white font-semibold text-[10px] px-2 py-0.5 rounded-full shadow-xs">
                 {currentPhase.shortName}
               </span>
             </div>

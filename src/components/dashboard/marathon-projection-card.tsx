@@ -101,7 +101,7 @@ export function MarathonProjectionCard({ initialData }: MarathonProjectionCardPr
               {targetRace.daysRemaining} días restantes
             </div>
           </div>
-          <span className="badge badge-brand text-[11px] sm:mt-1.5 font-medium">
+          <span className="bg-red-600 text-white font-semibold text-xs px-3 py-1 rounded-full sm:mt-1.5 shadow-sm">
             {currentPhase.shortName}
           </span>
         </div>
@@ -128,49 +128,45 @@ export function MarathonProjectionCard({ initialData }: MarathonProjectionCardPr
             return (
               <div
                 key={phase.key}
-                className="p-2.5 rounded-xl transition-all duration-150 flex flex-col justify-between min-h-[72px]"
-                style={{
-                  background: isActive
-                    ? "rgba(220, 38, 38, 0.12)"
+                className={`p-3 rounded-xl transition-all duration-150 flex flex-col justify-between min-h-[78px] ${
+                  isActive
+                    ? "bg-red-50/70 border border-red-300 shadow-sm"
                     : isCompleted
-                    ? "rgba(22, 163, 74, 0.10)"
-                    : "var(--color-surface-raised)",
-                  border: isActive
-                    ? "1.5px solid var(--color-brand)"
-                    : isCompleted
-                    ? "1px solid rgba(22, 163, 74, 0.3)"
-                    : "1px solid var(--color-border)",
-                }}
+                    ? "bg-emerald-50/60 border border-emerald-200"
+                    : "bg-zinc-50 border border-zinc-200"
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <span
-                    className="text-[10px] font-bold uppercase tracking-wider"
-                    style={{
-                      color: isActive
-                        ? "var(--color-brand)"
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      isActive
+                        ? "text-red-700"
                         : isCompleted
-                        ? "var(--color-success)"
-                        : "var(--color-text-muted)",
-                    }}
+                        ? "text-emerald-700"
+                        : "text-zinc-500"
+                    }`}
                   >
                     {isCompleted ? "Completada" : isActive ? "Fase Activa" : `Semanas -${phase.weeksRemainingRange[0]}`}
                   </span>
                   <div
-                    className="w-2 h-2 rounded-full"
-                    style={{
-                      background: isActive
-                        ? "var(--color-brand)"
+                    className={`w-2 h-2 rounded-full ${
+                      isActive
+                        ? "bg-red-600"
                         : isCompleted
-                        ? "var(--color-success)"
-                        : "rgba(255, 255, 255, 0.2)",
-                    }}
+                        ? "bg-emerald-600"
+                        : "bg-zinc-300"
+                    }`}
                   />
                 </div>
-                <div className="mt-1">
-                  <div className="text-xs sm:text-sm font-bold text-white leading-tight">
+                <div className="mt-1.5">
+                  <div className="text-xs sm:text-base font-bold text-zinc-900 leading-tight">
                     {phase.shortName}
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate">
+                  <div
+                    className={`text-[10px] sm:text-xs font-medium font-mono mt-0.5 truncate ${
+                      isActive ? "text-red-700" : isCompleted ? "text-emerald-700" : "text-zinc-600"
+                    }`}
+                  >
                     {phase.dateRangeLabel.split(" ")[0]}
                   </div>
                 </div>
@@ -180,13 +176,17 @@ export function MarathonProjectionCard({ initialData }: MarathonProjectionCardPr
         </div>
 
         {/* Descripción de la fase actual */}
-        <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 leading-relaxed">
-          <span className="font-semibold text-white">{currentPhase.name}:</span>{" "}
-          {currentPhase.description}
-          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-400 flex-wrap">
-            <span>Volumen objetivo: <strong className="text-zinc-200">{currentPhase.targetVolumeKm}</strong></span>
+        <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 leading-relaxed shadow-sm">
+          <span className="font-bold text-zinc-900 text-sm block mb-1">
+            Fase {currentPhase.order}: {currentPhase.name}
+          </span>
+          <p className="text-zinc-700 text-xs leading-relaxed">
+            {currentPhase.description}
+          </p>
+          <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-zinc-200 text-[11px] text-zinc-600 flex-wrap">
+            <span>Volumen objetivo: <strong className="text-zinc-900 font-bold">{currentPhase.targetVolumeKm}</strong></span>
             <span>•</span>
-            <span>Tirada larga: <strong className="text-zinc-200">{currentPhase.targetLongRunKm}</strong></span>
+            <span>Tirada larga: <strong className="text-zinc-900 font-bold">{currentPhase.targetLongRunKm}</strong></span>
           </div>
         </div>
       </div>
