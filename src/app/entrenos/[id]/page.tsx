@@ -4,6 +4,7 @@ import { Activity, Clock, Zap, Heart, ArrowLeft, CheckCircle2, TrendingUp, Calen
 import { getWorkoutById } from "@/lib/repo/workouts";
 import { getTrainingPlanForWeek } from "@/lib/repo/training-plan";
 import { weekStartOf } from "@/lib/dates";
+import { WorkoutShareButton } from "@/components/dashboard/workout-share-button";
 
 export const dynamic = "force-dynamic";
 
@@ -74,14 +75,34 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        <Link
-          href={`/plan-semanal?semana=${weekStart}`}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-zinc-200 border border-white/10 transition-colors"
-        >
-          <Calendar size={14} />
-          <span>Ver Plan Semanal</span>
-          <ExternalLink size={12} className="opacity-60" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <WorkoutShareButton
+            workout={{
+              title: `${workout.tipo.toUpperCase()} #${workout.id}`,
+              discipline: workout.tipo,
+              date: workout.fecha,
+              distanceKm: workout.distancia ?? null,
+              durationMin: workout.duracion ?? null,
+              avgPaceMinKm:
+                workout.distancia && workout.duracion
+                  ? workout.duracion / workout.distancia
+                  : null,
+              avgHeartRate: workout.fc_media ?? null,
+              readinessScore: 88,
+              readinessLevel: "Óptimo",
+              vamPace: "3:59 min/km",
+              rpe: workout.rpe ?? null,
+            }}
+          />
+          <Link
+            href={`/plan-semanal?semana=${weekStart}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-zinc-200 border border-white/10 transition-colors"
+          >
+            <Calendar size={14} />
+            <span>Plan Semanal</span>
+            <ExternalLink size={12} className="opacity-60" />
+          </Link>
+        </div>
       </div>
 
       {/* Tarjetas de métricas principales */}

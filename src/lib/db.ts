@@ -333,6 +333,10 @@ function createSchema(d: AppDb) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL UNIQUE,
       weight_kg REAL,
+      body_fat_pct REAL,
+      muscle_mass_kg REAL,
+      water_pct REAL,
+      source TEXT,
       notes TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -499,6 +503,23 @@ function createSchema(d: AppDb) {
       updated_at TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_calendar_events_start ON calendar_events (start_time);
+
+    CREATE TABLE IF NOT EXISTS shoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      brand TEXT,
+      model TEXT,
+      initial_km REAL NOT NULL DEFAULT 0,
+      total_km REAL NOT NULL DEFAULT 0,
+      max_km REAL NOT NULL DEFAULT 700,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_shoes_is_primary ON shoes(is_primary);
+    CREATE INDEX IF NOT EXISTS idx_shoes_is_active ON shoes(is_active);
   `);
 }
 
@@ -519,6 +540,40 @@ function migrateSchema(d: AppDb) {
   if (!columnExists(d, "sessions", "feeling")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN feeling INTEGER;`);
   }
+  if (!columnExists(d, "sessions", "shoe_id")) {
+    d.exec(`ALTER TABLE sessions ADD COLUMN shoe_id INTEGER;`);
+  }
+  if (!columnExists(d, "measurements", "body_fat_pct")) {
+    d.exec(`ALTER TABLE measurements ADD COLUMN body_fat_pct REAL;`);
+  }
+  if (!columnExists(d, "measurements", "muscle_mass_kg")) {
+    d.exec(`ALTER TABLE measurements ADD COLUMN muscle_mass_kg REAL;`);
+  }
+  if (!columnExists(d, "measurements", "water_pct")) {
+    d.exec(`ALTER TABLE measurements ADD COLUMN water_pct REAL;`);
+  }
+  if (!columnExists(d, "measurements", "source")) {
+    d.exec(`ALTER TABLE measurements ADD COLUMN source TEXT;`);
+  }
+
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS shoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      brand TEXT,
+      model TEXT,
+      initial_km REAL NOT NULL DEFAULT 0,
+      total_km REAL NOT NULL DEFAULT 0,
+      max_km REAL NOT NULL DEFAULT 700,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_shoes_is_primary ON shoes(is_primary);
+    CREATE INDEX IF NOT EXISTS idx_shoes_is_active ON shoes(is_active);
+  `);
 
   if (!columnExists(d, "sleep_logs", "score")) {
     d.exec(`ALTER TABLE sleep_logs ADD COLUMN score INTEGER;`);

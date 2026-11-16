@@ -58,6 +58,8 @@ import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import { formatSecondsDetailed } from "@/lib/fit-feedback";
 import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
+import { WorkoutShareCardModal } from "@/components/modals/workout-share-card-modal";
+import { todayISO } from "@/lib/dates";
 
 function formatPace(minKm: number | null | undefined): string {
   if (minKm === null || minKm === undefined) return "—";
@@ -144,6 +146,28 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
   const [editUserNotes, setEditUserNotes] = useState<string>("");
   const [savingSensory, setSavingSensory] = useState(false);
   const [sensorySavedMsg, setSensorySavedMsg] = useState<string | null>(null);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
+  const [changingShoe, setChangingShoe] = useState(false);
+
+  async function handleChangeShoe(newShoeId: number | null) {
+    if (!sessionId) return;
+    setChangingShoe(true);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shoe_id: newShoeId }),
+      });
+      if (res.ok) {
+        const updated = await fetch(`/api/sessions/${sessionId}`).then((r) => r.json());
+        setData(updated);
+      }
+    } catch (err) {
+      console.error("Error al actualizar zapatilla de la sesión:", err);
+    } finally {
+      setChangingShoe(false);
+    }
+  }
 
   useEffect(() => {
     if (!sessionId) return;
@@ -451,6 +475,23 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           </div>
 
           <div className="flex items-center gap-2">
+            {session && (
+              <button
+                type="button"
+                className="btn btn-primary text-xs flex items-center gap-1.5 harbiz-press"
+                style={{
+                  padding: "0.32rem 0.65rem",
+                  background: "var(--color-brand)",
+                  color: "#ffffff",
+                  border: "none",
+                }}
+                onClick={() => setShareCardOpen(true)}
+                title="Generar tarjeta resumen 9:16 para descargar o compartir"
+              >
+                <Sparkles size={13} />
+                <span>Tarjeta Resumen</span>
+              </button>
+            )}
             <button
               className="btn btn-secondary text-xs flex items-center gap-1"
               style={{ padding: "0.3rem 0.6rem" }}
@@ -598,6 +639,31 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
               {/* PESTAÑA 1: RESUMEN Y FISIOLOGÍA */}
               {activeTab === "general" && (
                 <div className="grid gap-4">
+                  {/* Banner Tarjeta Resumen 9:16 */}
+                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "var(--color-brand-subtle)", color: "var(--color-brand)" }}
+                      >
+                        <Sparkles size={18} />
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm font-bold text-white">Tarjeta Resumen 9:16</div>
+                        <div className="text-[11px] text-zinc-400">Descarga la vista previa en formato vertical para compartir</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShareCardOpen(true)}
+                      className="btn btn-primary text-xs font-bold flex items-center gap-1.5 px-3 py-2 rounded-xl harbiz-press cursor-pointer"
+                      style={{ background: "var(--color-brand)", color: "#ffffff", border: "none" }}
+                    >
+                      <Sparkles size={13} />
+                      <span>Generar Tarjeta</span>
+                    </button>
+                  </div>
+
                   {/* Grid de KPIs principales */}
                   <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
                     <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
@@ -895,6 +961,57 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                       </div>
                     )}
                   </div>
+
+                  {/* Calzado utilizado en la sesión (Running) */}
+                  {isRunning && (
+                    <div className="surface-raised p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60">
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Footprints size={15} className="text-red-600 shrink-0" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                            Zapatilla utilizada en la sesión
+                          </span>
+                        </div>
+                        {data?.assignedShoe && (
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                              data.assignedShoe.wear_percentage >= 90
+                                ? "bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 border-red-200 dark:border-red-900/40"
+                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+                            }`}
+                          >
+                            {data.assignedShoe.total_km.toFixed(1)} / {data.assignedShoe.max_km} km ({data.assignedShoe.wear_percentage.toFixed(0)}% desgaste)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={session.shoe_id ?? data?.assignedShoe?.id ?? ""}
+                          disabled={changingShoe || !data?.shoes || data.shoes.length === 0}
+                          onChange={(e) => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            handleChangeShoe(val);
+                          }}
+                          className="w-full text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-red-500"
+                          style={{ minHeight: 40 }}
+                        >
+                          {!data?.shoes || data.shoes.length === 0 ? (
+                            <option value="">No hay zapatillas registradas (añádelas en Ajustes)</option>
+                          ) : (
+                            <>
+                              <option value="">Selecciona o cambia de zapatilla...</option>
+                              {data.shoes.map((sh: any) => (
+                                <option key={sh.id} value={sh.id}>
+                                  {sh.name} {sh.is_primary ? "(Principal)" : ""} — {sh.total_km.toFixed(1)} km / {sh.max_km} km ({sh.wear_percentage.toFixed(0)}%)
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Reporte de Telemetría Suunto & Veredicto de Cumplimiento */}
                   {structuredFeedback?.complianceVerdict && (
@@ -2969,6 +3086,30 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           )}
         </div>
       </div>
+
+      {session && (
+        <WorkoutShareCardModal
+          isOpen={shareCardOpen}
+          onClose={() => setShareCardOpen(false)}
+          workout={{
+            title: session.planned_code || (session.discipline ? DISCIPLINE_LABEL[session.discipline] : "Entrenamiento"),
+            discipline: session.discipline || "carrera",
+            date: session.date || todayISO(),
+            distanceKm: session.distance_km ?? fit?.distanceKm ?? null,
+            durationMin: session.duration_min ?? fit?.durationMin ?? null,
+            avgPaceMinKm:
+              fit?.avgPaceMinKm ??
+              (session.distance_km && session.duration_min
+                ? session.duration_min / session.distance_km
+                : null),
+            avgHeartRate: fit?.avgHeartRate ?? fit?.average_heartrate ?? null,
+            readinessScore: readiness?.score ?? 88,
+            readinessLevel: readiness?.level ?? "Óptimo",
+            vamPace: "3:59 min/km",
+            rpe: session.rpe ?? null,
+          }}
+        />
+      )}
     </div>
   );
 }

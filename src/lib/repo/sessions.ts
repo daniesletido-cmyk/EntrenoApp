@@ -24,6 +24,7 @@ export interface SessionRow {
   // se deshizo esa importación.
   fit_backup: string | null;
   fit_data?: string | null;
+  shoe_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -259,6 +260,7 @@ export interface UpdateSessionInput {
   user_notes?: string | null;
   fitImport?: boolean;
   fit_data?: string | null;
+  shoe_id?: number | null;
 }
 
 export function updateSession(id: number, input: UpdateSessionInput): SessionRow | undefined {
@@ -286,6 +288,17 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
   const fitData = input.fit_data !== undefined ? input.fit_data : current.fit_data;
   const userNotes = input.user_notes !== undefined ? input.user_notes : current.user_notes;
 
+  let effectiveShoeId = input.shoe_id !== undefined ? input.shoe_id : current.shoe_id;
+  const isNowCompleted = (input.status === "realizada" || input.fitImport) && (input.discipline ?? current.discipline) === "carrera";
+  if (effectiveShoeId === null || effectiveShoeId === undefined) {
+    if (isNowCompleted) {
+      try {
+        const prim = getDb().prepare("SELECT id FROM shoes WHERE is_primary = 1 AND is_active = 1 LIMIT 1").get() as { id: number } | undefined;
+        if (prim?.id) effectiveShoeId = prim.id;
+      } catch {}
+    }
+  }
+
   getDb()
     .prepare(
       `UPDATE sessions SET
@@ -304,6 +317,7 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
         user_notes = ?,
         fit_backup = ?,
         fit_data = ?,
+        shoe_id = ?,
         updated_at = ?
        WHERE id = ?`
     )
@@ -323,6 +337,7 @@ export function updateSession(id: number, input: UpdateSessionInput): SessionRow
       userNotes ?? null,
       fitBackup,
       fitData ?? null,
+      effectiveShoeId ?? null,
       now,
       id
     );

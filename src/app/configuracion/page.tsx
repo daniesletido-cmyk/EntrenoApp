@@ -16,6 +16,8 @@ import { downloadJSONBackupFile, importDataFromJSON } from "@/lib/client-persist
 import { SUPABASE_SQL_SCHEMA } from "@/lib/supabase";
 import { AiObservabilityPanel } from "@/components/settings/ai-observability";
 import { CalendarIPhoneCard } from "@/components/settings/calendar-iphone-card";
+import { ShoesManagerCard } from "@/components/settings/shoes-manager-card";
+import { XiaomiScaleSettingsCard } from "@/components/settings/xiaomi-scale-card";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -438,6 +440,7 @@ export default function ConfiguracionPage() {
               { href: "/calendario", label: "Calendario" },
               { href: "/informe-semanal", label: "Informe" },
               { href: "/objetivos", label: "Objetivos" },
+              { href: "/biblioteca", label: "Biblioteca & Táctica" },
             ].map((item) => (
               <Link
                 key={item.href}
@@ -841,6 +844,12 @@ export default function ConfiguracionPage() {
 
         {/* SECCIÓN INTEGRACIÓN CON CALENDARIO DE IPHONE (ICLOUD & ATAJOS IOS) */}
         <CalendarIPhoneCard />
+
+        {/* SECCIÓN EQUIPAMIENTO Y DESGASTE DE ZAPATILLAS */}
+        <ShoesManagerCard />
+
+        {/* SECCIÓN BÁSCULA XIAOMI S200 / APPLE SALUD */}
+        <XiaomiScaleSettingsCard />
 
         {/* SECCIÓN PERSISTENCIA Y COPIAS DE SEGURIDAD (JSON & SUPABASE) */}
         <div className="surface p-3.5 sm:p-4 min-w-0 w-full">

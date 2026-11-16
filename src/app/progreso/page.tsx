@@ -42,6 +42,10 @@ import { useToast } from "@/components/ui/toast";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Modal } from "@/components/ui/modal";
 import { addDays, todayISO } from "@/lib/dates";
+import { MarathonProjectionCard } from "@/components/dashboard/marathon-projection-card";
+import { AerobicEfficiencyCard } from "@/components/dashboard/aerobic-efficiency-card";
+import { WeeklyClosingCard } from "@/components/dashboard/weekly-closing-card";
+import { WeightEvolutionCard } from "@/components/dashboard/weight-evolution-card";
 
 interface WeekHistory {
   weekStart: string;
@@ -62,6 +66,11 @@ interface WeekHistory {
 interface Measurement {
   date: string;
   weight_kg: number | null;
+  body_fat_pct?: number | null;
+  muscle_mass_kg?: number | null;
+  water_pct?: number | null;
+  source?: string | null;
+  notes?: string | null;
 }
 
 interface SleepLog {
@@ -161,7 +170,7 @@ export default function ProgresoPage() {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
   const [gymPRs, setGymPRs] = useState<GymPR[]>([]);
-  const [activeTab, setActiveTab] = useState<"todos" | "entrenos" | "fuerza" | "sueno" | "peso">("todos");
+  const [activeTab, setActiveTab] = useState<"todos" | "maraton" | "entrenos" | "fuerza" | "sueno" | "peso">("todos");
   const [weightForm, setWeightForm] = useState({ date: "", weight_kg: "" });
   const [saving, setSaving] = useState(false);
   const [alertModal, setAlertModal] = useState<"acwr" | "sleep" | "compliance" | null>(null);
@@ -173,6 +182,8 @@ export default function ProgresoPage() {
       const tab = params.get("tab");
       if (tab === "sueno" || window.location.hash === "#sueno") {
         setActiveTab("sueno");
+      } else if (tab === "maraton" || window.location.hash === "#maraton") {
+        setActiveTab("maraton");
       } else if (tab === "entrenos" || tab === "fuerza" || tab === "peso" || tab === "todos") {
         setActiveTab(tab as any);
       }
@@ -302,6 +313,27 @@ export default function ProgresoPage() {
           <span>Objetivos & Metas</span>
         </Link>
       </div>
+
+      {/* Cierre y Análisis Semanal Automático (Preparador Físico + Fisioterapeuta) */}
+      {(activeTab === "todos" || activeTab === "maraton" || activeTab === "entrenos") && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <WeeklyClosingCard />
+        </div>
+      )}
+
+      {/* Módulo Principal: Proyección de Objetivo y Periodización (Maratón 26/04/2027) */}
+      {(activeTab === "todos" || activeTab === "maraton") && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <MarathonProjectionCard />
+        </div>
+      )}
+
+      {/* Módulo de Eficiencia Aeróbica y Desacople Cardíaco (Suunto) */}
+      {(activeTab === "todos" || activeTab === "maraton" || activeTab === "entrenos") && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <AerobicEfficiencyCard />
+        </div>
+      )}
 
       {/* KPI Cards de resumen rápido */}
       <div
@@ -445,6 +477,14 @@ export default function ProgresoPage() {
           onClick={() => setActiveTab("todos")}
         >
           Visión Global
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === "maraton" ? "btn-primary" : "btn-secondary"} text-xs`}
+          onClick={() => setActiveTab("maraton")}
+        >
+          <Target size={13} />
+          Maratón & Periodización
         </button>
         <button
           type="button"
@@ -887,76 +927,14 @@ export default function ProgresoPage() {
         </>
       )}
 
-      {/* SECCIÓN 3: PESO CORPORAL */}
+      {/* SECCIÓN 3: PESO CORPORAL & BÁSCULA XIAOMI */}
       {(activeTab === "todos" || activeTab === "peso") && (
-        <>
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wider" style={{ marginBottom: "var(--space-3)", marginTop: "var(--space-2)" }}>
-            <Scale size={14} />
-            <span>Evolución del Peso Corporal</span>
-            <InfoTooltip
-              title="Peso Corporal"
-              content="Seguimiento de tu masa corporal a lo largo del tiempo. Pesarse en ayunas y a la misma hora minimiza las variaciones de líquidos."
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3" style={{ marginBottom: "var(--space-4)" }}>
-            <div className="md:col-span-2">
-              <ChartCard
-                title="Evolución de peso (kg)"
-                subtitle="Histórico de pesajes registrados"
-                info="Muestra la tendencia de tu peso corporal medido en ayunas a lo largo del tiempo para evaluar adaptaciones metabólicas y recomposición corporal."
-                hasData={hasWeight}
-              >
-                <ResponsiveContainer>
-                  <AreaChart data={weightData}>
-                    <defs>
-                      <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.35} />
-                        <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" stroke={CHART_COLORS.text} fontSize={11} />
-                    <YAxis stroke={CHART_COLORS.text} fontSize={11} domain={["dataMin - 1", "dataMax + 1"]} unit="kg" />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Area type="monotone" dataKey="kg" name="Peso (kg)" stroke={CHART_COLORS.success} fill="url(#colorPeso)" strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS.success }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            </div>
-
-            <div className="surface" style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <div className="font-semibold text-sm" style={{ marginBottom: "var(--space-1)" }}>
-                  Registrar nuevo peso
-                </div>
-                <p className="text-xs text-muted" style={{ marginBottom: "var(--space-3)" }}>
-                  Anota tu peso en ayunas para hacer seguimiento de tu evolución física.
-                </p>
-                <div className="grid gap-3">
-                  <Input
-                    label="Fecha"
-                    type="date"
-                    value={weightForm.date}
-                    onChange={(e) => setWeightForm((f) => ({ ...f, date: e.target.value }))}
-                  />
-                  <Input
-                    label="Peso (kg)"
-                    type="number"
-                    step="0.1"
-                    placeholder="ej. 73.5"
-                    value={weightForm.weight_kg}
-                    onChange={(e) => setWeightForm((f) => ({ ...f, weight_kg: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <Button variant="primary" loading={saving} onClick={addWeight} style={{ marginTop: "var(--space-3)" }}>
-                <Save size={15} />
-                Guardar peso
-              </Button>
-            </div>
-          </div>
-        </>
+        <div style={{ marginBottom: "var(--space-4)", marginTop: "var(--space-2)" }}>
+          <WeightEvolutionCard
+            measurements={measurements}
+            onWeightAdded={load}
+          />
+        </div>
       )}
 
       {/* Estado vacío si no hay ningún dato todavía */}

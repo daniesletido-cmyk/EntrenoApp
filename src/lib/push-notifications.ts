@@ -516,3 +516,71 @@ export async function sendSensoryAdaptationPush(params: {
     tag: `sensory-adapt-${params.adaptedSessionDate || Date.now()}`,
   });
 }
+
+/**
+ * Notificación Push de Desgaste de Zapatillas (>= 90% vida útil)
+ * Título: "Cambio de zapatillas recomendado"
+ * Redirige a /configuracion
+ */
+export async function sendShoeWearAlertPush(shoe: {
+  id: number;
+  name: string;
+  totalKm: number;
+  maxKm: number;
+  wearPct: number;
+}) {
+  const title = "Cambio de zapatillas recomendado";
+  const body = `Tus zapatillas ${shoe.name} han alcanzado el ${shoe.wearPct}% de su vida útil (${Math.round(shoe.totalKm)}/${shoe.maxKm} km). Planifica su sustitución para evitar sobrecargas.`;
+  const targetUrl = "/configuracion";
+
+  try {
+    createNotification({
+      title,
+      body,
+      url: targetUrl,
+      category: "system",
+    });
+  } catch {}
+
+  return sendPushToAll({
+    title,
+    body,
+    data: { url: targetUrl },
+    tag: `shoe-wear-alert-${shoe.id}`,
+  });
+}
+
+/**
+ * Notificación Push de Cierre y Análisis Semanal Automático
+ * Título minimalista: "Resumen semanal listo"
+ * Redirige a /progreso
+ */
+export async function sendWeeklyClosingPush(params: {
+  weekStart: string;
+  verdictTitle: string;
+  compliancePct: number;
+  totalKm: number;
+  dischargeRecommended: boolean;
+}) {
+  const title = "Resumen semanal listo";
+  const body = params.dischargeRecommended
+    ? `Asimilación y fatiga analizadas: ${params.compliancePct}% cumplimiento · ${params.totalKm} km. Recomendada descarga suave el lunes.`
+    : `Semana completada con éxito: ${params.compliancePct}% cumplimiento · ${params.totalKm} km. Excelente asimilación.`;
+  const targetUrl = "/progreso";
+
+  try {
+    createNotification({
+      title,
+      body,
+      url: targetUrl,
+      category: "system",
+    });
+  } catch {}
+
+  return sendPushToAll({
+    title,
+    body,
+    data: { url: targetUrl },
+    tag: `weekly-closing-${params.weekStart}`,
+  });
+}

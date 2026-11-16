@@ -8,6 +8,7 @@ import { buildUnifiedSessionDiagnostics } from "@/lib/fit-feedback";
 import { getSessionSuuntoSync } from "@/lib/repo/suunto-sync";
 import { getSetting } from "@/lib/repo/settings";
 import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
+import { listShoes, getShoeById, getPrimaryShoe } from "@/lib/repo/shoes";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   await refreshDbFromBlobIfNewer();
@@ -84,6 +85,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       avgSpeedKmh,
     },
     suuntoSync: getSessionSuuntoSync(sessionId) ?? null,
+    shoes: listShoes(),
+    assignedShoe: session.shoe_id ? getShoeById(session.shoe_id) : (session.discipline === "carrera" ? getPrimaryShoe() : null),
   });
 }
 
@@ -118,6 +121,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     user_notes: body.user_notes !== undefined ? body.user_notes : undefined,
     fitImport: !!body.fitImport,
     fit_data: body.fit_data !== undefined ? body.fit_data : undefined,
+    shoe_id: body.shoe_id !== undefined ? (body.shoe_id === "" || body.shoe_id === null ? null : Number(body.shoe_id)) : undefined,
   });
 
   if (!session) {

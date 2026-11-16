@@ -19,6 +19,7 @@ import {
   Activity,
   RefreshCw,
   CalendarRange,
+  Sparkles,
 } from "lucide-react";
 import { ReadinessCard, type ReadinessRecentSession } from "@/components/dashboard/readiness-card";
 import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
@@ -37,6 +38,12 @@ import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { CalendarAgendaBadge } from "@/components/calendar/calendar-agenda-badge";
 import { MultidisciplinaryAdaptationCard } from "@/components/multidisciplinary-adaptation-card";
+import { MarathonCompactWidget } from "@/components/dashboard/marathon-compact-widget";
+import { RaceStrategyCardWidget } from "@/components/dashboard/race-strategy-card-widget";
+import { AerobicEfficiencyInsight } from "@/components/dashboard/aerobic-efficiency-insight";
+import { PhysioAlertBanner } from "@/components/dashboard/physio-alert-banner";
+import { CrossfitButtonWidget } from "@/components/crossfit/crossfit-button-widget";
+import { WorkoutShareCardModal } from "@/components/modals/workout-share-card-modal";
 import type { AdaptedSessionProposal } from "@/lib/adaptive_scheduler";
 import { SubstituteWorkoutModal } from "@/components/modals/substitute-workout-modal";
 
@@ -52,6 +59,7 @@ interface SessionRow {
   duration_min: number | null;
   distance_km: number | null;
   notes: string | null;
+  user_notes?: string | null;
 }
 
 interface SleepRow {
@@ -112,6 +120,7 @@ export default function HoyPage() {
   const [calendarProposal, setCalendarProposal] = useState<AdaptedSessionProposal | null>(null);
   const [calendarVersion, setCalendarVersion] = useState<"express" | "original">("express");
   const [substituteModalSession, setSubstituteModalSession] = useState<SessionRow | null>(null);
+  const [shareCardSession, setShareCardSession] = useState<SessionRow | null>(null);
   const [sensoryAdaptation, setSensoryAdaptation] = useState<any | null>(null);
   const toast = useToast();
 
@@ -292,6 +301,31 @@ export default function HoyPage() {
         sleepQuality={sleep?.quality ?? readiness?.stats?.sleepQuality ?? null}
         recentSessions={weeklySummary?.recentSessions ?? []}
       />
+
+      {/* Indicador Compacto de Objetivo y Periodización (Maratón 26/04/2027) */}
+      <MarathonCompactWidget />
+
+      {/* Estrategia de Competición (Pacing 5K & Nutrición) */}
+      <RaceStrategyCardWidget />
+
+      {/* Analizar Semana CrossFit (Foto / Visión IA) */}
+      <CrossfitButtonWidget onAddedToCalendar={() => load(false)} />
+
+      {/* Sugerencia Preventiva de Fisioterapia y Movilidad (10 min) si hay sobrecarga o fatiga */}
+      {(() => {
+        const lastCompletedSession = [...weekSessions]
+          .filter((s) => s.status === "realizada" || s.status === "completada")
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
+        return (
+          <PhysioAlertBanner
+            readinessScore={readiness?.score ?? null}
+            readinessLevel={readiness?.level ?? null}
+            recentNotes={`${lastCompletedSession?.notes || ""} ${lastCompletedSession?.user_notes || ""}`}
+            lastSessionRpe={lastCompletedSession?.rpe ?? null}
+            lastSessionTitle={lastCompletedSession?.planned_code ?? null}
+          />
+        );
+      })()}
 
       {/* 1. Calendario Semanal Deslizable (Lunes a Domingo) */}
       <section className="surface p-4">
@@ -517,6 +551,14 @@ export default function HoyPage() {
                   </div>
                 )}
 
+                {/* Insight de Eficiencia Aeróbica y Desacople Cardíaco (Suunto) */}
+                {s.discipline === "carrera" && (
+                  <AerobicEfficiencyInsight
+                    isCompleted={isCompleted}
+                    discipline={s.discipline}
+                  />
+                )}
+
                 {/* Botón principal: Exportar a Suunto + Acciones secundarias */}
                 <div className="space-y-3 pt-2">
                   <SuuntoPushButton
@@ -537,7 +579,7 @@ export default function HoyPage() {
                     <span>{isCompleted ? "Ver / editar registro" : "Registrar realización"}</span>
                   </Link>
 
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     <button
                       type="button"
                       className="btn btn-ghost text-xs flex-1"
@@ -546,6 +588,17 @@ export default function HoyPage() {
                       <Activity size={15} />
                       <span>Detalle</span>
                     </button>
+                    {isCompleted && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-xs flex-1 flex items-center justify-center gap-1 text-red-500 hover:text-red-400 font-semibold harbiz-press"
+                        onClick={() => setShareCardSession(effectiveSession)}
+                        title="Descargar Tarjeta Resumen 9:16"
+                      >
+                        <Sparkles size={14} className="text-red-500" />
+                        <span>Tarjeta</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost text-xs flex-1"
@@ -660,6 +713,29 @@ export default function HoyPage() {
           currentDiscipline={substituteModalSession.discipline}
           currentTitle={substituteModalSession.planned_code}
           onSuccess={() => load(false)}
+        />
+      )}
+
+      {shareCardSession && (
+        <WorkoutShareCardModal
+          isOpen={Boolean(shareCardSession)}
+          onClose={() => setShareCardSession(null)}
+          workout={{
+            title: shareCardSession.planned_code || "Entrenamiento",
+            discipline: shareCardSession.discipline || "carrera",
+            date: shareCardSession.date || today,
+            distanceKm: shareCardSession.distance_km ?? null,
+            durationMin: shareCardSession.duration_min ?? null,
+            avgPaceMinKm:
+              shareCardSession.distance_km && shareCardSession.duration_min
+                ? shareCardSession.duration_min / shareCardSession.distance_km
+                : null,
+            avgHeartRate: null,
+            readinessScore: readiness?.score ?? 88,
+            readinessLevel: readiness?.level ?? "Óptimo",
+            vamPace: "3:59 min/km",
+            rpe: shareCardSession.rpe ?? null,
+          }}
         />
       )}
     </div>

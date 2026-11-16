@@ -40,6 +40,7 @@ import { reconcileSleep, saveLocalSleep } from "@/lib/client-persistence";
 import { haptics } from "@/lib/haptics";
 import type { SleepRow } from "@/lib/repo/sleep";
 import type { SleepSyncStatus } from "@/lib/sleep-sync-service";
+import { MorningCheckWidget } from "@/components/sleep/morning-check-widget";
 
 const SLEEP_TARGET_HOURS = 8.0;
 
@@ -888,6 +889,14 @@ export default function SuenoPage() {
               <div className="text-[11px] text-zinc-500 truncate">Saldo 7d (obj. 8h)</div>
             </div>
           </div>
+
+          {/* CHECK MATINAL EN 1 TOQUE (PESO, HIDRATACIÓN, ENERGÍA) */}
+          <MorningCheckWidget
+            date={selectedDate}
+            sleepHours={nightView.hours}
+            sleepScore={nightView.score}
+            onSaved={() => loadSleepData(false)}
+          />
         </>
       )}
 
