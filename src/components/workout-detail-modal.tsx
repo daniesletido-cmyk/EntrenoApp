@@ -60,6 +60,8 @@ import { parseWorkoutModification } from "@/lib/workout-modifications";
 import { WorkoutModificationBanner } from "@/components/workout-modification-banner";
 import { WorkoutShareCardModal } from "@/components/modals/workout-share-card-modal";
 import { todayISO } from "@/lib/dates";
+import { getLocalSessions } from "@/lib/client-persistence";
+import { updateSessionWithOffline } from "@/lib/offline-sync";
 
 function formatPace(minKm: number | null | undefined): string {
   if (minKm === null || minKm === undefined) return "—";
@@ -153,14 +155,16 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
     if (!sessionId) return;
     setChangingShoe(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shoe_id: newShoeId }),
-      });
+      const res = await updateSessionWithOffline(
+        sessionId,
+        { shoe_id: newShoeId },
+        `Cambiar zapatilla sesión #${sessionId}`
+      );
       if (res.ok) {
-        const updated = await fetch(`/api/sessions/${sessionId}`).then((r) => r.json());
-        setData(updated);
+        setData((prev: any) => ({
+          ...prev,
+          session: { ...(prev?.session || {}), shoe_id: newShoeId },
+        }));
       }
     } catch (err) {
       console.error("Error al actualizar zapatilla de la sesión:", err);
@@ -172,17 +176,38 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
+
+    const fallbackLocal = async () => {
+      try {
+        const local = await getLocalSessions();
+        const found = local.find((s) => s.id === sessionId);
+        if (found) {
+          setData((prev: any) => ({
+            ...prev,
+            session: found,
+          }));
+          setEditFeeling(found.feeling ?? null);
+          setEditRpe(found.rpe ?? null);
+          setEditUserNotes(found.user_notes ?? "");
+        }
+      } catch {}
+    };
+
     fetch(`/api/sessions/${sessionId}`)
       .then((r) => r.json())
       .then((res) => {
-        setData(res);
         if (res?.session) {
+          setData(res);
           setEditFeeling(res.session.feeling ?? res.fitSummary?.suuntoMetrics?.feeling ?? null);
           setEditRpe(res.session.rpe ?? res.fitSummary?.suuntoMetrics?.rpe ?? null);
           setEditUserNotes(res.session.user_notes ?? res.fitSummary?.suuntoMetrics?.watchNotes ?? "");
+        } else {
+          fallbackLocal();
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        fallbackLocal();
+      })
       .finally(() => setLoading(false));
   }, [sessionId]);
 
@@ -238,25 +263,30 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
     if (!sessionId) return;
     setSavingSensory(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          feeling: editFeeling,
-          rpe: editRpe,
-          user_notes: editUserNotes,
-        }),
-      });
-      const updated = await res.json();
-      if (res.ok && updated.session) {
+      const updates = {
+        feeling: editFeeling,
+        rpe: editRpe,
+        user_notes: editUserNotes,
+      };
+
+      const res = await updateSessionWithOffline(
+        sessionId,
+        updates,
+        `Sensaciones y notas sesión #${sessionId}`
+      );
+
+      if (res.ok) {
         setData((prev: any) => ({
           ...prev,
-          session: { ...prev.session, ...updated.session },
+          session: { ...(prev?.session || {}), ...updates },
         }));
+
         setSensorySavedMsg(
-          updated.sensoryAdaptation?.adapted
-            ? "Sensaciones guardadas · Plan adaptado automáticamente por el equipo técnico"
-            : "Sensaciones y notas guardadas correctamente"
+          res.offline
+            ? "Guardado en local · Se sincronizará automáticamente al conectar"
+            : (res.data?.sensoryAdaptation?.adapted
+                ? "Sensaciones guardadas · Plan adaptado automáticamente por el equipo técnico"
+                : "Sensaciones y notas guardadas correctamente")
         );
         setIsEditingSensory(false);
         setTimeout(() => setSensorySavedMsg(null), 4500);

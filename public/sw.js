@@ -1,22 +1,194 @@
-// Service Worker para EntrenoApp Web Push Notifications y PWA (v10 - Native iOS Safari & Desktop Push)
-const CACHE_NAME = "entrenoapp-v10";
+// Service Worker para EntrenoApp (v11 - Offline Cache, Background Sync & Native iOS Web Push)
+const CACHE_VERSION = "v11";
+const STATIC_CACHE = `entrenoapp-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `entrenoapp-dynamic-${CACHE_VERSION}`;
+const DATA_CACHE = `entrenoapp-data-${CACHE_VERSION}`;
+
+const CURRENT_CACHES = [STATIC_CACHE, DYNAMIC_CACHE, DATA_CACHE];
+
+// Vistas y recursos esenciales para pre-cachear durante la instalación
+const PRECACHE_ASSETS = [
+  "/",
+  "/hoy",
+  "/sueno",
+  "/biblioteca",
+  "/progreso",
+  "/marcas",
+  "/configuracion",
+  "/manifest.json?v=7",
+  "/favicon.ico?v=7",
+  "/icon-192.png?v=10",
+  "/icon-512.png?v=10",
+  "/apple-touch-icon.png?v=7",
+];
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then(async (cache) => {
+        // Usar allSettled para que un recurso puntual no aborte la instalación del SW
+        await Promise.allSettled(
+          PRECACHE_ASSETS.map(async (url) => {
+            try {
+              const res = await fetch(url, { cache: "reload" });
+              if (res.ok) {
+                await cache.put(url, res);
+              }
+            } catch (err) {
+              console.warn(`[SW] Precache omitido para ${url}:`, err);
+            }
+          })
+        );
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
-      // Limpiar caches antiguos si existieran
+      // Eliminar versiones obsoletas de la caché
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith("entrenoapp-") && !CURRENT_CACHES.includes(k))
+            .map((k) => caches.delete(k))
+        )
       ),
     ])
   );
 });
 
+// Interceptor de peticiones HTTP para soporte offline
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Ignorar peticiones no HTTP/HTTPS o métodos de escritura (POST, PATCH, DELETE se gestionan con la cola offline en cliente)
+  if (!url.protocol.startsWith("http") || request.method !== "GET") {
+    return;
+  }
+
+  // 1. Navegación de páginas HTML (Modo SPA / Next.js)
+  // Estrategia: Network-First con fallback a caché (evita pantalla en blanco en modo avión)
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then(async (response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            const cache = await caches.open(STATIC_CACHE);
+            await cache.put(request, clone);
+          }
+          return response;
+        })
+        .catch(async () => {
+          // Si estamos sin conexión, devolver la página en caché correspondiente
+          const matched = await caches.match(request);
+          if (matched) return matched;
+
+          // Fallback a /hoy o a la raíz si la ruta específica no estuviera en caché
+          const fallbackHoy = await caches.match("/hoy");
+          if (fallbackHoy) return fallbackHoy;
+
+          const fallbackRoot = await caches.match("/");
+          if (fallbackRoot) return fallbackRoot;
+
+          return new Response(
+            `<!DOCTYPE html>
+            <html lang="es">
+              <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+                <title>EntrenoApp · Modo sin conexión</title>
+                <style>
+                  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #09090b; color: #f4f4f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
+                  .card { background: #18181b; border: 1px solid #27272a; border-radius: 20px; padding: 24px; max-width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+                  h1 { font-size: 18px; margin: 0 0 8px; color: #dc2626; font-weight: 800; }
+                  p { font-size: 13px; color: #a1a1aa; line-height: 1.5; margin: 0 0 16px; }
+                  button { background: #dc2626; color: white; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 700; font-size: 13px; cursor: pointer; width: 100%; }
+                </style>
+              </head>
+              <body>
+                <div class="card">
+                  <h1>EntrenoApp · Modo sin conexión</h1>
+                  <p>Estás sin internet o en modo avión. Abre la aplicación cuando recuperes cobertura o pulsa para reintentar.</p>
+                  <button onclick="window.location.reload()">Reintentar conexión</button>
+                </div>
+              </body>
+            </html>`,
+            { headers: { "Content-Type": "text/html; charset=utf-8" } }
+          );
+        })
+    );
+    return;
+  }
+
+  // 2. Recursos estáticos de Next.js (_next/static, fuentes, imágenes, icons)
+  // Estrategia: Cache-First con actualización en segundo plano (Stale-While-Revalidate)
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".svg") ||
+    url.pathname.endsWith(".ico") ||
+    url.pathname.endsWith(".woff2")
+  ) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request)
+          .then(async (networkResponse) => {
+            if (networkResponse.ok) {
+              const cache = await caches.open(DYNAMIC_CACHE);
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // 3. Peticiones de datos API (GET /api/...)
+  // Estrategia: Network-First con caché de datos para modo offline
+  if (url.pathname.startsWith("/api/")) {
+    // Excluir endpoints sensibles de streaming o auth
+    if (url.pathname.includes("/auth") || url.pathname.includes("/chat")) {
+      return;
+    }
+
+    event.respondWith(
+      fetch(request)
+        .then(async (response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            const cache = await caches.open(DATA_CACHE);
+            cache.put(request, clone);
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) {
+            return cached;
+          }
+          // Si no hay datos en caché para este endpoint, devolver JSON vacío limpio
+          return new Response(JSON.stringify({ offline: true, error: "Sin conexión a internet" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        })
+    );
+    return;
+  }
+});
+
+// Evento push para Web Push Notifications nativas en iOS Safari y escritorio
 self.addEventListener("push", (event) => {
   let data = {
     title: "Entreno completado",
@@ -40,7 +212,7 @@ self.addEventListener("push", (event) => {
           ...(parsed.data || {}),
         },
       };
-    } catch (e) {
+    } catch {
       try {
         const text = event.data.text();
         if (text) data.body = text;
@@ -48,7 +220,6 @@ self.addEventListener("push", (event) => {
     }
   }
 
-  // Deduplicación estricta a nivel de SO mediante tag
   const uniqueTag = data.tag || `entrenoapp-${data.data?.url || "alert"}`;
 
   const notificationOptions = {
@@ -60,7 +231,7 @@ self.addEventListener("push", (event) => {
       timestamp: Date.now(),
     },
     tag: uniqueTag,
-    renotify: false, // Evita disparos repetidos sobre la misma notificación
+    renotify: false,
   };
 
   event.waitUntil(
@@ -68,6 +239,7 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// Clic en notificaciones con redirección y enfoque SPA
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
@@ -81,7 +253,6 @@ self.addEventListener("notificationclick", (event) => {
         includeUncontrolled: true,
       })
       .then(async (clientList) => {
-        // 1. Si ya hay una ventana o pestaña de la app abierta
         for (const client of clientList) {
           const clientUrl = new URL(client.url, self.location.origin);
           if (clientUrl.origin === self.location.origin) {
@@ -89,7 +260,6 @@ self.addEventListener("notificationclick", (event) => {
               if ("focus" in client) await client.focus();
             } catch {}
 
-            // Enviar mensaje al cliente para navegación SPA suave en Next.js
             try {
               if ("postMessage" in client) {
                 client.postMessage({
@@ -99,7 +269,6 @@ self.addEventListener("notificationclick", (event) => {
               }
             } catch {}
 
-            // En navegadores que soporten navigate en WindowClient
             try {
               if ("navigate" in client && typeof client.navigate === "function" && client.url !== targetUrl) {
                 return await client.navigate(targetUrl);
@@ -110,7 +279,6 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
 
-        // 2. Si no hay ninguna ventana abierta de la app, abrir una nueva en la URL exacta
         if (self.clients.openWindow) {
           return self.clients.openWindow(targetUrl);
         }

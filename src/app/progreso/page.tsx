@@ -46,6 +46,13 @@ import { MarathonProjectionCard } from "@/components/dashboard/marathon-projecti
 import { AerobicEfficiencyCard } from "@/components/dashboard/aerobic-efficiency-card";
 import { WeeklyClosingCard } from "@/components/dashboard/weekly-closing-card";
 import { WeightEvolutionCard } from "@/components/dashboard/weight-evolution-card";
+import {
+  saveLocalHistory,
+  getLocalHistory,
+  saveLocalMeasurements,
+  getLocalMeasurements,
+} from "@/lib/client-persistence";
+import { mutateWithOfflineSync } from "@/lib/offline-sync";
 
 interface WeekHistory {
   weekStart: string;
@@ -191,19 +198,45 @@ export default function ProgresoPage() {
   }, []);
 
   const load = useCallback(() => {
+    // 1. Cargar inmediatamente desde almacenamiento local (IndexedDB) para evitar parpadeos
+    getLocalHistory().then((h) => {
+      if (h && h.length > 0) setWeeks(h);
+    });
+    getLocalMeasurements().then((m) => {
+      if (m && m.length > 0) setMeasurements(m);
+    });
+
+    // 2. Traer datos frescos del servidor y actualizar caché local
     fetch("/api/history?weeks=12")
       .then((r) => r.json())
-      .then((d) => setWeeks(d.weeks ?? []));
+      .then((d) => {
+        if (d.weeks) {
+          setWeeks(d.weeks);
+          saveLocalHistory(d.weeks);
+        }
+      })
+      .catch(() => {});
+
     fetch("/api/measurements?limit=30")
       .then((r) => r.json())
-      .then((d) => setMeasurements(d.measurements ?? []));
+      .then((d) => {
+        if (d.measurements) {
+          setMeasurements(d.measurements);
+          saveLocalMeasurements(d.measurements);
+        }
+      })
+      .catch(() => {});
+
     const today = todayISO();
     fetch(`/api/sleep?from=${addDays(today, -30)}&to=${today}`)
       .then((r) => r.json())
-      .then((d) => setSleepLogs(d.logs ?? []));
+      .then((d) => setSleepLogs(d.logs ?? []))
+      .catch(() => {});
+
     fetch("/api/gym/logs?prs=true")
       .then((r) => r.json())
-      .then((d) => setGymPRs(d.prs ?? []));
+      .then((d) => setGymPRs(d.prs ?? []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -214,14 +247,28 @@ export default function ProgresoPage() {
     if (!weightForm.date || !weightForm.weight_kg) return;
     setSaving(true);
     try {
-      await fetch("/api/measurements", {
+      const weightNum = Number(weightForm.weight_kg);
+      const res = await mutateWithOfflineSync({
+        url: "/api/measurements",
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: weightForm.date, weight_kg: Number(weightForm.weight_kg) }),
+        body: { date: weightForm.date, weight_kg: weightNum },
+        description: `Registrar peso ${weightNum} kg (${weightForm.date})`,
+        onOptimisticLocal: async () => {
+          const current = await getLocalMeasurements();
+          const updated = [...current.filter((m) => m.date !== weightForm.date), { date: weightForm.date, weight_kg: weightNum }];
+          await saveLocalMeasurements(updated);
+          setMeasurements(updated);
+        },
       });
+
       setWeightForm({ date: "", weight_kg: "" });
       load();
-      toast.push("success", "Peso registrado");
+      toast.push(
+        "success",
+        res.offline
+          ? "Peso guardado en local · Se sincronizará al conectar"
+          : "Peso registrado correctamente"
+      );
     } finally {
       setSaving(false);
     }

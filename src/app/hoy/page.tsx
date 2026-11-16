@@ -24,7 +24,16 @@ import {
 import { ReadinessCard, type ReadinessRecentSession } from "@/components/dashboard/readiness-card";
 import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import { todayISO, weekStartOf, weekDates } from "@/lib/dates";
-import { reconcileSessions, reconcileSleep } from "@/lib/client-persistence";
+import {
+  reconcileSessions,
+  reconcileSleep,
+  getFastCachedSessions,
+  saveLocalWeeklySummary,
+  getLocalWeeklySummary,
+  saveLocalReadiness,
+  getLocalReadiness,
+} from "@/lib/client-persistence";
+import { mutateWithOfflineSync } from "@/lib/offline-sync";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
@@ -99,7 +108,9 @@ export default function HoyPage() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [weekSessions, setWeekSessions] = useState<SessionRow[]>([]);
+  const [weekSessions, setWeekSessions] = useState<SessionRow[]>(() => {
+    return getFastCachedSessions(weekStartOf(today));
+  });
   const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
   const [sleep, setSleep] = useState<SleepRow | null>(null);
   const [readiness, setReadiness] = useState<DailyReadiness | null>(null);
@@ -128,23 +139,61 @@ export default function HoyPage() {
     if (isManual) setRefreshing(true);
     else setLoading(true);
 
+    const currentWeekStart = weekStartOf(today);
+
+    // Si no tenemos sesiones en memoria, hidratar inmediatamente desde caché local
+    if (weekSessions.length === 0) {
+      const cached = await reconcileSessions([], currentWeekStart);
+      if (cached && cached.length > 0) setWeekSessions(cached);
+      const cachedSummary = await getLocalWeeklySummary(currentWeekStart);
+      if (cachedSummary) setWeeklySummary(cachedSummary);
+      const cachedReadiness = await getLocalReadiness(today);
+      if (cachedReadiness) setReadiness(cachedReadiness);
+    }
+
     try {
       const t = Date.now();
-      const currentWeekStart = weekStartOf(today);
       const [weekSessionsRes, sleepRes, readinessRes, summaryRes, recRes, adaptiveRes] = await Promise.all([
-        fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ logs: [] })),
-        fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
-        fetch(`/api/summary?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
-        fetch(`/api/recommendations?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
-        fetch(`/api/adaptive-plan?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => ({ sessions: [] })),
+        fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => ({ logs: [] })),
+        fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => ({ readiness: null })),
+        fetch(`/api/summary?week=${currentWeekStart}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch(`/api/recommendations?week=${currentWeekStart}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch(`/api/adaptive-plan?week=${currentWeekStart}&t=${t}`, { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => null),
       ]);
 
-      const reconciledWeek = await reconcileSessions(weekSessionsRes.sessions ?? [], currentWeekStart);
+      const reconciledWeek = await reconcileSessions(weekSessionsRes?.sessions ?? [], currentWeekStart);
       setWeekSessions(reconciledWeek);
-      setSuuntoSyncMap(weekSessionsRes.suuntoSyncMap ?? {});
-      setReadiness(readinessRes.readiness ?? null);
-      if (summaryRes) setWeeklySummary(summaryRes);
+      setSuuntoSyncMap(weekSessionsRes?.suuntoSyncMap ?? {});
+
+      if (readinessRes?.readiness) {
+        setReadiness(readinessRes.readiness);
+        saveLocalReadiness(today, readinessRes.readiness);
+      } else {
+        const cachedR = await getLocalReadiness(today);
+        if (cachedR) setReadiness(cachedR);
+      }
+
+      if (summaryRes) {
+        setWeeklySummary(summaryRes);
+        saveLocalWeeklySummary(currentWeekStart, summaryRes);
+      } else {
+        const cachedS = await getLocalWeeklySummary(currentWeekStart);
+        if (cachedS) setWeeklySummary(cachedS);
+      }
+
       if (recRes && typeof recRes.acwr === "number") setWeeklyAcwr(recRes.acwr);
       if (adaptiveRes?.latestSensoryAdaptation) {
         setSensoryAdaptation(adaptiveRes.latestSensoryAdaptation);
@@ -152,16 +201,24 @@ export default function HoyPage() {
         setSensoryAdaptation(null);
       }
 
-      const sleepLogs: SleepRow[] = sleepRes.logs ?? sleepRes.sleepLogs ?? [];
+      const sleepLogs: SleepRow[] = sleepRes?.logs ?? sleepRes?.sleepLogs ?? [];
       const reconciledSleep = await reconcileSleep(sleepLogs as never, today, today);
       setSleep((reconciledSleep.find((l) => l.date === today) as never) ?? null);
     } catch {
-      // silent
+      // En caso de corte de red, recuperar todo desde IndexedDB
+      const fallbackSessions = await reconcileSessions([], currentWeekStart);
+      if (fallbackSessions.length > 0) setWeekSessions(fallbackSessions);
+      const cachedSummary = await getLocalWeeklySummary(currentWeekStart);
+      if (cachedSummary) setWeeklySummary(cachedSummary);
+      const cachedReadiness = await getLocalReadiness(today);
+      if (cachedReadiness) setReadiness(cachedReadiness);
+      const fallbackSleep = await reconcileSleep([], today, today);
+      setSleep((fallbackSleep.find((l) => l.date === today) as never) ?? null);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [today]);
+  }, [today, weekSessions.length]);
 
   useEffect(() => {
     load(false);
@@ -212,17 +269,23 @@ export default function HoyPage() {
   async function handleApplyAdjustment(sessionId?: number) {
     setApplyingAdjustment(true);
     try {
-      const res = await fetch("/api/readiness/adjust", {
+      const res = await mutateWithOfflineSync({
+        url: "/api/readiness/adjust",
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: selectedDate, sessionId }),
+        body: { date: selectedDate, sessionId },
+        description: `Adaptar sesión por Readiness (${selectedDate})`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error aplicando ajuste");
-      toast.push("success", "Sesión adaptada correctamente");
-      load(false);
-    } catch (err: any) {
-      toast.push("error", err?.message ?? "No se pudo adaptar");
+      if (res.ok) {
+        toast.push(
+          "success",
+          res.offline
+            ? "Adaptación guardada en local · Se sincronizará al conectar"
+            : "Sesión adaptada correctamente"
+        );
+        load(false);
+      } else {
+        toast.push("error", res.error ?? "No se pudo adaptar");
+      }
     } finally {
       setApplyingAdjustment(false);
     }
@@ -231,17 +294,23 @@ export default function HoyPage() {
   async function handleRevertAdjustment(sessionId: number) {
     setApplyingAdjustment(true);
     try {
-      const res = await fetch("/api/readiness/adjust", {
+      const res = await mutateWithOfflineSync({
+        url: "/api/readiness/adjust",
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: selectedDate, sessionId, action: "revert" }),
+        body: { date: selectedDate, sessionId, action: "revert" },
+        description: `Restaurar sesión original (${selectedDate})`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error revirtiendo");
-      toast.push("success", "Plan original restaurado");
-      load(false);
-    } catch (err: any) {
-      toast.push("error", err?.message ?? "No se pudo revertir");
+      if (res.ok) {
+        toast.push(
+          "success",
+          res.offline
+            ? "Restauración guardada en local · Se sincronizará al conectar"
+            : "Plan original restaurado"
+        );
+        load(false);
+      } else {
+        toast.push("error", res.error ?? "No se pudo restaurar");
+      }
     } finally {
       setApplyingAdjustment(false);
     }

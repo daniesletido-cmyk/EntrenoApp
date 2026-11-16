@@ -18,6 +18,7 @@ import {
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import { haptics } from "@/lib/haptics";
+import { OfflineIndicator } from "@/components/ui/offline-indicator";
 
 interface NavItemDef {
   href: string;
@@ -141,6 +142,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       className="w-full max-w-full overflow-x-hidden"
       style={{ display: "flex", minHeight: "100dvh", position: "relative" }}
     >
+      {/* Indicador discreto de modo offline y sincronización pendiente */}
+      <OfflineIndicator />
+
       {/* Sidebar delgada y limpia para Tablet / Escritorio (>= 768px) */}
       <aside
         className={`hidden md:flex fixed inset-y-0 left-0 z-30 flex-col overflow-hidden transition-all duration-200 ${

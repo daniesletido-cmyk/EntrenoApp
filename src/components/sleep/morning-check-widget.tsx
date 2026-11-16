@@ -19,6 +19,7 @@ import {
 } from "@/lib/morning-check";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { mutateWithOfflineSync } from "@/lib/offline-sync";
 
 interface MorningCheckWidgetProps {
   date: string;
@@ -59,24 +60,52 @@ export function MorningCheckWidget({
   const handleSave = async (customHydration?: HydrationLevel, customEnergy?: EnergyLevel) => {
     const hyd = customHydration || hydration;
     const nrg = customEnergy || energy;
+    const weightVal = weight.trim() ? parseFloat(weight) : null;
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/morning-check", {
+        const res = await mutateWithOfflineSync({
+          url: "/api/morning-check",
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             date,
-            weightKg: weight.trim() ? parseFloat(weight) : null,
+            weightKg: weightVal,
             hydration: hyd,
             energy: nrg,
-          }),
+          },
+          description: `Check matinal ${date} (Hidratación: ${hyd}, Energía: ${nrg})`,
+          onOptimisticLocal: () => {
+            const optimisticCheck: MorningCheckData = {
+              date,
+              weightKg: weightVal,
+              hydration: hyd,
+              energy: nrg,
+              checkedAt: new Date().toISOString(),
+              advice: savedCheck?.advice || {
+                nutritionistAdvice: "Datos guardados en modo local. Recomendaciones activas.",
+                physioAdvice: "Activación habitual según plan.",
+                hydrationStatusText: hyd === "sediento" ? "Déficit hídrico matinal" : "Hidratación adecuada",
+                energyStatusText: nrg === "baja" ? "Fatiga percibida" : "Energía adecuada",
+              },
+            };
+            setSavedCheck(optimisticCheck);
+            if (onSaved) onSaved(optimisticCheck);
+          },
         });
-        const json = await res.json();
-        if (json.success && json.check) {
-          setSavedCheck(json.check);
-          toast.push("success", "Check matinal registrado con éxito");
-          if (onSaved) onSaved(json.check);
+
+        if (res.ok) {
+          if (res.data?.check) {
+            setSavedCheck(res.data.check);
+            if (onSaved) onSaved(res.data.check);
+          }
+          toast.push(
+            "success",
+            res.offline
+              ? "Check matinal guardado en local · Se sincronizará al conectar"
+              : "Check matinal registrado con éxito"
+          );
+        } else {
+          toast.push("error", res.error || "Error al guardar check matinal");
         }
       } catch {
         toast.push("error", "Error al guardar check matinal");

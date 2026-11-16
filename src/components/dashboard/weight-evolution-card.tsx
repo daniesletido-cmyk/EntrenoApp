@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { mutateWithOfflineSync } from "@/lib/offline-sync";
 
 export interface WeightRecord {
   date: string;
@@ -82,25 +83,30 @@ export function WeightEvolutionCard({
     if (!newDate || !newWeight) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/peso/sync", {
+      const weightNum = parseFloat(newWeight);
+      const res = await mutateWithOfflineSync({
+        url: "/api/peso/sync",
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          peso: parseFloat(newWeight),
+        body: {
+          peso: weightNum,
           fecha: newDate,
-        }),
+        },
+        description: `Registrar peso ${weightNum} kg (${newDate})`,
       });
-      const json = await res.json();
-      if (json.success) {
-        toast.push("success", "Peso guardado con éxito");
+
+      if (res.ok) {
+        toast.push(
+          "success",
+          res.offline
+            ? "Peso guardado en local · Se sincronizará al recuperar conexión"
+            : "Peso guardado con éxito"
+        );
         setNewWeight("");
         setNewDate("");
         if (onWeightAdded) onWeightAdded();
       } else {
-        toast.push("error", json.error || "No se pudo guardar");
+        toast.push("error", res.error || "No se pudo guardar");
       }
-    } catch {
-      toast.push("error", "Error de red al guardar peso");
     } finally {
       setSaving(false);
     }

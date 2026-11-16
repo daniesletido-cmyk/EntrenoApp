@@ -8,6 +8,139 @@ import { toLocalISODate } from "@/lib/dates";
 const KEY_SESSIONS = "entrenoapp_indexeddb_sessions";
 const KEY_SLEEP = "entrenoapp_indexeddb_sleep";
 const KEY_PENDING_MUTATIONS = "entrenoapp_indexeddb_pending_sync";
+const KEY_WEEKLY_SUMMARY = "entrenoapp_indexeddb_weekly_summary";
+const KEY_READINESS = "entrenoapp_indexeddb_readiness";
+const KEY_HISTORY = "entrenoapp_indexeddb_history";
+const KEY_MEASUREMENTS = "entrenoapp_indexeddb_measurements";
+
+const LS_ACTIVE_SESSIONS = "entrenoapp_ls_active_sessions";
+const LS_WEEKLY_SUMMARY = "entrenoapp_ls_weekly_summary";
+const LS_READINESS = "entrenoapp_ls_readiness";
+
+/**
+ * Obtiene rápidamente de localStorage las sesiones de la semana activa para evitar parpadeos
+ */
+export function getFastCachedSessions(weekStart?: string): SessionRow[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LS_ACTIVE_SESSIONS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    if (weekStart) {
+      return parsed.filter((s: SessionRow) => s.week_start === weekStart);
+    }
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Guarda en localStorage las sesiones de la semana activa
+ */
+export function setFastCachedSessions(sessions: SessionRow[]): void {
+  if (typeof window === "undefined" || !sessions) return;
+  try {
+    localStorage.setItem(LS_ACTIVE_SESSIONS, JSON.stringify(sessions));
+  } catch {}
+}
+
+/**
+ * Guarda el resumen semanal en IndexedDB y localStorage
+ */
+export async function saveLocalWeeklySummary(weekStart: string, summary: any): Promise<void> {
+  if (typeof window === "undefined" || !summary) return;
+  try {
+    await set(`${KEY_WEEKLY_SUMMARY}_${weekStart}`, summary);
+    localStorage.setItem(`${LS_WEEKLY_SUMMARY}_${weekStart}`, JSON.stringify(summary));
+  } catch {}
+}
+
+/**
+ * Obtiene el resumen semanal guardado localmente
+ */
+export async function getLocalWeeklySummary(weekStart: string): Promise<any | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const local = await get<any>(`${KEY_WEEKLY_SUMMARY}_${weekStart}`);
+    if (local) return local;
+    const raw = localStorage.getItem(`${LS_WEEKLY_SUMMARY}_${weekStart}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda el Readiness diario en IndexedDB y localStorage
+ */
+export async function saveLocalReadiness(date: string, readiness: any): Promise<void> {
+  if (typeof window === "undefined" || !readiness) return;
+  try {
+    await set(`${KEY_READINESS}_${date}`, readiness);
+    localStorage.setItem(`${LS_READINESS}_${date}`, JSON.stringify(readiness));
+  } catch {}
+}
+
+/**
+ * Obtiene el Readiness diario guardado localmente
+ */
+export async function getLocalReadiness(date: string): Promise<any | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const local = await get<any>(`${KEY_READINESS}_${date}`);
+    if (local) return local;
+    const raw = localStorage.getItem(`${LS_READINESS}_${date}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda el histórico de progreso en IndexedDB
+ */
+export async function saveLocalHistory(weeks: any[]): Promise<void> {
+  if (typeof window === "undefined" || !weeks) return;
+  try {
+    await set(KEY_HISTORY, weeks);
+  } catch {}
+}
+
+/**
+ * Obtiene el histórico de progreso de IndexedDB
+ */
+export async function getLocalHistory(): Promise<any[]> {
+  if (typeof window === "undefined") return [];
+  try {
+    return (await get<any[]>(KEY_HISTORY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Guarda las mediciones/peso en IndexedDB
+ */
+export async function saveLocalMeasurements(measurements: any[]): Promise<void> {
+  if (typeof window === "undefined" || !measurements) return;
+  try {
+    await set(KEY_MEASUREMENTS, measurements);
+  } catch {}
+}
+
+/**
+ * Obtiene las mediciones/peso de IndexedDB
+ */
+export async function getLocalMeasurements(): Promise<any[]> {
+  if (typeof window === "undefined") return [];
+  try {
+    return (await get<any[]>(KEY_MEASUREMENTS)) || [];
+  } catch {
+    return [];
+  }
+}
 
 export interface FullBackupPayload {
   version: number;
@@ -51,7 +184,9 @@ export async function saveLocalSessions(sessions: SessionRow[]): Promise<void> {
     for (const item of sessions) {
       map.set(item.id || `${item.date}_${item.discipline}`, item);
     }
-    await set(KEY_SESSIONS, Array.from(map.values()));
+    const all = Array.from(map.values());
+    await set(KEY_SESSIONS, all);
+    setFastCachedSessions(all);
   } catch (e) {
     console.warn("[IndexedDB] Error guardando sesiones:", e);
   }
