@@ -1,5 +1,20 @@
 import { getDb } from "@/lib/db";
 import { sendShoeWearAlertPush } from "@/lib/push-notifications";
+import { DatabaseSync } from "node:sqlite";
+import path from "node:path";
+import fs from "node:fs";
+
+function syncToSeedDb(query: string, ...params: any[]) {
+  try {
+    const seedPath = path.resolve(process.cwd(), "seed/entrenoapp.db");
+    if (fs.existsSync(seedPath)) {
+      const seedDb = new DatabaseSync(seedPath);
+      seedDb.prepare(query).run(...params);
+    }
+  } catch (err) {
+    console.warn("[DualSync] Warning syncing shoe to seed.db:", err);
+  }
+}
 
 export interface ShoeRow {
   id: number;
@@ -151,16 +166,17 @@ export function createShoe(input: CreateShoeInput): ShoeRow {
 
   if (isPrimary === 1) {
     db.prepare("UPDATE shoes SET is_primary = 0").run();
+    syncToSeedDb("UPDATE shoes SET is_primary = 0");
   }
 
   const initialKm = input.initial_km ?? 0;
   const maxKm = input.max_km ?? 700;
 
+  const insertSql = `INSERT INTO shoes (name, brand, model, initial_km, total_km, max_km, is_primary, is_active, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`;
+
   const res = db
-    .prepare(
-      `INSERT INTO shoes (name, brand, model, initial_km, total_km, max_km, is_primary, is_active, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
-    )
+    .prepare(insertSql)
     .run(
       input.name,
       input.brand ?? null,
@@ -173,6 +189,20 @@ export function createShoe(input: CreateShoeInput): ShoeRow {
       now,
       now
     );
+
+  syncToSeedDb(
+    insertSql,
+    input.name,
+    input.brand ?? null,
+    input.model ?? null,
+    initialKm,
+    initialKm,
+    maxKm,
+    isPrimary,
+    input.notes ?? null,
+    now,
+    now
+  );
 
   const id = Number(res.lastInsertRowid);
   return getShoeById(id)!;
@@ -190,6 +220,7 @@ export function updateShoe(id: number, input: UpdateShoeInput): ShoeRow | undefi
 
   if (input.is_primary) {
     db.prepare("UPDATE shoes SET is_primary = 0 WHERE id != ?").run(id);
+    syncToSeedDb("UPDATE shoes SET is_primary = 0 WHERE id != ?", id);
   }
 
   const name = input.name !== undefined ? input.name : current.name;
@@ -201,11 +232,12 @@ export function updateShoe(id: number, input: UpdateShoeInput): ShoeRow | undefi
   const isActive = input.is_active !== undefined ? (input.is_active ? 1 : 0) : current.is_active;
   const notes = input.notes !== undefined ? input.notes : current.notes;
 
-  db.prepare(
-    `UPDATE shoes
+  const updateSql = `UPDATE shoes
      SET name = ?, brand = ?, model = ?, initial_km = ?, max_km = ?, is_primary = ?, is_active = ?, notes = ?, updated_at = ?
-     WHERE id = ?`
-  ).run(name, brand, model, initialKm, maxKm, isPrimary, isActive, notes, now, id);
+     WHERE id = ?`;
+
+  db.prepare(updateSql).run(name, brand, model, initialKm, maxKm, isPrimary, isActive, notes, now, id);
+  syncToSeedDb(updateSql, name, brand, model, initialKm, maxKm, isPrimary, isActive, notes, now, id);
 
   const updated = getShoeById(id)!;
 
@@ -230,6 +262,8 @@ export function setPrimaryShoe(id: number): ShoeRow | undefined {
   const db = getDb();
   db.prepare("UPDATE shoes SET is_primary = 0").run();
   db.prepare("UPDATE shoes SET is_primary = 1 WHERE id = ?").run(id);
+  syncToSeedDb("UPDATE shoes SET is_primary = 0");
+  syncToSeedDb("UPDATE shoes SET is_primary = 1 WHERE id = ?", id);
   return getShoeById(id);
 }
 
@@ -239,6 +273,7 @@ export function setPrimaryShoe(id: number): ShoeRow | undefined {
 export function deleteShoe(id: number): boolean {
   const db = getDb();
   const res = db.prepare("UPDATE shoes SET is_active = 0 WHERE id = ?").run(id);
+  syncToSeedDb("UPDATE shoes SET is_active = 0 WHERE id = ?", id);
   return res.changes > 0;
 }
 
@@ -248,6 +283,7 @@ export function deleteShoe(id: number): boolean {
 export function assignShoeToSession(sessionId: number, shoeId: number | null): boolean {
   const db = getDb();
   const res = db.prepare("UPDATE sessions SET shoe_id = ? WHERE id = ?").run(shoeId, sessionId);
+  syncToSeedDb("UPDATE sessions SET shoe_id = ? WHERE id = ?", shoeId, sessionId);
 
   if (shoeId) {
     const shoe = getShoeById(shoeId);

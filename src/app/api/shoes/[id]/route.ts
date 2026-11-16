@@ -5,6 +5,7 @@ import {
   setPrimaryShoe,
   deleteShoe,
 } from "@/lib/repo/shoes";
+import { flushDbPersistence } from "@/lib/db";
 
 export async function GET(
   _req: NextRequest,
@@ -62,6 +63,7 @@ export async function PATCH(
           { status: 404 }
         );
       }
+      await flushDbPersistence();
       return NextResponse.json({ success: true, shoe: updated });
     }
 
@@ -83,6 +85,7 @@ export async function PATCH(
       );
     }
 
+    await flushDbPersistence();
     return NextResponse.json({ success: true, shoe: updated });
   } catch (error) {
     console.error("Error al actualizar zapatilla:", error);
@@ -115,6 +118,7 @@ export async function DELETE(
       );
     }
 
+    await flushDbPersistence();
     return NextResponse.json({ success: true, message: "Zapatilla eliminada" });
   } catch (error) {
     console.error("Error al eliminar zapatilla:", error);

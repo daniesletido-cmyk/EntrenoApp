@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listShoes, getPrimaryShoe, createShoe } from "@/lib/repo/shoes";
+import { flushDbPersistence } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest) {
       is_primary: Boolean(is_primary),
       notes: notes ? String(notes).trim() : null,
     });
+
+    await flushDbPersistence();
 
     return NextResponse.json({
       success: true,

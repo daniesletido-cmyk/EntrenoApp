@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import {
   Footprints,
   Plus,
@@ -37,7 +37,7 @@ export function ShoesManagerCard() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingShoe, setEditingShoe] = useState<ShoeItem | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [saving, setSaving] = useState(false);
   const toast = useToast();
 
   // Form states
@@ -59,7 +59,7 @@ export function ShoesManagerCard() {
     try {
       setLoading(true);
       const res = await fetch("/api/shoes");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ success: false }));
       if (data.success && Array.isArray(data.shoes)) {
         setShoes(data.shoes);
       }
@@ -98,57 +98,55 @@ export function ShoesManagerCard() {
     setModalOpen(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!name.trim()) {
       toast.push("error", "El nombre de la zapatilla es obligatorio");
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const payload = {
-          name: name.trim(),
-          brand: brand.trim() || null,
-          model: model.trim() || null,
-          initial_km: parseFloat(initialKm) || 0,
-          max_km: parseFloat(maxKm) || 700,
-          is_primary: isPrimary,
-          notes: notes.trim() || null,
-        };
+    setSaving(true);
+    try {
+      const payload = {
+        name: name.trim(),
+        brand: brand.trim() || null,
+        model: model.trim() || null,
+        initial_km: parseFloat(initialKm) || 0,
+        max_km: parseFloat(maxKm) || 700,
+        is_primary: isPrimary,
+        notes: notes.trim() || null,
+      };
 
-        let res;
-        if (editingShoe) {
-          res = await fetch(`/api/shoes/${editingShoe.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        } else {
-          res = await fetch("/api/shoes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        }
+      const endpoint = editingShoe ? `/api/shoes/${editingShoe.id}` : "/api/shoes";
+      const method = editingShoe ? "PATCH" : "POST";
 
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          toast.push("error", data.error || "Error al guardar zapatillas");
-          return;
-        }
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-        toast.push(
-          "success",
-          editingShoe ? "Zapatilla actualizada" : "Zapatilla registrada correctamente"
-        );
-        setModalOpen(false);
-        await loadShoes();
-      } catch (err) {
-        console.error("Error al guardar:", err);
-        toast.push("error", "Error de red al guardar zapatillas");
+      const data = await res.json().catch(() => ({ success: false, error: "Error en la respuesta del servidor" }));
+      if (!res.ok || !data.success) {
+        toast.push("error", data.error || "Error al guardar zapatillas");
+        return;
       }
-    });
+
+      toast.push(
+        "success",
+        editingShoe ? "Zapatilla actualizada" : "Zapatilla registrada correctamente"
+      );
+      setModalOpen(false);
+      await loadShoes();
+    } catch (err) {
+      console.error("Error al guardar:", err);
+      toast.push("error", "Error de red al guardar zapatillas");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSetPrimary = async (shoeId: number) => {
@@ -410,7 +408,15 @@ export function ShoesManagerCard() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3.5">
+            <form
+              action="javascript:void(0);"
+              onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSave(e);
+              }}
+              className="space-y-3.5"
+            >
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                   Nombre o Identificador *
@@ -494,15 +500,16 @@ export function ShoesManagerCard() {
                   type="button"
                   variant="ghost"
                   onClick={() => setModalOpen(false)}
-                  disabled={isPending}
+                  disabled={saving}
                   className="text-xs"
                 >
                   Cancelar
                 </Button>
                 <Button
-                  type="submit"
+                  type="button"
                   variant="primary"
-                  loading={isPending}
+                  loading={saving}
+                  onClick={(e) => handleSave(e)}
                   className="text-xs bg-red-600 hover:bg-red-700 text-white"
                 >
                   <Check size={14} className="mr-1" />

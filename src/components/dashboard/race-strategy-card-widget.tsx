@@ -32,11 +32,11 @@ export function RaceStrategyCardWidget() {
                   Estrategia de Competición
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/40 shrink-0">
-                  Plan 5K
+                  42K · 21K · 10K
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                Tiempos de paso, split negativo y avituallamientos (geles, sales y agua)
+                Ritmo objetivo, bloques tácticos y pauta de geles, sales y agua
               </p>
             </div>
           </div>
