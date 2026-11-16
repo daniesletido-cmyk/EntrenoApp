@@ -44,18 +44,18 @@ const MAIN_NAV: NavItemDef[] = [
     icon: Moon,
   },
   {
-    href: "/marcas",
-    label: "Biblioteca & Ejercicios",
+    href: "/biblioteca",
+    label: "Biblioteca & Táctica",
     mobileLabel: "Biblioteca",
     icon: BookOpen,
-    aliases: ["/gimnasio"],
+    aliases: ["/marcas", "/gimnasio"],
   },
   {
-    href: "/",
+    href: "/progreso",
     label: "Progreso & Salud",
     mobileLabel: "Progreso",
     icon: TrendingUp,
-    aliases: ["/progreso", "/informe-semanal", "/objetivos"],
+    aliases: ["/", "/informe-semanal", "/objetivos"],
   },
   {
     href: "/configuracion",
