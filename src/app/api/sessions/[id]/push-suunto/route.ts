@@ -21,12 +21,25 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const format = req.nextUrl.searchParams.get("format");
   if (format === "fit") {
     const fitBuf = buildStructuredWorkoutFitBuffer(session);
-    const cleanTitle = (session.planned_code || session.discipline).replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, "_");
+    // Generar nombre de archivo ASCII estricto para Safari iOS / Suunto App
+    const asciiTitle = (session.planned_code || session.discipline)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 36);
+    const filename = `${session.date}_${asciiTitle || "entreno"}.fit`;
+
     return new NextResponse(new Uint8Array(fitBuf), {
       status: 200,
       headers: {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${session.date} - ${cleanTitle}.fit"`,
+        "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        "Content-Length": String(fitBuf.length),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Content-Transfer-Encoding": "binary",
       },
     });
   }

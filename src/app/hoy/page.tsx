@@ -650,6 +650,8 @@ export default function HoyPage() {
                     sessionId={s.id}
                     discipline={s.discipline}
                     status={s.status}
+                    sessionDate={s.date}
+                    sessionCode={s.planned_code}
                     initialSync={suuntoSyncMap[s.id] ?? null}
                     primaryMode
                     showFitDownload

@@ -18,6 +18,8 @@ interface SuuntoPushButtonProps {
   sessionId: number;
   discipline: string;
   status?: string;
+  sessionDate?: string;
+  sessionCode?: string | null;
   initialSync?: SuuntoSyncInfo | null;
   compact?: boolean;
   primaryMode?: boolean;
@@ -28,6 +30,8 @@ interface SuuntoPushButtonProps {
 export function SuuntoPushButton({
   sessionId,
   discipline,
+  sessionDate,
+  sessionCode,
   initialSync = null,
   compact = false,
   primaryMode = false,
@@ -82,7 +86,7 @@ export function SuuntoPushButton({
             synced_at: new Date().toISOString(),
           }
         );
-        setSuccessMsg("Enviado a Suunto sin solapamientos · Listo en tu reloj");
+        setSuccessMsg(data.message || "Enviado a Suunto · Listo en tu reloj");
         onSynced?.({
           externalId: data.externalId,
           stepsCount: data.stepsCount ?? 0,
@@ -96,6 +100,12 @@ export function SuuntoPushButton({
     }
   }
 
+  const cleanFilename = `${sessionDate || "entreno"}_${(sessionCode || discipline)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .slice(0, 30)}.fit`;
+
   if (compact) {
     return (
       <div className="inline-flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
@@ -107,8 +117,8 @@ export function SuuntoPushButton({
             errorMsg
               ? errorMsg
               : isSynced
-              ? `Lista para sincronizar (${syncState?.steps_count || 0} bloques). Pulsa para reenviar.`
-              : "Exportar sesión estructurada a Suunto"
+              ? `Enviado a Suunto · Listo en tu reloj (${syncState?.steps_count || 0} bloques). Pulsa para reenviar.`
+              : "Sincronizar sesión con reloj Suunto"
           }
           className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all cursor-pointer harbiz-press"
           style={{
@@ -143,21 +153,21 @@ export function SuuntoPushButton({
           )}
           <span>
             {loading
-              ? "Exportando..."
+              ? "Sincronizando..."
               : errorMsg
               ? "Reintentar"
               : isSynced
               ? "En Suunto ✓"
-              : "Exportar a Suunto"}
+              : "A Suunto"}
           </span>
         </button>
 
         {errorMsg && (
-          <div className="text-[10px] text-right max-w-[200px]" style={{ color: "var(--color-danger)" }}>
+          <div className="text-[10px] text-right max-w-[200px] text-red-600 font-medium">
             {errorMsg}{" "}
             {needsReauth && (
-              <Link href="/configuracion" className="underline font-semibold">
-                Reautenticar
+              <Link href="/configuracion" className="underline font-bold">
+                Configurar en Ajustes →
               </Link>
             )}
           </div>
@@ -174,7 +184,11 @@ export function SuuntoPushButton({
             type="button"
             onClick={handlePush}
             disabled={loading}
-            className="btn btn-primary flex-1 rounded-xl font-bold text-sm harbiz-press"
+            className={`btn flex-1 rounded-xl font-bold text-sm harbiz-press transition-all ${
+              isSynced
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                : "btn-primary"
+            }`}
             style={{ minHeight: 48 }}
           >
             {loading ? (
@@ -186,9 +200,9 @@ export function SuuntoPushButton({
             )}
             <span>
               {loading
-                ? "Preparando entreno para Suunto..."
+                ? "Sincronizando con Suunto..."
                 : isSynced
-                ? `Exportado a Suunto ✓ (${syncState?.steps_count || 0} bloques)`
+                ? "Enviado a Suunto · Listo en tu reloj"
                 : "Exportar a Suunto"}
             </span>
           </button>
@@ -196,10 +210,12 @@ export function SuuntoPushButton({
           {showFitDownload && (
             <a
               href={`/api/sessions/${sessionId}/push-suunto?format=fit`}
-              download
+              download={cleanFilename}
+              target="_blank"
+              rel="noopener noreferrer"
               className="btn btn-secondary rounded-xl px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 no-underline harbiz-press"
               style={{ minHeight: 48 }}
-              title="Descargar archivo binario .FIT para reloj Suunto"
+              title="Descargar archivo binario .FIT para Suunto App o reloj"
             >
               <Download size={16} />
               <span>.FIT</span>
@@ -210,23 +226,21 @@ export function SuuntoPushButton({
         {(successMsg || isSynced) && !errorMsg && (
           <div className="text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
             <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-            <span>{successMsg || "Sesión lista para sincronizar con tu reloj Suunto"}</span>
+            <span>{successMsg || "Enviado a Suunto · Listo en tu reloj"}</span>
           </div>
         )}
 
         {errorMsg && (
           <div
-            className="text-xs rounded-xl px-3 py-2 flex items-center justify-between gap-2"
-            style={{
-              background: "var(--color-danger-bg)",
-              color: "var(--color-danger)",
-              border: "1px solid rgba(220, 38, 38, 0.25)",
-            }}
+            className="text-xs rounded-xl px-3 py-2 flex items-center justify-between gap-2 bg-red-50 border border-red-200 text-red-700"
           >
-            <span>{errorMsg}</span>
+            <div className="flex items-center gap-1.5">
+              <AlertCircle size={14} className="shrink-0 text-red-600" />
+              <span>{errorMsg}</span>
+            </div>
             {needsReauth && (
-              <Link href="/configuracion" className="underline font-bold shrink-0">
-                Reautenticar
+              <Link href="/configuracion" className="underline font-bold shrink-0 text-red-800">
+                Configurar en Ajustes →
               </Link>
             )}
           </div>
@@ -242,21 +256,23 @@ export function SuuntoPushButton({
           type="button"
           onClick={handlePush}
           disabled={loading}
-          className="btn btn-suunto btn-sm rounded-xl font-semibold harbiz-press"
+          className={`btn btn-sm rounded-xl font-semibold harbiz-press transition-all ${
+            isSynced ? "btn-secondary text-emerald-700 border-emerald-300 bg-emerald-50" : "btn-suunto"
+          }`}
           style={{ minHeight: 44 }}
         >
           {loading ? (
             <Loader2 size={15} className="animate-spin" />
           ) : isSynced ? (
-            <CheckCircle2 size={15} style={{ color: "var(--color-success)" }} />
+            <CheckCircle2 size={15} className="text-emerald-600" />
           ) : (
             <Watch size={15} />
           )}
           <span>
             {loading
-              ? "Exportando..."
+              ? "Sincronizando con Suunto..."
               : isSynced
-              ? `En Suunto ✓ (${syncState?.steps_count || 0} bloques)`
+              ? "Enviado a Suunto · Listo en tu reloj"
               : "Exportar a Suunto"}
           </span>
         </button>
@@ -264,7 +280,9 @@ export function SuuntoPushButton({
         {showFitDownload && (
           <a
             href={`/api/sessions/${sessionId}/push-suunto?format=fit`}
-            download
+            download={cleanFilename}
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn btn-secondary btn-sm inline-flex items-center gap-1.5 no-underline harbiz-press"
             style={{ minHeight: 44 }}
             title="Descargar archivo binario .FIT estructurado para Suunto"
@@ -275,25 +293,24 @@ export function SuuntoPushButton({
         )}
       </div>
 
-      {successMsg && !errorMsg && (
-        <span className="text-xs font-medium" style={{ color: "var(--color-success)" }}>
-          {successMsg}
+      {(successMsg || isSynced) && !errorMsg && (
+        <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
+          <CheckCircle2 size={13} className="text-emerald-600" />
+          <span>{successMsg || "Enviado a Suunto · Listo en tu reloj"}</span>
         </span>
       )}
 
       {errorMsg && (
         <div
-          className="text-xs rounded-xl px-3 py-2 flex items-center justify-between gap-2"
-          style={{
-            background: "var(--color-danger-bg)",
-            color: "var(--color-danger)",
-            border: "1px solid rgba(239, 68, 68, 0.28)",
-          }}
+          className="text-xs rounded-xl px-3 py-2 flex items-center justify-between gap-2 bg-red-50 border border-red-200 text-red-700"
         >
-          <span>{errorMsg}</span>
+          <div className="flex items-center gap-1.5">
+            <AlertCircle size={14} className="shrink-0 text-red-600" />
+            <span>{errorMsg}</span>
+          </div>
           {needsReauth && (
-            <Link href="/configuracion" className="underline font-bold shrink-0">
-              Reautenticar
+            <Link href="/configuracion" className="underline font-bold shrink-0 text-red-800">
+              Configurar en Ajustes →
             </Link>
           )}
         </div>

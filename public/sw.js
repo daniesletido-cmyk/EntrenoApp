@@ -1,5 +1,5 @@
-// Service Worker para EntrenoApp (v12 - Clean Chunks, Offline Cache & Native Web Push)
-const CACHE_VERSION = "v12";
+// Service Worker para EntrenoApp (v13 - Clean Chunks, Safari iOS FIT Download & Native Push)
+const CACHE_VERSION = "v13";
 const STATIC_CACHE = `entrenoapp-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `entrenoapp-dynamic-${CACHE_VERSION}`;
 const DATA_CACHE = `entrenoapp-data-${CACHE_VERSION}`;
@@ -184,8 +184,14 @@ self.addEventListener("fetch", (event) => {
   // 4. Peticiones de datos API (GET /api/...)
   // Estrategia: Network-First con caché de datos para modo offline
   if (url.pathname.startsWith("/api/")) {
-    // Excluir endpoints sensibles de streaming o auth
-    if (url.pathname.includes("/auth") || url.pathname.includes("/chat")) {
+    // Excluir endpoints sensibles de streaming, auth o descargas binarias (.FIT)
+    if (
+      url.pathname.includes("/auth") ||
+      url.pathname.includes("/chat") ||
+      url.searchParams.get("format") === "fit" ||
+      url.pathname.endsWith(".fit") ||
+      url.pathname.endsWith(".pdf")
+    ) {
       return;
     }
 

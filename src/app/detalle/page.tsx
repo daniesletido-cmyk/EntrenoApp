@@ -703,6 +703,8 @@ function DetalleContent() {
                     sessionId={session.id}
                     discipline={session.discipline}
                     status={session.status}
+                    sessionDate={session.date}
+                    sessionCode={session.planned_code}
                     initialSync={sessionDetail?.suuntoSync ?? null}
                     showFitDownload
                   />

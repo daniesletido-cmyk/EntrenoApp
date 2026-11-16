@@ -110,8 +110,8 @@ export async function exchangeSuuntoAuthCode(code: string, origin: string) {
  * Renueva automáticamente el access_token usando refresh_token antes de expirar
  */
 export async function ensureValidSuuntoToken(): Promise<string> {
-  const accessToken = (getSetting("suunto_access_token") || "").trim();
-  const refreshToken = (getSetting("suunto_refresh_token") || "").trim();
+  const accessToken = (getSetting("suunto_access_token") || process.env.SUUNTO_ACCESS_TOKEN || "").trim();
+  const refreshToken = (getSetting("suunto_refresh_token") || process.env.SUUNTO_REFRESH_TOKEN || "").trim();
   const expiresAtStr = (getSetting("suunto_token_expires_at") || "").trim();
 
   const expiresMs = expiresAtStr ? Date.parse(expiresAtStr) : 0;
@@ -406,11 +406,24 @@ export async function pushSessionToSuunto(sessionId: number): Promise<SuuntoPush
   }
 
   const cfg = getSuuntoOAuthConfig();
-  const hasDirectTokens = !!(getSetting("suunto_access_token") || getSetting("suunto_refresh_token"));
+  const hasDirectTokens = !!(
+    (getSetting("suunto_access_token") || process.env.SUUNTO_ACCESS_TOKEN) ||
+    (getSetting("suunto_refresh_token") || process.env.SUUNTO_REFRESH_TOKEN)
+  );
+  const athleteId = (getSetting("intervals_athlete_id") || process.env.INTERVALS_ATHLETE_ID || "").trim();
+  const apiKey = (getSetting("intervals_api_key") || process.env.INTERVALS_API_KEY || "").trim();
 
   try {
     if (cfg.subscriptionKey && hasDirectTokens) {
-      return await pushViaSuuntoDirectApi(s);
+      try {
+        return await pushViaSuuntoDirectApi(s);
+      } catch (directErr) {
+        console.warn("[Suunto Direct] Falló el envío directo, intentando fallback por Intervals bridge:", directErr);
+        if (athleteId && apiKey) {
+          return await pushViaIntervalsSuuntoBridge(s);
+        }
+        throw directErr;
+      }
     }
     return await pushViaIntervalsSuuntoBridge(s);
   } catch (err) {

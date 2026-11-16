@@ -29,6 +29,9 @@ import {
   Activity,
   Eye,
   Watch,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { weekStartOf, todayISO, weekDates, DAY_NAMES_ES, todayISO as today } from "@/lib/dates";
 import WeekSwitcher from "@/components/week-switcher";
@@ -102,7 +105,9 @@ export default function PlanSemanalPage() {
   const [detailSessionId, setDetailSessionId] = useState<number | null>(null);
   const [suuntoSyncMap, setSuuntoSyncMap] = useState<Record<number, SuuntoSyncInfo>>({});
   const [pushingWeekSuunto, setPushingWeekSuunto] = useState(false);
-  const [suuntoPushStage, setSuuntoPushStage] = useState<"idle" | "purging" | "pushing" | "done">("idle");
+  const [suuntoPushStage, setSuuntoPushStage] = useState<"idle" | "pushing" | "done">("idle");
+  const [suuntoWeekError, setSuuntoWeekError] = useState<string | null>(null);
+  const [suuntoNeedsAuth, setSuuntoNeedsAuth] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -128,12 +133,14 @@ export default function PlanSemanalPage() {
 
   async function pushWeekToSuunto() {
     setPushingWeekSuunto(true);
-    setSuuntoPushStage("purging");
+    setSuuntoPushStage("pushing");
+    setSuuntoWeekError(null);
+    setSuuntoNeedsAuth(false);
+
     try {
       const from = days[0];
       const to = days[days.length - 1];
-      
-      // Breve transición visual para que el usuario perciba la purga antes de la subida
+
       const res = await fetch("/api/suunto/push-week", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,16 +156,23 @@ export default function PlanSemanalPage() {
         load(true);
       } else {
         setSuuntoPushStage("idle");
-        toast.push("error", data.message || "No se pudo sincronizar la semana con Suunto");
+        const errorMsg = data.message || "No se pudo sincronizar la semana con Suunto";
+        setSuuntoWeekError(errorMsg);
+        if (/AUTH_REQUIRED|credenciales|reautentica|conecta/i.test(errorMsg)) {
+          setSuuntoNeedsAuth(true);
+        }
+        toast.push("error", errorMsg);
       }
     } catch {
       setSuuntoPushStage("idle");
-      toast.push("error", "Error de red sincronizando con Suunto");
+      const netError = "Error de conexión al sincronizar con Suunto";
+      setSuuntoWeekError(netError);
+      toast.push("error", netError);
     } finally {
       setTimeout(() => {
         setPushingWeekSuunto(false);
         setSuuntoPushStage("idle");
-      }, 2500);
+      }, 3500);
     }
   }
 
@@ -418,7 +432,11 @@ export default function PlanSemanalPage() {
               <span>Plan PDF</span>
             </a>
             <button
-              className="btn btn-secondary text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0 transition-all"
+              className={`btn text-xs inline-flex items-center justify-center gap-1.5 flex-shrink-0 transition-all ${
+                suuntoPushStage === "done"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold"
+                  : "btn-secondary"
+              }`}
               onClick={pushWeekToSuunto}
               disabled={pushingWeekSuunto}
               style={{
@@ -426,20 +444,21 @@ export default function PlanSemanalPage() {
                 minHeight: 36,
                 borderRadius: "var(--radius-full)",
                 padding: "0 12px",
-                backgroundColor: suuntoPushStage === "done" ? "rgba(22, 163, 74, 0.15)" : undefined,
-                color: suuntoPushStage === "done" ? "var(--color-success)" : undefined,
-                borderColor: suuntoPushStage === "done" ? "rgba(22, 163, 74, 0.3)" : undefined,
               }}
-              title="Limpiar entrenamientos anteriores y enviar la nueva semana a tu reloj Suunto"
+              title="Limpiar entrenamientos anteriores y enviar la nueva semana estructurada a tu reloj Suunto"
             >
-              <Watch size={14} className={pushingWeekSuunto ? "animate-spin text-brand" : "text-brand"} />
+              {pushingWeekSuunto ? (
+                <Loader2 size={14} className="animate-spin text-brand" />
+              ) : suuntoPushStage === "done" ? (
+                <CheckCircle2 size={14} className="text-emerald-600" />
+              ) : (
+                <Watch size={14} className="text-brand" />
+              )}
               <span>
-                {suuntoPushStage === "purging"
-                  ? "Limpiando entrenos anteriores en Suunto..."
-                  : suuntoPushStage === "pushing"
-                  ? "Subiendo nueva semana a Suunto..."
+                {pushingWeekSuunto
+                  ? "Sincronizando con Suunto..."
                   : suuntoPushStage === "done"
-                  ? "Semana enviada sin solapamientos"
+                  ? "Enviado a Suunto · Listo en tu reloj ✓"
                   : "Semana a Suunto"}
               </span>
             </button>
@@ -460,6 +479,20 @@ export default function PlanSemanalPage() {
           </div>
         }
       />
+
+      {suuntoWeekError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} className="shrink-0 text-red-600" />
+            <span>{suuntoWeekError}</span>
+          </div>
+          {suuntoNeedsAuth && (
+            <Link href="/configuracion" className="underline font-bold text-red-800 shrink-0">
+              Configurar en Ajustes →
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Conmutador de Vistas: Plan Semanal vs Calendario Mes */}
       <div className="flex items-center gap-1.5 p-1 bg-surface-raised rounded-xl border border-border/70 w-fit mb-4">
@@ -902,6 +935,8 @@ export default function PlanSemanalPage() {
                                 sessionId={s.id}
                                 discipline={s.discipline}
                                 status={s.status}
+                                sessionDate={s.date}
+                                sessionCode={s.planned_code}
                                 initialSync={suuntoSyncMap[s.id] ?? null}
                                 compact
                               />

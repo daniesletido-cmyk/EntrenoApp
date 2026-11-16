@@ -42,29 +42,35 @@ export interface BuiltStructuredWorkout {
 }
 
 function paceToSecKm(paceStr: string): number | null {
-  const m = paceStr.match(/(\d):(\d{2})/);
+  if (!paceStr) return null;
+  const m = paceStr.match(/(\d{1,2}):(\d{2})/);
   if (!m) return null;
-  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  const sec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  return Number.isFinite(sec) && sec > 0 ? sec : null;
 }
 
 function secKmToSpeedMs(secKm: number): number {
-  return Number((1000 / Math.max(120, secKm)).toFixed(3));
+  if (!Number.isFinite(secKm) || secKm <= 0) return 3.0;
+  return Number((1000 / Math.max(90, secKm)).toFixed(3));
 }
 
 function parseMainDistanceKm(s: SessionRow): number {
   const combined = `${s.planned_code ?? ""} ${s.notes ?? ""}`;
   const mainMatch = combined.match(/Parte\s+principal\s*\((\d+(?:[.,]\d+)?)\s*km/i);
   if (mainMatch) {
-    return parseFloat(mainMatch[1].replace(",", "."));
+    const parsed = parseFloat(mainMatch[1].replace(",", "."));
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
   const titleKm = (s.planned_code ?? "").match(/(\d+(?:[.,]\d+)?)\s*k(?:m|\b)/i);
   if (titleKm) {
-    return parseFloat(titleKm[1].replace(",", "."));
+    const parsed = parseFloat(titleKm[1].replace(",", "."));
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
   if (s.distance_km && s.distance_km >= 4) {
     const wu = s.distance_km >= 15 ? 2 : s.distance_km >= 10 ? 1.5 : 1;
     const cd = s.distance_km >= 15 ? 1.5 : 1;
-    return Math.max(3, Number((s.distance_km - wu - cd).toFixed(1)));
+    const remaining = Number((s.distance_km - wu - cd).toFixed(1));
+    if (Number.isFinite(remaining) && remaining > 0) return Math.max(3, remaining);
   }
   return 8;
 }
@@ -86,9 +92,19 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     suuntoSportId = 1;
 
     const mainKm = parseMainDistanceKm(s);
-    // Calentamiento y Vuelta a la Calma programados estrictamente por tiempo (minutos)
-    const wuMin = mainKm >= 15 ? 15 : mainKm >= 10 ? 12 : 10;
-    const cdMin = mainKm >= 15 ? 10 : 8;
+    // Extraer minutos específicos de notas si existen (ej. "Calentamiento (10 min", "Vuelta a la calma (8 min")
+    const wuNotesMatch = textAll.match(/Calentamiento[^(]*\((\d+)\s*min/i);
+    const cdNotesMatch = textAll.match(/Vuelta\s+a\s+la\s+calma[^(]*\((\d+)\s*min/i);
+    const parsedWuMin = wuNotesMatch ? parseInt(wuNotesMatch[1], 10) : null;
+    const parsedCdMin = cdNotesMatch ? parseInt(cdNotesMatch[1], 10) : null;
+
+    // Calentamiento y Vuelta a la Calma programados estrictamente por tiempo (minutos -> segundos)
+    const wuMin = parsedWuMin && Number.isFinite(parsedWuMin) && parsedWuMin > 0
+      ? parsedWuMin
+      : mainKm >= 15 ? 15 : mainKm >= 10 ? 12 : 10;
+    const cdMin = parsedCdMin && Number.isFinite(parsedCdMin) && parsedCdMin > 0
+      ? parsedCdMin
+      : mainKm >= 15 ? 10 : 8;
     const wuSec = wuMin * 60;
     const cdSec = cdMin * 60;
 
@@ -107,10 +123,11 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     // 2. Detección de tipo de parte principal
     const intervalMatch = textAll.match(/(\d+)\s*[xX]\s*(\d+(?:\.\d{3})?|\d+(?:[.,]\d+)?)\s*(m|km)\b/i);
     if (intervalMatch && (lower.includes("r3") || lower.includes("interval") || lower.includes("serie") || lower.includes("umbral"))) {
-      const reps = Math.min(20, Math.max(1, parseInt(intervalMatch[1], 10)));
+      const reps = Math.min(20, Math.max(1, parseInt(intervalMatch[1], 10) || 1));
       const rawUnitVal = parseFloat(intervalMatch[2].replace(/\./g, "").replace(",", "."));
       const isMeters = intervalMatch[3].toLowerCase() === "m";
-      const repDistM = isMeters ? rawUnitVal : rawUnitVal * 1000;
+      const rawDist = (Number.isFinite(rawUnitVal) && rawUnitVal > 0 ? rawUnitVal : 1) * (isMeters ? 1 : 1000);
+      const repDistM = Math.max(100, Math.round(rawDist));
       const repLabel = repDistM >= 1000 ? `${(repDistM / 1000).toFixed(2).replace(/\.00$/, "")}km` : `${Math.round(repDistM)}mtr`;
 
       const paceRange = textAll.match(/(\d:\d{2})\s*[-–]\s*(\d:\d{2})/);
@@ -321,16 +338,27 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     scheduledDate: s.date,
     externalId,
     description: intervalsDescription,
-    steps: steps.map((st, idx) => ({
-      order: idx + 1,
-      name: st.label,
-      intensity: st.phase,
-      durationType: st.durationType,
-      durationValue: st.durationValue,
-      targetType: st.targetPaceLowSecKm ? ("speed" as const) : ("open" as const),
-      targetSpeedMinMs: st.targetPaceHighSecKm ? secKmToSpeedMs(st.targetPaceHighSecKm) : undefined,
-      targetSpeedMaxMs: st.targetPaceLowSecKm ? secKmToSpeedMs(st.targetPaceLowSecKm) : undefined,
-    })),
+    steps: steps.map((st, idx) => {
+      const durVal = Number.isFinite(st.durationValue) && st.durationValue > 0
+        ? Math.round(st.durationValue)
+        : st.durationType === "time" ? 600 : 1000;
+      const hasTarget = Boolean(
+        st.targetPaceLowSecKm &&
+        st.targetPaceHighSecKm &&
+        Number.isFinite(st.targetPaceLowSecKm) &&
+        Number.isFinite(st.targetPaceHighSecKm)
+      );
+      return {
+        order: idx + 1,
+        name: st.label,
+        intensity: st.phase,
+        durationType: st.durationType,
+        durationValue: durVal,
+        targetType: hasTarget ? ("speed" as const) : ("open" as const),
+        targetSpeedMinMs: hasTarget && st.targetPaceHighSecKm ? secKmToSpeedMs(st.targetPaceHighSecKm) : undefined,
+        targetSpeedMaxMs: hasTarget && st.targetPaceLowSecKm ? secKmToSpeedMs(st.targetPaceLowSecKm) : undefined,
+      };
+    }),
   };
 
   return {
@@ -442,21 +470,38 @@ export function buildStructuredWorkoutFitBuffer(s: SessionRow): Buffer {
   built.steps.forEach((st, idx) => {
     const row = Buffer.alloc(1 + 2 + 24 + 1 + 4 + 1 + 4 + 4 + 1);
     row[0] = 2;
-    row.writeUInt16LE(idx, 1);
+    row.writeUInt16LE(Math.min(65535, idx), 1);
     encodeAsciiFixed(st.label, 24).copy(row, 3);
     row[27] = st.durationType === "distance" ? 1 : 0; // FIT: 0=time(ms), 1=distance(cm)
-    const durFitVal =
-      st.durationType === "distance"
-        ? Math.round(st.durationValue * 100) // meters -> cm
-        : Math.round(st.durationValue * 1000); // sec -> ms
-    row.writeUInt32LE(durFitVal, 28);
 
-    const hasPaceTarget = st.targetPaceLowSecKm && st.targetPaceHighSecKm;
+    const rawDurFit =
+      st.durationType === "distance"
+        ? Math.round((Number.isFinite(st.durationValue) && st.durationValue > 0 ? st.durationValue : 1000) * 100) // meters -> cm
+        : Math.round((Number.isFinite(st.durationValue) && st.durationValue > 0 ? st.durationValue : 600) * 1000); // sec -> ms
+    const safeDurFit = Number.isFinite(rawDurFit) && rawDurFit > 0
+      ? Math.min(4294967295, Math.floor(rawDurFit))
+      : 600000;
+    row.writeUInt32LE(safeDurFit, 28);
+
+    const hasPaceTarget = Boolean(
+      st.targetPaceLowSecKm &&
+      st.targetPaceHighSecKm &&
+      Number.isFinite(st.targetPaceLowSecKm) &&
+      Number.isFinite(st.targetPaceHighSecKm) &&
+      st.targetPaceLowSecKm > 0 &&
+      st.targetPaceHighSecKm > 0
+    );
     row[32] = hasPaceTarget ? 0 : 2; // 0 = speed, 2 = open
-    const speedLowMms = hasPaceTarget ? Math.round((1000 / st.targetPaceHighSecKm!) * 1000) : 0;
-    const speedHighMms = hasPaceTarget ? Math.round((1000 / st.targetPaceLowSecKm!) * 1000) : 0;
-    row.writeUInt32LE(speedLowMms, 33);
-    row.writeUInt32LE(speedHighMms, 37);
+    const rawSpeedLow = hasPaceTarget ? Math.round((1000 / st.targetPaceHighSecKm!) * 1000) : 0;
+    const rawSpeedHigh = hasPaceTarget ? Math.round((1000 / st.targetPaceLowSecKm!) * 1000) : 0;
+    const safeSpeedLow = Number.isFinite(rawSpeedLow) && rawSpeedLow > 0
+      ? Math.min(4294967295, Math.floor(rawSpeedLow))
+      : 0;
+    const safeSpeedHigh = Number.isFinite(rawSpeedHigh) && rawSpeedHigh > 0
+      ? Math.min(4294967295, Math.floor(rawSpeedHigh))
+      : 0;
+    row.writeUInt32LE(safeSpeedLow, 33);
+    row.writeUInt32LE(safeSpeedHigh, 37);
     row[41] = intensityMap[st.phase] ?? 0;
     chunks.push(row);
   });
