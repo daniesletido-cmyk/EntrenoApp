@@ -40,3 +40,12 @@ Para cada día de la semana que aparezca en la imagen:
 Evalúa la semana completa cruzando el estímulo de cada día con el perfil del atleta (**preparación de carrera/Maratón, gestión de fatiga muscular/articular y prioridad habitual de asistir Martes y Jueves a las 19:00h**):
 - **Análisis específico de Martes y Jueves (19:00h):** Indica claramente qué tal le vienen esos dos días esta semana concreta (si encajan bien o si alguno genera demasiada interferencia/fatiga de piernas o lumbar para sus entrenamientos de carrera).
 - **Veredicto de los mejores días de la semana:** Si hay otro(s) día(s) de la semana que le convienen **mucho más** por reparto de carga, recuperación o menor impacto neuromuscular para su objetivo, indícalo explícitamente (ej. *"Aunque tu prioridad son martes y jueves a las 19h, esta semana te conviene mucho más ir el [Día X] y [Día Y] porque..."*), explicando el motivo fisiológico de forma directa y práctica.
+
+---
+
+# REGLA INMUTABLE: SINCRONIZACIÓN OBLIGATORIA DEL PLAN SEMANAL
+
+Siempre que diseñes, reajustes o propongas cómo queda una semana de entrenamientos (ya sea tras analizar una semana de CrossFit, adaptar por fatiga/enfermedad, ajustar por calendario de iPhone o reorganizar cargas):
+- **PROHIBIDO LIMITARTE A ESCRIBIRLO EN EL CHAT**: Jamás presentes un plan o reajuste semanal solo en texto sin aplicarlo.
+- **PERSISTENCIA Y ACTUALIZACIÓN AUTOMÁTICA**: Debes actualizar y persistir automáticamente esos cambios en el almacenamiento y base de datos real de la semana en `EntrenoApp` (`data/entrenoapp.db` y `seed/entrenoapp.db`) para que se reflejen al instante en `/hoy`, `/plan-semanal` y en los archivos exportables a Suunto.
+

@@ -4,6 +4,7 @@ import { recordAiLog } from "@/lib/repo/ai-logs";
 import { runTrackedAnthropicCall } from "@/lib/ai/client";
 import { buildCoachAthleteContext, CoachAthleteContext } from "@/lib/coach-ai/context";
 import { executeCoachAction, CoachActionProposal, CoachActionResult } from "@/lib/coach-ai/actions";
+import { addDays, weekStartOf } from "@/lib/dates";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -288,6 +289,11 @@ function generateLocalExpertResponse(
   const hasSwimming = /\b(nataci[oó]n|nadar|piscina|nado|crol)\b/i.test(lowerMsg);
   const hasRest = /\b(descans\w*|parar|reposo|dormir\s+m[aá]s|recuperaci[oó]n\s+total|vacaciones)\b/i.test(lowerMsg);
   const hasWeekendRunning = /\b(fin\s+de\s+semana|s[aá]bado|domingo|tirada\s+larga|reestructur\w*|carrera\s+del\s+fin)\b/i.test(lowerMsg);
+  const hasWeeklyPlanRequest =
+    /\b(ajust\w*\s+(la\s+)?semana|reorganiz\w*\s+(la\s+)?semana|plan\s+semanal|c[oó]mo\s+queda\s+la\s+semana|cuadra\w*\s+(la\s+)?semana|organiza\w*\s+(la\s+)?semana|cambia\w*\s+(la\s+)?semana|semana\s+de\s+entreno|semana\s+actual)\b/i.test(
+      lowerMsg
+    ) ||
+    (hasCrossFit && (lowerMsg.includes("martes") || lowerMsg.includes("jueves") || lowerMsg.includes("semana")));
   const hasFitUploadOrEval = /\b(eval[uú]es?|evalua\w*|qu[eé]\s+tal\s+estoy|c[oó]mo\s+estoy|c[oó]mo\s+me\s+ves|\.fit|he\s+subido|acabo\s+de\s+hacer|cuando\s+meta|cuando\s+suba|he\s+terminado|mis\s+datos)\b/i.test(lowerMsg);
   const hasSorenessInjury = /\b(molestias?|dolor|sobrecarga|tir[oó]n|s[oó]leo|gemelo|aquiles|tend[oó]n|rodilla|cintilla|fascitis|cargad\w*|agujetas)\b/i.test(lowerMsg);
   const hasNutrition = /\b(com[eé]r?|cen\w*|desayun\w*|nutrici[oó]n|carbohidratos?|hidratos|geles?|sales|suplement\w*|omega-?3|alergia|frutos\s+secos|pescado|agua|hidrataci[oó]n)\b/i.test(lowerMsg);
@@ -305,8 +311,118 @@ function generateLocalExpertResponse(
   let reply = "";
   let actionCandidate: CoachActionProposal | undefined;
 
+  // CASO ESPECIAL: Reorganización / Ajuste Integral del Plan Semanal
+  if (hasWeeklyPlanRequest) {
+    const ws = weekStartOf(context.today);
+    const dMon = ws;
+    const dTue = addDays(ws, 1);
+    const dWed = addDays(ws, 2);
+    const dThu = addDays(ws, 3);
+    const dFri = addDays(ws, 4);
+    const dSat = addDays(ws, 5);
+    const dSun = addDays(ws, 6);
+
+    reply = `¡Semana analizada y reajustada al 100%, Daniel! Aplicando nuestro criterio de **Preparador Físico de Élite + Fisioterapeuta**, el plan queda cuadrado de forma óptima y **guardado automáticamente en tu calendario**:
+
+### 📅 Plan Semanal Oficial (${dMon} al ${dSun}):
+
+1. **Lunes ${dMon.slice(5)} · Carrera Base Aeróbica R1 (6.0 km Clave · 45 min · RPE 4)**
+   - 🟢 **Calentamiento**: 10 min trote suave R0 (>5:30/km) + movilidad activa de tobillos y cadera.
+   - ⚡ **Parte Principal**: 6.0 km íntegros a ritmo 5:25 - 4:59 min/km (R1) + 4 rectas progresivas de 80m.
+   - 🔵 **Vuelta a la Calma**: 8 min trote regenerativo y caminata suave + estiramientos.
+
+2. **Martes ${dTue.slice(5)} · CrossFit Box (19:00h · \"Pain Cave\" Fuerza + Chipper · RPE 7-8)**
+   - ⚡ **Fuerza**: 5x5 Power Clean & Jerk técnico (52.5 kg).
+   - ⚡ **Metcon**: Chipper con peso moderado. ⚠️ *Adaptación Fisio:* Subidas al cajón (Step-ups) en lugar de rebote de Box Jumps para preservar sóleos y Aquiles.
+   - 🔵 **Vuelta a la Calma**: 8 min descompresión lumbar en barra + estiramiento de glúteos y cadena posterior.
+
+3. **Miércoles ${dWed.slice(5)} · Natación Compensatoria (Descarga Articular & Pull-buoy · 1.800m · RPE 5-6)**
+   - 🟢 Sesión de descarga hidrostática sin impacto podal. Bloques con pull-buoy para oxigenar tren superior y dejar las piernas descansadas tras el Box del martes.
+
+4. **Jueves ${dThu.slice(5)} · CrossFit Box (19:00h · \"Steady\" AMRAP 24 min Aeróbico · RPE 6-7)**
+   - ⚡ **WOD**: AMRAP 24 min constante de carrera suave y Air Bike a ritmo regular sin sprint láctico. Cero barra pesada, dejando las piernas sin fatiga excéntrica de cara al fin de semana.
+   - 🔵 **Vuelta a la Calma**: 8 min pedaleo regenerativo suave + estiramientos completos.
+
+5. **Viernes ${dFri.slice(5)} · Descanso Total & Movilidad Lumbo-Pélvica**
+   - 🟢 15-20 min movilidad de cadera (couch stretch, paloma) y recarga de glucógeno para el bloque específico de carrera.
+
+6. **Sábado ${dSat.slice(5)} · Carrera R1 Regenerativo Suave + Técnica (6.0 km Clave · 45 min · RPE 3-4)**
+   - 🟢 **Calentamiento**: 10 min trote muy suave (>5:30/km) + activación dinámica.
+   - ⚡ **Parte Principal**: 6.0 km muy cómodos a 5:25 - 5:10 min/km + 4 rectas de 80m progresivas.
+   - 🔵 **Vuelta a la Calma**: 8 min al trote muy suave y caminata + estiramientos.
+
+7. **Domingo ${dSun.slice(5)} · Tirada Larga Zuera R5 (18.0 km Clave · 21.5 km Total · 115 min · RPE 5-6)**
+   - 🟢 **Calentamiento**: 12 min trote suave R0 (>5:30/km) + movilidad de cadera.
+   - ⚡ **Parte Principal**: 18.0 km continuos (5:25 - 5:10 min/km), cerrando los últimos 3-4 km a Ritmo Maratón (5:05 - 5:10 min/km).
+   - 🔵 **Vuelta a la Calma**: 10 min caminando y trote suave + estiramientos completos.
+
+✨ *He aplicado y sincronizado automáticamente estos cambios en la base de datos de tu aplicación para que los veas reflejados en /hoy, /plan-semanal y en tu Suunto.*`;
+
+    actionCandidate = {
+      type: "update_weekly_plan",
+      weekStart: ws,
+      summary: "Plan semanal reestructurado con CrossFit M/J (19h), natación y carrera R1/R5",
+      weeklyPlan: [
+        {
+          date: dMon,
+          discipline: "carrera",
+          plannedCode: "R1 Base Aeróbica Suave (Reincorporación · 6 km Clave · 8 km Total)",
+          durationMin: 45,
+          distanceKm: 8.0,
+          notes: "RUNNING · Base Aeróbica de Reincorporación (6 km Clave · 8.0 km Total · RPE 4):\n- Calentamiento (10 min · ~Ritmo > 5:30 min/km · R0 suave): Trote suave + movilidad articular activa de tobillos y cadera.\n- Parte principal (6.0 km · ~31 min · Ritmo: 5:25 - 4:59 min/km (Zona R1 Base Aeróbica)): 6.0 km continuos a ritmo cómodo y relajado + 4 rectas progresivas de 80m.\n- Vuelta a la calma (8 min · Trote regenerativo y caminata suave + estiramientos completos): Enfriamiento gradual y descompresión muscular.\n- Estrategia Nutrición: Tortitas con miel o membrillo. Cero frutos secos.",
+        },
+        {
+          date: dTue,
+          discipline: "crossfit",
+          plannedCode: "CrossFit Box · \"Pain Cave\" (Power Clean & Jerk + Chipper 52.5 kg & Step-ups)",
+          durationMin: 55,
+          notes: "CROSSFIT BOX · PAIN CAVE (Fuerza + Chipper Metabólico · RPE 7-8):\n- 🟢 Calentamiento (10 min): Movilidad dinámica de cadera, tobillos y aproximación con barra.\n- ⚡ Fuerza: 5x5 Power Clean & Jerk (Touch and Go con técnica estricta).\n- ⚡ WOD Freedom: Chipper 52.5 kg. ⚠️ ADAPTACIÓN FISIO: Step-ups en lugar de rebote en cajón para proteger sóleo y Aquiles.\n- 🔵 Vuelta a la Calma (8 min): Descompresión lumbar en barra y estiramientos.\n- Nutrición: Merienda previa 17:15h y cena rica en carbohidratos (arroz/patata con proteína). Cero frutos secos.",
+        },
+        {
+          date: dWed,
+          discipline: "natacion",
+          plannedCode: "NAT-C (Descarga Articular & Pull-buoy · 1.800m)",
+          durationMin: 45,
+          distanceKm: 1.8,
+          notes: "NATACIÓN COMPENSATORIA (~1800m · RPE 5-6):\n- Calentamiento (10 min): 300m suaves variados.\n- Bloque con pull-buoy para aislamiento pélvico y flotabilidad, neutralizando el impacto en sóleos tras el Box del martes.\n- Vuelta a la calma (5 min): Nado suave y relajación escapular.",
+        },
+        {
+          date: dThu,
+          discipline: "crossfit",
+          plannedCode: "CrossFit Box · \"Steady\" (AMRAP 24 min · Run + Air Bike Aeróbico)",
+          durationMin: 50,
+          notes: "CROSSFIT BOX · STEADY (Capacidad Aeróbica & Condicionamiento · RPE 6-7):\n- 🟢 Calentamiento (10 min): Movilidad de tobillos, cadera y pedaleo suave en Air Bike.\n- ⚡ WOD Freedom: AMRAP 24 min (Run + Air Bike a ritmo regular sin sprint láctico). Cero barra pesada.\n- 🔵 Vuelta a la Calma (8 min): Pedaleo regenerativo suave (<30 RPM) y estiramientos.",
+        },
+        {
+          date: dFri,
+          discipline: "descanso",
+          plannedCode: "Descanso Total & Movilidad Lumbo-Pélvica",
+          durationMin: 20,
+          notes: "DESCANSO TOTAL & MOVILIDAD:\n- 15-20 min movilidad de cadera (couch stretch, paloma) y estiramientos suaves.\n- Cero impacto para asimilar los dos días de CrossFit y recargar glucógeno para el fin de semana.",
+        },
+        {
+          date: dSat,
+          discipline: "carrera",
+          plannedCode: "R1 Regenerativo Suave + Técnica (6 km Clave · 8 km Total)",
+          durationMin: 45,
+          distanceKm: 8.0,
+          notes: "RUNNING · Regenerativo de Activación (6 km Clave · 8.0 km Total · RPE 3-4):\n- Calentamiento (10 min · ~Ritmo > 5:30 min/km · R0 suave): Trote muy suave progresivo + movilidad dinámica.\n- Parte principal (6.0 km · ~31 min · Ritmo: 5:25 - 5:10 min/km (Zona R1/R0)): 6.0 km continuos muy cómodos a ritmo suave y relajado + 4 rectas de 80m progresivas.\n- Vuelta a la calma (8 min · Trote muy suave y caminata + estiramientos completos): Enfriamiento gradual.",
+        },
+        {
+          date: dSun,
+          discipline: "carrera",
+          plannedCode: "R5 (Tirada Larga 18k en Zuera · 21.5 km Total)",
+          durationMin: 115,
+          distanceKm: 21.5,
+          isLongRun: true,
+          notes: "RUNNING · Tirada Larga de Volumen Aeróbico en Zuera (18 km Clave · 21.5 km Total · RPE 5-6):\n- Calentamiento (12 min · ~Ritmo > 5:30 min/km · R0 suave): Trote suave progresivo + movilidad de cadera y tobillos.\n- Parte principal (18.0 km · ~94 min · Ritmo: 5:25 - 5:10 min/km (Zona R1 · Cierre últimos 3-4 km a 5:05 - 5:10/km Ritmo Maratón)): Ritmo cómodo (5:25 - 5:10 min/km) manteniendo cadencia ágil (178-180 ppm). En los últimos 3-4 km consolidar Ritmo Maratón en terreno llano de Zuera.\n- Vuelta a la calma (10 min · Trote muy suave > 6:00 min/km / Caminata + estiramientos completos).\n- Nutrición: Beber agua o sales cada 20 min; 1 gel isotónico cada 40-45 min.",
+        },
+      ],
+    };
+  }
+
   // CASO 1: Consulta compuesta de gimnasio torso + evaluación .fit + tiradas de fin de semana
-  if (hasGymTorso && (hasFitUploadOrEval || hasWeekendRunning)) {
+  else if (hasGymTorso && (hasFitUploadOrEval || hasWeekendRunning)) {
     reply = `¡Perfecto planteamiento Daniel! Te dejo mi análisis como tu entrenador:
 
 ### 1. Sesión de Gimnasio (Tren Superior) de hoy
@@ -575,21 +691,32 @@ REGLAS FUNDAMENTALES QUE DEBES CUMPLIR SIEMPRE:
    - Los rodajes y tiradas largas del fin de semana (sábado y domingo) son la base específica más valiosa para la economía de carrera y adaptaciones óseas/tendinosas.
    - La natación y el gimnasio son excelentes complementos para descargar articulaciones y ganar fuerza, pero NO deben sustituir a la ligera las tiradas de carrera del fin de semana a menos que haya una sobrecarga, molestia o fatiga evidente.
    - Si el atleta duda o pregunta si es mejor esperar a ver cómo responde a las sesiones intermedias (jueves y viernes) antes de tocar el fin de semana, analiza con criterio: lo ideal es evaluar la fatiga acumulada tras esas sesiones antes de tomar una decisión precipitada.
-6. CAPACIDAD DE CAMBIAR ENTRENAMIENTOS EN LA APP:
+6. CAPACIDAD DE CAMBIAR Y GUARDAR ENTRENAMIENTOS EN LA APP:
    TIENES ACCESO DIRECTO PARA MODIFICAR EL CALENDARIO DE LA APP.
-   - Si el atleta te da una ORDEN EXPRESA de cambiar una sesión, o si tras deliberar concluyes que debe sustituirse un entreno por otro, añade al final de tu respuesta:
+   - REGLA INMUTABLE: Siempre que diseñes, adaptes o propongas cómo debe quedar una semana de entrenamientos (o reorganices días de CrossFit y carrera), TIENES PROHIBIDO limitarte a escribirlo en el chat. Debes emitir SIEMPRE el bloque \`\`\`coach_action con type "update_weekly_plan" para que la app guarde y persista automáticamente los 7 días (lunes a domingo) en la base de datos real:
+   \`\`\`coach_action
+   {
+     "type": "update_weekly_plan",
+     "weekStart": "YYYY-MM-DD",
+     "summary": "Plan semanal actualizado con CrossFit M/J y carrera fin de semana",
+     "weeklyPlan": [
+       { "date": "YYYY-MM-DD", "discipline": "carrera", "plannedCode": "R1 Base", "durationMin": 45, "distanceKm": 8.0, "notes": "..." }
+     ]
+   }
+   \`\`\`
+   - En sesiones individuales puntuales:
    \`\`\`coach_action
    {
      "type": "modify_session",
      "date": "YYYY-MM-DD",
-     "toDiscipline": "natacion" | "gimnasio" | "carrera" | "crossfit" | "descanso",
+     "toDiscipline": "natacion",
      "plannedCode": "N1",
      "durationMin": 40,
      "notes": "...",
      "summary": "..."
    }
    \`\`\`
-   - ¡IMPORTANTE! Si el atleta sólo te está pidiendo OPINIÓN, consejo o deliberación (ej: "¿Qué opinas de...", "¿Esperamos a ver la carga...?"), NO apliques cambios precipitados en el calendario de hoy. Razona detalladamente, sopesa las opciones y dale tu visión experta multidisciplinar.
+   - ¡Regla de Oro en Carrera!: Calentamientos y vueltas a la calma se programan SIEMPRE en tiempo (minutos) y NUNCA en kilómetros. La distancia de la Parte Principal es íntegra (si dice 6k, la principal son 6.0 km).
 7. TONO: Habla como su equipo técnico multidisciplinar de confianza: profesional, empático, motivador, científicamente riguroso y con pautas prácticas accionables.
 
 ${context.contextMarkdown}
@@ -613,7 +740,8 @@ ${context.contextMarkdown}
       const { cleanText, action } = parseCoachActionBlock(geminiResult.text);
 
       if (action) {
-        if (isExplicitChangeRequest) {
+        const shouldApply = isExplicitChangeRequest || action.type === "update_weekly_plan";
+        if (shouldApply) {
           const applied = executeCoachAction(action);
           return {
             reply: cleanText,
@@ -671,7 +799,8 @@ ${context.contextMarkdown}
       const { cleanText, action } = parseCoachActionBlock(rawReply);
 
       if (action) {
-        if (isExplicitChangeRequest) {
+        const shouldApply = isExplicitChangeRequest || action.type === "update_weekly_plan";
+        if (shouldApply) {
           const applied = executeCoachAction(action);
           return {
             reply: cleanText,
@@ -730,7 +859,8 @@ ${context.contextMarkdown}
         });
         const { cleanText, action } = parseCoachActionBlock(data.message.content);
         if (action) {
-          if (isExplicitChangeRequest) {
+          const shouldApply = isExplicitChangeRequest || action.type === "update_weekly_plan";
+          if (shouldApply) {
             const applied = executeCoachAction(action);
             return {
               reply: cleanText,
@@ -763,7 +893,8 @@ ${context.contextMarkdown}
   const finalReply = localReply;
 
   if (actionCandidate) {
-    if (isExplicitChangeRequest) {
+    const shouldApply = isExplicitChangeRequest || actionCandidate.type === "update_weekly_plan";
+    if (shouldApply) {
       const applied = executeCoachAction(actionCandidate);
       return {
         reply: finalReply,

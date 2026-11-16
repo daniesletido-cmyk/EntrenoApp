@@ -130,6 +130,10 @@ export default function EntrenadorPage() {
         setContextSummary(data.contextSummary);
       }
 
+      if (data.appliedAction?.success && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+      }
+
       const assistantMsg: Message = {
         id: `a-${Date.now()}`,
         role: "assistant",

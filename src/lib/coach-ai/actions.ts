@@ -1,12 +1,15 @@
 import { getSessionById, updateSession, createPlannedSession, swapSessionDates, listSessionsBetween, SessionRow, Discipline } from "@/lib/repo/sessions";
-import { todayISO } from "@/lib/dates";
+import { todayISO, weekStartOf } from "@/lib/dates";
+import { actualizarPlanSemanal, WeeklyPlanDayInput } from "@/lib/coach-ai/weekly-plan-updater";
 
 export interface CoachActionProposal {
-  type: "modify_session" | "swap_sessions" | "set_rest_day";
-  date: string; // YYYY-MM-DD
+  type: "modify_session" | "swap_sessions" | "set_rest_day" | "update_weekly_plan";
+  date?: string; // YYYY-MM-DD
+  weekStart?: string;
+  weeklyPlan?: WeeklyPlanDayInput[];
   targetSessionId?: number;
   fromDiscipline?: string;
-  toDiscipline: Discipline;
+  toDiscipline?: Discipline;
   plannedCode?: string | null;
   durationMin?: number | null;
   distanceKm?: number | null;
@@ -48,7 +51,7 @@ export function executeCoachAction(action: CoachActionProposal): CoachActionResu
         daySessions[0];
     }
 
-    const newDiscipline = action.type === "set_rest_day" ? "descanso" : action.toDiscipline;
+    const newDiscipline: Discipline = action.type === "set_rest_day" ? "descanso" : (action.toDiscipline || "descanso");
 
     if (sessionToUpdate) {
       const previousState = {
@@ -94,6 +97,16 @@ export function executeCoachAction(action: CoachActionProposal): CoachActionResu
         sessionId: created.id,
       };
     }
+  }
+
+  if (action.type === "update_weekly_plan" && Array.isArray(action.weeklyPlan) && action.weeklyPlan.length > 0) {
+    const ws = action.weekStart || weekStartOf(action.weeklyPlan[0]?.date || todayISO());
+    const res = actualizarPlanSemanal(ws, action.weeklyPlan);
+    return {
+      success: res.success,
+      message: res.message,
+      action,
+    };
   }
 
   return {
