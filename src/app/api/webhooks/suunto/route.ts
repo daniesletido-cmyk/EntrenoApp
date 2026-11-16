@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
       fc_max: workoutData.fc_max,
       carga_tss: loadResult.tss,
       rpe: workoutData.rpe ?? (loadResult.intensityFactor ? Math.round(loadResult.intensityFactor * 10) : 6),
+      feeling: workoutData.feeling,
+      user_notes: workoutData.notes,
       raw_data: JSON.stringify(body),
     });
 
@@ -119,6 +121,8 @@ export async function POST(req: NextRequest) {
         fc_max: savedWorkout.fc_max,
         carga_tss: savedWorkout.carga_tss,
         rpe: savedWorkout.rpe,
+        feeling: workoutData.feeling,
+        userNotes: workoutData.notes,
       });
     } catch (adaptErr) {
       console.warn("[Suunto Webhook] Error adaptando el plan:", adaptErr);
@@ -167,6 +171,8 @@ async function extractSuuntoWorkoutData(body: any): Promise<{
   fc_media: number | null;
   fc_max: number | null;
   rpe: number | null;
+  feeling: number | null;
+  notes: string | null;
 } | null> {
   // 1. Si viene una notificación de evento con workoutId y tenemos Suunto API Subscription Key
   const workoutId = body.workoutId || body.id || (body.data && body.data.workoutId) || body.workout_id;
@@ -272,8 +278,15 @@ async function extractSuuntoWorkoutData(body: any): Promise<{
     details.fc_max ||
     null;
 
-  // 7. RPE si el usuario lo introdujo en el reloj
-  const rpe = details.feeling || details.rpe || null;
+  // 7. Sensación subjetiva Suunto (1-5), RPE (1-10) y notas escritas al terminar
+  const rawFeeling = details.feeling ?? details.suunto_feeling ?? details.mood ?? null;
+  const feeling = typeof rawFeeling === "number" && rawFeeling >= 1 && rawFeeling <= 5 ? Math.round(rawFeeling) : null;
+
+  const rawRpe = details.rpe ?? details.perceivedExertion ?? details.perceived_exertion ?? null;
+  const rpe = typeof rawRpe === "number" && rawRpe >= 1 && rawRpe <= 10 ? Math.round(rawRpe) : null;
+
+  const rawNotes = details.notes ?? details.description ?? details.comment ?? details.user_notes ?? null;
+  const notes = typeof rawNotes === "string" && rawNotes.trim().length > 0 ? rawNotes.trim() : null;
 
   return {
     suunto_id: workoutId ? String(workoutId) : `suunto-${Date.now()}`,
@@ -283,6 +296,8 @@ async function extractSuuntoWorkoutData(body: any): Promise<{
     distancia: distanciaKm != null ? Math.round(distanciaKm * 100) / 100 : null,
     fc_media: fc_media ? Math.round(Number(fc_media)) : null,
     fc_max: fc_max ? Math.round(Number(fc_max)) : null,
-    rpe: rpe ? Number(rpe) : null,
+    rpe,
+    feeling,
+    notes,
   };
 }

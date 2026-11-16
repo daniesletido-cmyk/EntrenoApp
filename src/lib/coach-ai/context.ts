@@ -37,6 +37,38 @@ export function buildCoachAthleteContext(todayParam?: string): CoachAthleteConte
   const allWeekSessions = listSessionsBetween(today, weekEnd);
   const upcomingSessions = allWeekSessions.filter((s) => s.status === "pendiente" || s.date >= today);
 
+  // Historial de carga y sensaciones de los últimos 14 días
+  const fourteenDaysAgo = addDays(today, -14);
+  const past14DaysSessions = listSessionsBetween(fourteenDaysAgo, today);
+  const completed14Days = past14DaysSessions.filter((s) => s.status === "realizada" || s.status === "parcial");
+
+  let total14DaysKm = 0;
+  let total14DaysDurationMin = 0;
+  let total14DaysLoadFoster = 0;
+
+  const past14DaysList = completed14Days.map((s) => {
+    const km = s.distance_km ?? 0;
+    const dur = s.duration_min ?? 0;
+    const rpe = s.rpe ?? 6;
+    const load = dur * rpe;
+    total14DaysKm += km;
+    total14DaysDurationMin += dur;
+    total14DaysLoadFoster += load;
+
+    // Sensación y notas de Suunto
+    const feelingStr = s.feeling
+      ? s.feeling === 5 ? "5/5 (Excelente 🔥)"
+        : s.feeling === 4 ? "4/5 (Bien 🙂)"
+        : s.feeling === 3 ? "3/5 (Normal 😐)"
+        : s.feeling === 2 ? "2/5 (Fatigado 😕)"
+        : "1/5 (Muy mal 😫)"
+      : "Sin feeling registrado";
+
+    const notesSnippet = s.user_notes ? ` · Notas: "${s.user_notes.replace(/\n/g, " ").slice(0, 75)}"` : "";
+
+    return `- **${s.date}**: ${s.discipline.toUpperCase()}${s.planned_code ? ` (${s.planned_code})` : ""} · ${dur} min${km > 0 ? ` · ${km} km` : ""} · RPE ${rpe}/10 · Sensación Suunto: ${feelingStr} · Carga: ${load} pts${notesSnippet}`;
+  }).join("\n");
+
   // Sesión de ayer, hoy y mañana
   const yesterday = addDays(today, -1);
   const tomorrow = addDays(today, 1);
@@ -110,6 +142,10 @@ export function buildCoachAthleteContext(todayParam?: string): CoachAthleteConte
 - **Ayer**: ${yesterdaySession ? `${yesterdaySession.discipline.toUpperCase()} (${yesterdaySession.planned_code ?? "sesión"}) · Estado: ${yesterdaySession.status} · RPE: ${yesterdaySession.rpe ?? "—"}` : "Descanso"}
 - **Hoy**: ${todaySession ? `${todaySession.discipline.toUpperCase()} (${todaySession.planned_code ?? "sesión"}) · ${todaySession.duration_min ?? 45} min` : "Descanso programado"}
 - **Mañana**: ${tomorrowSession ? `${tomorrowSession.discipline.toUpperCase()} (${tomorrowSession.planned_code ?? "sesión"}) · ${tomorrowSession.duration_min ?? 45} min` : "Descanso programado"}
+
+#### HISTORIAL DE CARGA Y SENSACIONES DE LOS ÚLTIMOS 14 DÍAS (${fourteenDaysAgo} a ${today})
+- **Volumen acumulado 14 días**: ${total14DaysDurationMin} min · ${total14DaysKm.toFixed(1)} km · ${Math.round(total14DaysLoadFoster)} pts Foster en ${completed14Days.length} entrenos.
+${past14DaysList || "Sin entrenamientos completados en los últimos 14 días."}
 
 #### ENTRENAMIENTOS REALIZADOS ESTA SEMANA
 ${completedList || "Ningún entrenamiento registrado todavía esta semana."}

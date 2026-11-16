@@ -36,6 +36,7 @@ import { WorkoutStructuredNotes } from "@/components/workout-structured-notes";
 import { SuuntoPushButton, type SuuntoSyncInfo } from "@/components/suunto-push-button";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { CalendarAgendaBadge } from "@/components/calendar/calendar-agenda-badge";
+import { MultidisciplinaryAdaptationCard } from "@/components/multidisciplinary-adaptation-card";
 import type { AdaptedSessionProposal } from "@/lib/adaptive_scheduler";
 import { SubstituteWorkoutModal } from "@/components/modals/substitute-workout-modal";
 
@@ -111,6 +112,7 @@ export default function HoyPage() {
   const [calendarProposal, setCalendarProposal] = useState<AdaptedSessionProposal | null>(null);
   const [calendarVersion, setCalendarVersion] = useState<"express" | "original">("express");
   const [substituteModalSession, setSubstituteModalSession] = useState<SessionRow | null>(null);
+  const [sensoryAdaptation, setSensoryAdaptation] = useState<any | null>(null);
   const toast = useToast();
 
   const load = useCallback(async (isManual = false) => {
@@ -120,12 +122,13 @@ export default function HoyPage() {
     try {
       const t = Date.now();
       const currentWeekStart = weekStartOf(today);
-      const [weekSessionsRes, sleepRes, readinessRes, summaryRes, recRes] = await Promise.all([
+      const [weekSessionsRes, sleepRes, readinessRes, summaryRes, recRes, adaptiveRes] = await Promise.all([
         fetch(`/api/sessions?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/sleep?from=${today}&to=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ logs: [] })),
         fetch(`/api/readiness?date=${today}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ readiness: null })),
         fetch(`/api/summary?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
         fetch(`/api/recommendations?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/adaptive-plan?week=${currentWeekStart}&t=${t}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
       ]);
 
       const reconciledWeek = await reconcileSessions(weekSessionsRes.sessions ?? [], currentWeekStart);
@@ -134,6 +137,11 @@ export default function HoyPage() {
       setReadiness(readinessRes.readiness ?? null);
       if (summaryRes) setWeeklySummary(summaryRes);
       if (recRes && typeof recRes.acwr === "number") setWeeklyAcwr(recRes.acwr);
+      if (adaptiveRes?.latestSensoryAdaptation) {
+        setSensoryAdaptation(adaptiveRes.latestSensoryAdaptation);
+      } else {
+        setSensoryAdaptation(null);
+      }
 
       const sleepLogs: SleepRow[] = sleepRes.logs ?? sleepRes.sleepLogs ?? [];
       const reconciledSleep = await reconcileSleep(sleepLogs as never, today, today);
@@ -349,6 +357,12 @@ export default function HoyPage() {
         onSelectVersion={setCalendarVersion}
         activeVersion={calendarVersion}
         onAdaptationLoaded={setCalendarProposal}
+      />
+
+      {/* Tarjeta Multidisciplinar de Adaptación por Sensaciones & Carga */}
+      <MultidisciplinaryAdaptationCard
+        adaptation={sensoryAdaptation}
+        onViewSession={(sId) => setDetailSessionId(sId)}
       />
 
       {/* 2. Sesión Programada del Día (Protagonista, sin saturación) */}

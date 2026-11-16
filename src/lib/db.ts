@@ -249,6 +249,7 @@ function createSchema(d: AppDb) {
       is_extra INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'pendiente',
       rpe REAL,
+      feeling INTEGER,
       duration_min REAL,
       distance_km REAL,
       notes TEXT,
@@ -514,6 +515,9 @@ function migrateSchema(d: AppDb) {
   }
   if (!columnExists(d, "sessions", "user_notes")) {
     d.exec(`ALTER TABLE sessions ADD COLUMN user_notes TEXT;`);
+  }
+  if (!columnExists(d, "sessions", "feeling")) {
+    d.exec(`ALTER TABLE sessions ADD COLUMN feeling INTEGER;`);
   }
 
   if (!columnExists(d, "sleep_logs", "score")) {

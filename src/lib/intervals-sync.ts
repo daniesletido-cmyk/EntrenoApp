@@ -207,6 +207,10 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
       let maxHr = act.max_heartrate ? Math.round(act.max_heartrate) : null;
       let fitDataJson: string | null = null;
 
+      let fitFeeling: number | null = null;
+      let fitRpe: number | null = null;
+      let fitWatchNotes: string | null = null;
+
       // Intentar descargar el archivo .fit original de Suunto desde Intervals.icu
       try {
         const fitRes = await fetch(`https://intervals.icu/api/v1/activity/${encodeURIComponent(act.id)}/fit-file`, {
@@ -222,12 +226,20 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
             distanceKm = parsed.distanceKm ?? distanceKm;
             avgHr = parsed.avgHeartRate ?? avgHr;
             maxHr = parsed.maxHeartRate ?? maxHr;
+            fitFeeling = parsed.feeling ?? null;
+            fitRpe = parsed.rpe ?? null;
+            fitWatchNotes = parsed.watchNotes ?? null;
             fitDataJson = JSON.stringify({ ...parsed, intervalsId: act.id });
           }
         }
       } catch (fitErr) {
         console.warn(`[IntervalsSync] Fallback JSON para ${act.id}:`, fitErr);
       }
+
+      const feeling = fitFeeling ?? ((act as any).icu_feeling ? Math.round(Number((act as any).icu_feeling)) : (act as any).feeling ? Math.round(Number((act as any).feeling)) : null);
+      const rpe = fitRpe ?? estimateRpe(avgHr, act.icu_rpe);
+      const rawWatchComment = fitWatchNotes || (act as any).notes || (act as any).description || "";
+      const watchCommentSuffix = rawWatchComment ? `\n[Notas Suunto]: ${rawWatchComment}` : "";
 
       if (!fitDataJson) {
         fitDataJson = JSON.stringify({
@@ -239,11 +251,13 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
           distanceKm,
           avgHeartRate: avgHr,
           maxHeartRate: maxHr,
+          feeling,
+          rpe,
+          watchNotes: rawWatchComment || null,
         });
       }
 
-      const rpe = estimateRpe(avgHr, act.icu_rpe);
-      const summaryNote = `${act.name || sport}: ${durationMin} min${distanceKm ? `, ${distanceKm} km` : ""}${avgHr ? `, FC media ${avgHr} ppm` : ""}${maxHr ? `, máx ${maxHr} ppm` : ""}. ${marker}`;
+      const summaryNote = `${act.name || sport}: ${durationMin} min${distanceKm ? `, ${distanceKm} km` : ""}${avgHr ? `, FC media ${avgHr} ppm` : ""}${maxHr ? `, máx ${maxHr} ppm` : ""}.${watchCommentSuffix} ${marker}`;
 
       let targetSessionId: number | null = null;
       const alreadyDoneMatch = findMatchingCompletedWithoutFit(existingSessions, date, sport, durationMin);
@@ -257,6 +271,7 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
         // Enriquecer sesión ya completada con su archivo .fit y marcador de Intervals
         const updated = updateSession(alreadyDoneMatch.id, {
           fit_data: fitDataJson,
+          feeling: feeling ?? alreadyDoneMatch.feeling,
           user_notes: alreadyDoneMatch.user_notes
             ? `${alreadyDoneMatch.user_notes} ${marker}`
             : summaryNote,
@@ -287,6 +302,7 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
             duration_min: Math.round(durationMin),
             distance_km: distanceKm,
             rpe,
+            feeling: feeling ?? match.feeling,
             fitImport: true,
             fit_data: fitDataJson,
             user_notes: match.user_notes ? `${match.user_notes}\n${summaryNote}` : summaryNote,
@@ -321,6 +337,7 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
             duration_min: Math.round(durationMin),
             distance_km: distanceKm,
             rpe,
+            feeling: feeling ?? null,
             fitImport: true,
             fit_data: fitDataJson,
             user_notes: summaryNote,

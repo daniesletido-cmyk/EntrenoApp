@@ -485,3 +485,34 @@ export async function sendDailyPlanReminderPush(session: {
     tag: `daily-reminder-${session.date}`,
   });
 }
+
+/**
+ * Notificación Push de Adaptación Automática por Sensaciones / Molestias
+ * Título: "Plan adaptado por sensaciones"
+ * Cuerpo breve y conciso, redirige a /hoy
+ */
+export async function sendSensoryAdaptationPush(params: {
+  reason: string;
+  adaptedSessionDate?: string;
+  discipline?: string;
+}) {
+  const title = "Plan adaptado por sensaciones";
+  const body = truncateLine(params.reason || "Ajustamos tu próxima sesión por sensaciones para acelerar tu recuperación.", 65);
+  const targetUrl = "/hoy";
+
+  try {
+    createNotification({
+      title,
+      body,
+      url: targetUrl,
+      category: "adaptation",
+    });
+  } catch {}
+
+  return sendPushToAll({
+    title,
+    body,
+    data: { url: targetUrl },
+    tag: `sensory-adapt-${params.adaptedSessionDate || Date.now()}`,
+  });
+}

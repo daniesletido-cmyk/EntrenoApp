@@ -111,6 +111,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     date: body.date,
     status: body.status,
     rpe: body.rpe !== undefined ? (body.rpe === "" || body.rpe === null ? null : Number(body.rpe)) : undefined,
+    feeling: body.feeling !== undefined ? (body.feeling === "" || body.feeling === null ? null : Number(body.feeling)) : undefined,
     duration_min: body.duration_min !== undefined ? (body.duration_min === "" || body.duration_min === null ? null : Number(body.duration_min)) : undefined,
     distance_km: body.distance_km !== undefined ? (body.distance_km === "" || body.distance_km === null ? null : Number(body.distance_km)) : undefined,
     notes: body.notes,
@@ -135,7 +136,25 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   // Si la sesión completada es del domingo (cierre de semana), adaptar automáticamente la semana siguiente al completo
   let autoAdaptedInfo = null;
+  let sensoryAdaptationResult = null;
   if (session.status === "realizada") {
+    // 1. Motor de Adaptación Automática Multidisciplinar por Sensaciones & Carga
+    try {
+      const { processSensoryAndLoadAdaptation } = await import("@/lib/sensory-adaptation-engine");
+      sensoryAdaptationResult = await processSensoryAndLoadAdaptation({
+        sessionId: session.id,
+        fecha: session.date,
+        tipo: session.discipline,
+        duracion: session.duration_min,
+        distancia: session.distance_km,
+        rpe: session.rpe,
+        feeling: session.feeling,
+        userNotes: session.user_notes,
+      });
+    } catch (e) {
+      console.warn("[Session PATCH] Error en adaptación sensorial:", e);
+    }
+
     try {
       const { checkAndTriggerSundayAutoAdapt } = await import("@/lib/adaptive-weekly-plan");
       const adapt = checkAndTriggerSundayAutoAdapt(session.date);
@@ -192,7 +211,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   await flushDbPersistence();
 
-  return NextResponse.json({ session, autoAdapted: autoAdaptedInfo, suuntoSync });
+  return NextResponse.json({
+    session,
+    autoAdapted: autoAdaptedInfo,
+    sensoryAdaptation: sensoryAdaptationResult,
+    suuntoSync,
+  });
 }
 
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

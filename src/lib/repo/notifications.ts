@@ -6,7 +6,7 @@ export interface AppNotification {
   body: string;
   url: string;
   icon?: string | null;
-  category: "daily_report" | "weekly_report" | "workout" | "sleep" | "system";
+  category: "daily_report" | "weekly_report" | "workout" | "sleep" | "system" | "adaptation";
   read: number; // 0 o 1
   created_at: string;
 }
@@ -16,7 +16,7 @@ export interface NewAppNotification {
   body: string;
   url: string;
   icon?: string | null;
-  category?: "daily_report" | "weekly_report" | "workout" | "sleep" | "system";
+  category?: "daily_report" | "weekly_report" | "workout" | "sleep" | "system" | "adaptation";
 }
 
 export function createNotification(n: NewAppNotification): AppNotification {

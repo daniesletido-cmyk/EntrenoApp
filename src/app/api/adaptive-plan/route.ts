@@ -4,6 +4,7 @@ import {
   generateNextWeekAdaptivePlan,
   applyNextWeekAdaptivePlan,
 } from "@/lib/adaptive-weekly-plan";
+import { getLatestMultidisciplinaryAdaptation } from "@/lib/sensory-adaptation-engine";
 import { weekStartOf, todayISO } from "@/lib/dates";
 import { enforceSubscriptionAccess } from "@/lib/security/subscription-guard";
 
@@ -15,7 +16,12 @@ export async function GET(req: NextRequest) {
     const week = req.nextUrl.searchParams.get("week") ?? todayISO();
     const currentWeekStart = weekStartOf(week);
     const plan = generateNextWeekAdaptivePlan(currentWeekStart);
-    return NextResponse.json(plan);
+    const sensory = getLatestMultidisciplinaryAdaptation(currentWeekStart);
+
+    return NextResponse.json({
+      ...plan,
+      latestSensoryAdaptation: sensory.active ? sensory.adaptation : null,
+    });
   } catch (error: any) {
     console.error("Error generating adaptive plan preview:", error);
     return NextResponse.json({ error: error.message || "Error evaluando plan adaptativo" }, { status: 500 });

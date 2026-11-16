@@ -137,6 +137,14 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
   const panelRef = useRef<HTMLDivElement>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estados para Sensaciones Post-Entreno (Suunto y entrada manual)
+  const [isEditingSensory, setIsEditingSensory] = useState(false);
+  const [editFeeling, setEditFeeling] = useState<number | null>(null);
+  const [editRpe, setEditRpe] = useState<number | null>(null);
+  const [editUserNotes, setEditUserNotes] = useState<string>("");
+  const [savingSensory, setSavingSensory] = useState(false);
+  const [sensorySavedMsg, setSensorySavedMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
@@ -144,6 +152,11 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
       .then((r) => r.json())
       .then((res) => {
         setData(res);
+        if (res?.session) {
+          setEditFeeling(res.session.feeling ?? res.fitSummary?.suuntoMetrics?.feeling ?? null);
+          setEditRpe(res.session.rpe ?? res.fitSummary?.suuntoMetrics?.rpe ?? null);
+          setEditUserNotes(res.session.user_notes ?? res.fitSummary?.suuntoMetrics?.watchNotes ?? "");
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -196,6 +209,41 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
   }
 
   if (!sessionId) return null;
+
+  async function handleSaveSensory() {
+    if (!sessionId) return;
+    setSavingSensory(true);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feeling: editFeeling,
+          rpe: editRpe,
+          user_notes: editUserNotes,
+        }),
+      });
+      const updated = await res.json();
+      if (res.ok && updated.session) {
+        setData((prev: any) => ({
+          ...prev,
+          session: { ...prev.session, ...updated.session },
+        }));
+        setSensorySavedMsg(
+          updated.sensoryAdaptation?.adapted
+            ? "Sensaciones guardadas · Plan adaptado automáticamente por el equipo técnico"
+            : "Sensaciones y notas guardadas correctamente"
+        );
+        setIsEditingSensory(false);
+        setTimeout(() => setSensorySavedMsg(null), 4500);
+        window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+      }
+    } catch (err) {
+      console.error("Error guardando sensaciones:", err);
+    } finally {
+      setSavingSensory(false);
+    }
+  }
 
   const session = data?.session;
   const fit = data?.fitSummary;
@@ -1071,29 +1119,224 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     </div>
                   )}
 
-                  {/* Notas y pauta del entrenamiento */}
-                  {session.user_notes && (
-                    <div className="surface-raised" style={{ padding: "var(--space-4)", marginBottom: "var(--space-3)", borderLeft: "4px solid var(--color-warning, #f59e0b)" }}>
-                      <div className="text-xs font-semibold uppercase text-muted flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
-                        <FileText size={13} style={{ color: "var(--color-warning, #f59e0b)" }} />
-                        <span>Sensaciones y Molestias Registradas</span>
+                  {/* Panel de Sensaciones Post-Entreno (Suunto & Atleta) y Edición Rápida */}
+                  <div
+                    className="surface-raised"
+                    style={{
+                      padding: "var(--space-4)",
+                      marginBottom: "var(--space-3)",
+                      borderLeft: "4px solid #6366f1",
+                      backgroundColor: "rgba(99, 102, 241, 0.05)",
+                      borderTop: "1px solid rgba(99, 102, 241, 0.2)",
+                      borderRight: "1px solid rgba(99, 102, 241, 0.2)",
+                      borderBottom: "1px solid rgba(99, 102, 241, 0.2)",
+                      borderRadius: "var(--radius-md)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: "rgba(99, 102, 241, 0.2)" }}
+                        >
+                          <Star size={15} className="text-indigo-400" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-400">
+                            Sensaciones Post-Entreno (Suunto & Atleta)
+                          </div>
+                          <div className="text-[11px] text-muted">
+                            Valoración subjetiva y notas registradas al terminar
+                          </div>
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          fontSize: "var(--text-sm)",
-                          lineHeight: 1.6,
-                          color: "var(--color-text)",
-                          backgroundColor: "rgba(245, 158, 11, 0.08)",
-                          padding: "var(--space-3)",
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid rgba(245, 158, 11, 0.25)",
-                        }}
+
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingSensory(!isEditingSensory)}
+                        className="btn btn-secondary btn-xs text-xs"
+                        style={{ minHeight: 28, padding: "2px 10px" }}
                       >
-                        {session.user_notes}
-                      </div>
+                        {isEditingSensory ? "Cancelar" : "Editar / Añadir nota rápida"}
+                      </button>
                     </div>
-                  )}
+
+                    {sensorySavedMsg && (
+                      <div
+                        className="p-2.5 rounded-lg text-xs font-semibold flex items-center gap-2 mb-3 animate-in"
+                        style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.3)" }}
+                      >
+                        <Check size={14} />
+                        <span>{sensorySavedMsg}</span>
+                      </div>
+                    )}
+
+                    {!isEditingSensory ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                          <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800">
+                            <div className="text-[10px] text-muted font-medium">Sensación Suunto</div>
+                            <div className="text-sm font-bold text-indigo-400 mt-0.5">
+                              {session?.feeling === 5 ? "🔥 5/5 · Excelente"
+                                : session?.feeling === 4 ? "🙂 4/5 · Bien"
+                                : session?.feeling === 3 ? "😐 3/5 · Normal"
+                                : session?.feeling === 2 ? "😕 2/5 · Fatigado"
+                                : session?.feeling === 1 ? "😫 1/5 · Muy mal"
+                                : fit?.suuntoMetrics?.feeling ? `${fit.suuntoMetrics.feeling}/5 (Reloj)`
+                                : "Sin registrar"}
+                            </div>
+                            <div className="text-[10px] text-slate-400">Valoración subjetiva</div>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800">
+                            <div className="text-[10px] text-muted font-medium">Esfuerzo Percibido</div>
+                            <div className="text-sm font-bold text-amber-400 mt-0.5">
+                              {session?.rpe !== null ? `RPE ${session.rpe} / 10` : "—"}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{rpeDescription(session?.rpe)}</div>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 col-span-2 sm:col-span-1">
+                            <div className="text-[10px] text-muted font-medium">Disparador de Adaptación</div>
+                            <div className="text-sm font-bold text-emerald-400 mt-0.5">
+                              {session?.feeling && session.feeling <= 2 ? "Alerta de Fatiga"
+                                : session?.rpe && session.rpe >= 8.5 ? "Carga Extrema"
+                                : session?.user_notes && /molestia|dolor|cargad/i.test(session.user_notes) ? "Molestia Detectada"
+                                : "Asimilación Correcta"}
+                            </div>
+                            <div className="text-[10px] text-slate-400">Monitoreo continuo</div>
+                          </div>
+                        </div>
+
+                        {session?.user_notes ? (
+                          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800/80">
+                            <div className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 mb-1">
+                              <FileText size={12} className="text-amber-400" />
+                              <span>Comentarios y Sensaciones del Atleta:</span>
+                            </div>
+                            <div className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+                              {session.user_notes}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted italic">
+                            No se escribieron notas ni comentarios al finalizar en el reloj. Puedes pulsar &quot;Editar / Añadir nota rápida&quot; para registrar tus sensaciones.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Formulario interactivo de edición rápida */
+                      <div className="space-y-3.5 pt-2 animate-in">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-200 block mb-1.5">
+                            ¿Cómo te has sentido? (Sensación Suunto 1-5):
+                          </label>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {[
+                              { val: 1, label: "Muy mal", emoji: "😫" },
+                              { val: 2, label: "Fatigado", emoji: "😕" },
+                              { val: 3, label: "Normal", emoji: "😐" },
+                              { val: 4, label: "Bien", emoji: "🙂" },
+                              { val: 5, label: "Excelente", emoji: "🔥" },
+                            ].map((item) => (
+                              <button
+                                key={item.val}
+                                type="button"
+                                onClick={() => setEditFeeling(item.val)}
+                                className={`p-2 rounded-lg text-center border transition-all text-xs font-semibold ${
+                                  editFeeling === item.val
+                                    ? "bg-indigo-600/40 border-indigo-400 text-white shadow-sm"
+                                    : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                                }`}
+                              >
+                                <div className="text-base leading-none mb-0.5">{item.emoji}</div>
+                                <div className="text-[10px] leading-tight truncate">{item.label}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-slate-200 block mb-1.5 flex items-center justify-between">
+                            <span>Esfuerzo Percibido (RPE Foster 1-10):</span>
+                            <span className="text-amber-400 font-bold">{editRpe ? `${editRpe} / 10` : "Sin seleccionar"}</span>
+                          </label>
+                          <div className="grid grid-cols-10 gap-1">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => setEditRpe(num)}
+                                className={`py-1.5 rounded text-center text-xs font-bold border transition-all ${
+                                  editRpe === num
+                                    ? "bg-amber-500 text-black border-amber-400"
+                                    : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                                }`}
+                              >
+                                {num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-slate-200 block mb-1.5">
+                            Notas, molestias o sensaciones musculares:
+                          </label>
+                          <textarea
+                            value={editUserNotes}
+                            onChange={(e) => setEditUserNotes(e.target.value)}
+                            rows={3}
+                            placeholder="Ej: Piernas sueltas, ritmo cómodo... o molestia en sóleo derecho tras el km 8."
+                            className="w-full text-xs p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
+                          />
+
+                          {/* Chips rápidos de texto */}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                            <span className="text-[10px] text-muted">Añadir rápido:</span>
+                            {["Ritmo muy cómodo", "Piernas cargadas", "Molestia en gemelo", "Buena noche", "Cansancio general"].map((tag) => (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => {
+                                  setEditUserNotes((prev) => (prev ? `${prev}. ${tag}` : tag));
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                              >
+                                + {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingSensory(false)}
+                            className="btn btn-ghost btn-xs text-xs"
+                            disabled={savingSensory}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveSensory}
+                            disabled={savingSensory}
+                            className="btn btn-primary btn-xs text-xs font-bold flex items-center gap-1.5"
+                          >
+                            {savingSensory ? (
+                              <span>Guardando...</span>
+                            ) : (
+                              <>
+                                <Check size={13} />
+                                <span>Guardar sensaciones</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Callout de Psicología Deportiva en Detalle */}
                   {(() => {

@@ -28,6 +28,8 @@ export interface WorkoutInput {
   fc_max?: number | null;
   carga_tss?: number | null;
   rpe?: number | null;
+  feeling?: number | null;
+  user_notes?: string | null;
   raw_data?: string | null;
 }
 
@@ -103,6 +105,8 @@ export function upsertWorkout(input: WorkoutInput): WorkoutRow {
     durationMin: input.duracion,
     distanceKm: input.distancia ?? null,
     rpe: input.rpe ?? null,
+    feeling: input.feeling ?? null,
+    userNotes: input.user_notes ?? null,
     loadTss: input.carga_tss ?? null,
     notes: `[Suunto Cloud] Tipo: ${input.tipo} · Carga: ${input.carga_tss ?? "-"} TSS · FC: ${input.fc_media ?? "-"} ppm`,
     raw: input.raw_data ?? null,
@@ -143,6 +147,8 @@ function syncToAppSessions(params: {
   durationMin: number;
   distanceKm: number | null;
   rpe: number | null;
+  feeling?: number | null;
+  userNotes?: string | null;
   loadTss: number | null;
   notes: string;
   raw: string | null;
@@ -163,11 +169,15 @@ function syncToAppSessions(params: {
     else disc = "otro";
 
     // Buscar si ya existe una sesión en esa fecha
-    const existingSession = db.prepare<{ id: number; status: string }>(
-      "SELECT id, status FROM sessions WHERE date = ? AND (discipline = ? OR status = 'pendiente') ORDER BY id ASC LIMIT 1"
+    const existingSession = db.prepare<{ id: number; status: string; user_notes?: string | null }>(
+      "SELECT id, status, user_notes FROM sessions WHERE date = ? AND (discipline = ? OR status = 'pendiente') ORDER BY id ASC LIMIT 1"
     ).get(params.date, disc);
 
     if (existingSession) {
+      const mergedUserNotes = params.userNotes
+        ? (existingSession.user_notes ? `${existingSession.user_notes}\n${params.userNotes}` : params.userNotes)
+        : existingSession.user_notes;
+
       db.prepare(`
         UPDATE sessions
         SET status = 'realizada',
@@ -175,6 +185,8 @@ function syncToAppSessions(params: {
             duration_min = ?,
             distance_km = ?,
             rpe = COALESCE(?, rpe),
+            feeling = COALESCE(?, feeling),
+            user_notes = ?,
             notes = COALESCE(notes, '') || ' | ' || ?,
             fit_data = COALESCE(?, fit_data),
             updated_at = ?
@@ -184,6 +196,8 @@ function syncToAppSessions(params: {
         params.durationMin,
         params.distanceKm,
         params.rpe,
+        params.feeling ?? null,
+        mergedUserNotes ?? null,
         params.notes,
         params.raw,
         now,
@@ -191,13 +205,15 @@ function syncToAppSessions(params: {
       );
     } else {
       db.prepare(`
-        INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, status, rpe, duration_min, distance_km, notes, fit_data, created_at, updated_at)
-        VALUES (?, ?, ?, NULL, 0, 1, 'realizada', ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, status, rpe, feeling, user_notes, duration_min, distance_km, notes, fit_data, created_at, updated_at)
+        VALUES (?, ?, ?, NULL, 0, 1, 'realizada', ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         params.date,
         week_start,
         disc,
         params.rpe,
+        params.feeling ?? null,
+        params.userNotes ?? null,
         params.durationMin,
         params.distanceKm,
         params.notes,

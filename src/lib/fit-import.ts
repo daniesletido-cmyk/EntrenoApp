@@ -147,7 +147,9 @@ export interface SuuntoMetrics {
   pte?: number | null;
   recoveryTimeHours?: number | null;
   recoveryTimeMinutes?: number | null;
-  feeling?: number | null;
+  feeling?: number | null; // 1 (muy mal) a 5 (excelente)
+  rpe?: number | null;     // 1 a 10 (esfuerzo percibido)
+  watchNotes?: string | null; // Comentarios / notas registradas en el reloj Suunto
   tss?: number | null;
   deviceModel?: string | null;
   deviceManufacturer?: string | null;
@@ -204,7 +206,40 @@ export interface FitSummary {
   pte?: number | null;
   recoveryTimeHours?: number | null;
   recoveryTimeMinutes?: number | null;
+  feeling?: number | null;
+  rpe?: number | null;
+  watchNotes?: string | null;
   suuntoMetrics?: SuuntoMetrics | null;
+}
+
+export function normalizeFeeling(raw: unknown): number | null {
+  if (typeof raw === "number" && !isNaN(raw)) {
+    if (raw >= 1 && raw <= 5) return Math.round(raw);
+    if (raw > 5 && raw <= 10) return Math.round(raw / 2);
+  }
+  if (typeof raw === "string") {
+    const s = raw.toLowerCase().trim();
+    if (s.includes("excel") || s.includes("plet") || s.includes("incre") || s.includes("great") || s.includes("very_good")) return 5;
+    if (s.includes("bien") || s.includes("good") || s.includes("energi") || s.includes("fuerte")) return 4;
+    if (s.includes("normal") || s.includes("regul") || s.includes("aver") || s.includes("ok") || s.includes("neutr")) return 3;
+    if (s.includes("mal") || s.includes("poor") || s.includes("fatig") || s.includes("cansa")) return 2;
+    if (s.includes("muy mal") || s.includes("terrib") || s.includes("very_poor") || s.includes("pesim") || s.includes("exhaust")) return 1;
+    const n = Number(s);
+    if (!isNaN(n) && n >= 1 && n <= 5) return Math.round(n);
+  }
+  return null;
+}
+
+export function normalizeRpe(raw: unknown): number | null {
+  if (typeof raw === "number" && !isNaN(raw)) {
+    if (raw >= 1 && raw <= 10) return Math.round(raw);
+    if (raw > 10 && raw <= 20) return Math.min(10, Math.max(1, Math.round((raw - 6) / 1.4)));
+  }
+  if (typeof raw === "string") {
+    const n = Number(raw.trim());
+    if (!isNaN(n)) return normalizeRpe(n);
+  }
+  return null;
 }
 
 export function formatPace(minKm: number | null | undefined): string {
@@ -1578,7 +1613,15 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       }
 
       const peakEpoc = typeof (session as any).peak_epoc === "number" ? Number((session as any).peak_epoc.toFixed(1)) : null;
-      const feeling = typeof (session as any).feeling === "number" ? (session as any).feeling : null;
+      const rawFeeling = (session as any).feeling ?? (session as any).suunto_feeling ?? (session as any).perceived_feeling ?? (data as any).feeling ?? null;
+      const feeling = normalizeFeeling(rawFeeling);
+
+      const rawRpe = (session as any).rpe ?? (session as any).rating_of_perceived_exertion ?? (session as any).perceived_exertion ?? (data as any).rpe ?? null;
+      const rpe = normalizeRpe(rawRpe);
+
+      const rawWatchNotes = (session as any).notes ?? (session as any).comment ?? (session as any).user_notes ?? (session as any).workout_notes ?? (data as any).activity?.comment ?? (data as any).activity?.notes ?? null;
+      const watchNotes = typeof rawWatchNotes === "string" && rawWatchNotes.trim().length > 0 ? rawWatchNotes.trim() : null;
+
       const tss = typeof (session as any).training_stress_score === "number" ? Number((session as any).training_stress_score.toFixed(1)) : null;
 
       const devInfo = (data as any).device_infos?.[0] || {};
@@ -1592,6 +1635,8 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         recoveryTimeHours,
         recoveryTimeMinutes,
         feeling,
+        rpe,
+        watchNotes,
         tss,
         deviceModel: typeof deviceModel === "string" ? deviceModel : null,
         deviceManufacturer: typeof deviceManufacturer === "string" ? String(deviceManufacturer) : null,
@@ -1668,6 +1713,9 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         pte: trainingEffect,
         recoveryTimeHours,
         recoveryTimeMinutes,
+        feeling,
+        rpe,
+        watchNotes,
         suuntoMetrics,
       });
     });
@@ -1765,9 +1813,20 @@ export async function parseGpxBuffer(buffer: Buffer): Promise<FitSummary> {
   const timeSeries = buildTimeSeriesFromRecords(rawRecords, isCycling, durationMin, totalDistanceKm);
   const pacingAnalysis = computePacingAnalysis(rawRecords, laps, isCycling, totalDistanceKm, durationMin, Math.round(totalAscent), Math.round(totalDescent));
 
+  const descMatch = text.match(/<desc>([\s\S]*?)<\/desc>/i);
+  const cmtMatch = text.match(/<cmt>([\s\S]*?)<\/cmt>/i);
+  const rawGpxNotes = (descMatch ? descMatch[1] : cmtMatch ? cmtMatch[1] : null)?.trim() || null;
+  const feelingMatch = text.match(/<suunto:feeling>(.*?)<\/suunto:feeling>/i) || text.match(/<feeling>(.*?)<\/feeling>/i);
+  const feeling = normalizeFeeling(feelingMatch ? feelingMatch[1] : null);
+  const rpeMatch = text.match(/<suunto:rpe>(.*?)<\/suunto:rpe>/i) || text.match(/<rpe>(.*?)<\/rpe>/i);
+  const rpe = normalizeRpe(rpeMatch ? rpeMatch[1] : null);
+
   const suuntoMetrics: SuuntoMetrics = {
     deviceManufacturer: "suunto",
     deviceModel: "Suunto GPX Export",
+    feeling,
+    rpe,
+    watchNotes: rawGpxNotes,
   };
 
   const deepAnalysis: FitDeepAnalysis = {
@@ -1802,6 +1861,9 @@ export async function parseGpxBuffer(buffer: Buffer): Promise<FitSummary> {
     deepAnalysis,
     timeSeries,
     pacingAnalysis,
+    feeling,
+    rpe,
+    watchNotes: rawGpxNotes,
     suuntoMetrics,
   };
 }
@@ -1840,12 +1902,23 @@ export async function parseWorkoutJson(buffer: Buffer): Promise<FitSummary> {
     }
   }
 
+  const rawFeeling = data.feeling ?? data.suunto_feeling ?? data.mood ?? data.feeling_score ?? null;
+  const feeling = normalizeFeeling(rawFeeling);
+
+  const rawRpe = data.rpe ?? data.icu_rpe ?? data.perceived_exertion ?? null;
+  const rpe = normalizeRpe(rawRpe);
+
+  const rawWatchNotes = data.notes ?? data.comment ?? data.description ?? data.user_notes ?? data.userNotes ?? null;
+  const watchNotes = typeof rawWatchNotes === "string" && rawWatchNotes.trim().length > 0 ? rawWatchNotes.trim() : null;
+
   const suuntoMetrics: SuuntoMetrics = {
     epoc: typeof rawEpoc === "number" ? Number(rawEpoc.toFixed(1)) : null,
     pte: typeof rawPte === "number" ? Number(rawPte.toFixed(1)) : null,
     recoveryTimeHours: recoveryHours,
     recoveryTimeMinutes: recoveryMin,
-    feeling: data.feeling ?? null,
+    feeling,
+    rpe,
+    watchNotes,
     tss: data.training_stress_score ?? data.tss ?? null,
     deviceModel: data.device_model ?? data.product_name ?? "Suunto App",
     deviceManufacturer: "suunto",
@@ -1885,6 +1958,9 @@ export async function parseWorkoutJson(buffer: Buffer): Promise<FitSummary> {
     pte: suuntoMetrics.pte,
     recoveryTimeHours: recoveryHours,
     recoveryTimeMinutes: recoveryMin,
+    feeling,
+    rpe,
+    watchNotes,
     suuntoMetrics,
   };
 }
