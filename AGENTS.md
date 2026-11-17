@@ -70,3 +70,22 @@ Estas reglas tienen prioridad absoluta en cualquier tarea, modificación o gener
   - Semillas de lino
   - Sésamo / Tahini 100% puro
   - Avena, fruta fresca/deshidratada (plátano, dátiles, pasas) y grasas saludables limpias (AOVE, aguacate).
+
+---
+
+## 6. REGLA INMUTABLE DE SESIONES DE CROSSFIT (DESGLOSE COMPLETO Y MÉTRICAS)
+
+1. **Desglose Exhaustivo Línea por Línea (PROHIBIDO RESÚMENES GENÉRICOS)**:
+   - Prohibido recortar o condensar el WOD con etiquetas repetidas de "Detalle Adicional".
+   - Cada bloque de CrossFit debe estructurarse con encabezados dedicados:
+     - 🟢 **Calentamiento & Movilidad**: Minutos específicos y ejercicios de movilidad articular y activación dinámica.
+     - ⚡ **Bloque 1 — Fuerza / Halterofilia**: Formato exacto, series, repeticiones, cargas en kg / RPE y foco técnico.
+     - ⚡ **Bloque 2 — WOD / Metcon**: Formato exacto (AMRAP, For Time, Chipper), listado línea por línea de cada ejercicio con repeticiones y pesos en kg, junto a notas preventivas del fisioterapeuta para articulaciones/tendones.
+     - 🔵 **Vuelta a la Calma & Descarga**: Minutos, descompresión espinal y estiramientos dirigidos.
+2. **Tarjeta "Qué se trabaja hoy"**:
+   - Grupos musculares principales trabajados en píldoras limpias.
+   - Estímulo fisiológico y vía energética predominante.
+   - Pacing y adaptaciones articulares del fisioterapeuta deportivo.
+3. **Métricas en Box (Sin Distancia de Carrera)**:
+   - Las sesiones de box de CrossFit tienen `distance_km = NULL`. Los chips superiores en la UI deben mostrar `Modalidad: Fuerza + WOD`, `Duración: ~55-60 min` y `Esfuerzo: RPE 7-8` (nunca distancia de running).
+

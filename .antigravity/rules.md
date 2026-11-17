@@ -49,3 +49,23 @@ Siempre que diseñes, reajustes o propongas cómo queda una semana de entrenamie
 - **PROHIBIDO LIMITARTE A ESCRIBIRLO EN EL CHAT**: Jamás presentes un plan o reajuste semanal solo en texto sin aplicarlo.
 - **PERSISTENCIA Y ACTUALIZACIÓN AUTOMÁTICA**: Debes actualizar y persistir automáticamente esos cambios en el almacenamiento y base de datos real de la semana en `EntrenoApp` (`data/entrenoapp.db` y `seed/entrenoapp.db`) para que se reflejen al instante en `/hoy`, `/plan-semanal` y en los archivos exportables a Suunto.
 
+---
+
+# REGLA INMUTABLE: DESGLOSE COMPLETO Y ESTRUCTURA DE SESIONES DE CROSSFIT
+
+Toda sesión de CrossFit en análisis, programación, almacenamiento (`sessions.notes`) y visualización (`/hoy`) debe cumplir estrictamente:
+1. **Desglose Exhaustivo Línea por Línea (PROHIBIDO RESÚMENES GENÉRICOS)**:
+   - Prohibido recortar o condensar el WOD con etiquetas repetidas de "Detalle Adicional".
+   - Cada bloque debe tener su propio encabezado:
+     - 🟢 **Calentamiento & Movilidad**: Minutos específicos y ejercicios de movilidad articular y activación escapular/cadera.
+     - ⚡ **Bloque 1 — Fuerza / Halterofilia**: Formato exacto, series, repeticiones, cargas en kg / RPE y foco técnico.
+     - ⚡ **Bloque 2 — WOD / Metcon**: Formato exacto (AMRAP, For Time, Chipper), listado línea por línea de cada ejercicio con repeticiones y pesos en kg, junto a notas preventivas del fisioterapeuta para articulaciones/tendones.
+     - 🔵 **Vuelta a la Calma & Descarga**: Minutos, descompresión espinal y estiramientos dirigidos.
+2. **Tarjeta "Qué se trabaja hoy"**:
+   - Grupos musculares principales trabajados en píldoras limpias.
+   - Estímulo fisiológico y sistema energético predominante.
+   - Criterio de ritmo (pacing) y prevención articular del fisioterapeuta deportivo.
+3. **Métricas en Box (Sin Distancia de Carrera)**:
+   - Las sesiones de box de CrossFit no llevan kilometraje de carrera (`distance_km = NULL`). Los chips superiores en la UI deben mostrar `Modalidad: Fuerza + WOD`, `Duración: ~55-60 min` y `Esfuerzo: RPE 7-8`.
+
+

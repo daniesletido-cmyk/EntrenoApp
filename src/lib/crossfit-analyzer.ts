@@ -9,8 +9,10 @@ import { todayISO, weekStartOf, addDays, DAY_NAMES_ES } from "@/lib/dates";
 export interface CrossfitDayAnalysis {
   dayName: string; // "Lunes", "Martes", etc.
   dayNumber: number; // 1 = Lunes, 7 = Domingo
+  warmup?: string;
   strengthPart: string;
   metconPart: string;
+  cooldown?: string;
   musclesWorked: string[];
   fatigueRisk: "baja" | "moderada" | "alta"; // Para piernas/lumbar
   coachComment: string;
@@ -37,11 +39,14 @@ REGLA NUTRICIONAL VITAL: Daniel es alérgico estricto a las nueces, avellanas y 
 
 Debes analizar la imagen adjunta con la programación semanal de CrossFit (Lunes a Viernes/Sábado, bloques de Strength/Metcon/Freedom/Rx) siguiendo EXACTAMENTE este protocolo inmutable:
 
-1. Traducción y Desglose Día por Día:
+1. Desglose Exhaustivo y Completo Día por Día (PROHIBIDO RESUMIR O GENERALIZAR):
 - Traduce al español de forma clara y precisa todos los ejercicios, repeticiones, tiempos y pesos (convierte libras a kg: ej. 115 lbs = 52.5 kg, 95 lbs = 42.5 kg, 75 lbs = 35 kg, 50 lbs = 22.5 kg).
-- Explica qué busca la parte de Fuerza (Strength) y cómo es el WOD (Metcon, AMRAP, For Time, etc.).
-- Lista concisa de grupos musculares trabajados.
-- Indica si el impacto para piernas o lumbar es "baja", "moderada" o "alta".
+- Calentamiento & Movilidad: minutos específicos y activación recomendada.
+- Fuerza / Halterofilia: Formato exacto, series, repeticiones, porcentaje de carga/RPE y foco técnico.
+- WOD / Metcon: Formato exacto (AMRAP, For Time, Chipper, etc.), desglose completo línea por línea de CADA ejercicio con repeticiones y kilos exactos, y adaptaciones del fisioterapeuta ante impacto o tensión articular (ej. step-ups en vez de saltos si hay sobrecarga de sóleo).
+- Vuelta a la Calma: estiramientos específicos y descompresión.
+- Grupos Musculares: Lista concisa de músculos principales trabajados (ej. ["Cadena Posterior / Lumbar", "Isquios y Glúteos", "Hombros y Trapecio", "Core"]).
+- Impacto para piernas o lumbar: "baja", "moderada" o "alta".
 
 2. Recomendación Personalizada de Días Óptimos (Según Carga y Horario 19:00h):
 - Analiza específicamente Martes y Jueves a las 19:00h: si encajan bien o si generan interferencia severa con sus carreras.
@@ -53,11 +58,13 @@ Devuelve SIEMPRE una respuesta en formato JSON válido con la siguiente estructu
     {
       "dayName": "Lunes",
       "dayNumber": 1,
-      "strengthPart": "Traducción de fuerza...",
-      "metconPart": "Traducción de WOD...",
+      "warmup": "Calentamiento específico...",
+      "strengthPart": "Traducción completa de fuerza con series, reps y kg...",
+      "metconPart": "Traducción línea por línea del WOD con repeticiones, kg y adaptaciones...",
+      "cooldown": "Estiramientos y descompresión...",
       "musclesWorked": ["Cuádriceps", "Hombros", "Core"],
       "fatigueRisk": "alta",
-      "coachComment": "Comentario técnico de encaje..."
+      "coachComment": "Comentario técnico de encaje y prevención articular..."
     }
   ],
   "tuesdayThursdayVerdict": {
@@ -271,12 +278,22 @@ export function addCrossfitSessionsToCalendar(params: {
 
     const sessionTitle = `CrossFit WOD (19:00h)`;
     const notesContent = [
-      `🔥 Sesión de CrossFit programada (19:00h):`,
-      detail?.strengthPart ? `• Fuerza: ${detail.strengthPart}` : null,
-      detail?.metconPart ? `• Metcon: ${detail.metconPart}` : null,
-      detail?.musclesWorked ? `• Músculos: ${detail.musclesWorked.join(", ")}` : null,
-      detail?.coachComment ? `• Criterio Coach: ${detail.coachComment}` : null,
-    ].filter(Boolean).join("\n");
+      `🔥 Sesión de CrossFit en Box (19:00h):`,
+      detail?.warmup
+        ? `🟢 Calentamiento & Movilidad (10-12 min):\n${detail.warmup}`
+        : `🟢 Calentamiento & Movilidad (10 min):\n• Movilidad articular dinámica de cadera, tobillo y hombro\n• Activación de core y aproximaciones de carga progresivas`,
+      `⚡ Bloque 1 — Fuerza / Halterofilia:\n${detail?.strengthPart || "Trabajo de fuerza técnica"}`,
+      `⚡ Bloque 2 — WOD / Metcon:\n${detail?.metconPart || "Acondicionamiento metabólico"}`,
+      detail?.cooldown
+        ? `🔵 Vuelta a la Calma & Descarga (5-8 min):\n${detail.cooldown}`
+        : `🔵 Vuelta a la Calma & Descarga (5-8 min):\n• Descompresión espinal colgado en barra (dead hang 2x30s)\n• Estiramientos pasivos de cadena posterior, isquios y flexores de cadera`,
+      detail?.musclesWorked && detail.musclesWorked.length > 0
+        ? `\n🎯 Músculos principales: ${detail.musclesWorked.join(", ")}`
+        : null,
+      detail?.coachComment
+        ? `\n🛡️ Criterio Coach & Fisio: ${detail.coachComment}`
+        : null,
+    ].filter(Boolean).join("\n\n");
 
     const now = new Date().toISOString();
 
@@ -293,7 +310,7 @@ export function addCrossfitSessionsToCalendar(params: {
         if (existing.discipline === "descanso") {
           db.prepare(`
             UPDATE sessions 
-            SET discipline = 'crossfit', planned_code = ?, duration_min = 60, notes = ?, updated_at = ?
+            SET discipline = 'crossfit', planned_code = ?, distance_km = NULL, duration_min = 60, notes = ?, updated_at = ?
             WHERE id = ?
           `).run(sessionTitle, notesContent, now, existing.id);
         } else {
@@ -308,8 +325,8 @@ export function addCrossfitSessionsToCalendar(params: {
       } else {
         // Insertar nueva sesión
         db.prepare(`
-          INSERT INTO sessions (date, discipline, planned_code, duration_min, is_long_run, status, notes, created_at, updated_at)
-          VALUES (?, 'crossfit', ?, 60, 0, 'pendiente', ?, ?, ?)
+          INSERT INTO sessions (date, discipline, planned_code, distance_km, duration_min, is_long_run, status, notes, created_at, updated_at)
+          VALUES (?, 'crossfit', ?, NULL, 60, 0, 'pendiente', ?, ?, ?)
         `).run(targetDate, sessionTitle, notesContent, now, now);
       }
     }

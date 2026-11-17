@@ -20,6 +20,9 @@ import {
   Award,
   Waves,
   HeartPulse,
+  Target,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 
 interface WorkoutStructuredNotesProps {
@@ -40,15 +43,23 @@ interface NutritionTimelineItem {
   isPost?: boolean;
 }
 
-interface WodStep {
+export interface CrossfitFocusData {
+  muscles: string[];
+  stimulus: string;
+  pacingAdvice: string;
+}
+
+export interface WodStep {
   kind: "exercise" | "note";
   reps?: string;
   name: string;
   details?: string;
+  physioNote?: string;
+  pacingNote?: string;
 }
 
-interface CrossfitBlock {
-  type: "schedule" | "warmup" | "strength" | "wod" | "nutrition" | "general";
+export interface CrossfitBlock {
+  type: "schedule" | "warmup" | "strength" | "wod" | "cooldown" | "nutrition" | "general";
   title: string;
   badge?: string;
   items?: string[];
@@ -129,6 +140,12 @@ function splitBullets(rawText: string): string[] {
     .filter(Boolean);
 }
 
+function stripLeadingEmojiAndBullets(s: string): string {
+  return s
+    .replace(/^[🟢⚡🔵🔥🏋️🏃🥊💪🥗🧠🛡️💡•*\-\s\d.)]+/, "")
+    .trim();
+}
+
 // ==========================================
 // PARSER ESPECÍFICO PARA CROSSFIT Y FUERZA
 // ==========================================
@@ -136,6 +153,7 @@ function parseCrossfitNotes(notes: string): {
   header: string;
   schedule: string | null;
   blocks: CrossfitBlock[];
+  focusToday: CrossfitFocusData | null;
   nutritionTimeline: NutritionTimelineItem[];
   mentalPacing: string | null;
   extraTrailing: string[];
@@ -145,6 +163,7 @@ function parseCrossfitNotes(notes: string): {
   const extraTrailing: string[] = [];
   let schedule: string | null = null;
   let mentalPacing: string | null = null;
+  let focusToday: CrossfitFocusData | null = null;
   let header = "";
 
   let text = notes.trim();
@@ -162,15 +181,45 @@ function parseCrossfitNotes(notes: string): {
 
   for (const sec of rawSections) {
     const cleanSec = sec.replace(/^-\s*/, "").trim();
+    const normalizedSec = stripLeadingEmojiAndBullets(cleanSec);
 
     // 1. Horario de sesión
-    if (/^Horario de Sesión:/i.test(cleanSec)) {
-      schedule = cleanSec.replace(/^Horario de Sesión:\s*/i, "").trim();
+    if (/^Horario de Sesión:/i.test(normalizedSec) || /^Horario de Sesión:/i.test(cleanSec)) {
+      schedule = cleanSec.replace(/^.*Horario de Sesión:\s*/i, "").trim();
       continue;
     }
 
-    // 2. Calentamiento y movilidad
-    if (/^Calentamiento/i.test(cleanSec)) {
+    // 2. QUÉ SE TRABAJA HOY / Músculos / Estímulo
+    if (/^(?:qu[eé]\s*se\s*trabaja\s*hoy|m[uú]sculos|est[ií]mulo\s*y\s*estrategia)/i.test(normalizedSec)) {
+      const secLines = cleanSec.split("\n");
+      let muscles: string[] = [];
+      let stimulus = "";
+      let pacingAdvice = "";
+
+      for (const l of secLines.slice(1)) {
+        const cleanL = l.replace(/^[•*\-\s]+/, "").trim();
+        if (/^(?:grupos?\s*musculares?|m[uú]sculos?):/i.test(cleanL)) {
+          const rawMuscles = cleanL.replace(/^(?:grupos?\s*musculares?|m[uú]sculos?):\s*/i, "").trim();
+          muscles = rawMuscles.split(/[,·+]/).map((m) => m.trim()).filter(Boolean);
+        } else if (/^est[ií]mulo(?:\s*fisiol[oó]gico)?(?:\s*y\s*sistema)?:/i.test(cleanL)) {
+          stimulus = cleanL.replace(/^est[ií]mulo(?:\s*fisiol[oó]gico)?(?:\s*y\s*sistema)?:\s*/i, "").trim();
+        } else if (/^(?:estrategia(?:\s*de)?\s*(?:pacing|dosificaci[oó]n|ritmo)|consejo(?:\s*pr[aá]ctico)?(?:\s*de\s*ritmo)?):/i.test(cleanL)) {
+          pacingAdvice = cleanL.replace(/^(?:estrategia(?:\s*de)?\s*(?:pacing|dosificaci[oó]n|ritmo)|consejo(?:\s*pr[aá]ctico)?(?:\s*de\s*ritmo)?):\s*/i, "").trim();
+        }
+      }
+
+      if (muscles.length > 0 || stimulus || pacingAdvice) {
+        focusToday = {
+          muscles: muscles.length > 0 ? muscles : ["Cadena Posterior / Lumbar", "Isquios y Glúteos", "Hombros y Trapecio", "Core"],
+          stimulus: stimulus || "Fuerza-Potencia + Resistencia Muscular Local bajo fatiga",
+          pacingAdvice: pacingAdvice || "Dosifica desde el minuto 1. Fracciona antes del fallo muscular para proteger la columna y articulaciones.",
+        };
+      }
+      continue;
+    }
+
+    // 3. Calentamiento y movilidad
+    if (/^calentamiento|^activaci[oó]n|^movilidad/i.test(normalizedSec)) {
       const secLines = cleanSec.split("\n");
       const firstLine = secLines[0];
       const timeMatch = firstLine.match(/\(([^)]+)\)/);
@@ -179,20 +228,20 @@ function parseCrossfitNotes(notes: string): {
         .map((l) => l.trim().replace(/^[•*\-\s]+/, ""))
         .filter(Boolean);
 
-      const inlineDesc = firstLine.replace(/^Calentamiento(?:\s*(?:y|&)\s*movilidad(?:\s+articular)?(?:\s+dinámica)?)?:?\s*/i, "").trim();
+      const inlineDesc = firstLine.replace(/^(?:[🟢•*\-\s]*)(?:calentamiento(?:\s*(?:y|&)\s*movilidad(?:\s+articular)?(?:\s+dinámica)?)?)(?:\s*\([^)]*\))?:?\s*/i, "").trim();
       const items = subItems.length > 0 ? subItems : [inlineDesc || firstLine];
 
       blocks.push({
         type: "warmup",
         title: "Calentamiento & Movilidad",
-        badge: timeMatch ? timeMatch[1] : "Activación",
+        badge: timeMatch ? timeMatch[1] : "10 min",
         items,
       });
       continue;
     }
 
-    // 3. Bloque de Fuerza / STRENGTH / SKILL / ACCESORIOS
-    if (/^(?:STRENGTH|FUERZA|SKILL|Halterofilia|POST-WORKOUT)/i.test(cleanSec)) {
+    // 4. Bloque 1 — Fuerza / STRENGTH / SKILL / Halterofilia / Powerlifting
+    if (/^(?:bloque\s*1|strength|fuerza|skill|halterofilia|powerlifting)/i.test(normalizedSec)) {
       const secLines = cleanSec.split("\n");
       const firstLine = secLines[0];
       const parenMatch = firstLine.match(/\(([^)]+)\)/);
@@ -211,25 +260,29 @@ function parseCrossfitNotes(notes: string): {
           ? [inlineAfterColon]
           : [firstLine];
 
-      const cleanTitle = firstLine.replace(/\([^)]*\)/g, "").replace(/:$/, "").trim();
+      const cleanTitle = firstLine
+        .replace(/^[⚡🏋️•*\-\s]+/, "")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/:$/, "")
+        .trim();
 
       blocks.push({
         type: "strength",
-        title: cleanTitle || "Fuerza / Técnica",
+        title: cleanTitle ? (cleanTitle.toLowerCase().startsWith("bloque") ? cleanTitle : `Bloque 1 — ${cleanTitle}`) : "Bloque 1 — Fuerza / Halterofilia",
         badge: parenMatch ? parenMatch[1] : "Fuerza Principal",
         items,
       });
       continue;
     }
 
-    // 4. Bloque WOD / FREEDOM / METCON / AMRAP / FOR TIME / EMOM
-    if (/^(?:FREEDOM|WOD|AMRAP|FOR TIME|EMOM|METCON|Rondas)/i.test(cleanSec)) {
+    // 5. Bloque 2 — WOD / FREEDOM / METCON / AMRAP / FOR TIME / EMOM / CHIPPER / RONDAS
+    if (/^(?:bloque\s*2|freedom|wod|amrap|for\s*time|emom|metcon|chipper|rondas)/i.test(normalizedSec)) {
       const linesInWod = cleanSec.split("\n");
       const titleLine = linesInWod[0];
       let scoreNote = "";
 
       const parenInfo = titleLine.match(/\(([^)]+)\)/g)?.map((p) => p.replace(/[()]/g, "")) ?? [];
-      const formatMatch = titleLine.match(/(\d+\s*Rondas[^(:]*|3-3-3-4:00\s*AMRAP|\d+:\d{2}\s*AMRAP|\d+\s*min\s*AMRAP|Por Tiempo|FOR TIME|EMOM\s*\d+|AMRAP)/i);
+      const formatMatch = titleLine.match(/(\d+\s*Rondas[^(:]*|3-3-3-4:00\s*AMRAP|\d+:\d{2}\s*AMRAP|\d+\s*min\s*AMRAP|Por Tiempo|FOR TIME|EMOM\s*\d+|AMRAP|Chipper[^(:]*)/i);
       const formatBadge = formatMatch
         ? formatMatch[1].trim()
         : parenInfo.find((p) => !/^RX$/i.test(p)) || "WOD Clave";
@@ -248,11 +301,26 @@ function parseCrossfitNotes(notes: string): {
           continue;
         }
 
-        // Capturar: "800m Carrera", "50 GHD Sit-ups", "21/16 Cal Air Bike", "3 Trepas de cuerda", "Max ..."
-        const distOrRepMatch = cleanLine.match(
+        // Detectar si hay flecha con advertencia o nota técnica (→ o ->)
+        let lineExercisePart = cleanLine;
+        let physioNote: string | undefined = undefined;
+        let pacingNote: string | undefined = undefined;
+
+        if (cleanLine.includes("→") || cleanLine.includes("->")) {
+          const arrowSplit = cleanLine.split(/→|->/);
+          lineExercisePart = arrowSplit[0].trim();
+          const arrowContent = arrowSplit.slice(1).join("→").trim();
+          if (/fisioterapia|adaptaci[oó]n|lesi[oó]n|tend[oó]n|sobrecarga|articular/i.test(arrowContent)) {
+            physioNote = arrowContent;
+          } else {
+            pacingNote = arrowContent;
+          }
+        }
+
+        const distOrRepMatch = lineExercisePart.match(
           /^(\d+(?:\/\d+)?(?:\.\d{3})?\s*(?:m|km|Calorías|Calorias|Cal|Kcal|Reps)?)\s+(.*)/i
         );
-        const isInstructionLine = /^(?:Descanso|En el tiempo|Nota|Escala|Ritmo)/i.test(cleanLine);
+        const isInstructionLine = /^(?:Descanso|En el tiempo|Nota|Escala|Ritmo|Time Cap)/i.test(lineExercisePart);
 
         if (distOrRepMatch && !isInstructionLine) {
           let reps = distOrRepMatch[1].trim();
@@ -280,25 +348,30 @@ function parseCrossfitNotes(notes: string): {
           steps.push({
             kind: "exercise",
             reps,
-            name: name || cleanLine,
+            name: name || rest,
             details: detailsParts.length > 0 ? detailsParts.join(" · ") : undefined,
+            physioNote,
+            pacingNote,
           });
         } else {
           steps.push({
             kind: "note",
-            name: cleanLine,
+            name: lineExercisePart,
+            physioNote,
+            pacingNote,
           });
         }
       }
 
       const cleanWodTitle = titleLine
+        .replace(/^[⚡•*\-\s]+/, "")
         .replace(/-\s*(?:Por Tiempo|\d+\s*Rondas|\d+:\d{2}).*$/i, "")
         .replace(/:$/, "")
         .trim();
 
       blocks.push({
         type: "wod",
-        title: cleanWodTitle || "WOD Freedom (RX)",
+        title: cleanWodTitle ? (cleanWodTitle.toLowerCase().startsWith("bloque") ? cleanWodTitle : `Bloque 2 — ${cleanWodTitle}`) : "Bloque 2 — WOD / Acondicionamiento Metabólico",
         badge: formatBadge,
         steps,
         scoreNote: scoreNote || undefined,
@@ -306,20 +379,42 @@ function parseCrossfitNotes(notes: string): {
       continue;
     }
 
-    // 5. Enfoque Psicológico & Pacing
-    if (/^Enfoque Psicológico/i.test(cleanSec) || /^Pacing/i.test(cleanSec)) {
-      mentalPacing = cleanSec.replace(/^Enfoque Psicológico(?:\s*&\s*(?:Pacing|Tip Mental))?:\s*/i, "").trim();
+    // 6. Vuelta a la Calma / Enfriamiento / Cooldown / Estiramientos
+    if (/^(?:vuelta\s*a\s*la\s*calma|cooldown|enfriamiento|estiramientos?|descarga)/i.test(normalizedSec)) {
+      const secLines = cleanSec.split("\n");
+      const firstLine = secLines[0];
+      const timeMatch = firstLine.match(/\(([^)]+)\)/);
+      const subItems = secLines
+        .slice(1)
+        .map((l) => l.trim().replace(/^[•*\-\s]+/, ""))
+        .filter(Boolean);
+
+      const inlineDesc = firstLine.replace(/^(?:[🔵•*\-\s]*)(?:vuelta\s*a\s*la\s*calma|cooldown|enfriamiento|estiramientos?|descarga)(?:\s*\([^)]*\))?:?\s*/i, "").trim();
+      const items = subItems.length > 0 ? subItems : [inlineDesc || firstLine];
+
+      blocks.push({
+        type: "cooldown",
+        title: "Vuelta a la Calma & Descarga",
+        badge: timeMatch ? timeMatch[1] : "8 min",
+        items,
+      });
       continue;
     }
 
-    // 6. Estrategia Nutrición / Nutrición (soporta tanto 1 línea como multi-línea)
-    if (/^(?:ESTRATEGIA )?NUTRICIÓN/i.test(cleanSec)) {
+    // 7. Enfoque Psicológico & Pacing
+    if (/^enfoque\s*psicol[oó]gico|^pacing|^tip\s*mental/i.test(normalizedSec)) {
+      mentalPacing = cleanSec.replace(/^(?:[🧠•*\-\s]*)(?:enfoque\s*psicol[oó]gico(?:\s*&\s*(?:pacing|tip\s*mental))?|pacing|tip\s*mental):\s*/i, "").trim();
+      continue;
+    }
+
+    // 8. Estrategia Nutrición
+    if (/^(?:estrategia\s+)?nutrici[oó]n/i.test(normalizedSec)) {
       const nutLines = cleanSec.split("\n");
       const firstLine = nutLines[0];
       const subLines = nutLines.slice(1).map((l) => l.trim().replace(/^[•*\-\s]+/, "")).filter(Boolean);
 
       if (subLines.length === 0) {
-        const inlineText = firstLine.replace(/^(?:Estrategia\s+)?Nutrición(?:\s*\([^)]*\))?:\s*/i, "").trim();
+        const inlineText = firstLine.replace(/^(?:[🥗•*\-\s]*)(?:estrategia\s+)?nutrici[oó]n(?:\s*\([^)]*\))?:\s*/i, "").trim();
         if (inlineText) {
           nutritionTimeline.push({ label: "Pauta Nutricional", text: inlineText, isPost: true });
         }
@@ -352,24 +447,67 @@ function parseCrossfitNotes(notes: string): {
       continue;
     }
 
-    // 7. Metadatos residuales
+    // 9. Metadatos residuales
     if (cleanSec.includes("Importado desde") || cleanSec.includes("DATOS REALES") || cleanSec.includes("[Suunto Cloud]")) {
       extraTrailing.push(cleanSec);
       continue;
     }
 
-    // 8. Bloque general (nunca perder texto)
+    // 10. Bloque general (nunca perder texto y NUNCA llamar "Detalle Adicional")
     const subLines = splitBullets(cleanSec);
     if (subLines.length === 0) continue;
     if (subLines.length === 1 && header && subLines[0].toLowerCase() === header.toLowerCase()) continue;
+
+    let dynamicTitle = subLines[0].replace(/^[🟢⚡🔵🔥🏋️🏃🥊•*\-\s]+/, "").trim();
+    if (/^fuerza/i.test(dynamicTitle)) dynamicTitle = "Bloque 1 — Fuerza / Halterofilia";
+    else if (/^wod|metcon|chipper/i.test(dynamicTitle)) dynamicTitle = "Bloque 2 — WOD / Metcon";
+    else if (/^calentamiento/i.test(dynamicTitle)) dynamicTitle = "Calentamiento & Movilidad";
+    else if (/^vuelta\s*a\s*la\s*calma/i.test(dynamicTitle)) dynamicTitle = "Vuelta a la Calma";
+    else if (dynamicTitle.length > 40) dynamicTitle = "Instrucciones de la Sesión";
+
     blocks.push({
       type: "general",
-      title: subLines.length > 1 ? subLines[0] : "Detalle Adicional",
+      title: dynamicTitle || "Estructura de la Sesión",
       items: subLines.length > 1 ? subLines.slice(1) : subLines,
     });
   }
 
-  return { header, schedule, blocks, nutritionTimeline, mentalPacing, extraTrailing };
+  // Si no se encontró focusToday explícito, sintetizarlo inteligentemente a partir de los bloques
+  if (!focusToday && blocks.length > 0) {
+    const fullContent = notes.toLowerCase();
+    const inferredMuscles: string[] = [];
+
+    if (/deadlift|peso\s*muerto|clean|cargada|snatch|arrancada/i.test(fullContent)) {
+      inferredMuscles.push("Cadena Posterior / Lumbar", "Isquios y Glúteos");
+    }
+    if (/clean|jerk|press|overhead|push\s*press|hombro/i.test(fullContent)) {
+      inferredMuscles.push("Hombros y Trapecio");
+    }
+    if (/step-up|caj[oó]n|squat|sentadilla|lunge|zancada/i.test(fullContent)) {
+      if (!inferredMuscles.includes("Isquios y Glúteos")) inferredMuscles.push("Glúteos y Cuádriceps");
+      else inferredMuscles.push("Cuádriceps");
+    }
+    if (/toes\s*to\s*bar|t2b|ghd|core|abdomina/i.test(fullContent)) {
+      inferredMuscles.push("Core y Flexores de Cadera");
+    }
+    if (inferredMuscles.length === 0) {
+      inferredMuscles.push("Cuerpo Completo (Full Body)", "Core", "Tren Superior e Inferior");
+    }
+
+    const isChipperOrLong = /chipper|for\s*time|amrap\s*2\d/i.test(fullContent);
+
+    focusToday = {
+      muscles: inferredMuscles,
+      stimulus: isChipperOrLong
+        ? "Fuerza-Potencia + Resistencia Muscular Local bajo fatiga (Vía Glucolítica)"
+        : "Fuerza y Acondicionamiento Físico Funcional de Alta Intensidad",
+      pacingAdvice: isChipperOrLong
+        ? "Dosifica el ritmo desde el minuto 1. Fracciona las series largas antes del fallo técnico para proteger la zona lumbar y el tendón de Aquiles."
+        : "Mantén una cadencia de respiración constante y transiciones cortas entre ejercicios, priorizando siempre la técnica.",
+    };
+  }
+
+  return { header, schedule, blocks, focusToday, nutritionTimeline, mentalPacing, extraTrailing };
 }
 
 // ==========================================
@@ -419,7 +557,65 @@ export function WorkoutStructuredNotes({
           )}
         </div>
 
-        {/* Bloques Estructurados (Calentamiento, Fuerza, WOD) */}
+        {/* Tarjeta Qué Se Trabaja Hoy: Grupos Musculares, Estímulo y Criterio Fisio/Coach */}
+        {cfData.focusToday && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Target size={15} className="text-red-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-900">
+                  Qué se trabaja hoy
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full">
+                Preparador + Fisio
+              </span>
+            </div>
+
+            {/* Grupos musculares principales */}
+            {cfData.focusToday.muscles.length > 0 && (
+              <div>
+                <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+                  Grupos Musculares Principales
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {cfData.focusToday.muscles.map((muscle, mIdx) => (
+                    <span
+                      key={mIdx}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-800 border border-zinc-200/80 text-xs font-medium"
+                    >
+                      {muscle}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Estímulo y Vía Energética */}
+            {cfData.focusToday.stimulus && (
+              <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/70 text-xs flex items-start gap-2 text-zinc-700">
+                <Zap size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-zinc-900">Estímulo: </span>
+                  <span>{cfData.focusToday.stimulus}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Criterio del Fisio / Pacing */}
+            {cfData.focusToday.pacingAdvice && (
+              <div className="p-2.5 rounded-xl bg-red-50/60 border border-red-100 text-xs flex items-start gap-2 text-red-950">
+                <ShieldCheck size={14} className="text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-red-900">Estrategia & Protección Articular: </span>
+                  <span className="text-zinc-700">{cfData.focusToday.pacingAdvice}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bloques Estructurados (Calentamiento, Fuerza, WOD, Vuelta a la Calma) */}
         <div className="space-y-3">
           {cfData.blocks.map((b, idx) => {
             if (b.type === "warmup") {
@@ -440,6 +636,32 @@ export function WorkoutStructuredNotes({
                     {b.items?.map((it, itIdx) => (
                       <div key={itIdx} className="flex items-start gap-2 text-sm text-zinc-600">
                         <CheckCircle2 size={14} className="text-zinc-400 shrink-0 mt-1" />
+                        <span className="leading-relaxed">{it}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            if (b.type === "cooldown") {
+              return (
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-emerald-500 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
+                      <HeartPulse size={15} className="text-emerald-600 shrink-0" />
+                      <span>{b.title}</span>
+                    </div>
+                    {b.badge && (
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800">
+                        {b.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    {b.items?.map((it, itIdx) => (
+                      <div key={itIdx} className="flex items-start gap-2 text-sm text-zinc-600">
+                        <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-1" />
                         <span className="leading-relaxed">{it}</span>
                       </div>
                     ))}
@@ -516,6 +738,17 @@ export function WorkoutStructuredNotes({
                           {ex.details && (
                             <div className="text-xs text-zinc-500 mt-2 pt-1.5 border-t border-zinc-200 leading-tight">
                               {ex.details}
+                            </div>
+                          )}
+                          {ex.physioNote && (
+                            <div className="p-2 rounded-lg bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 mt-2 flex items-start gap-1.5 leading-tight">
+                              <ShieldCheck size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                              <span>{ex.physioNote}</span>
+                            </div>
+                          )}
+                          {ex.pacingNote && (
+                            <div className="text-[11px] text-zinc-500 mt-1.5 italic leading-tight">
+                              {ex.pacingNote}
                             </div>
                           )}
                         </div>

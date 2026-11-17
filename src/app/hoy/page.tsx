@@ -580,38 +580,50 @@ export default function HoyPage() {
                 </div>
 
                 {/* Chips clave limpios (Distancia / Duración / RPE) */}
-                {(effectiveSession.distance_km != null || effectiveSession.duration_min != null || s.rpe != null) && (
+                {(effectiveSession.distance_km != null || effectiveSession.duration_min != null || s.rpe != null || effectiveSession.discipline === "crossfit") && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {effectiveSession.distance_km != null && (
+                    {effectiveSession.discipline === "crossfit" ? (
                       <div
                         className="p-3 rounded-xl"
                         style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
-                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Distancia</div>
-                        <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
-                          {effectiveSession.distance_km} km
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Modalidad</div>
+                        <div className="text-sm font-bold mt-0.5 truncate" style={{ color: "var(--color-text)" }}>
+                          Fuerza + WOD
                         </div>
                       </div>
+                    ) : (
+                      effectiveSession.distance_km != null && (
+                        <div
+                          className="p-3 rounded-xl"
+                          style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
+                        >
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Distancia</div>
+                          <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
+                            {effectiveSession.distance_km} km
+                          </div>
+                        </div>
+                      )
                     )}
-                    {effectiveSession.duration_min != null && (
+                    {(effectiveSession.duration_min != null || effectiveSession.discipline === "crossfit") && (
                       <div
                         className="p-3 rounded-xl"
                         style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Duración</div>
                         <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
-                          {effectiveSession.duration_min} min
+                          {effectiveSession.duration_min || 60} min
                         </div>
                       </div>
                     )}
-                    {s.rpe != null && (
+                    {(s.rpe != null || effectiveSession.discipline === "crossfit") && (
                       <div
                         className="p-3 rounded-xl"
                         style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
                       >
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Esfuerzo</div>
                         <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
-                          RPE {s.rpe}
+                          RPE {s.rpe || "7-8"}
                         </div>
                       </div>
                     )}
