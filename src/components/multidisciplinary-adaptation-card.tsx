@@ -71,30 +71,30 @@ export function MultidisciplinaryAdaptationCard({ adaptation, onViewSession }: M
 
       {/* Modificaciones de Sesiones Aplicadas */}
       {mods.length > 0 && (
-        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-            <Zap size={13} className="text-amber-400" />
+        <div className="p-3.5 rounded-xl bg-white border border-zinc-200 shadow-xs space-y-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-900 flex items-center gap-1.5">
+            <Zap size={13} className="text-amber-600" />
             <span>Reajuste del Calendario Aplicado:</span>
           </div>
           <div className="grid gap-2">
             {mods.map((m, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-800 text-xs flex-wrap"
+                className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 text-xs flex-wrap"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-muted">{m.date}:</span>
-                  <span className="line-through text-slate-400">{m.originalPlannedCode || m.discipline}</span>
-                  <ArrowRight size={12} className="text-indigo-400" />
-                  <span className="font-bold text-emerald-400">{m.newPlannedCode}</span>
+                  <span className="font-mono text-zinc-500 font-semibold">{m.date}:</span>
+                  <span className="line-through text-zinc-400">{m.originalPlannedCode || m.discipline}</span>
+                  <ArrowRight size={12} className="text-indigo-600" />
+                  <span className="font-bold text-emerald-700">{m.newPlannedCode}</span>
                 </div>
                 {onViewSession && (
                   <button
                     type="button"
                     onClick={() => onViewSession(m.sessionId)}
-                    className="btn btn-ghost btn-xs text-[11px] text-indigo-400 hover:text-indigo-300 p-0"
+                    className="btn btn-ghost btn-xs text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold p-0 cursor-pointer"
                   >
-                    Ver sesión
+                    Ver sesión →
                   </button>
                 )}
               </div>
@@ -106,45 +106,45 @@ export function MultidisciplinaryAdaptationCard({ adaptation, onViewSession }: M
       {/* Desglose de los 4 Especialistas */}
       <div className="grid gap-3 sm:grid-cols-2">
         {/* 1. Preparador Físico */}
-        <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+        <div className="p-3.5 rounded-xl bg-white border border-zinc-200 shadow-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
             <Activity size={14} />
             <span>1. Preparador Físico de Élite</span>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed m-0">
+          <p className="text-xs text-zinc-600 leading-relaxed m-0 font-medium">
             {multi.preparadorFisico}
           </p>
         </div>
 
         {/* 2. Fisioterapeuta Deportivo */}
-        <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+        <div className="p-3.5 rounded-xl bg-white border border-zinc-200 shadow-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-teal-700">
             <Heart size={14} />
             <span>2. Fisioterapeuta Deportivo (Descarga)</span>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed m-0">
+          <p className="text-xs text-zinc-600 leading-relaxed m-0 font-medium">
             {multi.fisioterapeuta}
           </p>
         </div>
 
         {/* 3. Nutricionista Deportivo */}
-        <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+        <div className="p-3.5 rounded-xl bg-white border border-zinc-200 shadow-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-700">
             <UtensilsCrossed size={14} />
             <span>3. Nutricionista Deportivo (Energía & Sales)</span>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed m-0">
+          <p className="text-xs text-zinc-600 leading-relaxed m-0 font-medium">
             {multi.nutricionista}
           </p>
         </div>
 
         {/* 4. Psicólogo Deportivo */}
-        <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-purple-400">
+        <div className="p-3.5 rounded-xl bg-white border border-zinc-200 shadow-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-purple-700">
             <Brain size={14} />
             <span>4. Psicólogo Deportivo (Foco & Confianza)</span>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed m-0">
+          <p className="text-xs text-zinc-600 leading-relaxed m-0 font-medium">
             {multi.psicologo}
           </p>
         </div>

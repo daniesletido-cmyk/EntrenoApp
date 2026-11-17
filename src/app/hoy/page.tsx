@@ -699,7 +699,7 @@ export default function HoyPage() {
                   {/* Acción rápida de sustitución por enfermedad/recuperación */}
                   <button
                     type="button"
-                    className="w-full btn btn-ghost text-xs flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-white/15 hover:border-brand/40 text-muted hover:text-white transition-all cursor-pointer"
+                    className="w-full btn btn-ghost text-xs flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-zinc-300 hover:border-red-400 text-zinc-600 hover:text-zinc-900 transition-all cursor-pointer bg-zinc-50/50"
                     onClick={() => setSubstituteModalSession(s)}
                   >
                     <Footprints size={14} className="text-amber-500" />

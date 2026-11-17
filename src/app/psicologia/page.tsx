@@ -413,52 +413,52 @@ export default function PsicologiaPage() {
 
       {/* Widget Interactivo de Respiración Cuadrada (si está activo) */}
       {isBreathingActive && (
-        <div className="surface p-6 rounded-3xl border border-purple-500/40 bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 text-center space-y-3 animate-in shadow-xl">
-          <div className="text-xs font-extrabold uppercase tracking-widest text-purple-400">
+        <div className="surface p-6 rounded-3xl border border-purple-200 bg-purple-50/40 text-center space-y-3 animate-in shadow-xs">
+          <div className="text-xs font-extrabold uppercase tracking-widest text-purple-800">
             Respiración Táctica Cuadrada (Protocolo Navy SEAL)
           </div>
-          <div className="text-3xl font-black text-white font-mono tracking-tight animate-bounce">
+          <div className="text-3xl font-black text-purple-900 font-mono tracking-tight animate-bounce">
             {breathPhase}
           </div>
-          <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-zinc-600 max-w-md mx-auto leading-relaxed">
             Sincroniza tu diafragma con el contador. Expande el estómago en la inhalación y relaja la mandíbula al exhalar para desactivar el cortisol antes de la sesión.
           </p>
         </div>
       )}
 
       {/* 1. HERO CARD: FOCO MENTAL DE HOY */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-br from-[#120B24] via-slate-900 to-[#0A0D18] relative overflow-hidden shadow-lg">
+      <div className="surface p-5 sm:p-6 rounded-3xl border border-purple-200 bg-white relative overflow-hidden shadow-xs">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+            <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700">
               <Sparkles size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-purple-400">
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
                 Foco Mental del Día · {formatDateSpanish(todayISO())}
               </span>
-              <h2 className="text-base sm:text-lg font-black text-foreground mt-0.5">
+              <h2 className="text-base sm:text-lg font-black text-zinc-900 mt-0.5">
                 {todayTip.title}
               </h2>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shrink-0">
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-800 border border-purple-200 shrink-0">
             {todayTip.source}
           </span>
         </div>
 
-        <div className="mt-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-          <p className="text-xs sm:text-sm text-purple-100/90 leading-relaxed font-sans">
+        <div className="mt-4 p-4 rounded-2xl bg-purple-50/50 border border-purple-100">
+          <p className="text-xs sm:text-sm text-zinc-800 leading-relaxed font-sans">
             {todayTip.body}
           </p>
         </div>
 
         {todaySession && (
-          <div className="mt-3 flex items-center justify-between text-xs text-muted pt-2 border-t border-purple-500/20">
-            <span className="font-semibold text-slate-300">
-              Sesión vinculada: <span className="text-purple-300">{todaySession.planned_code || todaySession.discipline}</span>
+          <div className="mt-3 flex items-center justify-between text-xs text-zinc-600 pt-2 border-t border-zinc-200">
+            <span className="font-semibold text-zinc-700">
+              Sesión vinculada: <span className="text-purple-700 font-bold">{todaySession.planned_code || todaySession.discipline}</span>
             </span>
-            <Link href="/hoy" className="flex items-center gap-1 font-bold text-purple-400 hover:text-purple-300">
+            <Link href="/hoy" className="flex items-center gap-1 font-bold text-purple-700 hover:text-purple-800">
               <span>Ver entrenamiento</span>
               <ArrowRight size={13} />
             </Link>
@@ -467,27 +467,27 @@ export default function PsicologiaPage() {
       </div>
 
       {/* 2. CHECK-IN MENTAL DIARIO (REGISTRO INTERACTIVO) */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-slate-800 space-y-4">
+      <div className="surface p-5 sm:p-6 rounded-3xl border border-zinc-200 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-black text-foreground flex items-center gap-2">
-              <Sliders size={18} className="text-purple-400" />
+            <h3 className="text-base font-black text-zinc-900 flex items-center gap-2">
+              <Sliders size={18} className="text-purple-700" />
               <span>Check-in de Disposición Psicológica</span>
             </h3>
-            <p className="text-xs text-muted">
+            <p className="text-xs text-zinc-600">
               Evalúa tu nivel de motivación, estrés y energía cognitiva para correlacionar con tu rendimiento
             </p>
           </div>
-          <span className="text-[10px] font-mono text-muted uppercase">Registro Diario</span>
+          <span className="text-[10px] font-mono text-zinc-500 uppercase">Registro Diario</span>
         </div>
 
         <form onSubmit={handleSaveMentalLog} className="space-y-4 pt-1">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Motivación */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+            <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted uppercase">Motivación</span>
-                <span className="text-sm font-black text-emerald-400 font-mono">{mentalLog.motivation} / 5</span>
+                <span className="text-xs font-bold text-zinc-500 uppercase">Motivación</span>
+                <span className="text-sm font-black text-emerald-700 font-mono">{mentalLog.motivation} / 5</span>
               </div>
               <input
                 type="range"
@@ -497,7 +497,7 @@ export default function PsicologiaPage() {
                 onChange={(e) => setMentalLog({ ...mentalLog, motivation: parseInt(e.target.value, 10) })}
                 className="w-full accent-emerald-500 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-muted">
+              <div className="flex justify-between text-[10px] text-zinc-500">
                 <span>Baja</span>
                 <span>Óptima</span>
                 <span>Fuego</span>
@@ -505,10 +505,10 @@ export default function PsicologiaPage() {
             </div>
 
             {/* Estrés Mental */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+            <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted uppercase">Estrés Externo</span>
-                <span className={`text-sm font-black font-mono ${mentalLog.mental_stress <= 2 ? "text-emerald-400" : "text-amber-400"}`}>
+                <span className="text-xs font-bold text-zinc-500 uppercase">Estrés Externo</span>
+                <span className={`text-sm font-black font-mono ${mentalLog.mental_stress <= 2 ? "text-emerald-700" : "text-amber-700"}`}>
                   {mentalLog.mental_stress} / 5
                 </span>
               </div>
@@ -520,7 +520,7 @@ export default function PsicologiaPage() {
                 onChange={(e) => setMentalLog({ ...mentalLog, mental_stress: parseInt(e.target.value, 10) })}
                 className="w-full accent-amber-500 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-muted">
+              <div className="flex justify-between text-[10px] text-zinc-500">
                 <span>Zen (Bajo)</span>
                 <span>Moderado</span>
                 <span>Alto</span>
@@ -528,10 +528,10 @@ export default function PsicologiaPage() {
             </div>
 
             {/* Energía Cognitiva */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+            <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted uppercase">Energía Mental</span>
-                <span className="text-sm font-black text-purple-400 font-mono">{mentalLog.mental_energy} / 5</span>
+                <span className="text-xs font-bold text-zinc-500 uppercase">Energía Mental</span>
+                <span className="text-sm font-black text-purple-700 font-mono">{mentalLog.mental_energy} / 5</span>
               </div>
               <input
                 type="range"
@@ -541,7 +541,7 @@ export default function PsicologiaPage() {
                 onChange={(e) => setMentalLog({ ...mentalLog, mental_energy: parseInt(e.target.value, 10) })}
                 className="w-full accent-purple-500 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-muted">
+              <div className="flex justify-between text-[10px] text-zinc-500">
                 <span>Agotado</span>
                 <span>Despejado</span>
                 <span>Afilado</span>
@@ -551,22 +551,22 @@ export default function PsicologiaPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-muted uppercase">Técnica Mental Seleccionada</label>
+              <label className="text-xs font-bold text-zinc-700 uppercase">Técnica Mental Seleccionada</label>
               <input
                 type="text"
                 value={mentalLog.focus_technique}
                 onChange={(e) => setMentalLog({ ...mentalLog, focus_technique: e.target.value })}
-                className="mt-1 w-full rounded-xl bg-slate-900 border border-slate-800 p-2.5 text-xs text-foreground focus:outline-hidden focus:border-purple-500"
+                className="mt-1 w-full rounded-xl bg-white border border-zinc-200 p-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-hidden focus:border-purple-500"
                 placeholder="Ej: Chunking de 4 km, Suspiro fisiológico..."
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-muted uppercase">Diálogo Interno / Sensaciones</label>
+              <label className="text-xs font-bold text-zinc-700 uppercase">Diálogo Interno / Sensaciones</label>
               <input
                 type="text"
                 value={mentalLog.notes}
                 onChange={(e) => setMentalLog({ ...mentalLog, notes: e.target.value })}
-                className="mt-1 w-full rounded-xl bg-slate-900 border border-slate-800 p-2.5 text-xs text-foreground focus:outline-hidden focus:border-purple-500"
+                className="mt-1 w-full rounded-xl bg-white border border-zinc-200 p-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-hidden focus:border-purple-500"
                 placeholder="Sensación previa, intención de la sesión..."
               />
             </div>
@@ -576,7 +576,7 @@ export default function PsicologiaPage() {
             <Button
               type="submit"
               disabled={savingLog}
-              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs"
             >
               {savingLog ? "Guardando..." : "Guardar Check-in Mental"}
             </Button>
@@ -585,14 +585,14 @@ export default function PsicologiaPage() {
       </div>
 
       {/* 3. CATÁLOGO COMPLETO DE TÉCNICAS PSICOLÓGICAS */}
-      <div className="surface p-5 sm:p-6 rounded-3xl border border-slate-800 space-y-5">
+      <div className="surface p-5 sm:p-6 rounded-3xl border border-zinc-200 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-              <BookOpen size={18} className="text-purple-400" />
+            <h3 className="text-base sm:text-lg font-black text-zinc-900 flex items-center gap-2">
+              <BookOpen size={18} className="text-purple-700" />
               <span>Catálogo & Protocolos de Psicología Aplicada</span>
             </h3>
-            <p className="text-xs text-muted">
+            <p className="text-xs text-zinc-600">
               Herramientas probadas por la neurociencia del deporte para desbloquear rendimiento
             </p>
           </div>
@@ -613,7 +613,7 @@ export default function PsicologiaPage() {
                 className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                   selectedCategory === cat.id
                     ? "bg-purple-600 text-white shadow-xs"
-                    : "bg-slate-900 text-muted hover:text-foreground border border-slate-800"
+                    : "bg-zinc-100 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200 border border-zinc-200"
                 }`}
               >
                 {cat.label}
@@ -629,7 +629,7 @@ export default function PsicologiaPage() {
             return (
               <div
                 key={tech.id}
-                className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-purple-500/30 transition-all space-y-3 flex flex-col justify-between"
+                className="p-5 rounded-2xl bg-zinc-50 border border-zinc-200 hover:border-purple-300 transition-all space-y-3 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -646,29 +646,29 @@ export default function PsicologiaPage() {
                     <Icon size={16} style={{ color: tech.color }} />
                   </div>
 
-                  <h4 className="text-base font-bold text-foreground leading-snug">
+                  <h4 className="text-base font-bold text-zinc-900 leading-snug">
                     {tech.title}
                   </h4>
-                  <div className="text-xs text-purple-300/80 font-medium mt-0.5">
+                  <div className="text-xs text-purple-700 font-semibold mt-0.5">
                     {tech.subtitle}
                   </div>
 
-                  <p className="text-xs text-muted leading-relaxed mt-2.5">
+                  <p className="text-xs text-zinc-600 leading-relaxed mt-2.5">
                     {tech.body}
                   </p>
 
                   {tech.scienceNote && (
-                    <div className="mt-2.5 p-2 rounded-lg bg-slate-950/50 border border-slate-800/80 text-[11px] text-slate-400 italic">
+                    <div className="mt-2.5 p-2 rounded-lg bg-white border border-purple-200/80 text-[11px] text-purple-900 italic">
                       🔬 {tech.scienceNote}
                     </div>
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/80">
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                <div className="pt-2 border-t border-zinc-200">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 mb-1">
                     Paso Práctico:
                   </div>
-                  <div className="text-xs font-semibold text-slate-200">
+                  <div className="text-xs font-semibold text-zinc-900">
                     👉 {tech.actionableStep}
                   </div>
                 </div>

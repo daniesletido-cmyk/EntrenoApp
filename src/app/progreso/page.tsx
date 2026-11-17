@@ -390,7 +390,7 @@ export default function ProgresoPage() {
           marginBottom: "var(--space-4)",
         }}
       >
-        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-zinc-300 flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Sueño Reciente</span>
@@ -409,7 +409,7 @@ export default function ProgresoPage() {
           </div>
         </div>
 
-        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-zinc-300 flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Ratio ACWR</span>
@@ -477,7 +477,7 @@ export default function ProgresoPage() {
           </div>
         </div>
 
-        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-zinc-300 flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Cumplimiento 4 sem.</span>
@@ -496,7 +496,7 @@ export default function ProgresoPage() {
           </div>
         </div>
 
-        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-white/20 flex flex-col justify-between">
+        <div className="surface p-4 sm:p-5 transition-all duration-150 hover:border-zinc-300 flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted mb-2">
             <div className="flex items-center gap-1.5">
               <span>Volumen Última Sem.</span>

@@ -552,17 +552,15 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
         {/* Barra de pestañas */}
         <div
-          className="flex items-center gap-1"
-          style={{
-            padding: "var(--space-2) var(--space-4)",
-            borderBottom: "1px solid var(--color-border)",
-            backgroundColor: "var(--color-surface)",
-            overflowX: "auto",
-          }}
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar px-4 py-2 border-b border-zinc-200 bg-white"
         >
           <button
-            className={`btn ${activeTab === "general" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-            style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+            type="button"
+            className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "general"
+                ? "bg-red-600 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+            }`}
             onClick={() => setActiveTab("general")}
           >
             <BarChart3 size={13} />
@@ -570,8 +568,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           </button>
           {(pacingAnalysis || isRunning) && (
             <button
-              className={`btn ${activeTab === "pacing" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-              style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+              type="button"
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === "pacing"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+              }`}
               onClick={() => setActiveTab("pacing")}
             >
               <Zap size={13} />
@@ -580,8 +582,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           )}
           {(isRunning || zoneDist || hrZoneDist) && (
             <button
-              className={`btn ${activeTab === "zones" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-              style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+              type="button"
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === "zones"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+              }`}
               onClick={() => setActiveTab("zones")}
             >
               {isRunning && zoneDist ? (
@@ -599,8 +605,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           )}
           {laps.length > 0 && (
             <button
-              className={`btn ${activeTab === "charts" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-              style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+              type="button"
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === "charts"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+              }`}
               onClick={() => setActiveTab("charts")}
             >
               <TrendingUp size={13} />
@@ -609,8 +619,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           )}
           {laps.length > 0 && (
             <button
-              className={`btn ${activeTab === "laps" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-              style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+              type="button"
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === "laps"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+              }`}
               onClick={() => setActiveTab("laps")}
             >
               <Timer size={13} />
@@ -619,8 +633,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
           )}
           {gym.length > 0 && (
             <button
-              className={`btn ${activeTab === "gym" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-              style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+              type="button"
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === "gym"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+              }`}
               onClick={() => setActiveTab("gym")}
             >
               <Dumbbell size={13} />
@@ -628,8 +646,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
             </button>
           )}
           <button
-            className={`btn ${activeTab === "readiness" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-            style={{ padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)" }}
+            type="button"
+            className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "readiness"
+                ? "bg-red-600 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+            }`}
             onClick={() => setActiveTab("readiness")}
           >
             <Moon size={13} />
@@ -670,24 +692,20 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
               {activeTab === "general" && (
                 <div className="grid gap-4">
                   {/* Banner Tarjeta Resumen 9:16 */}
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 shadow-xs">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: "var(--color-brand-subtle)", color: "var(--color-brand)" }}
-                      >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-50 text-red-600 border border-red-100">
                         <Sparkles size={18} />
                       </div>
                       <div>
-                        <div className="text-xs sm:text-sm font-bold text-white">Tarjeta Resumen 9:16</div>
-                        <div className="text-[11px] text-zinc-400">Descarga la vista previa en formato vertical para compartir</div>
+                        <div className="text-xs sm:text-sm font-bold text-zinc-900">Tarjeta Resumen 9:16</div>
+                        <div className="text-[11px] text-zinc-600">Descarga la vista previa en formato vertical para compartir</div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShareCardOpen(true)}
-                      className="btn btn-primary text-xs font-bold flex items-center gap-1.5 px-3 py-2 rounded-xl harbiz-press cursor-pointer"
-                      style={{ background: "var(--color-brand)", color: "#ffffff", border: "none" }}
+                      className="btn text-xs font-bold flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-xs harbiz-press cursor-pointer"
                     >
                       <Sparkles size={13} />
                       <span>Generar Tarjeta</span>
@@ -1056,47 +1074,60 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                   {/* Reporte de Telemetría Suunto & Veredicto de Cumplimiento */}
                   {structuredFeedback?.complianceVerdict && (
                     <div
-                      className="p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in"
-                      style={{
-                        backgroundColor:
-                          structuredFeedback.complianceTone === "success"
-                            ? "rgba(16, 185, 129, 0.08)"
-                            : structuredFeedback.complianceTone === "danger"
-                            ? "rgba(239, 68, 68, 0.08)"
-                            : "rgba(245, 158, 11, 0.08)",
-                        borderColor:
-                          structuredFeedback.complianceTone === "success"
-                            ? "rgba(16, 185, 129, 0.3)"
-                            : structuredFeedback.complianceTone === "danger"
-                            ? "rgba(239, 68, 68, 0.3)"
-                            : "rgba(245, 158, 11, 0.3)",
-                      }}
+                      className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in shadow-xs ${
+                        structuredFeedback.complianceTone === "success"
+                          ? "bg-emerald-50 border-emerald-200"
+                          : structuredFeedback.complianceTone === "danger"
+                          ? "bg-red-50 border-red-200"
+                          : "bg-amber-50 border-amber-200"
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
-                          style={{
-                            backgroundColor:
-                              structuredFeedback.complianceTone === "success"
-                                ? "#10b981"
-                                : structuredFeedback.complianceTone === "danger"
-                                ? "#ef4444"
-                                : "#f59e0b",
-                            color: "#0f172a",
-                          }}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 text-white shadow-xs ${
+                            structuredFeedback.complianceTone === "success"
+                              ? "bg-emerald-600"
+                              : structuredFeedback.complianceTone === "danger"
+                              ? "bg-red-600"
+                              : "bg-amber-600"
+                          }`}
                         >
                           <Target size={20} />
                         </div>
                         <div>
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                          <div
+                            className={`text-[11px] font-bold uppercase tracking-wider ${
+                              structuredFeedback.complianceTone === "success"
+                                ? "text-emerald-800"
+                                : structuredFeedback.complianceTone === "danger"
+                                ? "text-red-800"
+                                : "text-amber-800"
+                            }`}
+                          >
                             Veredicto de Cumplimiento
                           </div>
-                          <div className="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                          <div
+                            className={`font-extrabold text-base flex items-center gap-2 ${
+                              structuredFeedback.complianceTone === "success"
+                                ? "text-emerald-950 font-bold"
+                                : structuredFeedback.complianceTone === "danger"
+                                ? "text-red-950 font-bold"
+                                : "text-amber-950 font-bold"
+                            }`}
+                          >
                             <span>{structuredFeedback.complianceVerdict}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="text-xs text-muted max-w-sm sm:text-right">
+                      <div
+                        className={`text-xs max-w-sm sm:text-right font-medium leading-relaxed ${
+                          structuredFeedback.complianceTone === "success"
+                            ? "text-emerald-900"
+                            : structuredFeedback.complianceTone === "danger"
+                            ? "text-red-900"
+                            : "text-amber-900"
+                        }`}
+                      >
                         {structuredFeedback.targetCompliance?.verdict ||
                           "La sesión ejecutada se ha contrastado frente a la prescripción del plan."}
                       </div>
@@ -1107,50 +1138,50 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                   {(structuredFeedback?.suuntoReport?.pte != null ||
                     structuredFeedback?.suuntoReport?.epoc != null ||
                     fit?.suuntoMetrics != null) && (
-                    <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 animate-in">
-                      <div className="flex items-center justify-between mb-3">
+                    <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 animate-in space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Zap size={15} className="text-emerald-400" />
-                          <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                          <Zap size={15} className="text-emerald-600" />
+                          <span className="font-bold text-xs uppercase tracking-wider text-zinc-900">
                             Suunto Analytics & Carga Fisiológica
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white text-zinc-700 border border-zinc-200 shadow-2xs">
                           {structuredFeedback?.suuntoReport?.deviceModel || "Suunto 9 Peak Pro"}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                          <div className="text-[10px] text-muted font-medium">Peak Training Effect</div>
-                          <div className="text-base font-extrabold text-emerald-400 font-mono mt-0.5">
+                        <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                          <div className="text-[10px] text-zinc-500 font-medium">Peak Training Effect</div>
+                          <div className="text-base font-extrabold text-emerald-700 font-mono mt-0.5">
                             {structuredFeedback?.suuntoReport?.pte ?? fit?.deepAnalysis?.pte ?? "—"} / 5.0
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">Impacto aeróbico</div>
+                          <div className="text-[10px] text-zinc-500 truncate">Impacto aeróbico</div>
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                          <div className="text-[10px] text-muted font-medium">EPOC Máximo</div>
-                          <div className="text-base font-extrabold text-cyan-400 font-mono mt-0.5">
+                        <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                          <div className="text-[10px] text-zinc-500 font-medium">EPOC Máximo</div>
+                          <div className="text-base font-extrabold text-teal-700 font-mono mt-0.5">
                             {structuredFeedback?.suuntoReport?.epoc ?? fit?.deepAnalysis?.epoc ?? "—"} ml/kg
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">Consumo O2 post-esfuerzo</div>
+                          <div className="text-[10px] text-zinc-500 truncate">Consumo O2 post-esfuerzo</div>
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                          <div className="text-[10px] text-muted font-medium">Tiempo de Recuperación</div>
-                          <div className="text-base font-extrabold text-amber-400 font-mono mt-0.5">
+                        <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                          <div className="text-[10px] text-zinc-500 font-medium">Tiempo de Recuperación</div>
+                          <div className="text-base font-extrabold text-amber-700 font-mono mt-0.5">
                             {structuredFeedback?.suuntoReport?.recoveryTimeFormatted ?? "—"}
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">Asimilación muscular</div>
+                          <div className="text-[10px] text-zinc-500 truncate">Asimilación muscular</div>
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                          <div className="text-[10px] text-muted font-medium">Calidad de Respuesta</div>
-                          <div className="text-base font-extrabold text-indigo-400 font-mono mt-0.5">
+                        <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                          <div className="text-[10px] text-zinc-500 font-medium">Calidad de Respuesta</div>
+                          <div className="text-base font-extrabold text-indigo-700 font-mono mt-0.5">
                             {fit?.deepAnalysis?.suuntoMetrics?.feeling ? `${fit.deepAnalysis.suuntoMetrics.feeling}/5` : "Excelente"}
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">Sensación del reloj</div>
+                          <div className="text-[10px] text-zinc-500 truncate">Sensación del reloj</div>
                         </div>
                       </div>
                     </div>
@@ -1158,30 +1189,30 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
 
                   {/* Diagnóstico Técnico en Viñetas Concisas */}
                   {structuredFeedback?.technicalBullets && structuredFeedback.technicalBullets.length > 0 && (
-                    <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 animate-in">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Activity size={15} className="text-cyan-400" />
-                        <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                    <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 animate-in space-y-3 shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <Activity size={15} className="text-red-600" />
+                        <span className="font-bold text-xs uppercase tracking-wider text-zinc-900">
                           Diagnóstico Técnico & Fisiológico
                         </span>
                       </div>
 
                       <div className="grid gap-2.5">
                         {structuredFeedback.technicalBullets.map((bullet: any, idx: number) => (
-                          <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-950/70 border border-slate-800/80">
-                            <div className="mt-0.5 text-emerald-400 shrink-0">
+                          <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                            <div className="mt-0.5 text-emerald-600 shrink-0">
                               {bullet.icon === "heart" ? <Heart size={16} /> : bullet.icon === "zap" ? <Zap size={16} /> : <ShieldAlert size={16} />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-xs text-slate-100">{bullet.title}</span>
+                                <span className="font-bold text-xs text-zinc-900">{bullet.title}</span>
                                 {bullet.badge && (
-                                  <span className="text-[10px] font-bold px-2 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 font-mono">
                                     {bullet.badge}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-300 mt-1 leading-relaxed">{bullet.text}</p>
+                              <p className="text-xs text-zinc-600 mt-1 leading-relaxed">{bullet.text}</p>
                             </div>
                           </div>
                         ))}
@@ -1331,9 +1362,9 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                     {!isEditingSensory ? (
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                          <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800">
-                            <div className="text-[10px] text-muted font-medium">Sensación Suunto</div>
-                            <div className="text-sm font-bold text-indigo-400 mt-0.5">
+                          <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                            <div className="text-[10px] text-zinc-500 font-medium">Sensación Suunto</div>
+                            <div className="text-sm font-bold text-indigo-700 mt-0.5">
                               {session?.feeling === 5 ? "🔥 5/5 · Excelente"
                                 : session?.feeling === 4 ? "🙂 4/5 · Bien"
                                 : session?.feeling === 3 ? "😐 3/5 · Normal"
@@ -1342,36 +1373,36 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                                 : fit?.suuntoMetrics?.feeling ? `${fit.suuntoMetrics.feeling}/5 (Reloj)`
                                 : "Sin registrar"}
                             </div>
-                            <div className="text-[10px] text-slate-400">Valoración subjetiva</div>
+                            <div className="text-[10px] text-zinc-500">Valoración subjetiva</div>
                           </div>
 
-                          <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800">
-                            <div className="text-[10px] text-muted font-medium">Esfuerzo Percibido</div>
-                            <div className="text-sm font-bold text-amber-400 mt-0.5">
+                          <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                            <div className="text-[10px] text-zinc-500 font-medium">Esfuerzo Percibido</div>
+                            <div className="text-sm font-bold text-amber-700 mt-0.5">
                               {session?.rpe !== null ? `RPE ${session.rpe} / 10` : "—"}
                             </div>
-                            <div className="text-[10px] text-slate-400 truncate">{rpeDescription(session?.rpe)}</div>
+                            <div className="text-[10px] text-zinc-500 truncate">{rpeDescription(session?.rpe)}</div>
                           </div>
 
-                          <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 col-span-2 sm:col-span-1">
-                            <div className="text-[10px] text-muted font-medium">Disparador de Adaptación</div>
-                            <div className="text-sm font-bold text-emerald-400 mt-0.5">
+                          <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs col-span-2 sm:col-span-1">
+                            <div className="text-[10px] text-zinc-500 font-medium">Disparador de Adaptación</div>
+                            <div className="text-sm font-bold text-emerald-700 mt-0.5">
                               {session?.feeling && session.feeling <= 2 ? "Alerta de Fatiga"
                                 : session?.rpe && session.rpe >= 8.5 ? "Carga Extrema"
                                 : session?.user_notes && /molestia|dolor|cargad/i.test(session.user_notes) ? "Molestia Detectada"
                                 : "Asimilación Correcta"}
                             </div>
-                            <div className="text-[10px] text-slate-400">Monitoreo continuo</div>
+                            <div className="text-[10px] text-zinc-500">Monitoreo continuo</div>
                           </div>
                         </div>
 
                         {session?.user_notes ? (
-                          <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                            <div className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 mb-1">
-                              <FileText size={12} className="text-amber-400" />
+                          <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 shadow-xs">
+                            <div className="text-[11px] font-semibold text-zinc-700 flex items-center gap-1.5 mb-1.5">
+                              <FileText size={13} className="text-amber-600" />
                               <span>Comentarios y Sensaciones del Atleta:</span>
                             </div>
-                            <div className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+                            <div className="text-xs text-zinc-800 whitespace-pre-wrap leading-relaxed font-medium">
                               {session.user_notes}
                             </div>
                           </div>
@@ -1385,7 +1416,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                       /* Formulario interactivo de edición rápida */
                       <div className="space-y-3.5 pt-2 animate-in">
                         <div>
-                          <label className="text-xs font-semibold text-slate-200 block mb-1.5">
+                          <label className="text-xs font-semibold text-zinc-800 block mb-1.5">
                             ¿Cómo te has sentido? (Sensación Suunto 1-5):
                           </label>
                           <div className="grid grid-cols-5 gap-1.5">
@@ -1400,10 +1431,10 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                                 key={item.val}
                                 type="button"
                                 onClick={() => setEditFeeling(item.val)}
-                                className={`p-2 rounded-lg text-center border transition-all text-xs font-semibold ${
+                                className={`p-2 rounded-xl text-center border transition-all text-xs font-semibold ${
                                   editFeeling === item.val
-                                    ? "bg-indigo-600/40 border-indigo-400 text-white shadow-sm"
-                                    : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                                    ? "bg-indigo-50 border-indigo-500 text-indigo-900 shadow-xs font-bold"
+                                    : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
                                 }`}
                               >
                                 <div className="text-base leading-none mb-0.5">{item.emoji}</div>
@@ -1414,9 +1445,9 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold text-slate-200 block mb-1.5 flex items-center justify-between">
+                          <label className="text-xs font-semibold text-zinc-800 block mb-1.5 flex items-center justify-between">
                             <span>Esfuerzo Percibido (RPE Foster 1-10):</span>
-                            <span className="text-amber-400 font-bold">{editRpe ? `${editRpe} / 10` : "Sin seleccionar"}</span>
+                            <span className="text-amber-700 font-bold">{editRpe ? `${editRpe} / 10` : "Sin seleccionar"}</span>
                           </label>
                           <div className="grid grid-cols-10 gap-1">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
@@ -1424,10 +1455,10 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                                 key={num}
                                 type="button"
                                 onClick={() => setEditRpe(num)}
-                                className={`py-1.5 rounded text-center text-xs font-bold border transition-all ${
+                                className={`py-1.5 rounded-lg text-center text-xs font-bold border transition-all ${
                                   editRpe === num
-                                    ? "bg-amber-500 text-black border-amber-400"
-                                    : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                                    ? "bg-amber-500 text-white border-amber-600 shadow-xs"
+                                    : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50"
                                 }`}
                               >
                                 {num}
@@ -1437,7 +1468,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold text-slate-200 block mb-1.5">
+                          <label className="text-xs font-semibold text-zinc-800 block mb-1.5">
                             Notas, molestias o sensaciones musculares:
                           </label>
                           <textarea
@@ -1445,12 +1476,12 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                             onChange={(e) => setEditUserNotes(e.target.value)}
                             rows={3}
                             placeholder="Ej: Piernas sueltas, ritmo cómodo... o molestia en sóleo derecho tras el km 8."
-                            className="w-full text-xs p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
+                            className="w-full text-xs p-2.5 rounded-xl bg-white border border-zinc-300 text-zinc-900 focus:outline-none focus:border-red-500 shadow-xs"
                           />
 
                           {/* Chips rápidos de texto */}
                           <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                            <span className="text-[10px] text-muted">Añadir rápido:</span>
+                            <span className="text-[10px] text-zinc-500 font-medium">Añadir rápido:</span>
                             {["Ritmo muy cómodo", "Piernas cargadas", "Molestia en gemelo", "Buena noche", "Cansancio general"].map((tag) => (
                               <button
                                 key={tag}
@@ -1458,7 +1489,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                                 onClick={() => {
                                   setEditUserNotes((prev) => (prev ? `${prev}. ${tag}` : tag));
                                 }}
-                                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 transition-colors"
                               >
                                 + {tag}
                               </button>

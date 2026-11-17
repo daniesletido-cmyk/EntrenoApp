@@ -365,7 +365,7 @@ export default function MarcasPage() {
       </div>
 
       {/* Barra de Búsqueda y Filtros */}
-      <div className="surface p-4 rounded-2xl border border-white/10 space-y-3">
+      <div className="surface p-4 rounded-2xl border border-zinc-200 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -431,19 +431,19 @@ export default function MarcasPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="surface p-4 rounded-2xl border border-white/10 animate-pulse space-y-3">
-              <div className="h-4 bg-white/10 rounded w-24" />
-              <div className="h-6 bg-white/15 rounded w-3/4" />
-              <div className="h-14 bg-white/5 rounded-xl" />
-              <div className="h-8 bg-white/10 rounded-xl" />
+            <div key={i} className="surface p-4 rounded-2xl border border-zinc-200 animate-pulse space-y-3">
+              <div className="h-4 bg-zinc-200 rounded w-24" />
+              <div className="h-6 bg-zinc-200 rounded w-3/4" />
+              <div className="h-14 bg-zinc-100 rounded-xl" />
+              <div className="h-8 bg-zinc-200 rounded-xl" />
             </div>
           ))}
         </div>
       ) : filteredExercises.length === 0 ? (
-        <div className="surface p-8 rounded-2xl border border-white/10 text-center space-y-3">
-          <Dumbbell size={36} className="mx-auto text-slate-500" />
-          <div className="text-base font-bold text-slate-200">No se encontraron ejercicios</div>
-          <div className="text-xs text-slate-400 max-w-sm mx-auto">
+        <div className="surface p-8 rounded-2xl border border-zinc-200 text-center space-y-3">
+          <Dumbbell size={36} className="mx-auto text-zinc-400" />
+          <div className="text-base font-bold text-zinc-900">No se encontraron ejercicios</div>
+          <div className="text-xs text-zinc-600 max-w-sm mx-auto">
             {search
               ? `No hay ningún ejercicio que coincida con "${search}". Puedes añadirlo manualmente.`
               : "No hay ejercicios en esta categoría."}
@@ -465,7 +465,7 @@ export default function MarcasPage() {
             return (
               <div
                 key={exercise.name}
-                className="surface rounded-2xl border border-white/10 overflow-hidden flex flex-col justify-between hover:border-white/20 transition-all duration-150 group"
+                className="surface rounded-2xl border border-zinc-200 overflow-hidden flex flex-col justify-between hover:border-zinc-300 transition-all duration-150 group"
               >
                 {/* Cabecera de la Tarjeta */}
                 <div className="p-4 space-y-2.5">
@@ -578,7 +578,7 @@ export default function MarcasPage() {
                   {hasPr && (
                     <button
                       onClick={() => setHistoryModalExercise(exercise)}
-                      className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.05] border border-white/5 active:scale-95 transition-all"
+                      className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 border border-zinc-200 active:scale-95 transition-all"
                       title="Ver todos los registros históricos"
                     >
                       <History size={16} />
@@ -602,14 +602,14 @@ export default function MarcasPage() {
           <div className="space-y-4">
             {/* Selector para cambiar de ejercicio dentro del modal */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-semibold">Ejercicio:</span>
+              <span className="text-xs text-zinc-500 font-semibold">Ejercicio:</span>
               <select
                 value={graphModalExercise.name}
                 onChange={(e) => {
                   const target = exercises.find((ex) => ex.name === e.target.value);
                   if (target) setGraphModalExercise(target);
                 }}
-                className="flex-1 py-1.5 px-3 rounded-xl text-xs font-bold bg-slate-900 border border-white/15 text-white focus:outline-none focus:border-emerald-500"
+                className="flex-1 py-1.5 px-3 rounded-xl text-xs font-bold bg-white border border-zinc-200 text-zinc-900 focus:outline-none focus:border-red-500"
               >
                 {exercises
                   .filter((e) => e.total_records > 0)
@@ -624,26 +624,26 @@ export default function MarcasPage() {
             {/* Estadísticas de la gráfica */}
             {graphModalExercise.pr && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                  <div className="text-[10px] uppercase font-bold text-amber-400">Récord (PR)</div>
-                  <div className="text-lg font-black font-mono tabular-nums text-white">
+                <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
+                  <div className="text-[10px] uppercase font-bold text-amber-700">Récord (PR)</div>
+                  <div className="text-lg font-black font-mono tabular-nums text-zinc-900">
                     {graphModalExercise.pr.max_weight} {graphModalExercise.unit}
                   </div>
-                  <div className="text-[10px] text-slate-400">{formatDate(graphModalExercise.pr.date)}</div>
+                  <div className="text-[10px] text-zinc-500">{formatDate(graphModalExercise.pr.date)}</div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                  <div className="text-[10px] uppercase font-bold text-slate-400">Última marca</div>
-                  <div className="text-lg font-black font-mono tabular-nums text-white">
+                <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
+                  <div className="text-[10px] uppercase font-bold text-zinc-500">Última marca</div>
+                  <div className="text-lg font-black font-mono tabular-nums text-zinc-900">
                     {graphModalExercise.latest?.weight_kg} {graphModalExercise.unit}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[10px] text-zinc-500">
                     {formatDate(graphModalExercise.latest?.date || "")}
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                  <div className="text-[10px] uppercase font-bold text-emerald-400">Progreso</div>
+                <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
+                  <div className="text-[10px] uppercase font-bold text-emerald-700">Progreso</div>
                   {graphModalExercise.history.length > 1 ? (
                     (() => {
                       const first = graphModalExercise.history[0].weight_kg;
@@ -651,32 +651,32 @@ export default function MarcasPage() {
                       const diff = max - first;
                       return (
                         <>
-                          <div className={`text-lg font-black font-mono tabular-nums ${diff >= 0 ? "text-emerald-400" : "text-amber-400"}`}>
+                          <div className={`text-lg font-black font-mono tabular-nums ${diff >= 0 ? "text-emerald-700" : "text-amber-700"}`}>
                             {diff >= 0 ? `+${diff}` : diff} {graphModalExercise.unit}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-zinc-500">
                             {diff >= 0 ? `+${((diff / first) * 100).toFixed(1)}%` : ""}
                           </div>
                         </>
                       );
                     })()
                   ) : (
-                    <div className="text-sm font-bold text-slate-400 mt-1">1er registro</div>
+                    <div className="text-sm font-bold text-zinc-500 mt-1">1er registro</div>
                   )}
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                  <div className="text-[10px] uppercase font-bold text-cyan-400">Sesiones</div>
-                  <div className="text-lg font-black font-mono tabular-nums text-white">
+                <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
+                  <div className="text-[10px] uppercase font-bold text-sky-700">Sesiones</div>
+                  <div className="text-lg font-black font-mono tabular-nums text-zinc-900">
                     {graphModalExercise.total_records}
                   </div>
-                  <div className="text-[10px] text-slate-400">registros</div>
+                  <div className="text-[10px] text-zinc-500">registros</div>
                 </div>
               </div>
             )}
 
             {/* Gráfica Recharts */}
-            <div className="p-3 rounded-2xl bg-slate-950/80 border border-white/10">
+            <div className="p-3 rounded-2xl bg-zinc-50 border border-zinc-200">
               <div className="h-64 w-full">
                 {graphModalExercise.history.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -690,15 +690,15 @@ export default function MarcasPage() {
                       }))}
                       margin={{ top: 15, right: 10, left: -20, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                       <XAxis
                         dataKey="shortDate"
-                        stroke="#64748b"
+                        stroke="#71717a"
                         fontSize={10}
                         tickLine={false}
                       />
                       <YAxis
-                        stroke="#64748b"
+                        stroke="#71717a"
                         fontSize={10}
                         domain={["dataMin - 5", "dataMax + 5"]}
                         tickLine={false}
@@ -708,16 +708,16 @@ export default function MarcasPage() {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="p-2.5 rounded-xl bg-slate-900 border border-white/15 shadow-xl text-xs space-y-1">
-                                <div className="text-slate-400 font-medium">{data.fullDate}</div>
-                                <div className="text-base font-black font-mono text-emerald-400">
+                              <div className="p-2.5 rounded-xl bg-white border border-zinc-200 shadow-xl text-xs space-y-1">
+                                <div className="text-zinc-500 font-medium">{data.fullDate}</div>
+                                <div className="text-base font-black font-mono text-emerald-700">
                                   {data.weight} {graphModalExercise.unit}
                                 </div>
                                 {data.reps > 1 && (
-                                  <div className="text-slate-300">Reps: {data.reps}</div>
+                                  <div className="text-zinc-700 font-semibold">Reps: {data.reps}</div>
                                 )}
                                 {data.notes && (
-                                  <div className="text-slate-400 italic mt-1 text-[11px]">
+                                  <div className="text-zinc-600 italic mt-1 text-[11px]">
                                     "{data.notes}"
                                   </div>
                                 )}
@@ -738,7 +738,7 @@ export default function MarcasPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-500">
+                  <div className="h-full flex items-center justify-center text-xs text-zinc-500">
                     Sin datos registrados
                   </div>
                 )}
@@ -746,7 +746,7 @@ export default function MarcasPage() {
             </div>
 
             {/* Botón rápido para registrar en este ejercicio */}
-            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-white/10">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-zinc-200">
               <button
                 onClick={() => setGraphModalExercise(null)}
                 className="btn btn-secondary btn-sm justify-center"
@@ -778,15 +778,15 @@ export default function MarcasPage() {
           title={`Registrar Marca: ${logModalExercise.name}`}
         >
           <div className="space-y-4">
-            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center justify-between">
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Categoría</div>
-                <div className="text-xs font-bold text-white">{logModalExercise.category}</div>
+                <div className="text-[10px] uppercase font-bold text-zinc-500">Categoría</div>
+                <div className="text-xs font-bold text-zinc-900">{logModalExercise.category}</div>
               </div>
               {logModalExercise.pr && (
                 <div className="text-right">
-                  <div className="text-[10px] uppercase font-bold text-amber-400">Récord actual</div>
-                  <div className="text-sm font-black font-mono text-emerald-400">
+                  <div className="text-[10px] uppercase font-bold text-amber-700">Récord actual</div>
+                  <div className="text-sm font-black font-mono text-emerald-700">
                     {logModalExercise.pr.max_weight} {logModalExercise.unit}
                   </div>
                 </div>
@@ -874,23 +874,23 @@ export default function MarcasPage() {
                   placeholder="Ej. 8.5"
                   value={formRpe}
                   onChange={(e) => setFormRpe(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-mono bg-slate-900 border border-white/15 text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl text-xs font-mono bg-white border border-zinc-300 text-zinc-900 focus:outline-none focus:border-red-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Notas (opcional)</label>
+              <label className="text-xs font-semibold text-zinc-700 block mb-1">Notas (opcional)</label>
               <textarea
                 placeholder="Ej. Técnica fluida, con cinturón, buena velocidad en la salida..."
                 rows={2}
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-white/15 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3 py-2 rounded-xl text-xs bg-white border border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-red-500"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-200">
               <button
                 type="button"
                 onClick={() => setLogModalExercise(null)}
@@ -921,7 +921,7 @@ export default function MarcasPage() {
           title={`Historial: ${historyModalExercise.name}`}
         >
           <div className="space-y-3">
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-zinc-500">
               Todos los registros anotados para este ejercicio ({historyModalExercise.history.length}):
             </div>
 
@@ -938,32 +938,32 @@ export default function MarcasPage() {
                       key={record.id}
                       className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
                         isPr
-                          ? "bg-amber-500/10 border-amber-500/30"
-                          : "bg-white/[0.03] border-white/10 hover:border-white/20"
+                          ? "bg-amber-50 border-amber-300"
+                          : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
                       }`}
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-base font-black font-mono tabular-nums text-white">
+                          <span className="text-base font-black font-mono tabular-nums text-zinc-900">
                             {record.weight_kg} {historyModalExercise.unit}
                           </span>
                           {record.reps > 1 && (
-                            <span className="text-xs text-slate-400 font-semibold">
+                            <span className="text-xs text-zinc-500 font-semibold">
                               ({record.reps} reps)
                             </span>
                           )}
                           {isPr && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
                               🏆 PR Máximo
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2">
+                        <div className="text-xs text-zinc-500 flex items-center gap-2">
                           <span>{formatDate(record.date)}</span>
                           {record.rpe && <span>· RPE {record.rpe}</span>}
                         </div>
                         {record.notes && (
-                          <div className="text-xs text-slate-300 italic pt-0.5">
+                          <div className="text-xs text-zinc-600 italic pt-0.5">
                             "{record.notes}"
                           </div>
                         )}
@@ -971,7 +971,7 @@ export default function MarcasPage() {
 
                       <button
                         onClick={() => handleDeleteRecord(record.id)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                         title="Eliminar este registro"
                       >
                         <Trash2 size={15} />
@@ -981,7 +981,7 @@ export default function MarcasPage() {
                 })}
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-200">
               <button
                 onClick={() => {
                   const ex = historyModalExercise;
@@ -1014,7 +1014,7 @@ export default function MarcasPage() {
         >
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">
+              <label className="text-xs font-semibold text-zinc-700 block mb-1">
                 Nombre del ejercicio *
               </label>
               <input
@@ -1023,19 +1023,19 @@ export default function MarcasPage() {
                 placeholder="Ej. Overhead Squat en pausa, Zercher Squat, Sandbag..."
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-900 border border-white/15 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white border border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-red-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">
                   Categoría
                 </label>
                 <select
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-white/15 text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white border border-zinc-300 text-zinc-900 focus:outline-none focus:border-red-500"
                 >
                   <option value="Halterofilia">Halterofilia</option>
                   <option value="Fuerza & Powerlifting">Fuerza & Powerlifting</option>
@@ -1048,13 +1048,13 @@ export default function MarcasPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">
                   Unidad de Medida
                 </label>
                 <select
                   value={customUnit}
                   onChange={(e) => setCustomUnit(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-white/15 text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white border border-zinc-300 text-zinc-900 focus:outline-none focus:border-red-500"
                 >
                   <option value="kg">kg (Peso)</option>
                   <option value="reps">reps (Repeticiones)</option>
@@ -1064,7 +1064,7 @@ export default function MarcasPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-200">
               <button
                 type="button"
                 onClick={() => setNewExerciseModal(false)}

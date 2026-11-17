@@ -551,7 +551,7 @@ export default function SuenoPage() {
             type="button"
             onClick={() => handleSyncCloud(false)}
             disabled={syncingCloud}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-black text-white transition-colors cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer shadow-xs disabled:opacity-50"
             title="Comprobar nuevos datos en el servidor ahora"
           >
             <RefreshCw size={13} className={syncingCloud ? "animate-spin text-red-400" : ""} />

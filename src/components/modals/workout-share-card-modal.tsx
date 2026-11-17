@@ -142,35 +142,28 @@ export function WorkoutShareCardModal({ isOpen, onClose, workout }: WorkoutShare
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="surface animate-in flex flex-col items-center max-w-[440px] w-full max-h-[96vh] overflow-y-auto p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-2xl space-y-4"
-        style={{
-          background: "var(--color-surface)",
-        }}
+        className="animate-in flex flex-col items-center max-w-[440px] w-full max-h-[96vh] overflow-y-auto p-4 sm:p-5 rounded-3xl bg-white border border-zinc-200 shadow-2xl space-y-4"
       >
         {/* Cabecera modal */}
-        <div className="w-full flex items-center justify-between border-b border-zinc-800/80 pb-3">
+        <div className="w-full flex items-center justify-between border-b border-zinc-200 pb-3">
           <div className="flex items-center gap-2">
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm"
-              style={{
-                background: "var(--color-brand-subtle)",
-                color: "var(--color-brand)",
-              }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm bg-red-50 text-red-600 border border-red-100"
             >
               <Sparkles size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white leading-tight">
+              <h3 className="text-sm font-bold text-zinc-900 leading-tight">
                 Tarjeta Resumen 9:16
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-zinc-600">
                 Lista para compartir o guardar en Fotos
               </p>
             </div>
           </div>
           <button
             type="button"
-            className="btn btn-ghost btn-icon p-1 text-zinc-400 hover:text-white"
+            className="btn btn-ghost btn-icon p-1 text-zinc-400 hover:text-zinc-700"
             onClick={onClose}
             aria-label="Cerrar"
           >
@@ -181,14 +174,14 @@ export function WorkoutShareCardModal({ isOpen, onClose, workout }: WorkoutShare
         {/* Vista previa 9:16 */}
         <div className="relative w-full flex items-center justify-center py-1">
           {loading ? (
-            <div className="w-[250px] sm:w-[280px] aspect-[9/16] rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center gap-3">
-              <Loader2 size={28} className="animate-spin text-red-500" />
-              <span className="text-xs text-zinc-400 font-medium">
+            <div className="w-[250px] sm:w-[280px] aspect-[9/16] rounded-2xl bg-zinc-50 border border-zinc-200 flex flex-col items-center justify-center gap-3">
+              <Loader2 size={28} className="animate-spin text-red-600" />
+              <span className="text-xs text-zinc-600 font-medium">
                 Generando tarjeta HD...
               </span>
             </div>
           ) : dataUrl ? (
-            <div className="relative group max-w-[270px] sm:max-w-[300px] w-full aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-zinc-700/60 transition-transform duration-200">
+            <div className="relative group max-w-[270px] sm:max-w-[300px] w-full aspect-[9/16] rounded-2xl overflow-hidden shadow-xl border border-zinc-200 transition-transform duration-200">
               {/* Imagen real lista para long-press en Safari */}
               <img
                 src={dataUrl}
@@ -200,7 +193,7 @@ export function WorkoutShareCardModal({ isOpen, onClose, workout }: WorkoutShare
               />
             </div>
           ) : (
-            <div className="p-6 text-center text-xs text-zinc-400">
+            <div className="p-6 text-center text-xs text-zinc-500">
               No se pudo renderizar la imagen
             </div>
           )}
@@ -247,8 +240,8 @@ export function WorkoutShareCardModal({ isOpen, onClose, workout }: WorkoutShare
           </button>
 
           {/* Ayuda táctil para Safari iPhone */}
-          <p className="text-[11px] text-zinc-400 text-center pt-1 leading-tight">
-            💡 En iPhone (Safari) también puedes <strong className="text-zinc-300">mantener pulsada la imagen</strong> y pulsar <em>"Guardar en Fotos"</em>.
+          <p className="text-[11px] text-zinc-600 text-center pt-1 leading-tight">
+            💡 En iPhone (Safari) también puedes <strong className="text-zinc-800">mantener pulsada la imagen</strong> y pulsar <em>"Guardar en Fotos"</em>.
           </p>
         </div>
       </div>

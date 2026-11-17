@@ -726,17 +726,15 @@ function DetalleContent() {
 
             {/* Pestañas de Navegación del Detalle */}
             <div
-              className="flex items-center gap-1.5"
-              style={{
-                marginTop: "var(--space-4)",
-                paddingTop: "var(--space-3)",
-                borderTop: "1px solid var(--color-border)",
-                overflowX: "auto",
-              }}
+              className="flex items-center gap-2 overflow-x-auto no-scrollbar px-1 py-2 border-t border-zinc-200 mt-4 bg-transparent"
             >
               <button
-                className={`btn ${activeTab === "general" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                type="button"
+                className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === "general"
+                    ? "bg-red-600 text-white shadow-xs"
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                }`}
                 onClick={() => setActiveTab("general")}
               >
                 <BarChart3 size={13} />
@@ -744,8 +742,12 @@ function DetalleContent() {
               </button>
               {(pacingAnalysis || session.discipline === "carrera") && (
                 <button
-                  className={`btn ${activeTab === "pacing" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  type="button"
+                  className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "pacing"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                  }`}
                   onClick={() => setActiveTab("pacing")}
                 >
                   <Zap size={13} />
@@ -754,8 +756,12 @@ function DetalleContent() {
               )}
               {session.discipline === "carrera" && (
                 <button
-                  className={`btn ${activeTab === "zones" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  type="button"
+                  className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "zones"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                  }`}
                   onClick={() => setActiveTab("zones")}
                 >
                   <Target size={13} />
@@ -764,8 +770,12 @@ function DetalleContent() {
               )}
               {laps.length > 0 && (
                 <button
-                  className={`btn ${activeTab === "charts" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  type="button"
+                  className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "charts"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                  }`}
                   onClick={() => setActiveTab("charts")}
                 >
                   <TrendingUp size={13} />
@@ -774,8 +784,12 @@ function DetalleContent() {
               )}
               {laps.length > 0 && (
                 <button
-                  className={`btn ${activeTab === "laps" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                  style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                  type="button"
+                  className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "laps"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                  }`}
                   onClick={() => setActiveTab("laps")}
                 >
                   <Timer size={13} />
@@ -784,8 +798,12 @@ function DetalleContent() {
               )}
               {(gym.length > 0 || isGym || isCrossfit) && (
                 <button
-                  className={`btn ${activeTab === "gym" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                  style={{ minHeight: 44, padding: "0.45rem 0.9rem", borderRadius: "var(--radius-sm)" }}
+                  type="button"
+                  className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === "gym"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                  }`}
                   onClick={() => setActiveTab("gym")}
                 >
                   <Dumbbell size={14} />
@@ -793,8 +811,12 @@ function DetalleContent() {
                 </button>
               )}
               <button
-                className={`btn ${activeTab === "readiness" ? "btn-primary" : "btn-ghost"} text-xs flex items-center gap-1.5`}
-                style={{ padding: "0.35rem 0.8rem", borderRadius: "var(--radius-sm)" }}
+                type="button"
+                className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === "readiness"
+                    ? "bg-red-600 text-white shadow-xs"
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border border-zinc-200/60"
+                }`}
                 onClick={() => setActiveTab("readiness")}
               >
                 <Moon size={13} />
@@ -1099,47 +1121,60 @@ function DetalleContent() {
               {/* Reporte de Telemetría Suunto & Veredicto de Cumplimiento */}
               {structuredFeedback?.complianceVerdict && (
                 <div
-                  className="p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in"
-                  style={{
-                    backgroundColor:
-                      structuredFeedback.complianceTone === "success"
-                        ? "rgba(16, 185, 129, 0.08)"
-                        : structuredFeedback.complianceTone === "danger"
-                        ? "rgba(239, 68, 68, 0.08)"
-                        : "rgba(245, 158, 11, 0.08)",
-                    borderColor:
-                      structuredFeedback.complianceTone === "success"
-                        ? "rgba(16, 185, 129, 0.3)"
-                        : structuredFeedback.complianceTone === "danger"
-                        ? "rgba(239, 68, 68, 0.3)"
-                        : "rgba(245, 158, 11, 0.3)",
-                  }}
+                  className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in shadow-xs ${
+                    structuredFeedback.complianceTone === "success"
+                      ? "bg-emerald-50 border-emerald-200"
+                      : structuredFeedback.complianceTone === "danger"
+                      ? "bg-red-50 border-red-200"
+                      : "bg-amber-50 border-amber-200"
+                  }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
-                      style={{
-                        backgroundColor:
-                          structuredFeedback.complianceTone === "success"
-                            ? "#10b981"
-                            : structuredFeedback.complianceTone === "danger"
-                            ? "#ef4444"
-                            : "#f59e0b",
-                        color: "#0f172a",
-                      }}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 text-white shadow-xs ${
+                        structuredFeedback.complianceTone === "success"
+                          ? "bg-emerald-600"
+                          : structuredFeedback.complianceTone === "danger"
+                          ? "bg-red-600"
+                          : "bg-amber-600"
+                      }`}
                     >
                       <Target size={20} />
                     </div>
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                      <div
+                        className={`text-[11px] font-bold uppercase tracking-wider ${
+                          structuredFeedback.complianceTone === "success"
+                            ? "text-emerald-800"
+                            : structuredFeedback.complianceTone === "danger"
+                            ? "text-red-800"
+                            : "text-amber-800"
+                        }`}
+                      >
                         Veredicto de Cumplimiento
                       </div>
-                      <div className="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                      <div
+                        className={`font-extrabold text-base flex items-center gap-2 ${
+                          structuredFeedback.complianceTone === "success"
+                            ? "text-emerald-950 font-bold"
+                            : structuredFeedback.complianceTone === "danger"
+                            ? "text-red-950 font-bold"
+                            : "text-amber-950 font-bold"
+                        }`}
+                      >
                         <span>{structuredFeedback.complianceVerdict}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-xs text-muted max-w-sm sm:text-right">
+                  <div
+                    className={`text-xs max-w-sm sm:text-right font-medium leading-relaxed ${
+                      structuredFeedback.complianceTone === "success"
+                        ? "text-emerald-900"
+                        : structuredFeedback.complianceTone === "danger"
+                        ? "text-red-900"
+                        : "text-amber-900"
+                    }`}
+                  >
                     {structuredFeedback.targetCompliance?.verdict ||
                       "La sesión ejecutada se ha contrastado frente a la prescripción del plan."}
                   </div>
@@ -1150,50 +1185,50 @@ function DetalleContent() {
               {(structuredFeedback?.suuntoReport?.pte != null ||
                 structuredFeedback?.suuntoReport?.epoc != null ||
                 fit?.suuntoMetrics != null) && (
-                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 animate-in">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 animate-in space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Zap size={15} className="text-emerald-400" />
-                      <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                      <Zap size={15} className="text-emerald-600" />
+                      <span className="font-bold text-xs uppercase tracking-wider text-zinc-900">
                         Suunto Analytics & Carga Fisiológica
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white text-zinc-700 border border-zinc-200 shadow-2xs">
                       {structuredFeedback?.suuntoReport?.deviceModel || "Suunto 9 Peak Pro"}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                      <div className="text-[10px] text-muted font-medium">Peak Training Effect</div>
-                      <div className="text-base font-extrabold text-emerald-400 font-mono mt-0.5">
+                    <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                      <div className="text-[10px] text-zinc-500 font-medium">Peak Training Effect</div>
+                      <div className="text-base font-extrabold text-emerald-700 font-mono mt-0.5">
                         {structuredFeedback?.suuntoReport?.pte ?? fit?.deepAnalysis?.pte ?? "—"} / 5.0
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">Impacto aeróbico</div>
+                      <div className="text-[10px] text-zinc-500 truncate">Impacto aeróbico</div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                      <div className="text-[10px] text-muted font-medium">EPOC Máximo</div>
-                      <div className="text-base font-extrabold text-cyan-400 font-mono mt-0.5">
+                    <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                      <div className="text-[10px] text-zinc-500 font-medium">EPOC Máximo</div>
+                      <div className="text-base font-extrabold text-teal-700 font-mono mt-0.5">
                         {structuredFeedback?.suuntoReport?.epoc ?? fit?.deepAnalysis?.epoc ?? "—"} ml/kg
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">Consumo O2 post-esfuerzo</div>
+                      <div className="text-[10px] text-zinc-500 truncate">Consumo O2 post-esfuerzo</div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                      <div className="text-[10px] text-muted font-medium">Tiempo de Recuperación</div>
-                      <div className="text-base font-extrabold text-amber-400 font-mono mt-0.5">
+                    <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                      <div className="text-[10px] text-zinc-500 font-medium">Tiempo de Recuperación</div>
+                      <div className="text-base font-extrabold text-amber-700 font-mono mt-0.5">
                         {structuredFeedback?.suuntoReport?.recoveryTimeFormatted ?? "—"}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">Asimilación muscular</div>
+                      <div className="text-[10px] text-zinc-500 truncate">Asimilación muscular</div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                      <div className="text-[10px] text-muted font-medium">Calidad de Respuesta</div>
-                      <div className="text-base font-extrabold text-indigo-400 font-mono mt-0.5">
+                    <div className="p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                      <div className="text-[10px] text-zinc-500 font-medium">Calidad de Respuesta</div>
+                      <div className="text-base font-extrabold text-indigo-700 font-mono mt-0.5">
                         {fit?.deepAnalysis?.suuntoMetrics?.feeling ? `${fit.deepAnalysis.suuntoMetrics.feeling}/5` : "Excelente"}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">Sensación del reloj</div>
+                      <div className="text-[10px] text-zinc-500 truncate">Sensación del reloj</div>
                     </div>
                   </div>
                 </div>
@@ -1201,30 +1236,30 @@ function DetalleContent() {
 
               {/* Diagnóstico Técnico en Viñetas Concisas */}
               {structuredFeedback?.technicalBullets && structuredFeedback.technicalBullets.length > 0 && (
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 animate-in">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Activity size={15} className="text-cyan-400" />
-                    <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 animate-in space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <Activity size={15} className="text-red-600" />
+                    <span className="font-bold text-xs uppercase tracking-wider text-zinc-900">
                       Diagnóstico Técnico & Fisiológico
                     </span>
                   </div>
 
                   <div className="grid gap-2.5">
                     {structuredFeedback.technicalBullets.map((bullet: any, idx: number) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-950/70 border border-slate-800/80">
-                        <div className="mt-0.5 text-emerald-400 shrink-0">
+                      <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-white border border-zinc-200 shadow-xs">
+                        <div className="mt-0.5 text-emerald-600 shrink-0">
                           {bullet.icon === "heart" ? <Heart size={16} /> : bullet.icon === "zap" ? <Zap size={16} /> : <ShieldAlert size={16} />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-xs text-slate-100">{bullet.title}</span>
+                            <span className="font-bold text-xs text-zinc-900">{bullet.title}</span>
                             {bullet.badge && (
-                              <span className="text-[10px] font-bold px-2 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 font-mono">
                                 {bullet.badge}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-300 mt-1 leading-relaxed">{bullet.text}</p>
+                          <p className="text-xs text-zinc-600 mt-1 leading-relaxed">{bullet.text}</p>
                         </div>
                       </div>
                     ))}
