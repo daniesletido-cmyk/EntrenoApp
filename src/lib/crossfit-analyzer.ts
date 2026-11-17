@@ -11,7 +11,9 @@ export interface CrossfitDayAnalysis {
   dayNumber: number; // 1 = Lunes, 7 = Domingo
   warmup?: string;
   strengthPart: string;
+  strengthExercises?: string[]; // Array estructurado de ejercicios de fuerza
   metconPart: string;
+  metconExercises?: string[]; // Array estructurado obligatorio de cada ejercicio individual del WOD
   cooldown?: string;
   musclesWorked: string[];
   fatigueRisk: "baja" | "moderada" | "alta"; // Para piernas/lumbar
@@ -42,8 +44,8 @@ Debes analizar la imagen adjunta con la programación semanal de CrossFit (Lunes
 1. Desglose Exhaustivo y Completo Día por Día (PROHIBIDO RESUMIR O GENERALIZAR):
 - Traduce al español de forma clara y precisa todos los ejercicios, repeticiones, tiempos y pesos (convierte libras a kg: ej. 115 lbs = 52.5 kg, 95 lbs = 42.5 kg, 75 lbs = 35 kg, 50 lbs = 22.5 kg).
 - Calentamiento & Movilidad: minutos específicos y activación recomendada.
-- Fuerza / Halterofilia: Formato exacto, series, repeticiones, porcentaje de carga/RPE y foco técnico.
-- WOD / Metcon: Formato exacto (AMRAP, For Time, Chipper, etc.), desglose completo línea por línea de CADA ejercicio con repeticiones y kilos exactos, y adaptaciones del fisioterapeuta ante impacto o tensión articular (ej. step-ups en vez de saltos si hay sobrecarga de sóleo).
+- Fuerza / Halterofilia: Formato exacto en "strengthPart" y lista de ejercicios en "strengthExercises".
+- WOD / Metcon: PROHIBIDO CONDENSAR O RESUMIR BAJO NOMBRES GENÉRICOS COMO "Chipper" O "AMRAP". Debes desglosar CADA ejercicio individual con sus repeticiones y kilos exactos en el array "metconExercises". Si hay saltos o impactos con riesgo para gemelo/sóleo/tendón de Aquiles, incluye en el array la adaptación del fisioterapeuta (ej. "⚠️ Adaptación Fisioterapeuta: Step-ups al cajón controlados sin rebote para proteger el sóleo").
 - Vuelta a la Calma: estiramientos específicos y descompresión.
 - Grupos Musculares: Lista concisa de músculos principales trabajados (ej. ["Cadena Posterior / Lumbar", "Isquios y Glúteos", "Hombros y Trapecio", "Core"]).
 - Impacto para piernas o lumbar: "baja", "moderada" o "alta".
@@ -59,10 +61,26 @@ Devuelve SIEMPRE una respuesta en formato JSON válido con la siguiente estructu
       "dayName": "Lunes",
       "dayNumber": 1,
       "warmup": "Calentamiento específico...",
-      "strengthPart": "Traducción completa de fuerza con series, reps y kg...",
-      "metconPart": "Traducción línea por línea del WOD con repeticiones, kg y adaptaciones...",
+      "strengthPart": "EMOM 10' — Cada 2:00 (5 rondas)",
+      "strengthExercises": [
+        "5×5 Power Clean & Jerk (Touch & Go con técnica estricta)",
+        "Progresión de carga: RPE 7 a RPE 8 manteniendo lordosis neutra"
+      ],
+      "metconPart": "Por Tiempo / For Time — Peso RX: 52.5 kg",
+      "metconExercises": [
+        "10 Step-ups al cajón",
+        "50 Pesos muertos (52.5 kg)",
+        "10 Step-ups al cajón",
+        "40 Cargadas colgantes (52.5 kg)",
+        "10 Step-ups al cajón",
+        "30 Empujes de hombro (52.5 kg)",
+        "10 Step-ups al cajón",
+        "20 Cargadas + Envión (52.5 kg)",
+        "10 Step-ups al cajón",
+        "⚠️ Adaptación Fisioterapeuta: Step-ups sin rebote para proteger el sóleo"
+      ],
       "cooldown": "Estiramientos y descompresión...",
-      "musclesWorked": ["Cuádriceps", "Hombros", "Core"],
+      "musclesWorked": ["Cadena Posterior / Lumbar", "Isquios y Glúteos", "Hombros y Trapecio", "Core"],
       "fatigueRisk": "alta",
       "coachComment": "Comentario técnico de encaje y prevención articular..."
     }
@@ -189,8 +207,17 @@ function getClinicalCrossfitFallback(): CrossfitWeekAnalysisResult {
       {
         dayName: "Lunes",
         dayNumber: 1,
-        strengthPart: "Sentadilla Trasera (Back Squat): 5 series de 5 repeticiones progresivas al 75-80% 1RM (~85-90 kg).",
-        metconPart: "AMRAP 12 min: 10 Thrusters con barra (42.5/30 kg) + 12 Saltos al Cajón (60 cm) + 14 V-Ups abdominales.",
+        strengthPart: "Sentadilla Trasera (Back Squat) · 5x5 al 75-80%",
+        strengthExercises: [
+          "5 series de 5 repeticiones progresivas al 75-80% 1RM (~85-90 kg)",
+          "Descanso 2:00 min entre series con técnica de profundidad estricta"
+        ],
+        metconPart: "AMRAP 12 min (Thrusters + Saltos al Cajón)",
+        metconExercises: [
+          "10 Thrusters con barra (42.5/30 kg)",
+          "12 Saltos al Cajón (60 cm) → ⚠️ ADAPTACIÓN FISIOTERAPIA: Step-ups si hay sobrecarga de sóleo",
+          "14 V-Ups abdominales"
+        ],
         musclesWorked: ["Cuádriceps", "Glúteos", "Hombros", "Core"],
         fatigueRisk: "alta",
         coachComment: "Alta demanda de tren inferior; genera interferencia directa con las series de carrera si no se descansa el martes.",
@@ -198,8 +225,21 @@ function getClinicalCrossfitFallback(): CrossfitWeekAnalysisResult {
       {
         dayName: "Martes",
         dayNumber: 2,
-        strengthPart: "Press Militar Estricto (Strict Press): 4 series de 6 repeticiones al 70-75% (~45 kg).",
-        metconPart: "Por Tiempo (For Time, Cap 15 min): 500m Remo + 21-15-9 Dominadas (Pull-ups) y Flexiones en Pino (HSPU).",
+        strengthPart: "Press Militar Estricto (Strict Press) · 4x6 al 70-75%",
+        strengthExercises: [
+          "4 series de 6 repeticiones al 70-75% (~45 kg)",
+          "Bloqueo estricto arriba con core activo y glúteo apretado"
+        ],
+        metconPart: "Por Tiempo / For Time (Cap 15 min)",
+        metconExercises: [
+          "500m Remo (Pacing constante)",
+          "21 Dominadas (Pull-ups)",
+          "21 Flexiones en Pino (HSPU)",
+          "15 Dominadas (Pull-ups)",
+          "15 Flexiones en Pino (HSPU)",
+          "9 Dominadas (Pull-ups)",
+          "9 Flexiones en Pino (HSPU)"
+        ],
         musclesWorked: ["Dorsales", "Pectoral", "Hombros", "Tríceps"],
         fatigueRisk: "baja",
         coachComment: "Día ideal de tren superior. Piernas completamente libres para las series de umbral R3 de carrera.",
@@ -207,8 +247,17 @@ function getClinicalCrossfitFallback(): CrossfitWeekAnalysisResult {
       {
         dayName: "Miércoles",
         dayNumber: 3,
-        strengthPart: "Peso Muerto Rumano (RDL): 4 series de 8 repeticiones controladas con tempo 3010 (~70 kg).",
-        metconPart: "3 Rondas Por Tiempo: 400m Carrera en cinta/asfalto + 15 Balanceos de Pesa Rusa (24 kg) + 15 Burpees.",
+        strengthPart: "Peso Muerto Rumano (RDL) · 4x8 Tempo 3010",
+        strengthExercises: [
+          "4 series de 8 repeticiones controladas con tempo 3010 (~70 kg)",
+          "Foco en estiramiento excéntrico de isquios y espalda neutra"
+        ],
+        metconPart: "3 Rondas Por Tiempo",
+        metconExercises: [
+          "400m Carrera en cinta/asfalto",
+          "15 Balanceos de Pesa Rusa (24 kg)",
+          "15 Burpees sobre la pesa"
+        ],
         musclesWorked: ["Cadena Posterior", "Isquiotibiales", "Glúteo", "Lumbar"],
         fatigueRisk: "alta",
         coachComment: "Carga lumbar e isquiotibial considerable. No recomendable la víspera de la tirada larga.",
@@ -216,8 +265,18 @@ function getClinicalCrossfitFallback(): CrossfitWeekAnalysisResult {
       {
         dayName: "Jueves",
         dayNumber: 4,
-        strengthPart: "Dominadas Lastradas & Fondos en Anillas: 4 series de 5 repeticiones (+10 kg).",
-        metconPart: "EMOM 16 min (Min 1: 15 Calorías Echo Bike; Min 2: 12 Toes-to-Bar; Min 3: 15 Flexiones; Min 4: Descanso).",
+        strengthPart: "Dominadas Lastradas & Fondos en Anillas · 4x5 (+10 kg)",
+        strengthExercises: [
+          "4 series de 5 repeticiones (+10 kg lastre)",
+          "Rango articular completo sin balanceo"
+        ],
+        metconPart: "EMOM 16 min",
+        metconExercises: [
+          "Min 1: 15 Calorías Echo Bike",
+          "Min 2: 12 Toes-to-Bar",
+          "Min 3: 15 Flexiones de brazos",
+          "Min 4: Descanso completo"
+        ],
         musclesWorked: ["Core", "Espalda", "Pectoral", "Cardio Metabólico"],
         fatigueRisk: "baja",
         coachComment: "Sesión predominantemente gimnástica y aeróbica sin fatiga en sóleo o gemelos; excelente encaje a las 19:00h.",
@@ -225,8 +284,18 @@ function getClinicalCrossfitFallback(): CrossfitWeekAnalysisResult {
       {
         dayName: "Viernes",
         dayNumber: 5,
-        strengthPart: "Arrancada de Potencia (Power Snatch): 6 series de 2 repeticiones técnicas al 70% (~45 kg).",
-        metconPart: "Chipper: 50 Wall Balls (9 kg) + 40 Dobles de Comba (D.U.) + 30 Sentadillas Frontales (50 kg) + 20 Saltos.",
+        strengthPart: "Arrancada de Potencia (Power Snatch) · 6x2 al 70%",
+        strengthExercises: [
+          "6 series de 2 repeticiones técnicas al 70% (~45 kg)",
+          "Extensión completa de cadera y recepción firme"
+        ],
+        metconPart: "Chipper",
+        metconExercises: [
+          "50 Wall Balls (9 kg)",
+          "40 Dobles de Comba (D.U.) → ⚠️ ADAPTACIÓN FISIOTERAPIA: Saltos simples o remo si hay fatiga de tendón de Aquiles",
+          "30 Sentadillas Frontales (50 kg)",
+          "20 Saltos al cajón con paso atrás"
+        ],
         musclesWorked: ["Potencia Glútea", "Cuádriceps", "Gemelos", "Hombros"],
         fatigueRisk: "alta",
         coachComment: "Mucho impacto y fatiga excéntrica en cuádriceps; comprometería gravemente la tirada de Zuera del sábado.",
@@ -277,13 +346,22 @@ export function addCrossfitSessionsToCalendar(params: {
     );
 
     const sessionTitle = `CrossFit WOD (19:00h)`;
+
+    const strengthContent = detail?.strengthExercises && detail.strengthExercises.length > 0
+      ? `⚡ Bloque 1 — Fuerza / Halterofilia (${detail.strengthPart || "EMOM / Intervalos"}):\n` + detail.strengthExercises.map((e) => `  • ${e}`).join("\n")
+      : `⚡ Bloque 1 — Fuerza / Halterofilia:\n${detail?.strengthPart || "Trabajo de fuerza técnica"}`;
+
+    const metconContent = detail?.metconExercises && detail.metconExercises.length > 0
+      ? `⚡ Bloque 2 — WOD / Metcon (${detail.metconPart || "For Time / AMRAP"}):\n` + detail.metconExercises.map((e) => `  • ${e}`).join("\n")
+      : `⚡ Bloque 2 — WOD / Metcon:\n${detail?.metconPart || "Acondicionamiento metabólico"}`;
+
     const notesContent = [
       `🔥 Sesión de CrossFit en Box (19:00h):`,
       detail?.warmup
         ? `🟢 Calentamiento & Movilidad (10-12 min):\n${detail.warmup}`
         : `🟢 Calentamiento & Movilidad (10 min):\n• Movilidad articular dinámica de cadera, tobillo y hombro\n• Activación de core y aproximaciones de carga progresivas`,
-      `⚡ Bloque 1 — Fuerza / Halterofilia:\n${detail?.strengthPart || "Trabajo de fuerza técnica"}`,
-      `⚡ Bloque 2 — WOD / Metcon:\n${detail?.metconPart || "Acondicionamiento metabólico"}`,
+      strengthContent,
+      metconContent,
       detail?.cooldown
         ? `🔵 Vuelta a la Calma & Descarga (5-8 min):\n${detail.cooldown}`
         : `🔵 Vuelta a la Calma & Descarga (5-8 min):\n• Descompresión espinal colgado en barra (dead hang 2x30s)\n• Estiramientos pasivos de cadena posterior, isquios y flexores de cadera`,

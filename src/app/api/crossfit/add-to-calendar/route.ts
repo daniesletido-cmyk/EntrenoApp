@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addCrossfitSessionsToCalendar } from "@/lib/crossfit-analyzer";
 import { todayISO, weekStartOf } from "@/lib/dates";
+import { flushDbPersistence } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +22,10 @@ export async function POST(req: NextRequest) {
       selectedDays,
       dayDetails: dayDetails || [],
     });
+
+    if (result.success) {
+      await flushDbPersistence();
+    }
 
     return NextResponse.json({
       success: result.success,

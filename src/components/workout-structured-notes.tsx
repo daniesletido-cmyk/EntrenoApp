@@ -58,6 +58,28 @@ export interface WodStep {
   pacingNote?: string;
 }
 
+/**
+ * Resalta visualmente pesos en kg, repeticiones y porcentajes en negrita con fondo sutil
+ */
+function renderFormattedText(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(\b\d+(?:\.\d+)?\s*kg\b|\b\d+\s*[×x]\s*\d+\b|\b\d+%\b|\b\d+\s*rondas\b)/gi);
+  return (
+    <span>
+      {parts.map((part, i) => {
+        if (/(\b\d+(?:\.\d+)?\s*kg\b|\b\d+\s*[×x]\s*\d+\b|\b\d+%\b|\b\d+\s*rondas\b)/i.test(part)) {
+          return (
+            <strong key={i} className="font-bold text-zinc-950 bg-zinc-200/80 px-1 py-0.5 rounded text-[12px] sm:text-[13px]">
+              {part}
+            </strong>
+          );
+        }
+        return part;
+      })}
+    </span>
+  );
+}
+
 export interface CrossfitBlock {
   type: "schedule" | "warmup" | "strength" | "wod" | "cooldown" | "nutrition" | "general";
   title: string;
@@ -253,22 +275,39 @@ function parseCrossfitNotes(notes: string): {
       const inlineAfterColon = firstLine.includes(":")
         ? firstLine.slice(firstLine.indexOf(":") + 1).trim()
         : "";
-      const items =
-        subItems.length > 0
-          ? subItems
-          : inlineAfterColon
-          ? [inlineAfterColon]
-          : [firstLine];
 
-      const cleanTitle = firstLine
+      let items: string[] = [];
+      if (subItems.length > 0) {
+        items = subItems;
+      } else if (inlineAfterColon) {
+        const splitInline = inlineAfterColon
+          .split(/(?<=[.;])\s+(?=[A-Z0-9•*⚠️\d])/)
+          .map((s) => s.trim().replace(/^[•*\-\s]+/, ""))
+          .filter(Boolean);
+        items = splitInline.length > 0 ? splitInline : [inlineAfterColon];
+      } else {
+        items = [firstLine];
+      }
+
+      // Título limpio sin redundancias ni repetición del ejercicio
+      const titleBeforeColon = firstLine.includes(":")
+        ? firstLine.slice(0, firstLine.indexOf(":")).trim()
+        : firstLine;
+      let cleanTitle = titleBeforeColon
         .replace(/^[⚡🏋️•*\-\s]+/, "")
         .replace(/\([^)]*\)/g, "")
         .replace(/:$/, "")
         .trim();
 
+      if (!cleanTitle || /^fuerza$/i.test(cleanTitle) || /^bloque\s*1$/i.test(cleanTitle)) {
+        cleanTitle = "Bloque 1 — Fuerza / Halterofilia";
+      } else if (!cleanTitle.toLowerCase().startsWith("bloque")) {
+        cleanTitle = `Bloque 1 — ${cleanTitle}`;
+      }
+
       blocks.push({
         type: "strength",
-        title: cleanTitle ? (cleanTitle.toLowerCase().startsWith("bloque") ? cleanTitle : `Bloque 1 — ${cleanTitle}`) : "Bloque 1 — Fuerza / Halterofilia",
+        title: cleanTitle,
         badge: parenMatch ? parenMatch[1] : "Fuerza Principal",
         items,
       });
@@ -287,9 +326,33 @@ function parseCrossfitNotes(notes: string): {
         ? formatMatch[1].trim()
         : parenInfo.find((p) => !/^RX$/i.test(p)) || "WOD Clave";
 
-      const steps: WodStep[] = [];
+      const titleBeforeColon = titleLine.includes(":")
+        ? titleLine.slice(0, titleLine.indexOf(":")).trim()
+        : titleLine;
+      let cleanWodTitle = titleBeforeColon
+        .replace(/^[⚡•*\-\s]+/, "")
+        .replace(/-\s*(?:Por Tiempo|\d+\s*Rondas|\d+:\d{2}).*$/i, "")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/:$/, "")
+        .trim();
 
-      for (const line of linesInWod.slice(1)) {
+      if (!cleanWodTitle || /^wod$/i.test(cleanWodTitle) || /^bloque\s*2$/i.test(cleanWodTitle)) {
+        cleanWodTitle = "Bloque 2 — WOD / Metcon";
+      } else if (!cleanWodTitle.toLowerCase().startsWith("bloque")) {
+        cleanWodTitle = `Bloque 2 — ${cleanWodTitle}`;
+      }
+
+      const steps: WodStep[] = [];
+      let rawWodContentLines = linesInWod.slice(1);
+      if (rawWodContentLines.length === 0 && titleLine.includes(":")) {
+        const inlineWod = titleLine.slice(titleLine.indexOf(":") + 1).trim();
+        rawWodContentLines = inlineWod
+          .split(/(?<=[.;])\s+(?=[A-Z0-9•*⚠️\d])|(?=⚠️)/)
+          .map((s) => s.trim().replace(/^[•*\-\s]+/, ""))
+          .filter(Boolean);
+      }
+
+      for (const line of rawWodContentLines) {
         const tr = line.trim();
         if (!tr) continue;
 
@@ -298,6 +361,15 @@ function parseCrossfitNotes(notes: string): {
 
         if (/^Puntuación:/i.test(cleanLine)) {
           scoreNote = cleanLine;
+          continue;
+        }
+
+        if (/^⚠️|adaptaci[oó]n|fisioterapeuta|aviso|atenci[oó]n/i.test(cleanLine)) {
+          steps.push({
+            kind: "note",
+            name: cleanLine,
+            physioNote: cleanLine.replace(/^⚠️\s*/, ""),
+          });
           continue;
         }
 
@@ -310,7 +382,7 @@ function parseCrossfitNotes(notes: string): {
           const arrowSplit = cleanLine.split(/→|->/);
           lineExercisePart = arrowSplit[0].trim();
           const arrowContent = arrowSplit.slice(1).join("→").trim();
-          if (/fisioterapia|adaptaci[oó]n|lesi[oó]n|tend[oó]n|sobrecarga|articular/i.test(arrowContent)) {
+          if (/fisioterapia|adaptaci[oó]n|lesi[oó]n|tend[oó]n|sobrecarga|articular|aquiles|s[oó]leo|lumbar/i.test(arrowContent)) {
             physioNote = arrowContent;
           } else {
             pacingNote = arrowContent;
@@ -318,15 +390,23 @@ function parseCrossfitNotes(notes: string): {
         }
 
         const distOrRepMatch = lineExercisePart.match(
-          /^(\d+(?:\/\d+)?(?:\.\d{3})?\s*(?:m|km|Calorías|Calorias|Cal|Kcal|Reps)?)\s+(.*)/i
+          /^(\d+(?:\/\d+)?(?:\.\d{3})?\s*(?:m|km|Calorías|Calorias|Cal|Kcal|Reps|Step-ups|Saltos|Burpees)?)\s+(.*)/i
         );
         const isInstructionLine = /^(?:Descanso|En el tiempo|Nota|Escala|Ritmo|Time Cap)/i.test(lineExercisePart);
 
         if (distOrRepMatch && !isInstructionLine) {
           let reps = distOrRepMatch[1].trim();
-          const rest = distOrRepMatch[2].trim();
+          let rest = distOrRepMatch[2].trim();
 
-          // Normalizar badge de medida
+          // Normalizar si reps incluía nombre de ejercicio
+          if (/^(\d+)\s+(Step-ups|Saltos|Burpees)$/i.test(reps)) {
+            const m = reps.match(/^(\d+)\s+(.*)$/);
+            if (m) {
+              reps = `${m[1]} Reps`;
+              rest = `${m[2]} ${rest}`;
+            }
+          }
+
           if (/^\d+(?:\/\d+)?$/.test(reps)) {
             reps = `${reps} Reps`;
           } else if (/^(\d+(?:\.\d{3})?)(m|km)$/i.test(reps)) {
@@ -363,15 +443,9 @@ function parseCrossfitNotes(notes: string): {
         }
       }
 
-      const cleanWodTitle = titleLine
-        .replace(/^[⚡•*\-\s]+/, "")
-        .replace(/-\s*(?:Por Tiempo|\d+\s*Rondas|\d+:\d{2}).*$/i, "")
-        .replace(/:$/, "")
-        .trim();
-
       blocks.push({
         type: "wod",
-        title: cleanWodTitle ? (cleanWodTitle.toLowerCase().startsWith("bloque") ? cleanWodTitle : `Bloque 2 — ${cleanWodTitle}`) : "Bloque 2 — WOD / Acondicionamiento Metabólico",
+        title: cleanWodTitle,
         badge: formatBadge,
         steps,
         scoreNote: scoreNote || undefined,
@@ -620,23 +694,23 @@ export function WorkoutStructuredNotes({
           {cfData.blocks.map((b, idx) => {
             if (b.type === "warmup") {
               return (
-                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-blue-500 space-y-2">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-blue-500 space-y-2.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
                       <Flame size={15} className="text-blue-600 shrink-0" />
                       <span>{b.title}</span>
                     </div>
                     {b.badge && (
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700">
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800">
                         {b.badge}
                       </span>
                     )}
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {b.items?.map((it, itIdx) => (
-                      <div key={itIdx} className="flex items-start gap-2 text-sm text-zinc-600">
-                        <CheckCircle2 size={14} className="text-zinc-400 shrink-0 mt-1" />
-                        <span className="leading-relaxed">{it}</span>
+                      <div key={itIdx} className="p-2.5 sm:p-3 rounded-xl bg-zinc-50 border border-zinc-200/80 text-sm text-zinc-700 flex items-start gap-2.5 leading-relaxed">
+                        <CheckCircle2 size={15} className="text-blue-500 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">{renderFormattedText(it)}</div>
                       </div>
                     ))}
                   </div>
@@ -646,7 +720,7 @@ export function WorkoutStructuredNotes({
 
             if (b.type === "cooldown") {
               return (
-                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-emerald-500 space-y-2">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-emerald-500 space-y-2.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
                       <HeartPulse size={15} className="text-emerald-600 shrink-0" />
@@ -658,11 +732,11 @@ export function WorkoutStructuredNotes({
                       </span>
                     )}
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {b.items?.map((it, itIdx) => (
-                      <div key={itIdx} className="flex items-start gap-2 text-sm text-zinc-600">
-                        <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-1" />
-                        <span className="leading-relaxed">{it}</span>
+                      <div key={itIdx} className="p-2.5 sm:p-3 rounded-xl bg-zinc-50 border border-zinc-200/80 text-sm text-zinc-700 flex items-start gap-2.5 leading-relaxed">
+                        <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">{renderFormattedText(it)}</div>
                       </div>
                     ))}
                   </div>
@@ -672,23 +746,27 @@ export function WorkoutStructuredNotes({
 
             if (b.type === "strength") {
               return (
-                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-zinc-700 space-y-2.5">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-white border border-zinc-200 border-l-4 border-l-zinc-700 space-y-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 font-bold text-sm text-zinc-900 tracking-wide">
                       <Dumbbell size={15} className="text-zinc-700 shrink-0" />
                       <span>{b.title}</span>
                     </div>
                     {b.badge && (
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700">
+                      <span className="text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700">
                         {b.badge}
                       </span>
                     )}
                   </div>
                   <div className="space-y-2">
                     {b.items?.map((it, itIdx) => (
-                      <div key={itIdx} className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-700 leading-relaxed flex items-start gap-2">
-                        <span className="text-zinc-500 font-bold shrink-0">•</span>
-                        <span>{it}</span>
+                      <div key={itIdx} className="p-3 sm:p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/90 text-sm text-zinc-800 leading-relaxed flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-md bg-zinc-200/80 text-zinc-700 font-mono text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {itIdx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          {renderFormattedText(it)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -714,40 +792,43 @@ export function WorkoutStructuredNotes({
                     )}
                   </div>
 
-                  {/* Secuencia completa de Estaciones del WOD en orden exacto */}
+                  {/* Secuencia completa de Estaciones del WOD en lista vertical limpia */}
                   {exerciseSteps.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="space-y-2">
                       {exerciseSteps.map((ex, exIdx) => (
                         <div
                           key={exIdx}
-                          className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col justify-between"
+                          className="p-3 sm:p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/90 flex flex-col gap-1.5"
                         >
-                          <div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-mono font-bold text-red-600 uppercase tracking-wider">
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                              <span className="w-5 h-5 rounded-md bg-zinc-200/80 text-zinc-700 font-mono text-[11px] font-bold flex items-center justify-center shrink-0">
+                                {exIdx + 1}
+                              </span>
+                              <span className="text-xs font-mono font-bold text-red-600 uppercase tracking-wide shrink-0">
                                 {ex.reps}
                               </span>
-                              <span className="text-[11px] font-mono text-zinc-400 font-semibold">
-                                #{exIdx + 1}
+                              <span className="text-sm font-semibold text-zinc-900 leading-snug">
+                                {renderFormattedText(ex.name)}
                               </span>
                             </div>
-                            <div className="text-sm font-semibold text-zinc-900 mt-1 leading-snug">
-                              {ex.name}
-                            </div>
                           </div>
+
                           {ex.details && (
-                            <div className="text-xs text-zinc-500 mt-2 pt-1.5 border-t border-zinc-200 leading-tight">
-                              {ex.details}
+                            <div className="text-xs text-zinc-500 pl-7 leading-relaxed">
+                              {renderFormattedText(ex.details)}
                             </div>
                           )}
+
                           {ex.physioNote && (
-                            <div className="p-2 rounded-lg bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 mt-2 flex items-start gap-1.5 leading-tight">
-                              <ShieldCheck size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                            <div className="ml-7 p-2 rounded-lg bg-amber-50 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-1.5 leading-snug">
+                              <ShieldCheck size={14} className="text-amber-600 shrink-0 mt-0.5" />
                               <span>{ex.physioNote}</span>
                             </div>
                           )}
+
                           {ex.pacingNote && (
-                            <div className="text-[11px] text-zinc-500 mt-1.5 italic leading-tight">
+                            <div className="ml-7 text-xs text-zinc-500 italic leading-snug">
                               {ex.pacingNote}
                             </div>
                           )}
@@ -758,14 +839,16 @@ export function WorkoutStructuredNotes({
 
                   {/* Indicaciones / Tiempo restante / Descansos dentro del WOD */}
                   {noteSteps.length > 0 && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2 pt-1">
                       {noteSteps.map((ns, nIdx) => (
                         <div
                           key={nIdx}
-                          className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-600 leading-relaxed flex items-start gap-2"
+                          className="p-2.5 sm:p-3 rounded-xl bg-amber-50/70 border border-amber-200/90 text-xs text-amber-950 flex items-start gap-2 leading-relaxed"
                         >
-                          <span className="text-red-600 font-bold shrink-0">→</span>
-                          <span>{ns.name}</span>
+                          <ShieldCheck size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            {renderFormattedText(ns.name)}
+                          </div>
                         </div>
                       ))}
                     </div>

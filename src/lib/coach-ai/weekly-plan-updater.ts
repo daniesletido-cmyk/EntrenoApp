@@ -86,6 +86,8 @@ export function actualizarPlanSemanal(
       }
 
       // Si está pendiente, actualizar con la nueva planificación estructurada
+      const finalDistanceKm = day.discipline === "crossfit" ? null : (day.distanceKm !== undefined ? day.distanceKm : existing.distance_km);
+
       const updateSql = `
         UPDATE sessions SET
           discipline = ?,
@@ -102,7 +104,7 @@ export function actualizarPlanSemanal(
         day.discipline,
         day.plannedCode ?? existing.planned_code,
         day.durationMin !== undefined ? day.durationMin : existing.duration_min,
-        day.distanceKm !== undefined ? day.distanceKm : existing.distance_km,
+        finalDistanceKm,
         day.notes !== undefined ? day.notes : existing.notes,
         isLongRun,
         now,
@@ -114,7 +116,7 @@ export function actualizarPlanSemanal(
         day.discipline,
         day.plannedCode ?? existing.planned_code,
         day.durationMin !== undefined ? day.durationMin : existing.duration_min,
-        day.distanceKm !== undefined ? day.distanceKm : existing.distance_km,
+        finalDistanceKm,
         day.notes !== undefined ? day.notes : existing.notes,
         isLongRun,
         now,
