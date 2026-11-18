@@ -89,3 +89,19 @@ Estas reglas tienen prioridad absoluta en cualquier tarea, modificación o gener
 3. **Métricas en Box (Sin Distancia de Carrera)**:
    - Las sesiones de box de CrossFit tienen `distance_km = NULL`. Los chips superiores en la UI deben mostrar `Modalidad: Fuerza + WOD`, `Duración: ~55-60 min` y `Esfuerzo: RPE 7-8` (nunca distancia de running).
 
+---
+
+## 7. REGLA INMUTABLE DE ENTRENAMIENTOS DE NATACIÓN (DESGLOSE SERIE POR SERIE Y MÉTRICAS)
+
+1. **Desglose Estructurado Serie por Serie (PROHIBIDO RESÚMENES GENÉRICOS)**:
+   - Prohibido dejar descripciones ambiguas como "300m variados" o "series con pull-buoy" sin especificar distancias, estilos, repeticiones y descansos.
+   - Cada bloque de natación debe estructurarse con encabezados dedicados y desglosado en líneas limpias:
+     - 🟢 **Calentamiento & Activación en Agua**: Metros exactos, estilos (crol, espalda doble brazo, patada con tabla) y descansos en segundos (ej. `desc. 15"`).
+     - ⚡ **Bloque Principal & Técnica**: Metros exactos, series estructuradas con repeticiones, estilos y material específico (ej. `pull-buoy`, palas, aletas), descansos exactos y foco biomecánico (ej. `técnica punto muerto/recobro alto`).
+     - 🔵 **Vuelta a la Calma & Descarga**: Metros exactos, nado regenerativo y soltura articular.
+2. **Suma Exacta de Metros**:
+   - La suma de los metros del Calentamiento + Bloque Principal + Vuelta a la Calma debe ser **exactamente igual** al volumen total de la sesión (`Total sesión: X.XXXm`). Ejemplo: $350\text{m} + 1200\text{m} + 250\text{m} = 1800\text{m}$ (`distance_km = 1.8`).
+3. **Separación Limpia de Nutrición e Hidratación**:
+   - Prohibido mezclar las recomendaciones de hidratación o ingesta de alimentos dentro de los bloques de series acuáticas. Las pautas de nutrición/hidratación van siempre en su propio bloque dedicado/desplegable.
+
+

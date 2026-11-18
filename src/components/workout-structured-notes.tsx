@@ -23,6 +23,8 @@ import {
   Target,
   ShieldCheck,
   AlertTriangle,
+  Copy,
+  Check,
 } from "lucide-react";
 
 interface WorkoutStructuredNotesProps {
@@ -59,15 +61,15 @@ export interface WodStep {
 }
 
 /**
- * Resalta visualmente pesos en kg, repeticiones y porcentajes en negrita con fondo sutil
+ * Resalta visualmente pesos en kg, metros, series, descansos y porcentajes en negrita con fondo sutil
  */
 function renderFormattedText(text: string) {
   if (!text) return null;
-  const parts = text.split(/(\b\d+(?:\.\d+)?\s*kg\b|\b\d+\s*[×x]\s*\d+\b|\b\d+%\b|\b\d+\s*rondas\b)/gi);
+  const parts = text.split(/(\b\d+(?:\.\d+)?\s*kg\b|\b\d+\s*[×x]\s*\d+(?:m)?\b|\b\d+(?:\.\d+)?m\b|\bdesc\.\s*\d+["']?(?:-\d+["']?)?|\b\d+%\b|\b\d+\s*rondas\b|\bRPE\s*\d+(?:-\d+)?\b)/gi);
   return (
     <span>
       {parts.map((part, i) => {
-        if (/(\b\d+(?:\.\d+)?\s*kg\b|\b\d+\s*[×x]\s*\d+\b|\b\d+%\b|\b\d+\s*rondas\b)/i.test(part)) {
+        if (/(\b\d+(?:\.\d+)?\s*kg\b|\b\d+\s*[×x]\s*\d+(?:m)?\b|\b\d+(?:\.\d+)?m\b|\bdesc\.\s*\d+["']?(?:-\d+["']?)?|\b\d+%\b|\b\d+\s*rondas\b|\bRPE\s*\d+(?:-\d+)?\b)/i.test(part)) {
           return (
             <strong key={i} className="font-bold text-zinc-950 bg-zinc-200/80 px-1 py-0.5 rounded text-[12px] sm:text-[13px]">
               {part}
@@ -597,6 +599,7 @@ export function WorkoutStructuredNotes({
 }: WorkoutStructuredNotesProps) {
   const [showNutrition, setShowNutrition] = useState(true);
   const [showMental, setShowMental] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const isCrossfit = discipline === "crossfit" || /crossfit|wod|tabata|amrap|ghd|toes to bar|rope climb/i.test(notes);
 
@@ -605,6 +608,89 @@ export function WorkoutStructuredNotes({
     if (!isCrossfit) return null;
     return parseCrossfitNotes(notes);
   }, [notes, isCrossfit]);
+
+  // 2. PARSER UNIVERSAL PARA RUNNING, NATACIÓN, DESCANSO
+  const parsed = useMemo(() => parseWorkoutNotes(notes, discipline), [notes, discipline]);
+  const metrics = useMemo(
+    () => calculateSessionMetrics(parsed, notes, discipline, distanceKm, durationMin),
+    [parsed, notes, discipline, distanceKm, durationMin]
+  );
+  const isSwim = discipline === "natacion";
+  const isRest = discipline === "descanso";
+
+  const handleCopy = async () => {
+    let plainText = "";
+    if (isCrossfit && cfData) {
+      plainText = `${cfData.header || "CrossFit Box & WOD Freedom"}\n`;
+      if (cfData.schedule) plainText += `Horario: ${cfData.schedule}\n`;
+      plainText += "\n";
+
+      if (cfData.focusToday) {
+        plainText += `Músculos: ${cfData.focusToday.muscles.join(", ")}\n`;
+        plainText += `Estímulo: ${cfData.focusToday.stimulus}\n\n`;
+      }
+      for (const b of cfData.blocks) {
+        plainText += `[${b.title}${b.badge ? ` (${b.badge})` : ""}]\n`;
+        if (b.items && b.items.length > 0) {
+          plainText += b.items.map((it) => `• ${it}`).join("\n") + "\n\n";
+        } else if (b.steps && b.steps.length > 0) {
+          plainText += b.steps.map((st) => st.kind === "exercise" ? `• ${st.reps || ""} ${st.name}${st.details ? ` (${st.details})` : ""}${st.physioNote ? ` → ⚠️ ${st.physioNote}` : ""}` : `→ ${st.name}`).join("\n") + "\n\n";
+        }
+      }
+    } else {
+      plainText = `${parsed.header || (isSwim ? "NATACIÓN COMPENSATORIA" : "Entrenamiento")}${metrics.totalBadge ? ` · Total: ${metrics.totalBadge}` : ""}\n\n`;
+      if (parsed.warmupLines.length > 0) {
+        plainText += `1. CALENTAMIENTO${metrics.warmup.badgeLabel ? ` (${metrics.warmup.badgeLabel})` : ""}:\n`;
+        plainText += parsed.warmupLines.map((l) => `• ${l}`).join("\n") + "\n\n";
+      }
+      if (parsed.mainLines.length > 0) {
+        plainText += `2. BLOQUE PRINCIPAL${metrics.main.badgeLabel ? ` (${metrics.main.badgeLabel})` : ""}:\n`;
+        plainText += parsed.mainLines.map((l) => `• ${l}`).join("\n") + "\n\n";
+      }
+      if (parsed.cooldownLines.length > 0) {
+        plainText += `3. VUELTA A LA CALMA${metrics.cooldown.badgeLabel ? ` (${metrics.cooldown.badgeLabel})` : ""}:\n`;
+        plainText += parsed.cooldownLines.map((l) => `• ${l}`).join("\n") + "\n\n";
+      }
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(plainText.trim());
+      } else {
+        const el = document.createElement("textarea");
+        el.value = plainText.trim();
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.warn("Copy error:", e);
+    }
+  };
+
+  const copyButton = (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 bg-zinc-100/80 hover:bg-zinc-200/70 px-2.5 py-1 rounded-lg transition shrink-0 cursor-pointer"
+      title="Copiar entrenamiento completo"
+    >
+      {copied ? (
+        <>
+          <Check size={13} className="text-emerald-600" />
+          <span className="text-emerald-700 font-medium">Copiado ✓</span>
+        </>
+      ) : (
+        <>
+          <Copy size={13} />
+          <span>Copiar</span>
+        </>
+      )}
+    </button>
+  );
 
   if (isCrossfit && cfData && (cfData.blocks.length > 0 || cfData.schedule)) {
     return (
@@ -623,12 +709,15 @@ export function WorkoutStructuredNotes({
             </div>
           </div>
 
-          {cfData.schedule && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700 font-mono text-xs font-medium">
-              <Clock size={12} className="text-zinc-600" />
-              <span>{cfData.schedule}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {cfData.schedule && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700 font-mono text-xs font-medium">
+                <Clock size={12} className="text-zinc-600" />
+                <span>{cfData.schedule}</span>
+              </div>
+            )}
+            {copyButton}
+          </div>
         </div>
 
         {/* Tarjeta Qué Se Trabaja Hoy: Grupos Musculares, Estímulo y Criterio Fisio/Coach */}
@@ -932,11 +1021,6 @@ export function WorkoutStructuredNotes({
   }
 
   // 2. RENDERIZADO PARA RUNNING, NATACIÓN, DESCANSO Y OTRAS DISCIPLINAS
-  const parsed = parseWorkoutNotes(notes, discipline);
-  const metrics = calculateSessionMetrics(parsed, notes, discipline, distanceKm, durationMin);
-  const isSwim = discipline === "natacion";
-  const isRest = discipline === "descanso";
-
   return (
     <div
       className={`w-full flex flex-col gap-3.5 rounded-2xl bg-white border border-zinc-200 shadow-xs p-3.5 sm:p-4 overflow-hidden text-sm ${className}`}
@@ -953,12 +1037,15 @@ export function WorkoutStructuredNotes({
           )}
           <span>{parsed.header || "Estructura del Entrenamiento"}</span>
         </div>
-        {metrics.totalBadge && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 font-mono text-xs font-semibold text-zinc-800">
-            <span className="text-zinc-500 font-sans font-medium text-[11px]">Total sesión:</span>
-            <span className="text-zinc-900 font-bold">{metrics.totalBadge}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {metrics.totalBadge && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 font-mono text-xs font-semibold text-zinc-800">
+              <span className="text-zinc-500 font-sans font-medium text-[11px]">Total sesión:</span>
+              <span className="text-zinc-900 font-bold">{metrics.totalBadge}</span>
+            </div>
+          )}
+          {copyButton}
+        </div>
       </div>
 
       {/* Bloques Estructurados */}
@@ -990,7 +1077,7 @@ export function WorkoutStructuredNotes({
               {parsed.warmupLines.map((l, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   {parsed.warmupLines.length > 1 && <span className="text-zinc-400 font-bold">•</span>}
-                  <span>{l}</span>
+                  <span>{renderFormattedText(l)}</span>
                 </div>
               ))}
             </div>
@@ -1034,7 +1121,7 @@ export function WorkoutStructuredNotes({
               {parsed.mainLines.map((l, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   {parsed.mainLines.length > 1 && <span className="text-red-600 font-bold">•</span>}
-                  <span>{l}</span>
+                  <span>{renderFormattedText(l)}</span>
                 </div>
               ))}
             </div>
@@ -1068,7 +1155,7 @@ export function WorkoutStructuredNotes({
               {parsed.cooldownLines.map((l, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   {parsed.cooldownLines.length > 1 && <span className="text-slate-400 font-bold">•</span>}
-                  <span>{l}</span>
+                  <span>{renderFormattedText(l)}</span>
                 </div>
               ))}
             </div>
@@ -1240,23 +1327,23 @@ function parseWorkoutNotes(notes: string, discipline: string) {
   }
 
   let mentalTip = "";
-  const mentalMatch = text.match(/-\s*Enfoque Psicológico[^:\n]*:[^\n]*(?:\n\s+•[^\n]*)*/i);
+  const mentalMatch = text.match(/-\s*(?:[🧠💡]\s*)?Enfoque Psicológico[^:\n]*:[^\n]*(?:\n(?:\s*[•*\-]| {2,})[^\n]*)*/i);
   if (mentalMatch) {
-    mentalTip = mentalMatch[0].replace(/^-\s*Enfoque Psicológico[^:]*:\s*/i, "").trim();
+    mentalTip = mentalMatch[0].replace(/^-\s*(?:[🧠💡]\s*)?Enfoque Psicológico[^:]*:\s*/i, "").trim();
     text = text.replace(mentalMatch[0], "").trim();
   }
 
   let nutrition = "";
-  const nutMatch = text.match(/-\s*(?:Estrategia\s+)?Nutrición(?:\s*\([^)]*\))?:[^\n]*(?:\n\s+•[^\n]*)*/i);
+  const nutMatch = text.match(/-\s*(?:[🥗🍎🍌🍽️🍲]\s*)?(?:Estrategia\s+)?Nutrición(?:\s*\([^)]*\))?:[^\n]*(?:\n(?:\s*[•*\-]| {2,})[^\n]*)*/i);
   if (nutMatch) {
-    nutrition = nutMatch[0].replace(/^-\s*(?:Estrategia\s+)?Nutrición(?:\s*\([^)]*\))?:\s*/i, "").trim();
+    nutrition = nutMatch[0].replace(/^-\s*(?:[🥗🍎🍌🍽️🍲]\s*)?(?:Estrategia\s+)?Nutrición(?:\s*\([^)]*\))?:\s*/i, "").trim();
     text = text.replace(nutMatch[0], "").trim();
   }
 
   let hydration = "";
-  const hydMatch = text.match(/-\s*(?:Nutrición\/)?Hidratación:[^\n]*/i);
+  const hydMatch = text.match(/-\s*(?:[💧🥤]\s*)?(?:Nutrición\/)?Hidratación:[^\n]*(?:\n(?:\s*[•*\-]| {2,})[^\n]*)*/i);
   if (hydMatch) {
-    hydration = hydMatch[0].replace(/^-\s*(?:Nutrición\/)?Hidratación:\s*/i, "").trim();
+    hydration = hydMatch[0].replace(/^-\s*(?:[💧🥤]\s*)?(?:Nutrición\/)?Hidratación:\s*/i, "").trim();
     text = text.replace(hydMatch[0], "").trim();
   }
 
@@ -1289,32 +1376,45 @@ function parseWorkoutNotes(notes: string, discipline: string) {
   const cooldownMetas: string[] = [];
 
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  let currentSection: "warmup" | "main" | "cooldown" | null = null;
 
   for (const rawLine of lines) {
     const clean = rawLine.replace(/^[-•*]\s*/, "").trim();
     const noEmoji = clean.replace(/^[🟢⚡🔵🟡🟣🔴🏊🏃🏋️🧘\s]+/u, "").trim();
 
     if (/calentamiento/i.test(noEmoji) && !/vuelta a la calma/i.test(noEmoji)) {
-      const { meta, body } = extractBlockMetaAndBody(clean, /^calentamiento\b/i);
+      currentSection = "warmup";
+      const { meta, body } = extractBlockMetaAndBody(clean, /^calentamiento[^(:]*/i);
       if (meta) warmupMetas.push(meta);
-      warmupLines.push(body);
+      if (body) warmupLines.push(body);
     } else if (/vuelta a la calma/i.test(noEmoji)) {
-      const { meta, body } = extractBlockMetaAndBody(clean, /^vuelta a la calma\b/i);
+      currentSection = "cooldown";
+      const { meta, body } = extractBlockMetaAndBody(clean, /^vuelta a la calma[^(:]*/i);
       if (meta) cooldownMetas.push(meta);
-      cooldownLines.push(body);
+      if (body) cooldownLines.push(body);
     } else if (
       /^(?:bloque principal|parte principal|cuerpo|bloque de volumen|bloque tempo|bloque de cuestas|rodaje continuo|base aeróbica)/i.test(
         noEmoji
       )
     ) {
+      currentSection = "main";
       const { meta, body } = extractBlockMetaAndBody(
         clean,
-        /^(?:bloque principal|parte principal|cuerpo|bloque de volumen|bloque tempo|bloque de cuestas|rodaje continuo|base aeróbica)\b/i
+        /^(?:bloque principal|parte principal|cuerpo|bloque de volumen|bloque tempo|bloque de cuestas|rodaje continuo|base aeróbica)[^(:]*/i
       );
       if (meta) mainMetas.push(meta);
-      mainLines.push(body);
+      if (body) mainLines.push(body);
     } else {
-      mainLines.push(noEmoji.replace(/^[:)\-–\s]+/, "").trim());
+      const cleanContent = noEmoji.replace(/^[:)\-–\s]+/, "").trim();
+      if (cleanContent) {
+        if (currentSection === "warmup") {
+          warmupLines.push(cleanContent);
+        } else if (currentSection === "cooldown") {
+          cooldownLines.push(cleanContent);
+        } else {
+          mainLines.push(cleanContent);
+        }
+      }
     }
   }
 
@@ -1415,15 +1515,19 @@ function calculateSessionMetrics(
   }
 
   if (discipline === "natacion") {
-    const totalMeters = distanceKm ? Math.round(distanceKm * 1000) : 1900;
-    const wBadge = wRaw.meters ? `${wRaw.meters}m` : "350m";
-    const cBadge = cRaw.meters ? `${cRaw.meters}m` : "Suave";
-    const mainM = totalMeters - (wRaw.meters || 350);
+    const totalMeters = distanceKm ? Math.round(distanceKm * 1000) : 1800;
+    const wMatch = parsed.warmupMeta.match(/(\d+(?:\.\d+)?)m/i);
+    const mMatch = parsed.mainMeta.match(/(\d+(?:\.\d+)?)m/i);
+    const cMatch = parsed.cooldownMeta.match(/(\d+(?:\.\d+)?)m/i);
+
+    const wBadge = wRaw.meters ? `${wRaw.meters}m` : (wMatch ? `${wMatch[1]}m` : "350m");
+    const mBadge = mRaw.meters ? `${mRaw.meters}m` : (mMatch ? `${mMatch[1]}m` : "1.200m");
+    const cBadge = cRaw.meters ? `${cRaw.meters}m` : (cMatch ? `${cMatch[1]}m` : "250m");
 
     return {
       totalBadge: `${totalMeters.toLocaleString("es-ES")}m · ${durationMin ?? 45} min`,
       warmup: { badgeLabel: wBadge, pace: "Suave crol / espalda" },
-      main: { badgeLabel: `${mainM > 0 ? mainM : 1200}m`, pace: "Pull-buoy · Descarga piernas + Técnica" },
+      main: { badgeLabel: mBadge, pace: "Pull-buoy · Descarga piernas + Técnica" },
       cooldown: { badgeLabel: cBadge, pace: "Nado continuo relajado" },
     };
   }
