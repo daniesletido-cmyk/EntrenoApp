@@ -1276,11 +1276,11 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                   {/* Conclusión Diaria del Entrenador */}
                   {session.status === "realizada" && (
                     <div className="surface-raised" style={{ padding: "var(--space-4)", marginBottom: "var(--space-3)", borderLeft: "4px solid #10b981", backgroundColor: "rgba(16, 185, 129, 0.08)", borderTop: "1px solid rgba(16, 185, 129, 0.25)" }}>
-                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
-                        <Sparkles size={14} className="text-emerald-400" />
+                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5" style={{ marginBottom: "var(--space-2)" }}>
+                        <Sparkles size={14} className="text-emerald-600 dark:text-emerald-400" />
                         <span>Informe & Conclusión Diaria del Entrenador</span>
                       </div>
-                      <div className="text-sm font-bold text-white" style={{ marginBottom: "var(--space-1)" }}>
+                      <div className="text-sm font-bold text-zinc-900 dark:text-white" style={{ marginBottom: "var(--space-1)" }}>
                         {session.discipline === "carrera"
                           ? "Motor Aeróbico & Telemetría Clavada"
                           : session.discipline === "crossfit"
@@ -1291,7 +1291,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           ? "Resistencia Muscular y Adaptación de Altura"
                           : "Estímulo Completado y Asimilado"}
                       </div>
-                      <p style={{ fontSize: "var(--text-xs)", lineHeight: 1.6, color: "var(--color-text-secondary, #cbd5e1)", margin: 0 }}>
+                      <p className="text-zinc-600 dark:text-zinc-300" style={{ fontSize: "var(--text-xs)", lineHeight: 1.6, margin: 0 }}>
                         {session.discipline === "carrera" && session.distance_km && session.distance_km >= 10
                           ? `Tirada de volumen completada con ${session.distance_km} km y cadencia ágil. Se consolidaron los ritmos previstos de preparación para el maratón con excelente respuesta cardíaca.`
                           : session.discipline === "carrera"

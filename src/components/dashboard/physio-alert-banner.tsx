@@ -8,7 +8,6 @@ import {
   getRecommendedPhysioRoutine,
 } from "@/lib/physio-routines";
 import { PhysioTimerModal } from "@/components/physio/physio-timer-modal";
-import { Button } from "@/components/ui/button";
 
 interface PhysioAlertBannerProps {
   readinessScore?: number | null;
@@ -73,43 +72,43 @@ export function PhysioAlertBanner({
 
   return (
     <>
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+      <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 dark:bg-amber-950/30 dark:border-amber-800/60 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
             <ShieldCheck size={20} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-xs sm:text-sm text-amber-950 dark:text-amber-200">
+              <span className="font-bold text-base text-zinc-900 dark:text-zinc-100">
                 Sugerencia del Fisioterapeuta Deportivo
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/60 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+              <span className="bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-semibold text-xs px-2.5 py-0.5 rounded-full">
                 10 min Express
               </span>
             </div>
-            <p className="text-xs text-amber-900/80 dark:text-amber-300/80 mt-0.5 leading-snug">
-              {reason} Rutina sugerida: <strong>{routine.shortTitle}</strong>.
+            <p className="text-sm text-zinc-800 dark:text-zinc-200 mt-1 leading-relaxed">
+              {reason} Rutina sugerida: <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{routine.shortTitle}</strong>.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-          <Button
-            variant="primary"
+          <button
+            type="button"
             onClick={() => setModalOpen(true)}
-            className="text-xs py-1.5 px-3 h-8 rounded-xl bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-xs"
+            className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold text-sm rounded-xl px-4 py-2.5 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer harbiz-press"
           >
-            <Play size={12} className="fill-white" />
+            <Play size={13} className="fill-white" />
             <span>Iniciar (10 min)</span>
-          </Button>
+          </button>
 
           <button
             type="button"
             onClick={() => setDismissed(true)}
-            className="p-1.5 rounded-xl text-amber-700/60 dark:text-amber-400/60 hover:text-amber-900 dark:hover:text-amber-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
+            className="p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-amber-200/50 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
             title="Descartar sugerencia"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
       </div>

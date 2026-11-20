@@ -28,7 +28,7 @@ export function AerobicEfficiencyInsight({ isCompleted, discipline }: AerobicEff
   const isFatigued = data.trend === "fatigued";
 
   return (
-    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-2.5 transition-all">
+    <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-2.5 transition-all">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div
@@ -50,7 +50,7 @@ export function AerobicEfficiencyInsight({ isCompleted, discipline }: AerobicEff
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold text-white truncate">
+              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
                 Eficiencia Aeróbica & Desacople
               </span>
               <span
@@ -71,7 +71,7 @@ export function AerobicEfficiencyInsight({ isCompleted, discipline }: AerobicEff
                 {data.trendLabel}
               </span>
             </div>
-            <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
+            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
               EF {data.currentEF} m/min/lpm · Desacople {data.avgDecouplingPct}% ({data.decouplingStatus === "optimo" ? "Óptimo" : "Vigilancia"})
             </div>
           </div>
@@ -79,7 +79,7 @@ export function AerobicEfficiencyInsight({ isCompleted, discipline }: AerobicEff
 
         <Link
           href="/progreso#eficiencia-aerobica"
-          className="text-zinc-400 hover:text-white flex-shrink-0 p-1 harbiz-press"
+          className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 flex-shrink-0 p-1 harbiz-press"
           title="Ver análisis completo en Progreso"
         >
           <ChevronRight size={16} />
@@ -87,8 +87,8 @@ export function AerobicEfficiencyInsight({ isCompleted, discipline }: AerobicEff
       </div>
 
       {/* Resumen conciso de los especialistas */}
-      <div className="text-[11px] text-zinc-300 leading-relaxed bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800/60">
-        <span className="font-semibold text-white">Preparador & Fisio:</span>{" "}
+      <div className="text-[11px] text-zinc-700 dark:text-zinc-300 leading-relaxed bg-zinc-50 dark:bg-zinc-950/50 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800/60">
+        <span className="font-semibold text-zinc-900 dark:text-zinc-100">Preparador & Fisio:</span>{" "}
         {isImproving
           ? "Tu corazón late con mayor economía para el mismo ritmo de rodaje. La base R1 se está consolidando sólidamente."
           : isFatigued

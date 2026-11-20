@@ -60,14 +60,14 @@ export function CrossfitButtonWidget({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
                   Analizar Semana CrossFit (Foto)
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/40 shrink-0">
+                <span className="bg-red-50 text-red-700 border border-red-200 font-semibold text-xs px-2.5 py-0.5 rounded-full shrink-0">
                   Visión IA
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 truncate">
                 Foto de pizarra · Traducción en kg y evaluación Martes/Jueves 19:00h
               </p>
             </div>
