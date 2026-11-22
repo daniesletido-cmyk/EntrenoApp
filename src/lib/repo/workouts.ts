@@ -173,6 +173,17 @@ function syncToAppSessions(params: {
       "SELECT id, status, user_notes FROM sessions WHERE date = ? AND (discipline = ? OR status = 'pendiente') ORDER BY id ASC LIMIT 1"
     ).get(params.date, disc);
 
+    // Solo asignar fit_data si params.raw parece un FitSummary estructurado (no un json crudo de actividad externa)
+    let validFitSummaryJson: string | null = null;
+    if (params.raw) {
+      try {
+        const parsedRaw = JSON.parse(params.raw);
+        if (parsedRaw && (parsedRaw.sport || parsedRaw.laps || parsedRaw.deepAnalysis)) {
+          validFitSummaryJson = params.raw;
+        }
+      } catch {}
+    }
+
     if (existingSession) {
       const mergedUserNotes = params.userNotes
         ? (existingSession.user_notes ? `${existingSession.user_notes}\n${params.userNotes}` : params.userNotes)
@@ -188,7 +199,7 @@ function syncToAppSessions(params: {
             feeling = COALESCE(?, feeling),
             user_notes = ?,
             notes = COALESCE(notes, '') || ' | ' || ?,
-            fit_data = COALESCE(?, fit_data),
+            fit_data = COALESCE(fit_data, ?),
             updated_at = ?
         WHERE id = ?
       `).run(
@@ -199,7 +210,7 @@ function syncToAppSessions(params: {
         params.feeling ?? null,
         mergedUserNotes ?? null,
         params.notes,
-        params.raw,
+        validFitSummaryJson,
         now,
         existingSession.id
       );
@@ -217,7 +228,7 @@ function syncToAppSessions(params: {
         params.durationMin,
         params.distanceKm,
         params.notes,
-        params.raw,
+        validFitSummaryJson,
         now,
         now
       );

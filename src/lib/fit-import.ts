@@ -16,6 +16,7 @@ export interface FitLap {
   distanceKm: number | null;
   durationMin: number | null;
   avgPaceMinKm: number | null;
+  avgPaceFormatted?: string | null;
   avgHeartRate: number | null;
   maxHeartRate?: number | null;
   avgCadence?: number | null;
@@ -191,6 +192,7 @@ export interface FitSummary {
   durationMin: number | null;
   distanceKm: number | null;
   avgPaceMinKm: number | null;
+  avgPaceFormatted?: string | null;
   avgSpeedKmh?: number | null;
   avgPowerWatts?: number | null;
   avgHeartRate: number | null;
@@ -744,9 +746,28 @@ function buildKmSplitsFromRecords(records: Record<string, unknown>[], isCycling:
     const isLastRecord = i === processed.length - 1;
 
     if (isKmPassed || isLastRecord) {
+      const rawDist = p.distKm - kmStartDist;
+      const rawTimeMs = p.timestamp - kmStartTime;
+
+      // Si es el último registro y el remanente es insignificante (< 0.25 km), fusionarlo con el parcial previo
+      if (isLastRecord && !isKmPassed && splits.length > 0 && rawDist < 0.25) {
+        const last = splits[splits.length - 1];
+        const newDist = Number(((last.distanceKm ?? 0) + rawDist).toFixed(2));
+        const newTimeMin = Number(((last.durationMin ?? 0) + rawTimeMs / 60000).toFixed(2));
+        const newPace = newDist > 0 ? Number((newTimeMin / newDist).toFixed(2)) : last.avgPaceMinKm;
+        last.distanceKm = newDist;
+        last.durationMin = newTimeMin;
+        last.avgPaceMinKm = newPace;
+        last.avgPaceFormatted = formatPace(newPace);
+        if (newTimeMin > 0) {
+          last.avgSpeedKmh = Number((newDist / (newTimeMin / 60)).toFixed(1));
+        }
+        break;
+      }
+
       const segRecords = processed.slice(kmStartIdx, i + 1);
-      const segDist = Math.max(0.05, p.distKm - kmStartDist);
-      const segTimeMs = Math.max(3000, p.timestamp - kmStartTime);
+      const segDist = Math.max(0.05, rawDist);
+      const segTimeMs = Math.max(3000, rawTimeMs);
       const segDurationMin = Number((segTimeMs / 60000).toFixed(2));
       const segPace = segDist > 0.05 ? Number((segDurationMin / segDist).toFixed(2)) : null;
       const segSpeed = segDurationMin > 0 ? Number((segDist / (segDurationMin / 60)).toFixed(1)) : null;
@@ -773,6 +794,7 @@ function buildKmSplitsFromRecords(records: Record<string, unknown>[], isCycling:
           distanceKm: Number(segDist.toFixed(2)),
           durationMin: segDurationMin,
           avgPaceMinKm: segPace,
+          avgPaceFormatted: formatPace(segPace),
           avgSpeedKmh: segSpeed,
           avgPowerWatts: avgPow,
           avgHeartRate: avgHr,
@@ -795,12 +817,12 @@ function extractAltitudeM(r: Record<string, unknown> | undefined): number | null
   if (!r) return null;
   const val = (r.enhanced_altitude as number | undefined) ?? (r.altitude as number | undefined) ?? (r.elevation as number | undefined);
   if (typeof val === "number" && Number.isFinite(val)) {
-    // Si la lectura barométrica del reloj tiene derivas extremas (ej. valores negativos o picos > 450m en Zuera),
-    // corregimos al rango fisiológico real del terreno de Zuera (~279 m)
-    if (val < 100 || val > 450) {
+    // Si lengthUnit = "km", FitParser escala la altitud a kilómetros (ej. 0.2772 km = 277.2 m)
+    const valM = (val > -1.0 && val < 10.0) ? val * 1000 : val;
+    if (valM < -50 || valM > 5000) {
       return 279.0;
     }
-    return Math.round(val * 10) / 10;
+    return Math.round(valM * 10) / 10;
   }
   return null;
 }
@@ -1396,7 +1418,19 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       const rawLaps = (data.laps as Record<string, unknown>[] | undefined) ?? [];
       let laps: FitLap[] = [];
 
-      if (rawLaps.length > 1) {
+      const rawLapsTotalDist = rawLaps.reduce((acc, l) => {
+        const d = extractDistanceKm(l.total_distance ?? (l as any).enhanced_distance) ?? 0;
+        return acc + d;
+      }, 0);
+      const hasOverlappingLaps = Boolean(totalDistanceKm && rawLapsTotalDist > totalDistanceKm * 1.15);
+      const hasIrregularLongLaps = Boolean(
+        (sport === "carrera" || sport === "caminata") &&
+        rawLaps.some((l) => (extractDistanceKm(l.total_distance ?? (l as any).enhanced_distance) ?? 0) > 1.8)
+      );
+
+      if (rawRecords.length >= 20 && (sport === "carrera" || sport === "caminata" || isCycling) && (hasOverlappingLaps || hasIrregularLongLaps || rawLaps.length <= 1)) {
+        laps = buildKmSplitsFromRecords(rawRecords, isCycling);
+      } else if (rawLaps.length > 1) {
         laps = rawLaps.map((lap, i) => {
           const lapTimeSec = (lap.total_timer_time as number | undefined) ?? (lap.total_elapsed_time as number | undefined) ?? null;
           const lapDistKm = extractDistanceKm(lap.total_distance ?? (lap as any).enhanced_distance);
@@ -1429,6 +1463,7 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
             distanceKm: lapDistKm !== null ? Number(lapDistKm.toFixed(2)) : null,
             durationMin: lapDurationMin,
             avgPaceMinKm: lapPace,
+            avgPaceFormatted: formatPace(lapPace),
             avgSpeedKmh: lapSpeed,
             avgPowerWatts: lapPower,
             pace100mFormatted,
@@ -1484,11 +1519,19 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       let elevationGainM = (session.total_ascent as number | undefined) ?? (session.enhanced_total_ascent as number | undefined) ?? null;
       let elevationLossM = (session.total_descent as number | undefined) ?? (session.enhanced_total_descent as number | undefined) ?? null;
 
+      // FitParser con lengthUnit="km" escala la elevación a kilómetros (ej. 0.122 km = 122 m)
+      if (elevationGainM !== null && elevationGainM > 0 && elevationGainM < 10) {
+        elevationGainM = Math.round(elevationGainM * 1000);
+      }
+      if (elevationLossM !== null && elevationLossM > 0 && elevationLossM < 10) {
+        elevationLossM = Math.round(elevationLossM * 1000);
+      }
+
       // Corrección de altímetro barométrico para entrenamientos en Zuera (~279m)
       // Si el reloj reporta un desnivel absurdo por fallo de sensor (ej. +1382m en 16 km de asfalto en Zuera),
       // se recalibra a la tasa orográfica real de Zuera (~1.8 - 2.2 m D+/km).
       if (!isCycling && !isSwimming && totalDistanceKm && totalDistanceKm > 0) {
-        if (elevationGainM !== null && (elevationGainM / totalDistanceKm > 8 || elevationGainM > 150)) {
+        if (elevationGainM !== null && (elevationGainM / totalDistanceKm > 80 || elevationGainM > 1500)) {
           elevationGainM = Math.round(totalDistanceKm * 2.0);
           elevationLossM = Math.round(totalDistanceKm * 1.9);
         }
@@ -1698,6 +1741,7 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         durationMin,
         distanceKm: totalDistanceKm !== null ? Number(totalDistanceKm.toFixed(2)) : null,
         avgPaceMinKm,
+        avgPaceFormatted: formatPace(avgPaceMinKm),
         avgSpeedKmh,
         avgPowerWatts,
         avgHeartRate,

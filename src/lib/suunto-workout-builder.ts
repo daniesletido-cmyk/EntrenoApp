@@ -1,4 +1,10 @@
 import type { SessionRow } from "@/lib/repo/sessions";
+import {
+  getActivePaceZones,
+  getSuuntoPaceTargetBounds,
+  secKmToPace,
+  paceToSecKm as parsePaceToSecKm,
+} from "@/lib/pace-zones";
 
 export interface StructuredStep {
   label: string;
@@ -22,6 +28,9 @@ export interface BuiltStructuredWorkout {
   startDateLocal: string;
   intervalsDescription: string;
   steps: StructuredStep[];
+  expectedAvgPaceMinKm?: string;
+  targetPaceDisplay?: string;
+  paceToleranceSecKm?: number;
   suuntoGuidePayload: {
     name: string;
     sport: string;
@@ -87,6 +96,18 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
   let suuntoSportId = 1; // 1 = running in FIT
   const intervalsBlocks: string[] = [];
 
+  const paceConfig = getActivePaceZones();
+  const { zones, toleranceSecKm } = paceConfig;
+  const z1 = zones.z1; // Recuperación / Calentamiento (5:25 - 5:50 /km)
+  const z2 = zones.z2; // Rodaje Base (4:59 - 5:25 /km)
+  const z3 = zones.z3; // Tempo / Ritmo Maratón (4:35 - 4:59 /km)
+  const z4 = zones.z4; // Umbral / Series (4:11 - 4:23 /km)
+  const z5 = zones.z5; // VO2Max (3:47 - 3:59 /km)
+  const z6 = zones.z6; // Cuestas explosivas (<3:47 /km)
+
+  let targetPaceDisplay: string | undefined;
+  let expectedAvgPaceMinKm: string | undefined;
+
   if (s.discipline === "carrera") {
     sportTypeIntervals = "Run";
     suuntoSportId = 1;
@@ -108,17 +129,20 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     const wuSec = wuMin * 60;
     const cdSec = cdMin * 60;
 
-    // 1. Calentamiento (Regla de Oro: por tiempo en segundos, intensidad warmup)
+    // 1. Calentamiento (Regla de Oro: por tiempo en segundos, intensidad warmup con ritmo Z1)
+    const wuPaceLow = z1.minSecKm;
+    const wuPaceHigh = z1.maxSecKm;
+    const wuPaceLabel = `${secKmToPace(wuPaceLow)}-${secKmToPace(wuPaceHigh)}/km`;
     steps.push({
       label: `Calentamiento ${wuMin} min`,
       phase: "warmup",
       durationType: "time",
       durationValue: wuSec,
-      targetPaceLowSecKm: 330, // 5:30/km
-      targetPaceHighSecKm: 345, // 5:45/km
-      intervalsLine: `- Calentamiento R0 ${wuMin}m 5:30-5:45/km Pace`,
+      targetPaceLowSecKm: wuPaceLow,
+      targetPaceHighSecKm: wuPaceHigh,
+      intervalsLine: `- Calentamiento ${wuMin}m ${wuPaceLabel} Pace`,
     });
-    intervalsBlocks.push(`Warmup\n- Calentamiento R0 ${wuMin}m 5:30-5:45/km Pace`);
+    intervalsBlocks.push(`Warmup\n- Calentamiento ${wuMin}m ${wuPaceLabel} Pace`);
 
     // 2. Detección de tipo de parte principal
     const intervalMatch = textAll.match(/(\d+)\s*[xX]\s*(\d+(?:\.\d{3})?|\d+(?:[.,]\d+)?)\s*(m|km)\b/i);
@@ -131,9 +155,13 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
       const repLabel = repDistM >= 1000 ? `${(repDistM / 1000).toFixed(2).replace(/\.00$/, "")}km` : `${Math.round(repDistM)}mtr`;
 
       const paceRange = textAll.match(/(\d:\d{2})\s*[-–]\s*(\d:\d{2})/);
-      const pLow = paceRange ? paceToSecKm(paceRange[1]) ?? 258 : 258; // 4:18
-      const pHigh = paceRange ? paceToSecKm(paceRange[2]) ?? 260 : 260; // 4:20
-      const paceLabel = paceRange ? `${paceRange[1]}-${paceRange[2]}/km` : "4:18-4:20/km";
+      const pLow = paceRange ? parsePaceToSecKm(paceRange[1]) ?? z4.minSecKm : z4.minSecKm;
+      const pHigh = paceRange ? parsePaceToSecKm(paceRange[2]) ?? z4.maxSecKm : z4.maxSecKm;
+      const paceLabel = `${secKmToPace(pLow)}-${secKmToPace(pHigh)}/km`;
+
+      const recPaceLow = z1.minSecKm;
+      const recPaceHigh = z1.maxSecKm;
+      const recPaceLabel = `${secKmToPace(recPaceLow)}-${secKmToPace(recPaceHigh)}/km`;
 
       for (let r = 0; r < reps; r++) {
         steps.push({
@@ -150,22 +178,27 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
           phase: "rest",
           durationType: "time",
           durationValue: 90,
-          targetPaceLowSecKm: 350,
-          targetPaceHighSecKm: 375,
-          intervalsLine: `- Trote suave 90s 5:50-6:15/km Pace`,
+          targetPaceLowSecKm: recPaceLow,
+          targetPaceHighSecKm: recPaceHigh,
+          intervalsLine: `- Trote suave 90s ${recPaceLabel} Pace`,
         });
       }
 
-      intervalsBlocks.push(`Main Set ${reps}x\n- Serie Umbral ${repLabel} ${paceLabel} Pace\n- Trote recuperacion 90s 5:50-6:15/km Pace`);
+      intervalsBlocks.push(`Main Set ${reps}x\n- Serie Umbral ${repLabel} ${paceLabel} Pace\n- Trote recuperacion 90s ${recPaceLabel} Pace`);
     } else if (lower.includes("cuesta")) {
       const reps = 8;
+      const cuestaPaceLow = z5.minSecKm;
+      const cuestaPaceHigh = z5.maxSecKm;
+      const cuestaLabel = `${secKmToPace(cuestaPaceLow)}-${secKmToPace(cuestaPaceHigh)}/km`;
       for (let r = 0; r < reps; r++) {
         steps.push({
           label: `Cuesta explosiva ${r + 1}`,
           phase: "active",
           durationType: "time",
           durationValue: 30,
-          intervalsLine: `- Cuesta fuerte 30s`,
+          targetPaceLowSecKm: cuestaPaceLow,
+          targetPaceHighSecKm: cuestaPaceHigh,
+          intervalsLine: `- Cuesta explosiva 30s ${cuestaLabel} Pace`,
         });
         steps.push({
           label: `Bajada caminando ${r + 1}`,
@@ -175,77 +208,113 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
           intervalsLine: `- Bajada caminando 90s`,
         });
       }
-      intervalsBlocks.push(`Main Set ${reps}x\n- Cuesta explosiva 30s\n- Bajada caminando 90s`);
+      intervalsBlocks.push(`Main Set ${reps}x\n- Cuesta explosiva 30s ${cuestaLabel} Pace\n- Bajada caminando 90s`);
     } else if (lower.includes("r5") || lower.includes("tirada larga") || mainKm >= 14) {
       const finishKm = Math.min(4, Math.max(3, Math.round(mainKm * 0.25)));
       const baseKm = Number((mainKm - finishKm).toFixed(1));
+
+      const baseLabel = `${secKmToPace(z2.minSecKm)}-${secKmToPace(z2.maxSecKm)}/km`;
+      const finishLabel = `${secKmToPace(z3.minSecKm)}-${secKmToPace(z3.maxSecKm)}/km`;
 
       steps.push({
         label: `Rodaje Aeróbico ${baseKm} km`,
         phase: "active",
         durationType: "distance",
         durationValue: Math.round(baseKm * 1000),
-        targetPaceLowSecKm: 310, // 5:10
-        targetPaceHighSecKm: 325, // 5:25
-        intervalsLine: `- Base aerobica ${baseKm}km 5:10-5:25/km Pace`,
+        targetPaceLowSecKm: z2.minSecKm,
+        targetPaceHighSecKm: z2.maxSecKm,
+        intervalsLine: `- Base aerobica ${baseKm}km ${baseLabel} Pace`,
       });
       steps.push({
         label: `Cierre Ritmo Maratón ${finishKm} km`,
         phase: "active",
         durationType: "distance",
         durationValue: Math.round(finishKm * 1000),
-        targetPaceLowSecKm: 305, // 5:05
-        targetPaceHighSecKm: 310, // 5:10
-        intervalsLine: `- Ritmo Maraton ${finishKm}km 5:05-5:10/km Pace`,
+        targetPaceLowSecKm: z3.minSecKm,
+        targetPaceHighSecKm: z3.maxSecKm,
+        intervalsLine: `- Ritmo Maraton ${finishKm}km ${finishLabel} Pace`,
       });
 
-      intervalsBlocks.push(`Main Set\n- Base aerobica ${baseKm}km 5:10-5:25/km Pace\n- Cierre Maraton ${finishKm}km 5:05-5:10/km Pace`);
+      intervalsBlocks.push(`Main Set\n- Base aerobica ${baseKm}km ${baseLabel} Pace\n- Cierre Maraton ${finishKm}km ${finishLabel} Pace`);
     } else if (lower.includes("r2") || lower.includes("tempo") || lower.includes("progresivo")) {
+      const tempoLabel = `${secKmToPace(z3.minSecKm)}-${secKmToPace(z3.maxSecKm)}/km`;
       steps.push({
         label: `Tempo R2 ${mainKm} km`,
         phase: "active",
         durationType: "distance",
         durationValue: Math.round(mainKm * 1000),
-        targetPaceLowSecKm: 275, // 4:35
-        targetPaceHighSecKm: 299, // 4:59
-        intervalsLine: `- Bloque Tempo R2 ${mainKm}km 4:35-4:59/km Pace`,
+        targetPaceLowSecKm: z3.minSecKm,
+        targetPaceHighSecKm: z3.maxSecKm,
+        intervalsLine: `- Bloque Tempo R2 ${mainKm}km ${tempoLabel} Pace`,
       });
-      intervalsBlocks.push(`Main Set\n- Bloque Tempo R2 ${mainKm}km 4:35-4:59/km Pace`);
+      intervalsBlocks.push(`Main Set\n- Bloque Tempo R2 ${mainKm}km ${tempoLabel} Pace`);
     } else if (lower.includes("r0") || lower.includes("regenerativo")) {
+      const regLabel = `${secKmToPace(z1.minSecKm)}-${secKmToPace(z1.maxSecKm)}/km`;
       steps.push({
         label: `Regenerativo R0 ${mainKm} km`,
         phase: "active",
         durationType: "distance",
         durationValue: Math.round(mainKm * 1000),
-        targetPaceLowSecKm: 325, // 5:25
-        targetPaceHighSecKm: 345, // 5:45
-        intervalsLine: `- Rodaje R0 ${mainKm}km 5:25-5:45/km Pace`,
+        targetPaceLowSecKm: z1.minSecKm,
+        targetPaceHighSecKm: z1.maxSecKm,
+        intervalsLine: `- Rodaje R0 ${mainKm}km ${regLabel} Pace`,
       });
-      intervalsBlocks.push(`Main Set\n- Rodaje R0 ${mainKm}km 5:25-5:45/km Pace`);
+      intervalsBlocks.push(`Main Set\n- Rodaje R0 ${mainKm}km ${regLabel} Pace`);
     } else {
+      const r1Label = `${secKmToPace(z2.minSecKm)}-${secKmToPace(z2.maxSecKm)}/km`;
       steps.push({
         label: `Rodaje Base R1 ${mainKm} km`,
         phase: "active",
         durationType: "distance",
         durationValue: Math.round(mainKm * 1000),
-        targetPaceLowSecKm: 299, // 4:59
-        targetPaceHighSecKm: 325, // 5:25
-        intervalsLine: `- Rodaje Base R1 ${mainKm}km 4:59-5:25/km Pace`,
+        targetPaceLowSecKm: z2.minSecKm,
+        targetPaceHighSecKm: z2.maxSecKm,
+        intervalsLine: `- Rodaje Base R1 ${mainKm}km ${r1Label} Pace`,
       });
-      intervalsBlocks.push(`Main Set\n- Rodaje Base R1 ${mainKm}km 4:59-5:25/km Pace`);
+      intervalsBlocks.push(`Main Set\n- Rodaje Base R1 ${mainKm}km ${r1Label} Pace`);
     }
 
-    // 3. Vuelta a la calma (programada estrictamente por tiempo en segundos)
+    // 3. Vuelta a la calma (programada estrictamente por tiempo en segundos, ritmo Z1)
+    const cdLow = Math.max(z1.maxSecKm, 350);
+    const cdHigh = cdLow + 40;
+    const cdLabel = `${secKmToPace(cdLow)}-${secKmToPace(cdHigh)}/km`;
     steps.push({
       label: `Vuelta a la calma ${cdMin} min`,
       phase: "cooldown",
       durationType: "time",
       durationValue: cdSec,
-      targetPaceLowSecKm: 360,
-      targetPaceHighSecKm: 420,
-      intervalsLine: `- Vuelta a la calma ${cdMin}m 6:00-7:00/km Pace`,
+      targetPaceLowSecKm: cdLow,
+      targetPaceHighSecKm: cdHigh,
+      intervalsLine: `- Vuelta a la calma ${cdMin}m ${cdLabel} Pace`,
     });
-    intervalsBlocks.push(`Cooldown\n- Vuelta a la calma ${cdMin}m 6:00-7:00/km Pace`);
+    intervalsBlocks.push(`Cooldown\n- Vuelta a la calma ${cdMin}m ${cdLabel} Pace`);
+
+    // Calcular ritmo medio esperado y rango principal
+    const activeSteps = steps.filter((st) => st.phase === "active" && st.targetPaceLowSecKm && st.targetPaceHighSecKm);
+    if (activeSteps.length > 0) {
+      const minLow = Math.min(...activeSteps.map((st) => st.targetPaceLowSecKm!));
+      const maxHigh = Math.max(...activeSteps.map((st) => st.targetPaceHighSecKm!));
+      targetPaceDisplay = `${secKmToPace(minLow)} – ${secKmToPace(maxHigh)} /km`;
+
+      let totalEstSec = 0;
+      let totalEstMeters = 0;
+      steps.forEach((st) => {
+        const avgPace = st.targetPaceLowSecKm && st.targetPaceHighSecKm
+          ? (st.targetPaceLowSecKm + st.targetPaceHighSecKm) / 2
+          : 330;
+        if (st.durationType === "distance") {
+          totalEstMeters += st.durationValue;
+          totalEstSec += (st.durationValue / 1000) * avgPace;
+        } else {
+          totalEstSec += st.durationValue;
+          totalEstMeters += (st.durationValue / avgPace) * 1000;
+        }
+      });
+      if (totalEstMeters > 0) {
+        const avgSecKm = Math.round(totalEstSec / (totalEstMeters / 1000));
+        expectedAvgPaceMinKm = `${secKmToPace(avgSecKm)} /km`;
+      }
+    }
   } else if (s.discipline === "natacion") {
     sportTypeIntervals = "Swim";
     suuntoSportId = 5; // 5 = swimming in FIT
@@ -346,8 +415,21 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
         st.targetPaceLowSecKm &&
         st.targetPaceHighSecKm &&
         Number.isFinite(st.targetPaceLowSecKm) &&
-        Number.isFinite(st.targetPaceHighSecKm)
+        Number.isFinite(st.targetPaceHighSecKm) &&
+        st.targetPaceLowSecKm > 0 &&
+        st.targetPaceHighSecKm > 0
       );
+      let targetSpeedMinMs: number | undefined;
+      let targetSpeedMaxMs: number | undefined;
+      if (hasTarget) {
+        const bounds = getSuuntoPaceTargetBounds(
+          st.targetPaceLowSecKm!,
+          st.targetPaceHighSecKm!,
+          toleranceSecKm
+        );
+        targetSpeedMinMs = bounds.speedMinMs;
+        targetSpeedMaxMs = bounds.speedMaxMs;
+      }
       return {
         order: idx + 1,
         name: st.label,
@@ -355,8 +437,8 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
         durationType: st.durationType,
         durationValue: durVal,
         targetType: hasTarget ? ("speed" as const) : ("open" as const),
-        targetSpeedMinMs: hasTarget && st.targetPaceHighSecKm ? secKmToSpeedMs(st.targetPaceHighSecKm) : undefined,
-        targetSpeedMaxMs: hasTarget && st.targetPaceLowSecKm ? secKmToSpeedMs(st.targetPaceLowSecKm) : undefined,
+        targetSpeedMinMs,
+        targetSpeedMaxMs,
       };
     }),
   };
@@ -369,6 +451,9 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     startDateLocal,
     intervalsDescription,
     steps,
+    expectedAvgPaceMinKm,
+    targetPaceDisplay,
+    paceToleranceSecKm: toleranceSecKm,
     suuntoGuidePayload,
   };
 }
@@ -492,14 +577,18 @@ export function buildStructuredWorkoutFitBuffer(s: SessionRow): Buffer {
       st.targetPaceHighSecKm > 0
     );
     row[32] = hasPaceTarget ? 0 : 2; // 0 = speed, 2 = open
-    const rawSpeedLow = hasPaceTarget ? Math.round((1000 / st.targetPaceHighSecKm!) * 1000) : 0;
-    const rawSpeedHigh = hasPaceTarget ? Math.round((1000 / st.targetPaceLowSecKm!) * 1000) : 0;
-    const safeSpeedLow = Number.isFinite(rawSpeedLow) && rawSpeedLow > 0
-      ? Math.min(4294967295, Math.floor(rawSpeedLow))
-      : 0;
-    const safeSpeedHigh = Number.isFinite(rawSpeedHigh) && rawSpeedHigh > 0
-      ? Math.min(4294967295, Math.floor(rawSpeedHigh))
-      : 0;
+    let safeSpeedLow = 0;
+    let safeSpeedHigh = 0;
+    if (hasPaceTarget) {
+      const bounds = getSuuntoPaceTargetBounds(
+        st.targetPaceLowSecKm!,
+        st.targetPaceHighSecKm!,
+        built.paceToleranceSecKm ?? 5
+      );
+      // In FIT: speed is in mm/s (uint32)
+      safeSpeedLow = Math.max(0, Math.min(4294967295, Math.round(bounds.speedMinMs * 1000)));
+      safeSpeedHigh = Math.max(0, Math.min(4294967295, Math.round(bounds.speedMaxMs * 1000)));
+    }
     row.writeUInt32LE(safeSpeedLow, 33);
     row.writeUInt32LE(safeSpeedHigh, 37);
     row[41] = intensityMap[st.phase] ?? 0;

@@ -19,6 +19,7 @@ import { CalendarIPhoneCard } from "@/components/settings/calendar-iphone-card";
 import { ShoesManagerCard } from "@/components/settings/shoes-manager-card";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { XiaomiScaleSettingsCard } from "@/components/settings/xiaomi-scale-card";
+import { PaceZonesCard } from "@/components/settings/pace-zones-card";
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -842,6 +843,11 @@ export default function ConfiguracionPage() {
             </div>
           </div>
         </div>
+
+        {/* SECCIÓN ZONAS DE RITMO Y EXPORTACIÓN A SUUNTO 9 PEAK PRO */}
+        <ErrorBoundary fallbackTitle="Zonas de Ritmo Suunto">
+          <PaceZonesCard />
+        </ErrorBoundary>
 
         {/* SECCIÓN INTEGRACIÓN CON CALENDARIO DE IPHONE (ICLOUD & ATAJOS IOS) */}
         <CalendarIPhoneCard />

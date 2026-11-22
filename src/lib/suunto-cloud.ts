@@ -344,6 +344,7 @@ async function pushViaIntervalsSuuntoBridge(s: SessionRow): Promise<SuuntoPushRe
       start_date_local: built.startDateLocal,
       name: built.name,
       description: built.intervalsDescription,
+      target: built.sportTypeIntervals === "Run" ? "PACE" : undefined,
     },
   ];
 

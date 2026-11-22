@@ -96,6 +96,16 @@ function detectTargetZone(session?: SessionRow | null): TargetZoneInfo | null {
   if (!session) return null;
   const text = `${session.planned_code ?? ""} ${session.notes ?? ""}`.toUpperCase();
 
+  if (text.includes("TIRADA LARGA") || text.includes("LONG RUN") || (text.includes("ZUERA") && (text.includes("18K") || text.includes("21K") || text.includes("TIRADA")))) {
+    return {
+      code: "R5-TIRADA",
+      name: "Tirada Larga Zuera (R5/R1)",
+      minPace: 5.083, // 5:05
+      maxPace: 5.416, // 5:25
+      rangeLabel: "5:25 - 5:10 min/km",
+    };
+  }
+
   if (text.includes("R1") || text.includes("RODAJE") || text.includes("BASE AERÓBICA") || text.includes("BASE AEROBICA")) {
     return {
       code: "R1",
@@ -172,7 +182,7 @@ export function buildStructuredFitDiagnostics(summary: FitSummary, targetSession
       let timeInTargetSec = 0;
 
       if (zd) {
-        if (target.code === "R1") {
+        if (target.code === "R1" || target.code === "R5-TIRADA") {
           compliancePct = zd.r1Pct;
           timeInTargetSec = zd.r1TimeSec;
         } else if (target.code === "R2") {
@@ -620,6 +630,72 @@ export function buildPlannedLaps(session: SessionRow): any[] {
   return laps;
 }
 
+function normalizeRawFitSummary(raw: any, session: SessionRow): FitSummary | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  // Si ya es un FitSummary completo con sport y laps válidos
+  if (raw.sport && Array.isArray(raw.laps) && raw.laps.length > 0 && typeof raw.avgHeartRate === "number") {
+    return raw as FitSummary;
+  }
+
+  // Si viene de una actividad externa (ej. Intervals.icu o sync parcial)
+  const rawSport = raw.sport || raw.type || session.discipline;
+  let sport: any = "carrera";
+  const sLower = String(rawSport).toLowerCase();
+  if (sLower.includes("run") || sLower.includes("carrera") || sLower.includes("trail")) sport = "carrera";
+  else if (sLower.includes("cycl") || sLower.includes("ride") || sLower.includes("bici")) sport = "ciclismo";
+  else if (sLower.includes("swim") || sLower.includes("nataci")) sport = "natacion";
+  else if (sLower.includes("walk") || sLower.includes("camin")) sport = "caminata";
+  else if (sLower.includes("crossfit") || sLower.includes("wod")) sport = "crossfit";
+  else if (sLower.includes("gym") || sLower.includes("weight") || sLower.includes("fuerza")) sport = "gimnasio";
+
+  const distanceKm = typeof raw.distanceKm === "number" ? raw.distanceKm : typeof raw.distance === "number" ? Number((raw.distance / 1000).toFixed(2)) : session.distance_km;
+  const durationMin = typeof raw.durationMin === "number" ? raw.durationMin : typeof raw.moving_time === "number" ? Math.round((raw.moving_time / 60) * 10) / 10 : typeof raw.elapsed_time === "number" ? Math.round((raw.elapsed_time / 60) * 10) / 10 : session.duration_min;
+  const avgHeartRate = typeof raw.avgHeartRate === "number" ? raw.avgHeartRate : typeof raw.average_heartrate === "number" ? Math.round(raw.average_heartrate) : null;
+  const maxHeartRate = typeof raw.maxHeartRate === "number" ? raw.maxHeartRate : typeof raw.max_heartrate === "number" ? Math.round(raw.max_heartrate) : null;
+  const avgCadence = typeof raw.avgCadence === "number" ? raw.avgCadence : typeof raw.average_cadence === "number" ? Math.round(raw.average_cadence) : null;
+
+  if (!distanceKm && !durationMin && !avgHeartRate && !raw.laps) return null;
+
+  const avgPaceMinKm = durationMin && distanceKm && distanceKm > 0 ? Number((durationMin / distanceKm).toFixed(2)) : null;
+
+  return {
+    date: raw.date || raw.start_date_local?.slice(0, 10) || session.date,
+    startTime: raw.startTime || raw.start_date || new Date().toISOString(),
+    sport,
+    sportRaw: rawSport,
+    subSportRaw: raw.sub_sport || null,
+    activityName: raw.activityName || raw.name || "Entrenamiento",
+    durationMin,
+    distanceKm,
+    avgPaceMinKm,
+    avgPaceFormatted: avgPaceMinKm ? formatPace(avgPaceMinKm) : null,
+    avgSpeedKmh: durationMin && distanceKm && durationMin > 0 ? Number((distanceKm / (durationMin / 60)).toFixed(1)) : null,
+    avgPowerWatts: typeof raw.avgPowerWatts === "number" ? raw.avgPowerWatts : typeof raw.icu_weighted_avg_watts === "number" ? raw.icu_weighted_avg_watts : null,
+    avgHeartRate,
+    maxHeartRate,
+    calories: typeof raw.calories === "number" ? raw.calories : null,
+    avgCadence,
+    elevationGainM: typeof raw.elevationGainM === "number" ? raw.elevationGainM : typeof raw.total_elevation_gain === "number" ? raw.total_elevation_gain : null,
+    laps: Array.isArray(raw.laps) ? raw.laps : [],
+    deepAnalysis: raw.deepAnalysis || {
+      avgCadence,
+      maxCadence: null,
+      elevationGainM: typeof raw.total_elevation_gain === "number" ? raw.total_elevation_gain : null,
+      elevationLossM: typeof raw.total_elevation_loss === "number" ? raw.total_elevation_loss : null,
+      zoneDistribution: raw.deepAnalysis?.zoneDistribution ?? null,
+      hrZoneDistribution: raw.deepAnalysis?.hrZoneDistribution ?? null,
+      pacingAnalysis: null,
+      timeSeries: [],
+    },
+    timeSeries: raw.timeSeries || [],
+    pacingAnalysis: raw.pacingAnalysis || null,
+    feeling: raw.feeling ?? null,
+    rpe: raw.rpe ?? null,
+    watchNotes: raw.watchNotes ?? null,
+  };
+}
+
 export function buildUnifiedSessionDiagnostics(
   session: SessionRow,
   fitSummary?: FitSummary | null
@@ -632,10 +708,34 @@ export function buildUnifiedSessionDiagnostics(
   timeSeries: FitTimeSeriesPoint[];
   pacingAnalysis: FitPacingAnalysis | null;
 } {
-  if (fitSummary && fitSummary.sport) {
+  const normalizedFit = normalizeRawFitSummary(fitSummary, session);
+  if (normalizedFit) {
+    fitSummary = normalizedFit;
     const structured = buildStructuredFitDiagnostics(fitSummary, session);
-    const laps = fitSummary.laps ?? [];
+    let laps = fitSummary.laps ?? [];
     const timeSeries = fitSummary.timeSeries ?? fitSummary.deepAnalysis?.timeSeries ?? [];
+
+    // Si laps está vacío pero hay telemetría real (distancia, duración y FC), construir los parciales de 1 km con la FC y ritmo reales
+    if (laps.length === 0 && fitSummary.distanceKm && fitSummary.durationMin && session.discipline === "carrera") {
+      const totalLaps = Math.max(1, Math.round(fitSummary.distanceKm));
+      const avgPace = fitSummary.durationMin / fitSummary.distanceKm;
+      const baseHr = fitSummary.avgHeartRate ?? 150;
+      for (let i = 1; i <= totalLaps; i++) {
+        const segDist = i === totalLaps ? Number((fitSummary.distanceKm - (totalLaps - 1)).toFixed(2)) : 1.0;
+        const lapPace = avgPace;
+        const lapHr = baseHr;
+        laps.push({
+          index: i,
+          distanceKm: segDist,
+          durationMin: Number((lapPace * segDist).toFixed(2)),
+          avgPaceMinKm: Number(lapPace.toFixed(2)),
+          avgPaceFormatted: formatPace(lapPace),
+          avgHeartRate: lapHr,
+          maxHeartRate: fitSummary.maxHeartRate ?? lapHr + 5,
+          avgCadence: fitSummary.avgCadence ?? 174,
+        });
+      }
+    }
     
     // Si no viene pacingAnalysis precalculado (importación previa), calcular fallback a partir de laps
     let pacingAnalysis: FitPacingAnalysis | null = fitSummary.pacingAnalysis ?? fitSummary.deepAnalysis?.pacingAnalysis ?? null;

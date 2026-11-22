@@ -579,9 +579,9 @@ export default function HoyPage() {
                   </div>
                 </div>
 
-                {/* Chips clave limpios (Distancia / Duración / RPE) */}
+                {/* Chips clave limpios (Distancia / Duración / RPE / Ritmo Objetivo) */}
                 {(effectiveSession.distance_km != null || effectiveSession.duration_min != null || s.rpe != null || effectiveSession.discipline === "crossfit") && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className={`grid grid-cols-2 ${effectiveSession.discipline === "carrera" ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
                     {effectiveSession.discipline === "crossfit" ? (
                       <div
                         className="p-3 rounded-xl"
@@ -613,6 +613,23 @@ export default function HoyPage() {
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Duración</div>
                         <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
                           {effectiveSession.duration_min || 60} min
+                        </div>
+                      </div>
+                    )}
+                    {effectiveSession.discipline === "carrera" && (
+                      <div
+                        className="p-3 rounded-xl"
+                        style={{ background: "var(--color-surface-raised)", border: "1px solid var(--color-border)" }}
+                      >
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Ritmo Objetivo</div>
+                        <div className="text-sm font-bold tabular-nums mt-0.5 truncate" style={{ color: "var(--color-brand)" }}>
+                          {(() => {
+                            const textNotes = `${effectiveSession.planned_code || ""} ${effectiveSession.notes || ""}`;
+                            const matchPace = textNotes.match(/(\d:\d{2})\s*[-–]\s*(\d:\d{2})/);
+                            if (matchPace) return `${matchPace[1]} – ${matchPace[2]} /km`;
+                            if (vamZone) return vamZone.rangeLabel.replace(" min/km", " /km");
+                            return "5:10 – 5:25 /km";
+                          })()}
                         </div>
                       </div>
                     )}

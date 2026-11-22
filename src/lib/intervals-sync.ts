@@ -242,6 +242,8 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
       const watchCommentSuffix = rawWatchComment ? `\n[Notas Suunto]: ${rawWatchComment}` : "";
 
       if (!fitDataJson) {
+        const fallbackPace = distanceKm && durationMin && distanceKm > 0 ? Number((durationMin / distanceKm).toFixed(2)) : null;
+        const fmtFallbackPace = fallbackPace ? `${Math.floor(fallbackPace)}:${Math.round((fallbackPace - Math.floor(fallbackPace)) * 60).toString().padStart(2, "0")} /km` : null;
         fitDataJson = JSON.stringify({
           intervalsId: act.id,
           date,
@@ -249,6 +251,8 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
           activityName: act.name || act.type || "Suunto / Intervals",
           durationMin,
           distanceKm,
+          avgPaceMinKm: fallbackPace,
+          avgPaceFormatted: fmtFallbackPace,
           avgHeartRate: avgHr,
           maxHeartRate: maxHr,
           feeling,
@@ -379,7 +383,7 @@ async function runIntervalsSyncInternal(daysLookback = 14): Promise<IntervalsSyn
           fc_max: maxHr ?? undefined,
           carga_tss: load.tss,
           rpe,
-          raw_data: JSON.stringify(act),
+          raw_data: fitDataJson ?? JSON.stringify(act),
         });
 
         if (targetSessionId) {
