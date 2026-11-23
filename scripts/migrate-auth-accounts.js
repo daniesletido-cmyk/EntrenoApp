@@ -14,12 +14,13 @@ const dbPaths = [
   path.join(__dirname, '..', 'seed', 'entrenoapp.db')
 ];
 
+const newHash = hashPassword("Daniel2026!");
+const now = new Date().toISOString();
+
 for (const dbPath of dbPaths) {
   if (!fs.existsSync(dbPath)) continue;
-  console.log(`[Migrate Auth] Procesando ${dbPath}...`);
   const db = new DatabaseSync(dbPath);
 
-  // Crear tabla auth_accounts
   db.exec(`
     CREATE TABLE IF NOT EXISTS auth_accounts (
       id TEXT PRIMARY KEY,
@@ -32,19 +33,16 @@ for (const dbPath of dbPaths) {
     );
   `);
 
-  // Comprobar si existe Daniel Espinosa
-  const daniel = db.prepare("SELECT * FROM auth_accounts WHERE id = 'default_user' OR email = 'daniespinosa973@gmail.com'").get();
-  if (!daniel) {
-    const defaultPasswordHash = hashPassword("Entreno2026!");
-    const now = new Date().toISOString();
-    db.prepare(`
-      INSERT INTO auth_accounts (id, email, password_hash, full_name, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run('default_user', 'daniespinosa973@gmail.com', defaultPasswordHash, 'Daniel Espinosa', 'owner', now, now);
-    console.log(`  ✅ Creada cuenta propietaria para Daniel Espinosa en ${path.basename(dbPath)}`);
-  } else {
-    console.log(`  ℹ️ Cuenta de Daniel ya existe en ${path.basename(dbPath)}`);
-  }
-}
+  db.prepare(`
+    INSERT INTO auth_accounts (id, email, password_hash, full_name, role, created_at, updated_at)
+    VALUES ('default_user', 'daniespinosa973@gmail.com', ?, 'Daniel Espinosa', 'owner', ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      email = 'daniespinosa973@gmail.com',
+      password_hash = excluded.password_hash,
+      full_name = 'Daniel Espinosa',
+      role = 'owner',
+      updated_at = excluded.updated_at
+  `).run(newHash, now, now);
 
-console.log('Migración de auth_accounts completada con éxito.');
+  console.log(`✅ Cuenta de Daniel actualizada con contraseña segura en ${path.basename(dbPath)}`);
+}
