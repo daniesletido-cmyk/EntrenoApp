@@ -1418,7 +1418,7 @@ export default function RegistroPage() {
 
       {/* Selector Horizontal de los 7 Días */}
       <div className="w-full mb-3">
-        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 pt-2.5 pb-1">
           {days.map((date, idx) => {
             const isSelected = viewMode === "horizontal" && date === selectedDate;
             const isToday = date === todayISO();
@@ -1437,7 +1437,7 @@ export default function RegistroPage() {
                   setSelectedDate(date);
                   if (viewMode === "all") setViewMode("horizontal");
                 }}
-                className={`group relative flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 select-none border text-center ${
+                className={`group relative flex flex-col items-center justify-center pt-2.5 pb-2 px-1 rounded-xl transition-all duration-200 select-none border text-center ${
                   isSelected
                     ? "bg-brand text-white border-brand shadow-md shadow-brand/25 scale-[1.02]"
                     : isToday
@@ -1445,21 +1445,23 @@ export default function RegistroPage() {
                     : "bg-surface-raised/70 text-muted hover:text-foreground hover:bg-surface-raised border-border/60"
                 }`}
                 style={{
-                  minHeight: "56px",
+                  minHeight: "58px",
                 }}
                 title={`${DAY_NAMES_ES[idx]} ${dayNum} (${daySessions.length} sesiones${hasSleep ? " · Sueño anotado" : ""})`}
               >
                 {isToday && (
                   <span
-                    className={`absolute -top-1.5 px-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                      isSelected ? "bg-white text-brand" : "bg-brand text-white"
+                    className={`absolute -top-2 left-1/2 -translate-x-1/2 px-1.5 rounded-full text-[8.5px] font-extrabold uppercase tracking-wider whitespace-nowrap z-10 pointer-events-none shadow-xs ${
+                      isSelected
+                        ? "bg-white text-brand border border-white/60"
+                        : "bg-brand text-white border border-brand/20 shadow-brand/20"
                     }`}
-                    style={{ lineHeight: "12px" }}
+                    style={{ lineHeight: "11px", paddingBottom: "1px" }}
                   >
                     Hoy
                   </span>
                 )}
-                <span className={`text-[10px] sm:text-xs font-semibold tracking-wide uppercase ${isSelected ? "opacity-90" : "opacity-75"}`}>
+                <span className={`text-[10px] sm:text-xs font-semibold tracking-wide uppercase leading-tight ${isSelected ? "opacity-90" : "opacity-75"}`}>
                   {dayLetter}
                 </span>
                 <span className="text-sm sm:text-base font-extrabold leading-none mt-0.5">
