@@ -19,6 +19,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { FallbackManualModal } from "@/components/suunto/fallback-manual-modal";
 import { haptics } from "@/lib/haptics";
 import { OfflineIndicator } from "@/components/ui/offline-indicator";
+import { useAuth } from "@/context/auth-context";
 
 interface NavItemDef {
   href: string;
@@ -76,10 +77,23 @@ function isNavActive(pathname: string, item: NavItemDef): boolean {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { profile, user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [raceDate, setRaceDate] = useState("26/04/2027");
+  const [raceDate, setRaceDate] = useState("Objetivo");
   const [isGlobalRefreshing, setIsGlobalRefreshing] = useState(false);
   const [suuntoImportOpen, setSuuntoImportOpen] = useState(false);
+
+  const athleteName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split("@")[0] : "Atleta");
+  const athleteInitials = athleteName
+    .split(" ")
+    .filter(Boolean)
+    .map((p: string) => p[0].toUpperCase())
+    .slice(0, 2)
+    .join("") || "AT";
+  const athleteGoal = profile?.target_distance || "Plan Personalizado";
+  const athleteGoalDate = profile?.target_date
+    ? profile.target_date.split("-").reverse().join("/")
+    : raceDate;
 
   const current = MAIN_NAV.find((item) => isNavActive(pathname, item)) ?? MAIN_NAV[0];
 
@@ -208,14 +222,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   color: "var(--color-brand)",
                 }}
               >
-                DE
+                {athleteInitials}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold truncate" style={{ color: "var(--color-text)" }}>
-                  Daniel Espinosa
+                  {athleteName}
                 </div>
                 <div className="text-[11px] truncate tabular-nums" style={{ color: "var(--color-text-muted)" }}>
-                  Maratón · {raceDate}
+                  {athleteGoal} · {athleteGoalDate}
                 </div>
               </div>
             </Link>
@@ -273,7 +287,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {current.label}
               </span>
               <span className="text-[11px] leading-tight truncate" style={{ color: "var(--color-text-muted)" }}>
-                Daniel Espinosa
+                {athleteName}
               </span>
             </div>
           </Link>

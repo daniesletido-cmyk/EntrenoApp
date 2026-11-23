@@ -4,6 +4,8 @@ import { computeDailyReadiness, DailyReadiness } from "@/lib/readiness";
 import { getAllSettings } from "@/lib/repo/settings";
 import { listSessionsBetween, SessionRow } from "@/lib/repo/sessions";
 import { listGymPRs } from "@/lib/repo/gym";
+import { getDb } from "@/lib/db";
+import { paceToSecKm } from "@/lib/pace-zones";
 
 export interface CoachAthleteContext {
   today: string;
@@ -24,12 +26,43 @@ export interface CoachAthleteContext {
   contextMarkdown: string;
 }
 
-export function buildCoachAthleteContext(todayParam?: string): CoachAthleteContext {
+export function buildCoachAthleteContext(todayParam?: string, userId?: string): CoachAthleteContext {
   const today = todayParam || todayISO();
   const weekStart = weekStartOf(today);
   const weekEnd = addDays(weekStart, 6);
 
   const settings = getAllSettings();
+  let athleteName = "Daniel Espinosa";
+  let targetDistance = "Maratón";
+  let targetDate = settings.goal_race_date || "2027-04-26";
+  let targetPace = settings.target_pace_scenario || "5:00-5:15 min/km (Sub 3h45)";
+  let vamPace = "3:59 min/km";
+  let vamSpeed = "15.06 km/h";
+  let allergies = settings.allergies || "Alergia estricta a frutos secos. No come pescado (suplementa Omega-3 diario)";
+  let hrNote = settings.resting_hr_note || null;
+  let currentPhase = settings.current_phase || "Fase 1a (Base aeróbica + Hipertrofia)";
+
+  if (userId && userId !== "default_user") {
+    try {
+      const db = getDb();
+      const p = db.prepare<any>("SELECT * FROM profiles WHERE id = ?").get(userId);
+      if (p) {
+        if (p.full_name) athleteName = p.full_name;
+        if (p.target_distance) targetDistance = p.target_distance;
+        if (p.target_date) targetDate = p.target_date;
+        if (p.target_pace) targetPace = p.target_pace;
+        if (p.vam_pace) {
+          vamPace = `${p.vam_pace} min/km`;
+          const sec = paceToSecKm(p.vam_pace) || 270;
+          vamSpeed = `${(3600 / sec).toFixed(2)} km/h`;
+        }
+        if (p.role !== "owner") {
+          allergies = "Sin restricciones médicas registradas";
+          hrNote = null;
+        }
+      }
+    } catch {}
+  }
   const weeklyAssessment = computeCoachWeeklyAssessment(weekStart);
   const dailyReadiness = computeDailyReadiness(today);
 
@@ -113,19 +146,12 @@ export function buildCoachAthleteContext(todayParam?: string): CoachAthleteConte
 
   const contextMarkdown = `
 ### DATOS REALES DEL ATLETA (ACTUALIZADOS A FECHA: ${today})
-- **Nombre**: Daniel Espinosa
-- **Objetivo principal**: 2ª Maratón (${settings.goal_race_date || "2027-04-26"}), Ritmo objetivo: ${settings.target_pace_scenario || "5:00-5:15 min/km (Sub 3h45)"}
-- **Fase de preparación**: ${settings.current_phase || "Fase 1a (Base aeróbica + Hipertrofia)"}
-- **Prueba VAM Oficial**: 3:59 min/km (15.06 km/h).
-- **Zonas de Ritmo Oficiales**:
-  * **R0 (Regenerativo)**: > 5:23 min/km (5:25 - 5:50 min/km) a RPE 3-4.
-  * **R1 (Aeróbico Ligero / Base)**: 5:23 - 4:59 min/km a RPE 4-5.
-  * **RMC (Ritmo Maratón Objetivo)**: 5:00 - 5:15 min/km a RPE 5-6.
-  * **R2 (Aeróbico Medio / Umbral Aeróbico)**: 4:59 - 4:35 min/km a RPE 6-7.
-  * **R3 (Tempo / Umbral Anaeróbico)**: 4:23 - 4:11 min/km a RPE 7-8.
-  * **R3+ (VAM / VO2max)**: 3:59 min/km a RPE 9-10.
-- **Nota médica y Fisiología**: ${settings.resting_hr_note || "Taquicardia en reposo (~100 lpm). Apto sin restricciones. Entrenar SIEMPRE por ritmo (min/km) y RPE (1-10 Foster), NUNCA por zonas de pulso absoluto (lpm)."}
-- **Alergias / Nutrición**: ${settings.allergies || "Alergia estricta a frutos secos"}. ${settings.fish_note || "No come pescado (suplementa Omega-3 diario)"}.
+- **Nombre**: ${athleteName}
+- **Objetivo principal**: ${targetDistance} (${targetDate}), Ritmo objetivo: ${targetPace}
+- **Fase de preparación**: ${currentPhase}
+- **Prueba VAM Oficial**: ${vamPace} (${vamSpeed}).
+- **Nota médica y Fisiología**: ${hrNote || "Apto médicamente. Entrenar por ritmo/RPE."}
+- **Alergias / Nutrición**: ${allergies}
 
 #### ESTADO DE CARGA SEMANAL (Semana del ${weeklyAssessment.weekStart} al ${weeklyAssessment.weekEnd})
 - **Carga Foster acumulada**: ${weeklyAssessment.loadAnalysis.currentWeekLoad} pts (${weeklyAssessment.loadAnalysis.totalMinutes} min · ${weeklyAssessment.loadAnalysis.totalKm} km en ${weeklyAssessment.sessionsProgress.completedCount} sesiones).
@@ -165,15 +191,15 @@ ${prsList}
 
   return {
     today,
-    athleteName: "Daniel Espinosa",
+    athleteName,
     profile: {
-      marathonDate: settings.goal_race_date ?? "2027-04-26",
-      targetPace: settings.target_pace_scenario ?? "5:00-5:15 min/km",
-      vamPace: "3:59 min/km",
-      vamSpeed: "15.06 km/h",
-      hrNote: settings.resting_hr_note ?? null,
-      currentPhase: settings.current_phase ?? "Fase 1a (Base aeróbica + Hipertrofia)",
-      allergies: settings.allergies ?? "Frutos secos / Sin pescado",
+      marathonDate: targetDate,
+      targetPace: targetPace,
+      vamPace: vamPace,
+      vamSpeed: vamSpeed,
+      hrNote: hrNote,
+      currentPhase: currentPhase,
+      allergies: allergies,
     },
     weeklyAssessment,
     dailyReadiness,

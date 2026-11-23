@@ -38,16 +38,18 @@ export interface NewPlannedSession {
   notes?: string | null;
   user_notes?: string | null;
   feeling?: number | null;
+  user_id?: string;
 }
 
 export function createPlannedSession(input: NewPlannedSession): SessionRow {
   const db = getDb();
   const now = new Date().toISOString();
   const week_start = weekStartOf(input.date);
+  const userId = input.user_id || "default_user";
   const res = db
     .prepare(
-      `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, user_notes, feeling, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
+      `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, user_notes, feeling, status, user_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?)`
     )
     .run(
       input.date,
@@ -59,6 +61,7 @@ export function createPlannedSession(input: NewPlannedSession): SessionRow {
       input.notes ?? null,
       input.user_notes ?? null,
       input.feeling ?? null,
+      userId,
       now,
       now
     );
@@ -69,15 +72,25 @@ export function getSessionById(id: number): SessionRow | undefined {
   return getDb().prepare<SessionRow>("SELECT * FROM sessions WHERE id = ?").get(id);
 }
 
-export function listSessionsForWeek(weekStart: string): SessionRow[] {
+export function listSessionsForWeek(weekStart: string, userId?: string): SessionRow[] {
+  if (userId && userId !== "default_user") {
+    return getDb()
+      .prepare<SessionRow>("SELECT * FROM sessions WHERE week_start = ? AND user_id = ? ORDER BY date ASC, id ASC")
+      .all(weekStart, userId);
+  }
   return getDb()
-    .prepare<SessionRow>("SELECT * FROM sessions WHERE week_start = ? ORDER BY date ASC, id ASC")
+    .prepare<SessionRow>("SELECT * FROM sessions WHERE week_start = ? AND (user_id = 'default_user' OR user_id IS NULL) ORDER BY date ASC, id ASC")
     .all(weekStart);
 }
 
-export function listSessionsBetween(fromDate: string, toDate: string): SessionRow[] {
+export function listSessionsBetween(fromDate: string, toDate: string, userId?: string): SessionRow[] {
+  if (userId && userId !== "default_user") {
+    return getDb()
+      .prepare<SessionRow>("SELECT * FROM sessions WHERE date >= ? AND date <= ? AND user_id = ? ORDER BY date ASC, id ASC")
+      .all(fromDate, toDate, userId);
+  }
   return getDb()
-    .prepare<SessionRow>("SELECT * FROM sessions WHERE date >= ? AND date <= ? ORDER BY date ASC, id ASC")
+    .prepare<SessionRow>("SELECT * FROM sessions WHERE date >= ? AND date <= ? AND (user_id = 'default_user' OR user_id IS NULL) ORDER BY date ASC, id ASC")
     .all(fromDate, toDate);
 }
 
@@ -414,14 +427,15 @@ export function bulkCreateSessions(inputs: NewPlannedSession[]): SessionRow[] {
   const db = getDb();
   const now = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, user_notes, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`
+    `INSERT INTO sessions (date, week_start, discipline, planned_code, is_long_run, is_extra, notes, user_notes, status, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?)`
   );
 
   const insertedIds: number[] = [];
   const runBulk = db.transaction(() => {
     for (const input of inputs) {
       const week_start = weekStartOf(input.date);
+      const userId = input.user_id || "default_user";
       const res = stmt.run(
         input.date,
         week_start,
@@ -431,6 +445,7 @@ export function bulkCreateSessions(inputs: NewPlannedSession[]): SessionRow[] {
         input.is_extra ? 1 : 0,
         input.notes ?? null,
         input.user_notes ?? null,
+        userId,
         now,
         now
       );

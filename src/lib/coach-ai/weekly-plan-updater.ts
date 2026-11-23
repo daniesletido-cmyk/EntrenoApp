@@ -51,10 +51,12 @@ function syncToSeedDb(query: string, ...params: any[]) {
  */
 export function actualizarPlanSemanal(
   weekStart: string,
-  days: WeeklyPlanDayInput[]
+  days: WeeklyPlanDayInput[],
+  userId?: string
 ): WeeklyPlanUpdateResult {
   const db = getDb();
   const now = new Date().toISOString();
+  const effectiveUserId = userId || "default_user";
   let updatedCount = 0;
   const daysResult: WeeklyPlanUpdateResult["days"] = [];
 
@@ -63,10 +65,17 @@ export function actualizarPlanSemanal(
     const sessionDate = day.date;
     const currentWeekStart = weekStartOf(sessionDate);
 
-    // Buscar sesión existente para esa fecha
-    const existing = db
-      .prepare<SessionRow>("SELECT * FROM sessions WHERE date = ? ORDER BY id ASC LIMIT 1")
-      .get(sessionDate);
+    // Buscar sesión existente para esa fecha y usuario
+    let existing: SessionRow | undefined;
+    if (userId && userId !== "default_user") {
+      existing = db
+        .prepare<SessionRow>("SELECT * FROM sessions WHERE date = ? AND user_id = ? ORDER BY id ASC LIMIT 1")
+        .get(sessionDate, userId);
+    } else {
+      existing = db
+        .prepare<SessionRow>("SELECT * FROM sessions WHERE date = ? AND (user_id = 'default_user' OR user_id IS NULL) ORDER BY id ASC LIMIT 1")
+        .get(sessionDate);
+    }
 
     const isLongRun = day.isLongRun ? 1 : (day.discipline === "carrera" && (day.distanceKm ?? 0) >= 16 ? 1 : 0);
 
@@ -136,8 +145,8 @@ export function actualizarPlanSemanal(
       const insertSql = `
         INSERT INTO sessions (
           date, week_start, discipline, planned_code, is_long_run,
-          is_extra, notes, status, duration_min, distance_km, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 0, ?, 'pendiente', ?, ?, ?, ?)
+          is_extra, notes, status, duration_min, distance_km, user_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 0, ?, 'pendiente', ?, ?, ?, ?, ?)
       `;
 
       db.prepare(insertSql).run(
@@ -149,6 +158,7 @@ export function actualizarPlanSemanal(
         day.notes ?? null,
         day.durationMin ?? null,
         day.distanceKm ?? null,
+        effectiveUserId,
         now,
         now
       );
@@ -163,6 +173,7 @@ export function actualizarPlanSemanal(
         day.notes ?? null,
         day.durationMin ?? null,
         day.distanceKm ?? null,
+        effectiveUserId,
         now,
         now
       );

@@ -38,6 +38,8 @@ import {
   Brain,
   UtensilsCrossed,
   ShieldAlert,
+  Navigation,
+  Droplets,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -521,6 +523,18 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                 <Sparkles size={13} />
                 <span>Tarjeta Resumen</span>
               </button>
+            )}
+            {isRunning && session && (
+              <a
+                href={`/api/sessions/${session.id}/gpx`}
+                download
+                className="btn btn-secondary text-xs flex items-center gap-1.5 harbiz-press no-underline"
+                style={{ padding: "0.32rem 0.65rem" }}
+                title="Descargar ruta GPX con avisos de nutrición y agua para Suunto 9 Peak Pro"
+              >
+                <Navigation size={13} className="text-emerald-500" />
+                <span>Ruta GPX (POIs)</span>
+              </a>
             )}
             <button
               className="btn btn-secondary text-xs flex items-center gap-1"
@@ -1006,6 +1020,44 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                           {deep.pacingStabilityScore} / 100
                         </div>
                         <div className="text-xs text-faint">Consistencia de paso</div>
+                      </div>
+                    )}
+
+                    {fit?.suuntoMetrics?.gapPaceFormatted && (
+                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                        <div className="text-xs text-muted font-medium flex items-center gap-1">
+                          <Gauge size={12} /> Ritmo GAP (Llano)
+                        </div>
+                        <div className="text-lg font-bold text-brand" style={{ marginTop: 2 }}>
+                          {fit.suuntoMetrics.gapPaceFormatted}
+                        </div>
+                        <div className="text-xs text-faint">Compensado por pendiente</div>
+                      </div>
+                    )}
+
+                    {fit?.suuntoMetrics?.projectedMarathonFormatted && (
+                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                        <div className="text-xs text-muted font-medium flex items-center gap-1">
+                          <Timer size={12} /> Proyector Meta 42K
+                        </div>
+                        <div className="text-lg font-bold text-emerald-600" style={{ marginTop: 2 }}>
+                          {fit.suuntoMetrics.projectedMarathonFormatted}
+                        </div>
+                        <div className="text-xs text-faint">Ritmo medio sostenido</div>
+                      </div>
+                    )}
+
+                    {fit?.suuntoMetrics?.hydrationLossMl != null && fit.suuntoMetrics.hydrationLossMl > 0 && (
+                      <div className="surface-raised" style={{ padding: "var(--space-3)" }}>
+                        <div className="text-xs text-muted font-medium flex items-center gap-1">
+                          <Droplets size={12} className="text-blue-500" /> Pérdida Líquidos
+                        </div>
+                        <div className="text-lg font-bold text-blue-500" style={{ marginTop: 2 }}>
+                          {fit.suuntoMetrics.hydrationLossMl} ml
+                        </div>
+                        <div className="text-xs text-faint">
+                          {fit.suuntoMetrics.carbsIntakeTargetG ? `${fit.suuntoMetrics.carbsIntakeTargetG}g CHO tomados` : "Estimación metabólica"}
+                        </div>
                       </div>
                     )}
                   </div>

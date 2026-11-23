@@ -11,6 +11,7 @@ import { isSupabaseConfigured, upsertSessionToSupabase, fetchSessionsFromSupabas
 import { listSuuntoSyncForSessionIds } from "@/lib/repo/suunto-sync";
 import { getSetting } from "@/lib/repo/settings";
 import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 const VALID_DISCIPLINES = new Set([
   "carrera",
@@ -59,6 +60,9 @@ function validateSessionPayload(data: Record<string, unknown>): { valid: boolean
 
 export async function GET(req: NextRequest) {
   await refreshDbFromBlobIfNewer();
+  const user = await getAuthenticatedUser(req);
+  const userId = user?.id || req.headers.get("x-user-id") || undefined;
+
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
   const week = req.nextUrl.searchParams.get("week") ?? weekStartOf(todayISO());
@@ -74,7 +78,7 @@ export async function GET(req: NextRequest) {
     try {
       const fromDate = from || (week ? weekStartOf(week) : undefined);
       const toDate = to || undefined;
-      const cloudSessions = await fetchSessionsFromSupabase(fromDate, toDate);
+      const cloudSessions = await fetchSessionsFromSupabase(fromDate, toDate, userId);
       if (cloudSessions && cloudSessions.length > 0) {
         const syncMap = listSuuntoSyncForSessionIds(
           cloudSessions.map((cs: { id: number }) => cs.id)
@@ -90,17 +94,19 @@ export async function GET(req: NextRequest) {
   }
 
   if (from && to) {
-    const sessions = listSessionsBetween(from, to);
+    const sessions = listSessionsBetween(from, to, userId);
     const suuntoSyncMap = listSuuntoSyncForSessionIds(sessions.map((s) => s.id));
     return NextResponse.json({ sessions, suuntoSyncMap });
   }
 
-  const sessions = listSessionsForWeek(weekStartOf(week));
+  const sessions = listSessionsForWeek(weekStartOf(week), userId);
   const suuntoSyncMap = listSuuntoSyncForSessionIds(sessions.map((s) => s.id));
   return NextResponse.json({ weekStart: weekStartOf(week), sessions, suuntoSyncMap });
 }
 
 export async function POST(req: NextRequest) {
+  const user = await getAuthenticatedUser(req);
+  const userId = user?.id || req.headers.get("x-user-id") || undefined;
   const body = await req.json();
 
   // Soporte para inserción en lote atómica
@@ -110,12 +116,13 @@ export async function POST(req: NextRequest) {
     if (valid.length === 0) {
       return NextResponse.json({ error: "Ninguna sesión válida para crear" }, { status: 400 });
     }
-    const created = bulkCreateSessions(valid);
+    const withUser = valid.map((item: any) => ({ ...item, user_id: userId }));
+    const created = bulkCreateSessions(withUser);
 
     // Persistencia simultánea en Supabase si está activo
     if (isSupabaseConfigured()) {
       for (const s of created) {
-        await upsertSessionToSupabase(s).catch(() => {});
+        await upsertSessionToSupabase(s, userId).catch(() => {});
       }
     }
 

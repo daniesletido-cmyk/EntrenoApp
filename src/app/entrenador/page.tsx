@@ -15,10 +15,14 @@ import {
   ArrowRight,
   Info,
   CheckCircle2,
+  ImagePlus,
+  Camera,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import type { CoachActionProposal, CoachActionResult } from "@/lib/coach-ai/actions";
+import { useAuth } from "@/context/auth-context";
 
 interface Message {
   id: string;
@@ -38,23 +42,50 @@ const SUGGESTED_QUESTIONS = [
   "¿Por qué tengo el ACWR en este valor y qué pauta debo seguir?",
 ];
 
-const INITIAL_MESSAGE: Message = {
-  id: "welcome-1",
-  role: "assistant",
-  content: `¡Hola Daniel! Soy tu **Entrenador Personal** en EntrenoApp.
-
-Tengo acceso directo a tus datos biométricos de esta semana: tus entrenamientos completados, tu ratio ACWR, las horas de sueño registradas en Zepp y tu Readiness diario.
-
-¿Tienes dudas sobre cómo adaptar una sesión, qué ritmo llevar, cómo gestionar la fatiga o qué comer antes de una tirada larga? Pregúntame lo que necesites.`,
-  timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-};
-
 export default function EntrenadorPage() {
-  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
+  const { profile, user } = useAuth();
+  const athleteFirstName = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Atleta";
+
+  const getWelcomeMessage = (name: string): Message => ({
+    id: "welcome-1",
+    role: "assistant",
+    content: `¡Hola ${name}! Soy tu **Entrenador Personal** en EntrenoApp.
+
+Tengo acceso directo a tus datos biométricos de esta semana: tus entrenamientos completados, tu ratio ACWR, tus registros de sueño y tu Readiness diario.
+
+¿Tienes dudas sobre cómo adaptar una sesión, qué ritmo llevar, cómo gestionar la fatiga o qué comer antes de una tirada larga? Pregúntame lo que necesites o sube una foto de tu pizarra de CrossFit.`,
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  });
+
+  const [messages, setMessages] = useState<Message[]>([getWelcomeMessage(athleteFirstName)]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [contextSummary, setContextSummary] = useState<string>("Conectado a tus datos en vivo");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setSelectedImage(result);
+      setImagePreview(result);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // Actualizar mensaje de bienvenida cuando se cargue el perfil si no hay chat previo
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].id === "welcome-1") {
+      setMessages([getWelcomeMessage(athleteFirstName)]);
+    }
+  }, [athleteFirstName]);
 
   // Cargar historial de localStorage si existe
   useEffect(() => {
@@ -85,26 +116,31 @@ export default function EntrenadorPage() {
 
   const handleSend = async (questionText?: string) => {
     const textToSend = (questionText || input).trim();
-    if (!textToSend || loading) return;
+    if ((!textToSend && !selectedImage) || loading) return;
 
     const userMsg: Message = {
       id: `u-${Date.now()}`,
       role: "user",
-      content: textToSend,
+      content: textToSend || "Analiza la pizarra de CrossFit de la imagen adjunta.",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
+    const imgToSend = selectedImage;
+    setSelectedImage(null);
+    setImagePreview(null);
     setLoading(true);
 
     try {
-      const res = await fetch("/api/coach/chat", {
+      const res = await fetch("/api/ai-coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          image: imgToSend,
+          userId: user?.id,
         }),
       });
 
@@ -160,18 +196,40 @@ export default function EntrenadorPage() {
     }
   };
 
-  const handleApplyProposed = async (msgId: string, action: CoachActionProposal) => {
+  const handleApplyProposed = async (msgId: string, action: CoachActionProposal | any) => {
     try {
-      const res = await fetch("/api/coach/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+      let res: Response;
+      if (action.days || action.type === "update_plan") {
+        res = await fetch("/api/ai-coach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ applyAction: true, action, userId: user?.id }),
+        });
+      } else {
+        res = await fetch("/api/coach/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, userId: user?.id }),
+        });
+      }
       const data = await res.json();
-      if (data.ok && data.result) {
+      if (data.ok || data.success) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("entrenoapp:refresh"));
+        }
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === msgId ? { ...m, proposedAction: undefined, appliedAction: data.result } : m
+            m.id === msgId
+              ? {
+                  ...m,
+                  proposedAction: undefined,
+                  appliedAction: data.result || {
+                    success: true,
+                    actionType: action.type || "modify_session",
+                    message: data.message || "Plan semanal actualizado con éxito",
+                  },
+                }
+              : m
           )
         );
       }
@@ -202,7 +260,7 @@ export default function EntrenadorPage() {
 
   const resetChat = () => {
     if (confirm("¿Quieres reiniciar la conversación con tu entrenador?")) {
-      setMessages([INITIAL_MESSAGE]);
+      setMessages([getWelcomeMessage(athleteFirstName)]);
       try {
         localStorage.removeItem("entrenoapp_coach_chat");
       } catch {
@@ -551,6 +609,42 @@ export default function EntrenadorPage() {
             borderBottomRightRadius: "var(--radius-lg)",
           }}
         >
+          {/* Previsualización de imagen adjuntada */}
+          {imagePreview && (
+            <div
+              className="flex items-center justify-between gap-3 p-2.5 rounded-2xl mb-2.5 animate-in"
+              style={{
+                background: "var(--color-surface-raised)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src={imagePreview}
+                  alt="Pizarra CrossFit adjunta"
+                  className="w-12 h-12 object-cover rounded-xl border border-[var(--color-border)] shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="text-xs font-bold truncate">Pizarra o WOD adjuntado</div>
+                  <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                    Listo para analizar con Gemini Vision al enviar
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedImage(null);
+                  setImagePreview(null);
+                }}
+                className="p-1.5 rounded-xl text-red-500 hover:bg-red-500/10 cursor-pointer transition-colors"
+                title="Quitar imagen"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -559,10 +653,33 @@ export default function EntrenadorPage() {
             className="flex items-center gap-2"
           >
             <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              className="p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+              style={{
+                background: selectedImage ? "rgba(220, 38, 38, 0.1)" : "var(--color-surface-raised)",
+                border: selectedImage ? "1px solid #DC2626" : "1px solid var(--color-border)",
+                color: selectedImage ? "#DC2626" : "var(--color-text-muted)",
+              }}
+              title="Subir foto de pizarra de CrossFit o entreno"
+            >
+              <Camera size={18} />
+            </button>
+
+            <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Pregúntale a tu entrenador (ej: ¿Cómo ves si hoy cambio carrera por natación?)..."
+              placeholder="Pregúntale a tu entrenador o sube una foto de la pizarra..."
               disabled={loading}
               className="field"
               style={{
@@ -571,10 +688,11 @@ export default function EntrenadorPage() {
                 padding: "0.6rem 0.85rem",
               }}
             />
+
             <Button
               type="submit"
               variant="primary"
-              disabled={!input.trim() || loading}
+              disabled={(!input.trim() && !selectedImage) || loading}
               style={{ flexShrink: 0, padding: "0.6rem 1.1rem" }}
             >
               <Send size={15} />

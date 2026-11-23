@@ -652,8 +652,8 @@ Respecto a *"${currentMsg}"*:
   return { reply, actionCandidate };
 }
 
-export async function askCoachAI(messages: ChatMessage[], todayParam?: string): Promise<CoachAIResponse> {
-  const context = buildCoachAthleteContext(todayParam);
+export async function askCoachAI(messages: ChatMessage[], todayParam?: string, userId?: string): Promise<CoachAIResponse> {
+  const context = buildCoachAthleteContext(todayParam, userId);
   const anthropicClient = getAnthropicClient();
   const geminiApiKey = getGeminiApiKey();
 
@@ -661,7 +661,7 @@ export async function askCoachAI(messages: ChatMessage[], todayParam?: string): 
   const isExplicitChangeRequest = checkIsExplicitChangeOrder(lastUserMsg);
 
   const systemPrompt = `
-Eres el Equipo Técnico Multidisciplinar Oficial de Daniel Espinosa dentro de su aplicación "EntrenoApp", integrando la visión coordinada de cuatro especialistas de élite:
+Eres el Equipo Técnico Multidisciplinar Oficial de ${context.athleteName} dentro de su aplicación "EntrenoApp", integrando la visión coordinada de cuatro especialistas de élite:
 1. PREPARADOR FÍSICO DE ÉLITE (Rendimiento y Periodización):
    - Evalúa la carga aguda vs. crónica (ACWR / TSB), zonas de ritmo (VAM oficial 3:59 min/km), volumen semanal y proximidad a su objetivo de Maratón (ritmo 5:00-5:15 min/km).
    - Ajusta intensidad y volumen de las siguientes sesiones para maximizar la supercompensación y evitar el sobreentrenamiento.

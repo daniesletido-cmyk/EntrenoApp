@@ -5,7 +5,7 @@ import { Gauge, RefreshCw, Save, ShieldAlert, Sparkles, Watch, AlertTriangle, Ch
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
-import type { PaceZone, PaceZonesConfig } from "@/lib/pace-zones";
+import type { PaceZone, PaceZonesConfig } from "@/lib/pace-zones-calc";
 
 export function PaceZonesCard() {
   const toast = useToast();

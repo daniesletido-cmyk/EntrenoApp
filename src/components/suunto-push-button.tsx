@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Watch, CheckCircle2, AlertCircle, Loader2, Download } from "lucide-react";
+import { Watch, CheckCircle2, AlertCircle, Loader2, Download, Navigation } from "lucide-react";
 
 export interface SuuntoSyncInfo {
   session_id?: number;
@@ -221,6 +221,18 @@ export function SuuntoPushButton({
               <span>.FIT</span>
             </a>
           )}
+          {discipline === "carrera" && showFitDownload && (
+            <a
+              href={`/api/sessions/${sessionId}/gpx`}
+              download={`${sessionDate || "sesion"}_nutricion.gpx`}
+              className="btn btn-secondary rounded-xl px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 no-underline harbiz-press"
+              style={{ minHeight: 48 }}
+              title="Descargar ruta GPX con puntos de hidratación y geles para Suunto 9 Peak Pro"
+            >
+              <Navigation size={15} className="text-emerald-600" />
+              <span>Ruta GPX</span>
+            </a>
+          )}
         </div>
 
         {(successMsg || isSynced) && !errorMsg && (
@@ -289,6 +301,19 @@ export function SuuntoPushButton({
           >
             <Download size={14} />
             <span>.FIT</span>
+          </a>
+        )}
+
+        {discipline === "carrera" && showFitDownload && (
+          <a
+            href={`/api/sessions/${sessionId}/gpx`}
+            download={`${sessionDate || "sesion"}_nutricion.gpx`}
+            className="btn btn-secondary btn-sm inline-flex items-center gap-1.5 no-underline harbiz-press"
+            style={{ minHeight: 44 }}
+            title="Descargar ruta GPX con avisos de agua y geles para Suunto 9 Peak Pro"
+          >
+            <Navigation size={14} className="text-emerald-600" />
+            <span>Ruta GPX</span>
           </a>
         )}
       </div>

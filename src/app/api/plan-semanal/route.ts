@@ -3,17 +3,43 @@ import { getDb, flushDbPersistence } from "@/lib/db";
 import { todayISO, weekStartOf, addDays } from "@/lib/dates";
 import { actualizarPlanSemanal, WeeklyPlanDayInput } from "@/lib/coach-ai/weekly-plan-updater";
 import { SessionRow } from "@/lib/repo/sessions";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { isSupabaseConfigured, fetchSessionsFromSupabase } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getAuthenticatedUser(req);
+    const userId = user?.id || req.headers.get("x-user-id") || undefined;
+
     const { searchParams } = new URL(req.url);
     const week = searchParams.get("week") || weekStartOf(todayISO());
     const weekEnd = addDays(week, 6);
 
+    if (isSupabaseConfigured()) {
+      try {
+        const cloud = await fetchSessionsFromSupabase(week, weekEnd, userId);
+        if (cloud && cloud.length > 0) {
+          return NextResponse.json({
+            success: true,
+            weekStart: week,
+            weekEnd,
+            sessions: cloud,
+          });
+        }
+      } catch {}
+    }
+
     const db = getDb();
-    const sessions = db
-      .prepare<SessionRow>("SELECT * FROM sessions WHERE date BETWEEN ? AND ? ORDER BY date ASC, id ASC")
-      .all(week, weekEnd);
+    let sessions: SessionRow[] = [];
+    if (userId && userId !== "default_user") {
+      sessions = db
+        .prepare<SessionRow>("SELECT * FROM sessions WHERE date BETWEEN ? AND ? AND user_id = ? ORDER BY date ASC, id ASC")
+        .all(week, weekEnd, userId);
+    } else {
+      sessions = db
+        .prepare<SessionRow>("SELECT * FROM sessions WHERE date BETWEEN ? AND ? AND (user_id = 'default_user' OR user_id IS NULL) ORDER BY date ASC, id ASC")
+        .all(week, weekEnd);
+    }
 
     return NextResponse.json({
       success: true,
@@ -29,12 +55,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getAuthenticatedUser(req);
+    const userId = user?.id || req.headers.get("x-user-id") || undefined;
     const body = await req.json().catch(() => ({}));
     const weekStart = body.weekStart || weekStartOf(todayISO());
 
     // Si el payload contiene los días directamente, aplicarlos
     if (Array.isArray(body.days) && body.days.length > 0) {
-      const result = actualizarPlanSemanal(weekStart, body.days);
+      const result = actualizarPlanSemanal(weekStart, body.days, userId);
       await flushDbPersistence();
       return NextResponse.json({
         success: result.success,

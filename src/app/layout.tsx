@@ -8,6 +8,8 @@ import "./globals.css";
 import AppShell from "@/components/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
 import { AppLockGuard } from "@/components/auth/app-lock-guard";
+import { AuthProvider } from "@/context/auth-context";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 export const viewport: Viewport = {
   themeColor: [
@@ -72,9 +74,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ToastProvider>
-          <AppLockGuard>
-            <AppShell>{children}</AppShell>
-          </AppLockGuard>
+          <AuthProvider>
+            <AuthGuard>
+              <AppLockGuard>
+                <AppShell>{children}</AppShell>
+              </AppLockGuard>
+            </AuthGuard>
+          </AuthProvider>
         </ToastProvider>
       </body>
     </html>

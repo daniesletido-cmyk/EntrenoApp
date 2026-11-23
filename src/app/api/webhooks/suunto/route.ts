@@ -143,6 +143,14 @@ export async function POST(req: NextRequest) {
       console.warn("[Suunto Webhook] Error enviando notificación push:", pushErr);
     }
 
+    // G) Persistencia inmediata en Vercel Blob (Zero-Touch Cloud Sync)
+    try {
+      const { flushDbPersistence } = await import("@/lib/db");
+      await flushDbPersistence();
+    } catch (flushErr) {
+      console.warn("[Suunto Webhook] Error sincronizando snapshot en Vercel Blob:", flushErr);
+    }
+
     return NextResponse.json({
       success: true,
       workout: savedWorkout,

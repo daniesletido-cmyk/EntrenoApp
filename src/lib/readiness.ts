@@ -533,6 +533,42 @@ export function computeDailyReadiness(targetDate: string): DailyReadiness {
       fatigueDetail += " Además, sumas la intensidad acumulada de hace dos días.";
     }
 
+    // Detección de telemetría Suunto Oficial (PTE, Horas de Recuperación y Desacoplamiento)
+    let suuntoRecHours: number | null = null;
+    let suuntoPte: number | null = null;
+    let suuntoDecoupling: number | null = null;
+
+    const targetSessionForSuunto = todayTrained ? todayCompletedSessions[0] : yesterdaySessions[0];
+    if (targetSessionForSuunto?.fit_data) {
+      try {
+        const parsedFit = JSON.parse(targetSessionForSuunto.fit_data);
+        suuntoRecHours = parsedFit.recoveryTimeHours ?? parsedFit.deepAnalysis?.recoveryTimeHours ?? parsedFit.suuntoMetrics?.recoveryTimeHours ?? null;
+        suuntoPte = parsedFit.pte ?? parsedFit.deepAnalysis?.pte ?? parsedFit.suuntoMetrics?.pte ?? null;
+        suuntoDecoupling = parsedFit.deepAnalysis?.aerobicDecouplingPct ?? parsedFit.suuntoMetrics?.decouplingPct ?? null;
+      } catch {}
+    }
+
+    if (suuntoRecHours != null && suuntoRecHours > 0) {
+      fatigueMetrics.push({
+        label: "⌚ Recuperación Suunto",
+        value: `${Math.round(suuntoRecHours)}h recomendadas${suuntoPte ? ` (PTE ${suuntoPte})` : ""}`,
+      });
+      if (suuntoRecHours >= 36 || (suuntoPte && suuntoPte >= 4.2)) {
+        fatigueScoreVal = Math.max(30, fatigueScoreVal - 12);
+        fatigueDetail += ` (Tu Suunto 9 Peak Pro detectó un impacto neuromuscular elevado: PTE ${suuntoPte || "alto"} con ${Math.round(suuntoRecHours)}h de recuperación recomendada).`;
+      } else if (suuntoRecHours <= 18 && (suuntoPte && suuntoPte <= 2.8)) {
+        fatigueScoreVal = Math.min(100, fatigueScoreVal + 5);
+        fatigueDetail += ` (Suunto confirma asimilación óptima: PTE ${suuntoPte} aeróbico controlado).`;
+      }
+    }
+
+    if (suuntoDecoupling != null && Math.abs(suuntoDecoupling) > 0) {
+      fatigueMetrics.push({
+        label: "Deriva Cardíaca",
+        value: `${suuntoDecoupling > 0 ? "+" : ""}${suuntoDecoupling.toFixed(1)}%`,
+      });
+    }
+
     // La siesta diurna (>= 25 min) reduce la fatiga aguda al activar el tono parasimpático y acelerar síntesis de glucógeno
     if (lastNightSleep && lastNightSleep.nap_min && lastNightSleep.nap_min >= 25) {
       fatigueScoreVal = Math.min(100, fatigueScoreVal + 6);

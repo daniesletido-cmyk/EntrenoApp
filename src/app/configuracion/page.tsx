@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink, Database, Cloud, HardDrive, Copy, Check, Watch } from "lucide-react";
+import { Download, Upload, Save, ShieldCheck, Sparkles, RefreshCw, Sun, Lock, KeyRound, ShieldAlert, Crown, CreditCard, ExternalLink, Database, Cloud, HardDrive, Copy, Check, Watch, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -429,6 +429,31 @@ export default function ConfiguracionPage() {
       <PageHeader title="Perfil & Ajustes" description="Datos del atleta, sincronización Suunto/.FIT, preferencias y herramientas." />
 
       <div className="grid gap-3 sm:gap-5 min-w-0">
+        {/* Acceso directo destacado a Conector Universal de Relojes y Perfil */}
+        <Link
+          href="/perfil"
+          className="p-4 sm:p-5 rounded-3xl flex items-center justify-between no-underline transition-all harbiz-press shadow-sm"
+          style={{
+            background: "rgba(220, 38, 38, 0.08)",
+            border: "1px solid rgba(220, 38, 38, 0.25)",
+            color: "var(--color-text)",
+          }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#DC2626] text-white shadow-md">
+              <Watch size={22} />
+            </div>
+            <div>
+              <div className="text-sm sm:text-base font-black flex items-center gap-1.5">
+                Conectar mi Reloj / Plataforma & Mi Perfil
+              </div>
+              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                Strava, Intervals.icu (Garmin/Coros/Polar/Apple), Webhook de Báscula y Archivos .FIT
+              </div>
+            </div>
+          </div>
+          <ArrowRight size={20} className="text-[#DC2626] shrink-0" />
+        </Link>
         {/* Módulos complementarios consolidados dentro de Perfil */}
         <div className="surface p-3.5 sm:p-5 min-w-0 w-full">
           <div className="text-xs sm:text-sm font-semibold mb-2.5" style={{ color: "var(--color-text)" }}>

@@ -154,6 +154,16 @@ export interface SuuntoMetrics {
   tss?: number | null;
   deviceModel?: string | null;
   deviceManufacturer?: string | null;
+  // SuuntoPlus Developer Fields & Telemetría Avanzada
+  decouplingPct?: number | null;
+  efficiencyFactor?: number | null;
+  gapSpeedMs?: number | null;
+  gapPaceFormatted?: string | null;
+  projectedMarathonSec?: number | null;
+  projectedMarathonFormatted?: string | null;
+  hydrationLossMl?: number | null;
+  carbsIntakeTargetG?: number | null;
+  cadenceFatigueAlertCount?: number | null;
 }
 
 export interface FitDeepAnalysis {
@@ -1672,6 +1682,61 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
       const deviceManufacturer = fileId.manufacturer || devInfo.manufacturer || null;
       const deviceModel = devInfo.product_name || (typeof devInfo.product === "string" ? devInfo.product : null) || (deviceManufacturer === "suunto" ? "Suunto 9 Peak Pro" : null);
 
+      // Extracción de SuuntoPlus Developer Fields (Marathon Pro EF, GAP, Nutrición y Cadencia)
+      let sumDecoupling = 0, countDecoupling = 0;
+      let sumEf = 0, countEf = 0;
+      let lastHydrationLoss = 0;
+      let lastCarbsTarget = 0;
+      let cadenceAlertCount = 0;
+      let lastProjMarathonSec = 0;
+      let sumGapSpeed = 0, countGapSpeed = 0;
+
+      for (const r of rawRecords) {
+        const dev = (r as any).developer_fields || r;
+        const dec = dev.decoupling_pct ?? dev.decoupling ?? (r as any).decoupling_pct ?? (r as any).decoupling;
+        if (typeof dec === "number" && !isNaN(dec)) {
+          sumDecoupling += dec;
+          countDecoupling++;
+        }
+        const ef = dev.efficiency_factor ?? dev.ef ?? (r as any).efficiency_factor ?? (r as any).ef;
+        if (typeof ef === "number" && !isNaN(ef) && ef > 0) {
+          sumEf += ef;
+          countEf++;
+        }
+        const hydra = dev.hydration_loss_ml ?? (r as any).hydration_loss_ml;
+        if (typeof hydra === "number" && !isNaN(hydra) && hydra > lastHydrationLoss) {
+          lastHydrationLoss = hydra;
+        }
+        const carbs = dev.carbs_intake_target_g ?? (r as any).carbs_intake_target_g;
+        if (typeof carbs === "number" && !isNaN(carbs) && carbs > lastCarbsTarget) {
+          lastCarbsTarget = carbs;
+        }
+        const cadAlert = dev.cadence_fatigue_alert ?? (r as any).cadence_fatigue_alert;
+        if (cadAlert === 1) cadenceAlertCount++;
+
+        const gap = dev.gap_speed_ms ?? (r as any).gap_speed_ms;
+        if (typeof gap === "number" && !isNaN(gap) && gap > 0) {
+          sumGapSpeed += gap;
+          countGapSpeed++;
+        }
+        const proj = dev.projected_marathon_sec ?? (r as any).projected_marathon_sec;
+        if (typeof proj === "number" && !isNaN(proj) && proj > 0) {
+          lastProjMarathonSec = proj;
+        }
+      }
+
+      const devDecoupling = countDecoupling > 0 ? Number((sumDecoupling / countDecoupling).toFixed(1)) : null;
+      const devEf = countEf > 0 ? Number((sumEf / countEf).toFixed(4)) : null;
+      const avgGapSpeed = countGapSpeed > 0 ? sumGapSpeed / countGapSpeed : null;
+      const gapPaceFormatted = avgGapSpeed && avgGapSpeed > 0 ? formatPace(1000 / avgGapSpeed / 60) : null;
+      const projectedMarathonFormatted = lastProjMarathonSec > 0
+        ? `${Math.floor(lastProjMarathonSec / 3600)}h${String(Math.floor((lastProjMarathonSec % 3600) / 60)).padStart(2, "0")}`
+        : null;
+
+      if (aerobicDecouplingPct === null && devDecoupling !== null) {
+        aerobicDecouplingPct = devDecoupling;
+      }
+
       const suuntoMetrics: SuuntoMetrics = {
         epoc: peakEpoc,
         pte: trainingEffect,
@@ -1683,6 +1748,15 @@ export function parseFitBuffer(buffer: Buffer): Promise<FitSummary> {
         tss,
         deviceModel: typeof deviceModel === "string" ? deviceModel : null,
         deviceManufacturer: typeof deviceManufacturer === "string" ? String(deviceManufacturer) : null,
+        decouplingPct: devDecoupling,
+        efficiencyFactor: devEf,
+        gapSpeedMs: avgGapSpeed ? Number(avgGapSpeed.toFixed(3)) : null,
+        gapPaceFormatted,
+        projectedMarathonSec: lastProjMarathonSec > 0 ? lastProjMarathonSec : null,
+        projectedMarathonFormatted,
+        hydrationLossMl: lastHydrationLoss > 0 ? lastHydrationLoss : null,
+        carbsIntakeTargetG: lastCarbsTarget > 0 ? lastCarbsTarget : null,
+        cadenceFatigueAlertCount: cadenceAlertCount > 0 ? cadenceAlertCount : null,
       };
 
       const timeSeries = buildTimeSeriesFromRecords(rawRecords, isCycling, durationMin, totalDistanceKm);

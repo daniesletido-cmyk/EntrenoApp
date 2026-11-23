@@ -773,6 +773,102 @@ function migrateSchema(d: AppDb) {
     }
   }
 
+  // Migración idempotente multi-tenant (profiles, integrations, user_id)
+  if (!isMigrationExecuted(d, "20261123_multitenant_profiles_and_user_id")) {
+    try {
+      if (!columnExists(d, "sessions", "user_id")) {
+        d.exec(`ALTER TABLE sessions ADD COLUMN user_id TEXT DEFAULT 'default_user';`);
+      }
+      if (!columnExists(d, "sleep_logs", "user_id")) {
+        d.exec(`ALTER TABLE sleep_logs ADD COLUMN user_id TEXT DEFAULT 'default_user';`);
+      }
+      if (!columnExists(d, "measurements", "user_id")) {
+        d.exec(`ALTER TABLE measurements ADD COLUMN user_id TEXT DEFAULT 'default_user';`);
+      }
+      if (!columnExists(d, "shoes", "user_id")) {
+        d.exec(`ALTER TABLE shoes ADD COLUMN user_id TEXT DEFAULT 'default_user';`);
+      }
+      if (!columnExists(d, "goals", "user_id")) {
+        d.exec(`ALTER TABLE goals ADD COLUMN user_id TEXT DEFAULT 'default_user';`);
+      }
+      if (!columnExists(d, "mental_logs", "user_id")) {
+        d.exec(`ALTER TABLE mental_logs ADD COLUMN user_id TEXT DEFAULT 'default_user';`);
+      }
+
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS profiles (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL,
+          full_name TEXT,
+          avatar_url TEXT,
+          role TEXT NOT NULL DEFAULT 'athlete',
+          weight_kg REAL,
+          resting_hr REAL,
+          max_hr REAL,
+          vam_pace TEXT DEFAULT '3:59',
+          vam_sec_km REAL DEFAULT 239,
+          target_distance TEXT DEFAULT 'Maratón',
+          target_date TEXT,
+          target_pace TEXT,
+          days_per_week INTEGER DEFAULT 4,
+          disciplines TEXT DEFAULT '["carrera", "crossfit", "fuerza"]',
+          webhook_token TEXT UNIQUE,
+          onboarded INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS integrations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          athlete_id TEXT,
+          access_token TEXT,
+          refresh_token TEXT,
+          token_expires_at TEXT,
+          webhook_token TEXT,
+          settings TEXT DEFAULT '{}',
+          is_active INTEGER DEFAULT 1,
+          last_sync_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(user_id, provider)
+        );
+
+        CREATE TABLE IF NOT EXISTS user_settings (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_sleep_user ON sleep_logs(user_id);
+        CREATE INDEX IF NOT EXISTS idx_measurements_user ON measurements(user_id);
+        CREATE INDEX IF NOT EXISTS idx_shoes_user ON shoes(user_id);
+        CREATE INDEX IF NOT EXISTS idx_integrations_user ON integrations(user_id);
+      `);
+
+      // Crear o vincular el perfil de Daniel Espinosa como propietario histórico
+      d.exec(`
+        INSERT OR IGNORE INTO profiles (
+          id, email, full_name, role, weight_kg, resting_hr, vam_pace, vam_sec_km,
+          target_distance, target_date, days_per_week, webhook_token, onboarded, created_at, updated_at
+        ) VALUES (
+          'default_user', 'danielespinosa@entrenoapp.es', 'Daniel Espinosa', 'owner',
+          72.5, 95, '3:59', 239, 'Maratón', '2027-04-26', 4,
+          'default_daniel_webhook_token', 1, datetime('now'), datetime('now')
+        );
+      `);
+
+      recordMigration(d, "20261123_multitenant_profiles_and_user_id");
+    } catch (e) {
+      console.error("[DB] Error aplicando migración 20261123_multitenant_profiles_and_user_id:", e);
+    }
+  }
+
   // Catálogo de PRs y plan anual poblado de manera garantizada
   ensureAnnualPlanPopulated(d);
   ensurePrsCatalogAndRecords(d);
