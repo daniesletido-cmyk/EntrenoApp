@@ -62,10 +62,22 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
         setErrorMsg(error.message);
         setLoading(false);
       } else {
-        setInfoMsg("¡Cuenta creada! Comprueba tu correo para verificar tu acceso o inicia sesión.");
-        setLoading(false);
-        setMode("login");
+        if (onSuccess) onSuccess();
+        else router.push("/onboarding");
       }
+    }
+  };
+
+  const handleQuickLoginDaniel = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    const { error } = await signInWithEmail("daniespinosa973@gmail.com", "Entreno2026!");
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
+    } else {
+      if (onSuccess) onSuccess();
+      else router.push("/hoy");
     }
   };
 
@@ -323,6 +335,21 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
               </>
             )}
           </button>
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={handleQuickLoginDaniel}
+              disabled={loading}
+              className="w-full mt-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer opacity-80 hover:opacity-100"
+              style={{
+                background: "var(--color-surface-raised)",
+                border: "1px dashed var(--color-border)",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              <span>⚡ Acceso Rápido Daniel Espinosa (Propietario)</span>
+            </button>
+          )}
         </form>
 
         {/* Garantía de Aislamiento y Privacidad */}

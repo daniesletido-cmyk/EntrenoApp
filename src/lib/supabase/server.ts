@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createBaseClient } from "@supabase/supabase-js";
+import { getSessionUser } from "@/lib/auth-native";
 
 export function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -81,14 +82,27 @@ export async function getAuthenticatedUser(req?: Request) {
     }
   }
 
-  // 2. Probar sesión por cookies
+  // 2. Probar sesión por cookies de Supabase
   const supabase = await createServerSupabase();
-  if (!supabase) return null;
-
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user || null;
-  } catch {
-    return null;
+  if (supabase) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) return user;
+    } catch {}
   }
+
+  // 3. Probar sesión nativa (cookies entrenoapp_session o header)
+  const native = await getSessionUser(req);
+  if (native) {
+    return {
+      id: native.userId,
+      email: native.email,
+      role: native.role,
+      user_metadata: {
+        full_name: native.role === "owner" ? "Daniel Espinosa" : "Atleta",
+      },
+    } as any;
+  }
+
+  return null;
 }

@@ -844,6 +844,16 @@ function migrateSchema(d: AppDb) {
           PRIMARY KEY (user_id, key)
         );
 
+        CREATE TABLE IF NOT EXISTS auth_accounts (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+          password_hash TEXT NOT NULL,
+          full_name TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'athlete',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
         CREATE INDEX IF NOT EXISTS idx_sleep_user ON sleep_logs(user_id);
         CREATE INDEX IF NOT EXISTS idx_measurements_user ON measurements(user_id);

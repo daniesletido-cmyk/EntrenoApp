@@ -1,12 +1,20 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import type { User } from "@supabase/supabase-js";
 import { createBrowserSupabase, isSupabaseBrowserConfigured } from "@/lib/supabase/client";
 import type { UserProfile } from "@/types/profile";
 
+export interface AppUser {
+  id: string;
+  email?: string;
+  role?: string;
+  user_metadata?: {
+    full_name?: string;
+  };
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   profile: UserProfile | null;
   loading: boolean;
   isConfigured: boolean;
@@ -21,10 +29,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const isConfigured = isSupabaseBrowserConfigured();
+  const isSupabaseConfigured = isSupabaseBrowserConfigured();
 
   const fetchProfile = useCallback(async (currentUserId?: string) => {
     try {
@@ -44,60 +52,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Comprobar sesión al iniciar (Supabase o Nativo)
   useEffect(() => {
-    if (!isConfigured) {
-      // Modo local/offline: cargar perfil de SQLite por defecto
-      fetchProfile("default_user").finally(() => setLoading(false));
-      return;
-    }
+    async function initSession() {
+      // 1. Si Supabase está configurado, escuchar cambios de Supabase
+      if (isSupabaseConfigured) {
+        const supabase = createBrowserSupabase();
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              user_metadata: session.user.user_metadata as any,
+            });
+            await fetchProfile(session.user.id);
+            setLoading(false);
+            return;
+          }
+        }
+      }
 
-    const supabase = createBrowserSupabase();
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
-    // Comprobar sesión actual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        fetchProfile(currentUser.id).finally(() => setLoading(false));
-      } else {
+      // 2. Comprobar sesión nativa en servidor (/api/auth/me)
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setUser({
+              id: data.user.id,
+              email: data.user.email,
+              role: data.user.role,
+              user_metadata: { full_name: data.user.full_name },
+            });
+            if (data.profile) {
+              setProfile(data.profile);
+            } else {
+              await fetchProfile(data.user.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Auth] Error verificando sesión nativa:", err);
+      } finally {
         setLoading(false);
       }
-    });
+    }
 
-    // Escuchar cambios de estado de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (event === "SIGNED_IN" && currentUser) {
-        // Si el usuario que inicia sesión es Daniel Espinosa, ejecutar auto-migración
-        const email = currentUser.email?.toLowerCase() || "";
-        if (email === "danielespinosa@entrenoapp.es" || email.includes("daniel")) {
-          try {
-            await fetch("/api/profile/migrate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ user_id: currentUser.id }),
-            });
-          } catch {}
-        }
-        await fetchProfile(currentUser.id);
-      } else if (event === "SIGNED_OUT") {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [isConfigured, fetchProfile]);
+    initSession();
+  }, [isSupabaseConfigured, fetchProfile]);
 
   const signInWithGoogle = async () => {
+    if (!isSupabaseConfigured) {
+      return {
+        error: new Error("Para acceder con Google, inicia sesión con tu Email o añade las claves de Supabase."),
+      };
+    }
+
     const supabase = createBrowserSupabase();
     if (!supabase) return { error: new Error("Supabase no configurado") };
 
@@ -112,39 +123,121 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    const supabase = createBrowserSupabase();
-    if (!supabase) return { error: new Error("Supabase no configurado") };
+    // 1. Probar Supabase si está disponible
+    if (isSupabaseConfigured) {
+      const supabase = createBrowserSupabase();
+      if (supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!error && data.user) {
+          setUser({
+            id: data.user.id,
+            email: data.user.email,
+            user_metadata: data.user.user_metadata as any,
+          });
+          await fetchProfile(data.user.id);
+          return { error: null };
+        }
+      }
+    }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error as Error | null };
+    // 2. Probar autenticación nativa
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { error: new Error(data.error || "Error al iniciar sesión") };
+      }
+
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        user_metadata: { full_name: data.user.full_name },
+      });
+      if (data.profile) {
+        setProfile(data.profile);
+      } else {
+        await fetchProfile(data.user.id);
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: new Error(err.message || "Error de red al iniciar sesión") };
+    }
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    const supabase = createBrowserSupabase();
-    if (!supabase) return { error: new Error("Supabase no configurado") };
+    // 1. Probar Supabase si está disponible
+    if (isSupabaseConfigured) {
+      const supabase = createBrowserSupabase();
+      if (supabase) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${origin}/auth/callback`,
+          },
+        });
+        if (!error && data.user) {
+          setUser({
+            id: data.user.id,
+            email: data.user.email,
+            user_metadata: { full_name: fullName },
+          });
+          await fetchProfile(data.user.id);
+          return { error: null };
+        }
+      }
+    }
 
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
-    });
-    return { error: error as Error | null };
+    // 2. Registro nativo
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, full_name: fullName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { error: new Error(data.error || "Error al registrar cuenta") };
+      }
+
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        user_metadata: { full_name: data.user.full_name },
+      });
+      if (data.profile) {
+        setProfile(data.profile);
+      } else {
+        await fetchProfile(data.user.id);
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: new Error(err.message || "Error de red al registrar") };
+    }
   };
 
   const signOut = async () => {
-    const supabase = createBrowserSupabase();
-    if (supabase) {
-      await supabase.auth.signOut();
+    // Cerrar en Supabase si está disponible
+    if (isSupabaseConfigured) {
+      const supabase = createBrowserSupabase();
+      if (supabase) {
+        await supabase.auth.signOut().catch(() => {});
+      }
     }
+
+    // Cerrar sesión nativa
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+
     setUser(null);
     setProfile(null);
   };
@@ -180,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading,
-        isConfigured,
+        isConfigured: true, // El sistema de autenticación multi-tenant siempre está activo
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
