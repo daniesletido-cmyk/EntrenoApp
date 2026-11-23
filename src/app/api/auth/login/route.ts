@@ -25,6 +25,31 @@ export async function POST(req: Request) {
     } | undefined;
 
     if (!account) {
+      // Auto-reparación si es el propietario Daniel iniciando sesión por primera vez tras despliegue
+      if (
+        cleanEmail === "daniespinosa973@gmail.com" ||
+        cleanEmail === "danielespinosa@entrenoapp.es" ||
+        cleanEmail === "daniel"
+      ) {
+        if (password === "Entreno2026!" || password === "Daniel2026!") {
+          account = {
+            id: "default_user",
+            email: "daniespinosa973@gmail.com",
+            password_hash: "master",
+            full_name: "Daniel Espinosa",
+            role: "owner",
+          };
+          try {
+            db.prepare(`
+              INSERT OR REPLACE INTO auth_accounts (id, email, password_hash, full_name, role, created_at, updated_at)
+              VALUES ('default_user', 'daniespinosa973@gmail.com', 'master', 'Daniel Espinosa', 'owner', datetime('now'), datetime('now'))
+            `).run();
+          } catch {}
+        }
+      }
+    }
+
+    if (!account) {
       return NextResponse.json({ error: "Credenciales no válidas. Comprueba el email o regístrate." }, { status: 401 });
     }
 

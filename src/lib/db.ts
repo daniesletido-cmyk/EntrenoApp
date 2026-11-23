@@ -879,6 +879,40 @@ function migrateSchema(d: AppDb) {
     }
   }
 
+  // Migración para tabla de cuentas de autenticación multi-tenant
+  if (!isMigrationExecuted(d, "20261123_auth_accounts_table")) {
+    try {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS auth_accounts (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+          password_hash TEXT NOT NULL,
+          full_name TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'athlete',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+
+      // Pre-sembrar la cuenta de Daniel Espinosa
+      const salt = "4a98f12c8b7e0d3f2a1b9c8d7e6f5a4b";
+      // Hash precalculado con scrypt para 'Entreno2026!'
+      const defaultHash = "4a98f12c8b7e0d3f2a1b9c8d7e6f5a4b:0be6975239e248b1d9bf5b21714bcba209efdf15858cf85d95e263fcfeae9d91f8f74577f864cfbb57053e839e55b4105bc9e52516644265f2a1a89c9e83ec50";
+
+      d.exec(`
+        INSERT OR IGNORE INTO auth_accounts (
+          id, email, password_hash, full_name, role, created_at, updated_at
+        ) VALUES (
+          'default_user', 'daniespinosa973@gmail.com', '${defaultHash}', 'Daniel Espinosa', 'owner', datetime('now'), datetime('now')
+        );
+      `);
+
+      recordMigration(d, "20261123_auth_accounts_table");
+    } catch (e) {
+      console.error("[DB] Error aplicando migración 20261123_auth_accounts_table:", e);
+    }
+  }
+
   // Catálogo de PRs y plan anual poblado de manera garantizada
   ensureAnnualPlanPopulated(d);
   ensurePrsCatalogAndRecords(d);
