@@ -354,7 +354,22 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
     const totalMin = s.duration_min && s.duration_min >= 20 ? Math.round(s.duration_min) : 60;
     const wuSec = 10 * 60;
     const cdSec = 5 * 60;
-    const mainSec = Math.max(15 * 60, (totalMin - 15) * 60);
+
+    // Detectar si el WOD incluye carrera explícita (ej. "1 Milla", "1.6 km", "400m Run", etc.)
+    const isMileRun = /(?:1\s*milla|1\.6\s*km|1600\s*m|one\s*mile)/i.test(textAll);
+    const genericRunMatch = !isMileRun ? textAll.match(/(?:carrera|run|correr)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(km|m|metros)/i) : null;
+
+    let runMeters = 0;
+    let runLabel = "";
+    if (isMileRun) {
+      runMeters = 1609;
+      runLabel = "Carrera 1 Milla";
+    } else if (genericRunMatch) {
+      const val = parseFloat(genericRunMatch[1].replace(",", "."));
+      const unit = genericRunMatch[2].toLowerCase();
+      runMeters = unit.startsWith("k") ? Math.round(val * 1000) : Math.round(val);
+      runLabel = `Carrera ${val}${unit}`;
+    }
 
     steps.push({
       label: "Calentamiento y Movilidad Box",
@@ -363,13 +378,53 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
       durationValue: wuSec,
       intervalsLine: `- Movilidad articular 10m`,
     });
-    steps.push({
-      label: s.planned_code ? s.planned_code.slice(0, 40) : "Fuerza + WOD",
-      phase: "active",
-      durationType: "time",
-      durationValue: mainSec,
-      intervalsLine: `- Bloque Fuerza + WOD ${Math.round(mainSec / 60)}m`,
-    });
+
+    if (runMeters > 0) {
+      // Ritmo objetivo controlado para la carrera dentro del WOD (Zona R2/Tempo: 4:35 - 4:45 min/km)
+      const runLowSecKm = z3.minSecKm; // ~275 (4:35/km)
+      const runHighSecKm = z3.minSecKm + 10; // ~285 (4:45/km)
+      const paceLabel = `${secKmToPace(runLowSecKm)}-${secKmToPace(runHighSecKm)}/km`;
+
+      steps.push({
+        label: `${runLabel} (${(runMeters / 1000).toFixed(2)} km)`,
+        phase: "active",
+        durationType: "distance",
+        durationValue: runMeters,
+        targetPaceLowSecKm: runLowSecKm,
+        targetPaceHighSecKm: runHighSecKm,
+        intervalsLine: `- ${runLabel} ${(runMeters / 1000).toFixed(2)}km ${paceLabel} Pace`,
+      });
+
+      const remainingSec = Math.max(15 * 60, (totalMin - 20) * 60);
+      steps.push({
+        label: "WOD Gimnásticos y Fuerza",
+        phase: "active",
+        durationType: "time",
+        durationValue: remainingSec,
+        intervalsLine: `- WOD Gimnasticos y Fuerza ${Math.round(remainingSec / 60)}m`,
+      });
+
+      intervalsBlocks.push(
+        `Warmup\n- Movilidad y activacion 10m\n\nMain Set\n- ${runLabel} ${(runMeters / 1000).toFixed(2)}km ${paceLabel} Pace\n- WOD Fuerza y Gimnasticos ${Math.round(remainingSec / 60)}m\n\nCooldown\n- Vuelta a la calma 5m`
+      );
+    } else {
+      const mainSec = Math.max(15 * 60, (totalMin - 15) * 60);
+      steps.push({
+        label: s.planned_code ? s.planned_code.slice(0, 40) : "Fuerza + WOD",
+        phase: "active",
+        durationType: "time",
+        durationValue: mainSec,
+        intervalsLine: `- Bloque Fuerza + WOD ${Math.round(mainSec / 60)}m`,
+      });
+
+      const cleanSummary = (s.notes || "")
+        .replace(/^-\s*/gm, "")
+        .slice(0, 600);
+      intervalsBlocks.push(
+        `Warmup\n- Movilidad y activacion 10m\n\nMain Set\n- Fuerza y WOD ${Math.round(mainSec / 60)}m\n\nCooldown\n- Vuelta a la calma 5m\n\n${cleanSummary}`
+      );
+    }
+
     steps.push({
       label: "Vuelta a la calma y estiramientos",
       phase: "cooldown",
@@ -377,13 +432,6 @@ export function buildStructuredWorkoutForSession(s: SessionRow): BuiltStructured
       durationValue: cdSec,
       intervalsLine: `- Estiramientos 5m`,
     });
-
-    const cleanSummary = (s.notes || "")
-      .replace(/^-\s*/gm, "")
-      .slice(0, 600);
-    intervalsBlocks.push(
-      `Warmup\n- Movilidad y activacion 10m\n\nMain Set\n- Fuerza y WOD ${Math.round(mainSec / 60)}m\n\nCooldown\n- Vuelta a la calma 5m\n\n${cleanSummary}`
-    );
   } else {
     sportTypeIntervals =
       s.discipline === "ciclismo" ? "Ride" : s.discipline === "remo" ? "Rowing" : s.discipline === "caminata" ? "Walk" : "Workout";
