@@ -12,7 +12,6 @@ import {
   UtensilsCrossed,
   CheckCircle2,
   ArrowRight,
-  Moon,
   Copy,
   Check,
   Zap,
@@ -49,8 +48,6 @@ import { detectVamZoneForSession } from "@/lib/vam-zones";
 import { CalendarAgendaBadge } from "@/components/calendar/calendar-agenda-badge";
 import { MultidisciplinaryAdaptationCard } from "@/components/multidisciplinary-adaptation-card";
 import { MarathonCompactWidget } from "@/components/dashboard/marathon-compact-widget";
-import { RaceStrategyCardWidget } from "@/components/dashboard/race-strategy-card-widget";
-import { AerobicEfficiencyInsight } from "@/components/dashboard/aerobic-efficiency-insight";
 import { PhysioAlertBanner } from "@/components/dashboard/physio-alert-banner";
 import { CrossfitButtonWidget } from "@/components/crossfit/crossfit-button-widget";
 import { WorkoutShareCardModal } from "@/components/modals/workout-share-card-modal";
@@ -378,11 +375,6 @@ export default function HoyPage() {
         <MarathonCompactWidget />
       </ErrorBoundary>
 
-      {/* Estrategia de Competición (Pacing & Nutrición) */}
-      <ErrorBoundary fallbackTitle="Estrategia de Competición">
-        <RaceStrategyCardWidget />
-      </ErrorBoundary>
-
       {/* Analizar Semana CrossFit (Foto / Visión IA) */}
       <ErrorBoundary fallbackTitle="Analizador CrossFit">
         <CrossfitButtonWidget onAddedToCalendar={() => load(false)} />
@@ -659,19 +651,11 @@ export default function HoyPage() {
                   </div>
                 )}
 
-                {/* Análisis & Feedback del Equipo Técnico Multidisciplinar */}
+                {/* Feedback del Entrenador (basado en datos reales de la sesión) */}
                 <SessionFeedbackCard
                   session={s}
                   onOpenDetail={(id) => setDetailSessionId(id)}
                 />
-
-                {/* Insight de Eficiencia Aeróbica y Desacople Cardíaco (Suunto) */}
-                {s.discipline === "carrera" && (
-                  <AerobicEfficiencyInsight
-                    isCompleted={isCompleted}
-                    discipline={s.discipline}
-                  />
-                )}
 
                 {/* Botón principal: Exportar a Suunto + Acciones secundarias */}
                 <div className="space-y-3 pt-2">
@@ -741,59 +725,29 @@ export default function HoyPage() {
         </div>
       )}
 
-      {/* 3. Resumen secundario limpio y espaciado (Sueño & Accesos) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/"
-          className="surface p-5 flex items-center justify-between gap-4 no-underline harbiz-press"
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--color-brand-subtle)", color: "var(--color-brand)" }}
-            >
-              <Moon size={20} />
+      {/* 3. Acceso directo a Nutrición de hoy */}
+      <Link
+        href="/menu"
+        className="surface p-4 flex items-center justify-between gap-4 no-underline harbiz-press"
+      >
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--color-surface-raised)", color: "var(--color-text)" }}
+          >
+            <UtensilsCrossed size={18} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+              Nutrición de hoy
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
-                Sueño &amp; Recuperación
-              </div>
-              <div className="text-base font-bold tabular-nums mt-0.5" style={{ color: "var(--color-text)" }}>
-                {sleep?.hours ? `${sleep.hours.toFixed(1)} h` : "Ver estado de forma"}
-                {sleep?.score != null && (
-                  <span className="text-xs font-semibold ml-2" style={{ color: "var(--color-success)" }}>
-                    {sleep.score}/100
-                  </span>
-                )}
-              </div>
+            <div className="text-sm font-bold mt-0.5" style={{ color: "var(--color-text)" }}>
+              Plan de comidas y pautas (sin frutos secos)
             </div>
           </div>
-          <ArrowRight size={18} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-        </Link>
-
-        <Link
-          href="/menu"
-          className="surface p-5 flex items-center justify-between gap-4 no-underline harbiz-press"
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--color-surface-raised)", color: "var(--color-text)" }}
-            >
-              <UtensilsCrossed size={20} />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
-                Nutrición de hoy
-              </div>
-              <div className="text-base font-bold mt-0.5" style={{ color: "var(--color-text)" }}>
-                Plan de comidas y pautas
-              </div>
-            </div>
-          </div>
-          <ArrowRight size={18} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-        </Link>
-      </div>
+        </div>
+        <ArrowRight size={18} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+      </Link>
 
       {/* Acceso discreto de Rescate Manual (Fallback) */}
       <div className="flex justify-end pt-1">

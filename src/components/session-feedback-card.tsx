@@ -18,8 +18,10 @@ import {
 import type { SessionRow } from "@/lib/repo/sessions";
 import {
   buildStructuredFitDiagnostics,
+  buildCoachSessionFeedback,
   normalizeRecoveryTime,
   FitStructuredFeedback,
+  type CoachSessionFeedback,
 } from "@/lib/fit-feedback";
 import { detectVamZoneForSession } from "@/lib/vam-zones";
 
@@ -48,6 +50,10 @@ export function SessionFeedbackCard({
 }: SessionFeedbackCardProps) {
   const isCompleted = session.status === "realizada" || session.status === "parcial";
   const isRest = session.discipline === "descanso";
+
+  const coachFeedback: CoachSessionFeedback = useMemo(() => {
+    return buildCoachSessionFeedback(session as unknown as SessionRow);
+  }, [session]);
 
   const feedbackData = useMemo(() => {
     // 1. Caso con telemetría .FIT / Suunto en la sesión
@@ -230,10 +236,22 @@ export function SessionFeedbackCard({
           </div>
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-xs font-bold text-zinc-900 tracking-tight uppercase">
-              ANÁLISIS &amp; FEEDBACK
+              FEEDBACK DEL ENTRENADOR
             </span>
-            <span className="bg-zinc-100 text-zinc-700 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {feedbackData.statusLabel}
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                coachFeedback.status === "completed"
+                  ? coachFeedback.overallTone === "optimal"
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : coachFeedback.overallTone === "overreached"
+                    ? "bg-red-50 text-red-800 border border-red-200"
+                    : coachFeedback.overallTone === "underloaded" || coachFeedback.overallTone === "mixed"
+                    ? "bg-amber-50 text-amber-800 border border-amber-200"
+                    : "bg-zinc-100 text-zinc-700"
+                  : "bg-zinc-100 text-zinc-700"
+              }`}
+            >
+              {coachFeedback.status === "completed" ? coachFeedback.overallBadge : feedbackData.statusLabel}
             </span>
             {feedbackData.suunto?.deviceModel && (
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 flex items-center gap-1 font-semibold">
@@ -309,32 +327,108 @@ export function SessionFeedbackCard({
         </div>
       )}
 
-      {/* 2 Subtarjetas Limpias y Enriquecidas (Sin repeticiones) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full min-w-0">
-        {/* 1. Objetivo de la Sesión (Preparador Físico) */}
-        <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1.5 min-w-0">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
-            <Heart size={13} className="text-red-600 flex-shrink-0" />
-            <span>Objetivo de la Sesión</span>
-            <span className="text-[10px] font-medium text-zinc-500 ml-auto">Preparador Físico</span>
+      {/* Feedback del Entrenador basado en datos reales (cuando la sesión está completada o tiene telemetría) */}
+      {coachFeedback.status === "completed" ? (
+        <div className="space-y-2.5 w-full min-w-0">
+          <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
+              <UserCheck size={14} className="text-red-600 flex-shrink-0" />
+              <span>{coachFeedback.overallTitle}</span>
+            </div>
+            <p className="text-xs text-zinc-700 leading-relaxed break-words">
+              {coachFeedback.summaryNarrative}
+            </p>
           </div>
-          <p className="text-xs text-zinc-600 leading-relaxed break-words">
-            {feedbackData.objective}
-          </p>
-        </div>
 
-        {/* 2. Pauta de Ejecución y Cuidado (Fisioterapeuta + Nutricionista) */}
-        <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1.5 min-w-0">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
-            <Shield size={13} className="text-emerald-600 flex-shrink-0" />
-            <span>Pauta de Ejecución y Cuidado</span>
-            <span className="text-[10px] font-medium text-zinc-500 ml-auto">Fisio + Nutrición</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full min-w-0">
+            {/* ¿Te has pasado? */}
+            <div
+              className={`rounded-xl p-3.5 space-y-1.5 min-w-0 border ${
+                coachFeedback.overdidAnalysis.triggered
+                  ? coachFeedback.overdidAnalysis.severity === "high"
+                    ? "bg-red-50/70 border-red-200"
+                    : "bg-amber-50/70 border-amber-200"
+                  : "bg-zinc-50 border-zinc-200/80"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1.5 text-xs font-bold text-zinc-900">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {coachFeedback.overdidAnalysis.triggered ? (
+                    <AlertTriangle
+                      size={13}
+                      className={coachFeedback.overdidAnalysis.severity === "high" ? "text-red-600 flex-shrink-0" : "text-amber-600 flex-shrink-0"}
+                    />
+                  ) : (
+                    <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" />
+                  )}
+                  <span className="truncate">{coachFeedback.overdidAnalysis.title}</span>
+                </div>
+                <span className="text-[10px] font-medium text-zinc-500 shrink-0">¿Te has pasado?</span>
+              </div>
+              <p className="text-xs text-zinc-700 leading-relaxed break-words">
+                {coachFeedback.overdidAnalysis.detail}
+              </p>
+            </div>
+
+            {/* ¿Podías haber apretado más? */}
+            <div
+              className={`rounded-xl p-3.5 space-y-1.5 min-w-0 border ${
+                coachFeedback.pushMoreAnalysis.triggered
+                  ? "bg-amber-50/70 border-amber-200"
+                  : "bg-zinc-50 border-zinc-200/80"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1.5 text-xs font-bold text-zinc-900">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Zap
+                    size={13}
+                    className={coachFeedback.pushMoreAnalysis.triggered ? "text-amber-600 flex-shrink-0" : "text-emerald-600 flex-shrink-0"}
+                  />
+                  <span className="truncate">{coachFeedback.pushMoreAnalysis.title}</span>
+                </div>
+                <span className="text-[10px] font-medium text-zinc-500 shrink-0">¿Apretar más?</span>
+              </div>
+              <p className="text-xs text-zinc-700 leading-relaxed break-words">
+                {coachFeedback.pushMoreAnalysis.detail}
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-zinc-600 leading-relaxed break-words">
-            {feedbackData.executionCare}
-          </p>
+
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200/70 text-[11px] text-zinc-700">
+            <Shield size={13} className="text-red-600 shrink-0 mt-0.5" />
+            <span>
+              <strong className="text-zinc-900">Próximo paso:</strong> {coachFeedback.nextStepTip}
+            </span>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* 2 Subtarjetas Limpias para sesión pendiente */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full min-w-0">
+          {/* 1. Objetivo de la Sesión (Preparador Físico) */}
+          <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
+              <Heart size={13} className="text-red-600 flex-shrink-0" />
+              <span>Objetivo de la Sesión</span>
+              <span className="text-[10px] font-medium text-zinc-500 ml-auto">Preparador Físico</span>
+            </div>
+            <p className="text-xs text-zinc-600 leading-relaxed break-words">
+              {feedbackData.objective}
+            </p>
+          </div>
+
+          {/* 2. Pauta de Ejecución y Cuidado (Fisioterapeuta + Nutricionista) */}
+          <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 space-y-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
+              <Shield size={13} className="text-emerald-600 flex-shrink-0" />
+              <span>Pauta de Ejecución y Cuidado</span>
+              <span className="text-[10px] font-medium text-zinc-500 ml-auto">Fisio + Nutrición</span>
+            </div>
+            <p className="text-xs text-zinc-600 leading-relaxed break-words">
+              {feedbackData.executionCare}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

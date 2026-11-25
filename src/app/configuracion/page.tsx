@@ -459,15 +459,11 @@ export default function ConfiguracionPage() {
           <div className="text-xs sm:text-sm font-semibold mb-2.5" style={{ color: "var(--color-text)" }}>
             Herramientas y Módulos
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[
               { href: "/menu", label: "Nutrición" },
               { href: "/entrenador", label: "Entrenador IA" },
-              { href: "/psicologia", label: "Psicología" },
-              { href: "/calendario", label: "Calendario" },
-              { href: "/informe-semanal", label: "Informe" },
               { href: "/objetivos", label: "Objetivos" },
-              { href: "/biblioteca", label: "Biblioteca & Táctica" },
             ].map((item) => (
               <Link
                 key={item.href}
@@ -502,52 +498,6 @@ export default function ConfiguracionPage() {
 
         {/* SECCIÓN NOTIFICACIONES PUSH */}
         <PushNotificationBanner variant="card" />
-
-        {/* SECCIÓN PLAN & FACTURACIÓN */}
-        <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-            <div className="flex items-center gap-2 font-semibold text-sm">
-              <Crown size={16} className="text-amber-500 shrink-0" />
-              <span>Suscripción y Cuenta</span>
-            </div>
-            <span
-              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
-                subInfo?.isActive
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                  : "bg-zinc-100 text-zinc-700 border border-zinc-200"
-              }`}
-            >
-              {subInfo?.plan === "pro_coach"
-                ? "Pro Coach"
-                : subInfo?.plan === "premium_annual"
-                ? "Atleta Premium (Anual)"
-                : subInfo?.plan === "premium_monthly"
-                ? "Atleta Premium (Mensual)"
-                : "Atleta Básico (Gratis)"}
-            </span>
-          </div>
-
-          <p className="text-xs sm:text-sm text-muted mb-3">
-            {subInfo?.isActive
-              ? "Tu cuenta tiene acceso completo al Entrenador IA, sincronización de relojes Suunto/Zepp y análisis de fatiga ACWR."
-              : "Plan gratuito con registro básico de sesiones. Desbloquea el Entrenador IA y la sincronización con Premium."}
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            <Link href="/precios" className="w-full sm:w-auto">
-              <Button variant="primary" className="w-full sm:w-auto">
-                <Crown size={14} />
-                {subInfo?.isActive ? "Ver o Cambiar Plan" : "Mejorar a Premium"}
-              </Button>
-            </Link>
-            {subInfo?.isActive && (
-              <Button variant="ghost" onClick={handleOpenPortal}>
-                <CreditCard size={14} />
-                Portal de Facturación Stripe
-              </Button>
-            )}
-          </div>
-        </div>
 
         <div className="surface p-3.5 sm:p-4 min-w-0 w-full">
           <div className="font-semibold text-sm mb-2">

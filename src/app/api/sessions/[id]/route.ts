@@ -4,7 +4,7 @@ import { listGymExercises, listGymLogsForDate } from "@/lib/repo/gym";
 import { getSleepByDate } from "@/lib/repo/sleep";
 import { computeDailyReadiness } from "@/lib/readiness";
 import { sessionLoad } from "@/lib/recommendations";
-import { buildUnifiedSessionDiagnostics } from "@/lib/fit-feedback";
+import { buildUnifiedSessionDiagnostics, buildCoachSessionFeedback } from "@/lib/fit-feedback";
 import { getSessionSuuntoSync } from "@/lib/repo/suunto-sync";
 import { getSetting } from "@/lib/repo/settings";
 import { flushDbPersistence, refreshDbFromBlobIfNewer } from "@/lib/db";
@@ -67,6 +67,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     session,
     fitSummary,
     structuredFeedback: unified.structuredFeedback,
+    coachFeedback: buildCoachSessionFeedback(session, fitSummary, gymDetails),
     zoneDistribution: unified.zoneDistribution,
     hrZoneDistribution: unified.hrZoneDistribution,
     laps: unified.laps,

@@ -304,6 +304,7 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
   const session = data?.session;
   const fit = data?.fitSummary;
   const structuredFeedback = data?.structuredFeedback;
+  const coachFeedback = data?.coachFeedback;
   const zoneDist = data?.zoneDistribution;
   const hrZoneDist = data?.hrZoneDistribution ?? fit?.hrZoneDistribution;
   const laps = data?.laps ?? fit?.laps ?? [];
@@ -1183,6 +1184,76 @@ export function WorkoutDetailModal({ sessionId, onClose, onEdit }: WorkoutDetail
                         {structuredFeedback.targetCompliance?.verdict ||
                           "La sesión ejecutada se ha contrastado frente a la prescripción del plan."}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Feedback del Entrenador (Análisis de intensidad y margen de mejora) */}
+                  {coachFeedback && (
+                    <div className="p-4 rounded-2xl bg-white border border-zinc-200 animate-in space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={15} className="text-red-600" />
+                          <span className="font-bold text-xs uppercase tracking-wider text-zinc-900">
+                            Feedback del Entrenador
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                            coachFeedback.overallTone === "optimal"
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : coachFeedback.overallTone === "overreached"
+                              ? "bg-red-50 text-red-800 border border-red-200"
+                              : coachFeedback.overallTone === "underloaded" || coachFeedback.overallTone === "mixed"
+                              ? "bg-amber-50 text-amber-800 border border-amber-200"
+                              : "bg-zinc-100 text-zinc-700 border border-zinc-200"
+                          }`}
+                        >
+                          {coachFeedback.overallBadge}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/80 space-y-1">
+                        <div className="text-xs font-bold text-zinc-900">{coachFeedback.overallTitle}</div>
+                        <p className="text-xs text-zinc-700 leading-relaxed">{coachFeedback.summaryNarrative}</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div
+                          className={`p-3 rounded-xl border space-y-1 ${
+                            coachFeedback.overdidAnalysis?.triggered
+                              ? coachFeedback.overdidAnalysis.severity === "high"
+                                ? "bg-red-50/70 border-red-200"
+                                : "bg-amber-50/70 border-amber-200"
+                              : "bg-zinc-50 border-zinc-200/80"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 text-xs font-bold text-zinc-900">
+                            <span>{coachFeedback.overdidAnalysis?.title}</span>
+                            <span className="text-[10px] font-medium text-zinc-500">¿Te has pasado?</span>
+                          </div>
+                          <p className="text-xs text-zinc-700 leading-relaxed">{coachFeedback.overdidAnalysis?.detail}</p>
+                        </div>
+
+                        <div
+                          className={`p-3 rounded-xl border space-y-1 ${
+                            coachFeedback.pushMoreAnalysis?.triggered
+                              ? "bg-amber-50/70 border-amber-200"
+                              : "bg-zinc-50 border-zinc-200/80"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 text-xs font-bold text-zinc-900">
+                            <span>{coachFeedback.pushMoreAnalysis?.title}</span>
+                            <span className="text-[10px] font-medium text-zinc-500">¿Apretar más?</span>
+                          </div>
+                          <p className="text-xs text-zinc-700 leading-relaxed">{coachFeedback.pushMoreAnalysis?.detail}</p>
+                        </div>
+                      </div>
+
+                      {coachFeedback.nextStepTip && (
+                        <div className="text-[11px] text-zinc-700 bg-zinc-50 border border-zinc-200/70 rounded-xl px-3 py-2">
+                          <strong className="text-zinc-900">Próximo paso:</strong> {coachFeedback.nextStepTip}
+                        </div>
+                      )}
                     </div>
                   )}
 
