@@ -17,6 +17,26 @@ export interface TechnicalBulletItem {
   text: string;
 }
 
+export interface CoachSessionFeedback {
+  status: "completed" | "pending";
+  overallTone: "optimal" | "overreached" | "underloaded" | "mixed" | "pending";
+  overallTitle: string;
+  overallBadge: string;
+  summaryNarrative: string;
+  overdidAnalysis: {
+    triggered: boolean;
+    severity: "none" | "mild" | "high";
+    title: string;
+    detail: string;
+  };
+  pushMoreAnalysis: {
+    triggered: boolean;
+    title: string;
+    detail: string;
+  };
+  nextStepTip: string;
+}
+
 export interface FitStructuredFeedback {
   summary: string;
   positives: string[];
@@ -78,7 +98,8 @@ export function formatSecondsDetailed(seconds: number | null | undefined): strin
   return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
-function formatPace(minKm: number): string {
+function formatPace(minKm: number | null | undefined): string {
+  if (minKm === null || minKm === undefined || !Number.isFinite(minKm)) return "—";
   const min = Math.floor(minKm);
   const sec = Math.round((minKm - min) * 60);
   return `${min}:${sec.toString().padStart(2, "0")} min/km`;
@@ -696,11 +717,318 @@ function normalizeRawFitSummary(raw: any, session: SessionRow): FitSummary | nul
   };
 }
 
+export function buildCoachSessionFeedback(
+  session: SessionRow,
+  rawFit?: any,
+  gymDetails?: Array<{ exerciseName?: string; weightKg?: number | null; sets?: number | null; reps?: number | null; completed?: boolean }>
+): CoachSessionFeedback {
+  let fitParsed = rawFit ?? null;
+  if (!fitParsed && session.fit_data) {
+    try {
+      fitParsed = JSON.parse(session.fit_data);
+    } catch {
+      fitParsed = null;
+    }
+  }
+  const fit = normalizeRawFitSummary(fitParsed, session);
+  const isCompleted = session.status === "realizada" || session.status === "parcial";
+
+  if (session.discipline === "descanso") {
+    return {
+      status: isCompleted ? "completed" : "pending",
+      overallTone: "optimal",
+      overallTitle: "Día de Descanso & Asimilación",
+      overallBadge: "Recuperación",
+      summaryNarrative:
+        "Jornada clave para reparar tejido muscular, recargar glucógeno y consolidar las adaptaciones de la semana.",
+      overdidAnalysis: {
+        triggered: false,
+        severity: "none",
+        title: "Sin exceso de carga",
+        detail: "Cero impacto articular: justo lo que necesitas para llegar fresco a la próxima sesión clave.",
+      },
+      pushMoreAnalysis: {
+        triggered: false,
+        title: "No toca apretar",
+        detail: "En días de descanso, el único trabajo válido es movilidad suave, hidratación y dormir bien.",
+      },
+      nextStepTip: "Prioriza 7.5-8.5h de sueño y movilidad de cadera/tobillos (10-15 min).",
+    };
+  }
+
+  if (!isCompleted && !fit) {
+    return {
+      status: "pending",
+      overallTone: "pending",
+      overallTitle: "Esperando datos de la sesión",
+      overallBadge: "Pendiente",
+      summaryNarrative:
+        "Cuando completes este entrenamiento (sincronizando tu Suunto / .FIT o registrándolo manualmente), analizaré tus ritmos, pulso, series y esfuerzo real.",
+      overdidAnalysis: {
+        triggered: false,
+        severity: "none",
+        title: "Control de intensidad pendiente",
+        detail: "Te avisaré aquí si te pasaste de pulso, zona objetivo o volumen respecto a lo planificado.",
+      },
+      pushMoreAnalysis: {
+        triggered: false,
+        title: "Margen de mejora pendiente",
+        detail: "Identificaré exactamente en qué kilómetros, series o ejercicios podrías haber apretado un punto más.",
+      },
+      nextStepTip: "Ejecuta la sesión respetando las zonas pautadas y registra tus sensaciones al terminar.",
+    };
+  }
+
+  const rpe = session.rpe ?? fit?.rpe ?? null;
+  const avgHr = fit?.avgHeartRate ?? (() => {
+    const m = `${session.user_notes ?? ""} ${session.notes ?? ""}`.match(/FC media\s*(\d+)\s*lpm/i) ??
+      `${session.user_notes ?? ""} ${session.notes ?? ""}`.match(/FC media\s*(\d+)\s*ppm/i);
+    return m ? Number(m[1]) : null;
+  })();
+  const maxHr = fit?.maxHeartRate ?? null;
+  const distKm = fit?.distanceKm ?? session.distance_km ?? null;
+  const durMin = fit?.durationMin ?? session.duration_min ?? null;
+
+  // --- 1. ANÁLISIS DE CARRERA ---
+  if (session.discipline === "carrera") {
+    const target = detectTargetZone(session);
+    const avgPace = fit?.avgPaceMinKm ?? (distKm && durMin && distKm > 0 ? durMin / distKm : null);
+    const zd = fit?.deepAnalysis?.zoneDistribution ?? null;
+    const hrZ = fit?.deepAnalysis?.hrZoneDistribution ?? null;
+    const drift = fit?.deepAnalysis?.aerobicDecouplingPct ?? null;
+    const split = fit?.pacingAnalysis?.splitHalves ?? null;
+    const laps = fit?.laps ?? [];
+
+    const isEasyTarget = !target || target.code === "R0" || target.code === "R1";
+    const isLongRunTarget = target?.code === "R5-TIRADA";
+    const isQualityTarget = target?.code === "R2" || target?.code === "R4" || target?.code === "R5";
+
+    let overdid = false;
+    let overdidSeverity: "none" | "mild" | "high" = "none";
+    let overdidTitle = "Intensidad bajo control";
+    const overdidReasons: string[] = [];
+
+    // Evaluar si se pasó de ritmo o pulso
+    if (isEasyTarget && target && avgPace !== null && avgPace < target.minPace - 0.05) {
+      const fastSec = Math.round((target.minPace - avgPace) * 60);
+      overdid = true;
+      overdidSeverity = fastSec >= 15 ? "high" : "mild";
+      overdidReasons.push(`rodaste ~${fastSec}s/km más rápido de lo pautado (${formatPace(avgPace)} vs ${target.rangeLabel})`);
+    }
+    if (isEasyTarget && zd && zd.r2Pct + zd.r3Pct + zd.r5Pct >= 25) {
+      overdid = true;
+      overdidSeverity = zd.r3Pct + zd.r5Pct >= 15 ? "high" : "mild";
+      overdidReasons.push(`acumulaste un ${zd.r2Pct + zd.r3Pct + zd.r5Pct}% del tiempo en zonas rápidas (R2-R5) en un día de base`);
+    }
+    if (isEasyTarget && avgHr !== null && avgHr >= 162) {
+      overdid = true;
+      overdidSeverity = avgHr >= 170 ? "high" : "mild";
+      overdidReasons.push(`el pulso medio subió a ${avgHr} lpm${hrZ ? ` (${hrZ.z4Pct + hrZ.z5Pct}% en Z4-Z5)` : ""}, demasiado alto para regenerar`);
+    } else if (isLongRunTarget && avgHr !== null && (avgHr >= 170 || (hrZ && hrZ.z5Pct >= 40))) {
+      overdid = true;
+      overdidSeverity = "mild";
+      overdidReasons.push(`aunque el ritmo fue bueno, el pulso medio fue exigente (${avgHr} lpm${hrZ ? `, ${hrZ.z5Pct}% en Z5` : ""})`);
+    }
+    if (drift !== null && drift > 6.5) {
+      overdid = true;
+      if (overdidSeverity === "none") overdidSeverity = "mild";
+      overdidReasons.push(`deriva cardíaca elevada (+${drift.toFixed(1)}%), señal de fatiga o falta de hidratación en la parte final`);
+    }
+    if (split && split.paceDiffSec >= 12) {
+      overdid = true;
+      if (overdidSeverity === "none") overdidSeverity = "mild";
+      overdidReasons.push(`saliste demasiado fuerte (2ª mitad ${split.paceDiffSec}s/km más lenta: ${split.firstHalfPaceFormatted} → ${split.secondHalfPaceFormatted})`);
+    }
+    if (isEasyTarget && rpe !== null && rpe >= 8) {
+      overdid = true;
+      overdidSeverity = "high";
+      overdidReasons.push(`esfuerzo percibido muy alto (RPE ${rpe}/10) para una sesión aeróbica suave`);
+    }
+
+    if (overdid) {
+      overdidTitle = overdidSeverity === "high" ? "Te has pasado de intensidad" : "Carga interna algo exigente";
+    }
+
+    // Evaluar si podría haber apretado más
+    let pushMore = false;
+    let pushTitle = isEasyTarget ? "No tocaba apretar más" : "Esfuerzo bien exprimido";
+    let pushDetail = isEasyTarget
+      ? "En sesiones R0/R1 la clave es contener el ritmo para capilarizar y ahorrar energía. Ir más rápido habría sido contraproducente."
+      : "Has sostenido la intensidad objetivo de principio a fin sin dejarte nada relevante en el tintero.";
+
+    if (isEasyTarget && avgPace !== null && avgPace > 6.0 && (avgHr === null || avgHr < 128) && (rpe === null || rpe <= 2)) {
+      pushMore = true;
+      pushTitle = "Podías haber rodado algo más fluido";
+      pushDetail = `Ritmo muy conservador (${formatPace(avgPace)}${avgHr ? `, ${avgHr} lpm` : ""}). Si no había molestias, tenías margen para rodar 15-20s/km más alegre dentro de R1.`;
+    } else if (isQualityTarget && target && avgPace !== null) {
+      const slowerThanTarget = avgPace > target.maxPace + 0.05;
+      const workingLaps = laps.length >= 4 ? laps.slice(1, -1) : laps;
+      const slowLaps = workingLaps.filter((l: any) => l.avgPaceMinKm && l.avgPaceMinKm > target.maxPace + 0.08);
+      if (slowerThanTarget || (avgHr !== null && avgHr < 156 && (rpe ?? 6) <= 6)) {
+        pushMore = true;
+        pushTitle = "Margen para apretar más en la parte clave";
+        const slowest = [...slowLaps].sort((a: any, b: any) => (b.avgPaceMinKm ?? 0) - (a.avgPaceMinKm ?? 0))[0];
+        if (slowest && slowest.avgPaceMinKm != null) {
+          pushDetail = `Tu ritmo medio fue ${formatPace(avgPace)} frente a ${target.rangeLabel}. En el km ${slowest.index} (${formatPace(slowest.avgPaceMinKm)}${slowest.avgHeartRate ? `, ${slowest.avgHeartRate} lpm` : ""}) bajaste el pistón; ahí podías haber apretado más.`;
+        } else {
+          pushDetail = `Con ${avgHr ? `${avgHr} lpm de media` : `RPE ${rpe ?? "—"}/10`} y ritmo ${formatPace(avgPace)} (objetivo ${target.rangeLabel}), tenías reserva para exigirte un punto más en los tramos centrales.`;
+        }
+      } else if (slowLaps.length >= 2) {
+        pushMore = true;
+        pushTitle = "Caída puntual en algún kilómetro";
+        const kmList = slowLaps.slice(0, 3).map((l: any) => `km ${l.index} (${formatPace(l.avgPaceMinKm!)})`).join(", ");
+        pushDetail = `El promedio fue bueno, pero cediste ritmo en ${kmList}. Ahí es donde puedes apretar en la próxima sesión de calidad.`;
+      }
+    } else if (isLongRunTarget && laps.length >= 6) {
+      const closingLaps = laps.slice(-4, -1).filter((l: any) => l.avgPaceMinKm);
+      if (closingLaps.length > 0) {
+        const closePace = closingLaps.reduce((a: number, b: any) => a + b.avgPaceMinKm, 0) / closingLaps.length;
+        if (closePace > 5.25 && (avgHr === null || avgHr < 168)) {
+          pushMore = true;
+          pushTitle = "Podías haber apretado el cierre";
+          pushDetail = `Los últimos kilómetros salieron a ${formatPace(closePace)}. Si las piernas respondían, tenías margen para buscar el Ritmo Maratón (5:05-5:10 min/km) en los 3 km finales.`;
+        } else if (closePace <= 5.18) {
+          pushDetail = `Excelente cierre progresivo (${formatPace(closePace)} en los últimos km) simulando Ritmo Maratón. No hacía falta apretar más.`;
+        }
+      }
+    }
+
+    let overallTone: CoachSessionFeedback["overallTone"] = "optimal";
+    let overallTitle = "Sesión ejecutada con precisión";
+    let overallBadge = "Óptima";
+    if (overdid && pushMore) {
+      overallTone = "mixed";
+      overallTitle = "Ejecución irregular (revisar ritmos)";
+      overallBadge = "Mixta";
+    } else if (overdid) {
+      overallTone = "overreached";
+      overallTitle = overdidSeverity === "high" ? "Te has pasado de intensidad" : "Sesión exigente en pulso";
+      overallBadge = overdidSeverity === "high" ? "Exceso" : "Exigente";
+    } else if (pushMore) {
+      overallTone = "underloaded";
+      overallTitle = "Podías haber apretado un poco más";
+      overallBadge = "Conservadora";
+    }
+
+    const paceStr = avgPace ? formatPace(avgPace) : "—";
+    const hrStr = avgHr ? `${avgHr} lpm${maxHr ? ` (máx ${maxHr})` : ""}` : "sin pulso registrado";
+    const summaryNarrative = overdid
+      ? `Completaste ${distKm ?? "—"} km a ${paceStr} con ${hrStr}. ${overdidReasons[0] ? overdidReasons[0].charAt(0).toUpperCase() + overdidReasons[0].slice(1) : "La carga interna fue superior a lo ideal"}.`
+      : pushMore
+      ? `Completaste ${distKm ?? "—"} km a ${paceStr} (${hrStr}). La sesión salió controlada y te dejó margen para exigirte un punto más en los tramos clave.`
+      : `Gran ejecución sobre ${distKm ?? "—"} km a ${paceStr} (${hrStr}). Ritmo y carga interna alineados con el objetivo fisiológico del día.`;
+
+    return {
+      status: "completed",
+      overallTone,
+      overallTitle,
+      overallBadge,
+      summaryNarrative,
+      overdidAnalysis: {
+        triggered: overdid,
+        severity: overdidSeverity,
+        title: overdidTitle,
+        detail: overdid
+          ? `Motivo: ${overdidReasons.join("; ")}.`
+          : `Ritmo (${paceStr}) y pulso (${hrStr}) dentro de los márgenes seguros para tu objetivo.`,
+      },
+      pushMoreAnalysis: {
+        triggered: pushMore,
+        title: pushTitle,
+        detail: pushDetail,
+      },
+      nextStepTip: overdid
+        ? "Prioriza hidratación con sales, carbohidratos limpios y mantén el próximo rodaje estrictamente suave (R0/R1)."
+        : pushMore
+        ? "En la próxima sesión similar, ataca los kilómetros clave con 5-10s/km más de decisión si el Readiness supera 65."
+        : "Asimila el estímulo con buena hidratación y movilidad de sóleos/gemelos.",
+    };
+  }
+
+  // --- 2. ANÁLISIS DE CROSSFIT / GIMNASIO ---
+  if (session.discipline === "crossfit" || session.discipline === "gimnasio") {
+    const overdid = (rpe !== null && rpe >= 9) || (avgHr !== null && avgHr >= 165);
+    const underloaded = !overdid && ((rpe !== null && rpe <= 5) || (avgHr !== null && avgHr < 128 && (rpe ?? 5) <= 6));
+
+    const exSummary = gymDetails && gymDetails.length > 0
+      ? ` (${gymDetails.slice(0, 2).map((g) => `${g.exerciseName ?? "Ejercicio"}${g.weightKg ? ` ${g.weightKg}kg` : ""}`).join(", ")})`
+      : "";
+
+    return {
+      status: "completed",
+      overallTone: overdid ? "overreached" : underloaded ? "underloaded" : "optimal",
+      overallTitle: overdid
+        ? "Carga neuromuscular muy alta"
+        : underloaded
+        ? "Sesión conservadora: margen para subir carga"
+        : "Fuerza / WOD bien calibrado",
+      overallBadge: overdid ? "Muy intensa" : underloaded ? "Margen +" : "Óptima",
+      summaryNarrative: `Sesión de ${durMin ?? "—"} min${exSummary} completada con ${rpe ? `RPE ${rpe}/10` : "esfuerzo registrado"}${avgHr ? ` y ${avgHr} lpm de pulso medio` : ""}.`,
+      overdidAnalysis: {
+        triggered: overdid,
+        severity: overdid ? "high" : "none",
+        title: overdid ? "Ojo: te has exigido al máximo" : "Sin sobrecarga excesiva",
+        detail: overdid
+          ? `Con RPE ${rpe ?? "—"}/10${avgHr ? ` y ${avgHr} lpm` : ""}, la fatiga neuromuscular es alta. Protege piernas y lumbar en las próximas 48h si tienes carrera.`
+          : "Esfuerzo compatible con tu volumen semanal de carrera sin comprometer la recuperación articular.",
+      },
+      pushMoreAnalysis: {
+        triggered: underloaded,
+        title: underloaded ? "Podrías haber apretado más en cargas o ritmo" : "Intensidad en el punto justo",
+        detail: underloaded
+          ? `Con ${rpe ? `RPE ${rpe}/10` : "baja demanda"}${avgHr ? ` y ${avgHr} lpm` : ""}, dejaste margen claro: en la próxima sesión puedes subir 2.5-5 kg en el bloque de fuerza o acortar transiciones en el WOD.`
+          : "Mantuviste el estímulo en RPE 7-8: suficiente para ganar fuerza sin machacar el sistema nervioso.",
+      },
+      nextStepTip: overdid
+        ? "Descarga lumbar/cuádriceps y cena rica en proteína + carbohidrato limpio para reparar fibras."
+        : "En el próximo entreno de fuerza, anota tus pesos exactos para progresar +2.5 kg si completaste todas las series limpio.",
+    };
+  }
+
+  // --- 3. ANÁLISIS DE NATACIÓN / OTROS ---
+  const isRecoverySwim = (session.planned_code ?? "").toUpperCase().includes("NAT-D") ||
+    (session.planned_code ?? "").toLowerCase().includes("regenera") ||
+    (session.planned_code ?? "").toLowerCase().includes("descarga");
+  const overdidSwim = isRecoverySwim && ((rpe !== null && rpe >= 7) || (avgHr !== null && avgHr >= 145));
+  const underSwim = !isRecoverySwim && session.discipline === "natacion" && ((rpe !== null && rpe <= 4) || (avgHr !== null && avgHr < 120));
+
+  return {
+    status: "completed",
+    overallTone: overdidSwim ? "overreached" : underSwim ? "underloaded" : "optimal",
+    overallTitle: overdidSwim
+      ? "Te pasaste en una sesión de descarga"
+      : underSwim
+      ? "Podías haber apretado algo más en las series"
+      : "Sesión completada en zona óptima",
+    overallBadge: overdidSwim ? "Exceso" : underSwim ? "Suave" : "Óptima",
+    summaryNarrative: `Completados ${durMin ?? "—"} min${distKm ? ` (${Math.round(distKm * 1000)}m)` : ""}${avgHr ? ` con FC media ${avgHr} lpm` : ""}${rpe ? ` y RPE ${rpe}/10` : ""}.`,
+    overdidAnalysis: {
+      triggered: overdidSwim,
+      severity: overdidSwim ? "mild" : "none",
+      title: overdidSwim ? "Ritmo algo alto para descarga" : "Cero estrés articular",
+      detail: overdidSwim
+        ? `Era una sesión pensada para soltar (RPE 3-4) y subiste a RPE ${rpe ?? "—"}/10${avgHr ? ` (${avgHr} lpm)` : ""}.`
+        : "Excelente trabajo de descarga sin impacto gravitatorio sobre tendones y rodillas.",
+    },
+    pushMoreAnalysis: {
+      triggered: underSwim,
+      title: underSwim ? "Margen en el bloque principal" : isRecoverySwim ? "No tocaba apretar" : "Ritmo acuático sólido",
+      detail: underSwim
+        ? "Con pulso contenido, puedes bajar 3-5 segundos cada 100m en las series centrales la próxima semana."
+        : isRecoverySwim
+        ? "En días regenerativos en piscina el objetivo es fluir, no competir contra el reloj."
+        : "Buen equilibrio entre técnica de brazada y estímulo cardiovascular.",
+    },
+    nextStepTip: "Hidrátate bien al salir de la piscina (la pérdida de líquidos en agua también cuenta).",
+  };
+}
+
 export function buildUnifiedSessionDiagnostics(
   session: SessionRow,
   fitSummary?: FitSummary | null
 ): {
   structuredFeedback: FitStructuredFeedback;
+  coachFeedback: CoachSessionFeedback;
   zoneDistribution: FitZoneDistribution | null;
   hrZoneDistribution: FitHrZoneDistribution | null;
   laps: any[];
@@ -818,6 +1146,7 @@ export function buildUnifiedSessionDiagnostics(
 
     return {
       structuredFeedback: structured,
+      coachFeedback: buildCoachSessionFeedback(session, fitSummary),
       zoneDistribution: fitSummary.deepAnalysis?.zoneDistribution ?? null,
       hrZoneDistribution: fitSummary.deepAnalysis?.hrZoneDistribution ?? null,
       laps,
@@ -1061,6 +1390,7 @@ export function buildUnifiedSessionDiagnostics(
     isRealFit: false,
     timeSeries: plannedTimeSeries,
     pacingAnalysis: plannedPacingAnalysis,
+    coachFeedback: buildCoachSessionFeedback(session, fitSummary),
   };
 }
 
