@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listMenuForPhase, hasMenuImported, PHASE_MACROS, addMenuItem, bulkCreateMenuItems, clearMenuForPhase } from "@/lib/repo/menu";
+import { refreshDbFromBlobIfNewer } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
+  await refreshDbFromBlobIfNewer();
   const phase = Number(req.nextUrl.searchParams.get("phase") ?? "1");
   const items = listMenuForPhase(phase);
   return NextResponse.json({
