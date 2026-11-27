@@ -84,5 +84,15 @@ Toda sesión de natación en análisis, programación, almacenamiento (`sessions
 3. **Separación Limpia de Nutrición e Hidratación**:
    - Prohibido mezclar las recomendaciones de hidratación o ingesta de alimentos dentro de los bloques de series acuáticas. Las pautas de nutrición/hidratación van siempre en su propio bloque dedicado/desplegable.
 
+---
+
+# OBJETIVO SECUNDARIO DE HIPERTROFIA / ESTÉTICA (PERMANENTE)
+
+- **Objetivo Secundario Activo**: Ganar masa muscular y definición en **pectorales y abdominales** (core).
+- **Aplicación Práctica en el Plan**:
+  - Priorizar días de CrossFit/Box con empuje horizontal/inclinado (press banca, flexiones, fondos en anillas, aperturas) y trabajo de core directo (toes-to-bar, hollow hold, planchas, GHD/rueda abdominal), ya que **no generan impacto en piernas** ni interfieren con la preparación del Maratón de Madrid.
+  - En recomendaciones de accesorios post-entreno o sesiones de fuerza en casa/box, incluir progresiones seguras para pecho y abdomen sin comprometer la recuperación de carrera ni la postura escapular.
+
+
 
 

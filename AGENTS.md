@@ -104,4 +104,11 @@ Estas reglas tienen prioridad absoluta en cualquier tarea, modificación o gener
 3. **Separación Limpia de Nutrición e Hidratación**:
    - Prohibido mezclar las recomendaciones de hidratación o ingesta de alimentos dentro de los bloques de series acuáticas. Las pautas de nutrición/hidratación van siempre en su propio bloque dedicado/desplegable.
 
+---
+
+## 8. OBJETIVO SECUNDARIO DE HIPERTROFIA / ESTÉTICA (PECTORALES Y ABDOMINALES)
+
+- Dani tiene como **objetivo secundario activo** ganar masa muscular y definición en **pectorales y abdominales** (core).
+- Al recomendar días óptimos de CrossFit, rutinas de gimnasio o accesorios post-entreno, priorizar estímulos de empuje horizontal/inclinado (press banca, flexiones, fondos en anillas) y core directo (toes-to-bar, hollow hold, planchas, GHD) que son compatibles al 100% con el volumen de carrera hacia el Maratón de Madrid.
+
 
